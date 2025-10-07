@@ -9,6 +9,7 @@ import {
   messageHandler,
   sendMessage,
 } from "../shared/message-client.js";
+import { domAnalyzer } from "./dom-analyzer.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -68,12 +69,54 @@ class ContentScriptManager {
     // Handler for capture requests from service worker
     messageHandler.on("CAPTURE_REQUEST", async (payload) => {
       console.debug("[ContentScript] Received CAPTURE_REQUEST", payload);
-      // Will be implemented in content capture tasks
-      return {
-        status: "received",
-        url: this.state.pageUrl,
-        title: this.state.pageTitle,
-      };
+      
+      try {
+        // Use DOM analyzer to extract content based on mode
+        let capturedContent;
+        
+        switch (payload.mode) {
+          case "full-page":
+            capturedContent = {
+              metadata: domAnalyzer.extractMetadata(),
+              text: domAnalyzer.extractText(),
+              readability: domAnalyzer.analyzeReadability(),
+              structuredData: domAnalyzer.extractStructuredData(),
+            };
+            break;
+            
+          case "selection":
+            const selection = domAnalyzer.extractSelection();
+            if (!selection) {
+              throw new Error("No selection found");
+            }
+            capturedContent = {
+              metadata: domAnalyzer.extractMetadata(),
+              text: selection,
+              context: domAnalyzer.getSelectionContext(),
+            };
+            break;
+            
+          default:
+            // Will be implemented in content capture tasks
+            capturedContent = {
+              status: "received",
+              url: this.state.pageUrl,
+              title: this.state.pageTitle,
+            };
+        }
+        
+        return {
+          status: "success",
+          content: capturedContent,
+          timestamp: Date.now(),
+        };
+      } catch (error) {
+        console.error("[ContentScript] Capture failed", error);
+        return {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
     });
 
     // Handler for AI processing updates
@@ -184,6 +227,13 @@ class ContentScriptManager {
       title: this.state.pageTitle,
       domain: new URL(this.state.pageUrl).hostname,
     };
+  }
+
+  /**
+   * Get DOM analyzer instance
+   */
+  getDOMAnalyzer() {
+    return domAnalyzer;
   }
 
   /**
