@@ -8,7 +8,8 @@
  * Requirements: 4.1, 4.2, 4.4
  */
 
-import { AIManager, ProcessingOptions, AIResponse } from './ai-manager';
+import { AIManager, type ProcessingOptions, type AIResponse } from './ai-manager';
+import { CloudAIManager, GeminiModel } from './cloud-ai-manager';
 
 /**
  * Task complexity levels
@@ -350,14 +351,16 @@ export class DeviceCapabilityDetector {
  */
 export class HybridAIEngine {
   private aiManager: AIManager;
+  private cloudAIManager: CloudAIManager;
   private taskClassifier: TaskClassifier;
   private capabilityDetector: DeviceCapabilityDetector;
   private cachedCapabilities: DeviceCapabilities | null = null;
   private capabilitiesCacheTime: number = 0;
   private readonly CACHE_DURATION = 60000; // 1 minute
 
-  constructor(aiManager: AIManager) {
+  constructor(aiManager: AIManager, cloudAIManager?: CloudAIManager) {
     this.aiManager = aiManager;
+    this.cloudAIManager = cloudAIManager || new CloudAIManager();
     this.taskClassifier = new TaskClassifier();
     this.capabilityDetector = new DeviceCapabilityDetector();
   }
@@ -508,9 +511,11 @@ export class HybridAIEngine {
       const prompt = this.buildPrompt(task);
 
       // Process with Gemini Nano
-      const result = await this.aiManager.processPrompt(sessionId, prompt, {
-        signal: options?.signal
-      });
+      const result = await this.aiManager.processPrompt(
+        sessionId,
+        prompt,
+        options?.signal ? { signal: options.signal } : undefined
+      );
 
       const processingTime = performance.now() - startTime;
       const usage = this.aiManager.getSessionUsage(sessionId);
@@ -530,16 +535,81 @@ export class HybridAIEngine {
 
   /**
    * Process task in cloud with specified model
-   * Note: This is a placeholder - actual cloud integration will be implemented in task 4.3
+   * Requirement 4.3: Sanitize and encrypt content before cloud transmission
+   * Requirement 4.5: Use Gemini 2.5 Flash for large documents
+   * Requirement 4.6: Use Gemini 2.5 Pro for complex reasoning
    */
   private async processInCloud(
     task: Task,
     model: ProcessingLocation,
     options?: Partial<ProcessingOptions>
   ): Promise<AIResponse> {
-    // Placeholder for cloud processing
-    // This will be implemented in task 4.3
-    throw new Error('Cloud processing not yet implemented. Will be added in task 4.3');
+    const startTime = performance.now();
+
+    try {
+      // Check if cloud AI is available
+      if (!this.cloudAIManager.isAvailable()) {
+        throw new Error('Cloud AI not available. Please configure your Gemini API key.');
+      }
+
+      // Build prompt for the task
+      const prompt = this.buildPrompt(task);
+
+      // Process based on selected model
+      let response: AIResponse;
+
+      switch (model) {
+        case ProcessingLocation.GEMINI_PRO:
+          // Requirement 4.6: Use Gemini Pro for complex reasoning
+          console.log('Processing with Gemini 2.5 Pro (complex reasoning)');
+          response = await this.cloudAIManager.processWithRetry(
+            GeminiModel.PRO,
+            prompt,
+            {
+              ...(options?.signal && { signal: options.signal }),
+              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
+            }
+          );
+          break;
+
+        case ProcessingLocation.GEMINI_FLASH:
+          // Requirement 4.5: Use Gemini Flash for large documents
+          console.log('Processing with Gemini 2.5 Flash (balanced performance)');
+          response = await this.cloudAIManager.processWithRetry(
+            GeminiModel.FLASH,
+            prompt,
+            {
+              ...(options?.signal && { signal: options.signal }),
+              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
+            }
+          );
+          break;
+
+        case ProcessingLocation.GEMINI_FLASH_LITE:
+          // Use Flash-Lite for simple, high-volume tasks
+          console.log('Processing with Gemini 2.5 Flash-Lite (cost-efficient)');
+          response = await this.cloudAIManager.processWithRetry(
+            GeminiModel.FLASH_LITE,
+            prompt,
+            {
+              ...(options?.signal && { signal: options.signal }),
+              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
+            }
+          );
+          break;
+
+        default:
+          throw new Error(`Unsupported cloud model: ${model}`);
+      }
+
+      const totalTime = performance.now() - startTime;
+      console.log(`Cloud processing completed in ${totalTime.toFixed(2)}ms`);
+
+      return response;
+    } catch (error) {
+      console.error('Cloud processing failed:', error);
+      throw error;
+    }
   }
 
   /**
@@ -650,6 +720,9 @@ export class HybridAIEngine {
 }
 
 // Export singleton instance
-export const createHybridAIEngine = (aiManager: AIManager): HybridAIEngine => {
-  return new HybridAIEngine(aiManager);
+export const createHybridAIEngine = (
+  aiManager: AIManager,
+  cloudAIManager?: CloudAIManager
+): HybridAIEngine => {
+  return new HybridAIEngine(aiManager, cloudAIManager);
 };

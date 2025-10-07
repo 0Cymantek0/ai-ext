@@ -5,7 +5,7 @@
 
 import { getCryptoManager, type EncryptedData } from './crypto-manager.js';
 import { getStorageManager } from './storage-wrapper.js';
-import { indexedDBManager, type CapturedContent } from './indexeddb-manager.js';
+import { indexedDBManager, type CapturedContent, ContentType, ProcessingStatus } from './indexeddb-manager.js';
 
 /**
  * Example 1: Encrypting data before storing in chrome.storage.local
@@ -70,14 +70,14 @@ export async function saveSensitiveContent(
   // Save to IndexedDB with encrypted content
   const contentId = await indexedDBManager.saveContent({
     pocketId,
-    type: 'text' as const,
+    type: ContentType.TEXT,
     content: JSON.stringify(encrypted), // Store as JSON string
     metadata: {
       domain: new URL(sourceUrl).hostname,
       title: 'Encrypted Content',
     },
     sourceUrl,
-    processingStatus: 'completed' as const,
+    processingStatus: ProcessingStatus.COMPLETED,
   });
 
   console.log('Sensitive content encrypted and saved:', contentId);

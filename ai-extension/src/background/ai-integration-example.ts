@@ -107,9 +107,16 @@ export async function processStreamingPrompt(
     
     const stream = await aiManager.processPromptStreaming(defaultAISessionId, prompt);
     
-    // Process the stream
-    for await (const chunk of stream) {
-      onChunk(chunk);
+    // Process the stream using reader
+    const reader = stream.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        onChunk(value);
+      }
+    } finally {
+      reader.releaseLock();
     }
     
   } catch (error) {

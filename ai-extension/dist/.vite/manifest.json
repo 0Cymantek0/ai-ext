@@ -18,7 +18,7 @@
     "src": "_text-enhancer.ts-loader-NcaT-BzB.js"
   },
   "src/background/service-worker.ts": {
-    "file": "assets/serviceWorker-D9nLAkLE.js",
+    "file": "assets/serviceWorker-DzTvT0SF.js",
     "name": "serviceWorker",
     "src": "src/background/service-worker.ts",
     "isEntry": true

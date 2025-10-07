@@ -211,7 +211,7 @@ export class CryptoManager {
       const derivedKey = await crypto.subtle.deriveKey(
         {
           name: 'PBKDF2',
-          salt,
+          salt: new Uint8Array(salt.buffer as ArrayBuffer),
           iterations: this.keyDerivationConfig.iterations,
           hash: this.keyDerivationConfig.hash,
         },
@@ -284,7 +284,7 @@ export class CryptoManager {
       const ciphertextBuffer = await crypto.subtle.encrypt(
         {
           name: this.encryptionConfig.algorithm,
-          iv,
+          iv: new Uint8Array(iv.buffer as ArrayBuffer),
           tagLength: this.encryptionConfig.tagLength,
         },
         this.masterKey!,
@@ -294,8 +294,8 @@ export class CryptoManager {
       // Convert to base64 for storage
       const encryptedData: EncryptedData = {
         ciphertext: this.arrayBufferToBase64(ciphertextBuffer),
-        iv: this.arrayBufferToBase64(iv),
-        salt: this.arrayBufferToBase64(salt),
+        iv: this.arrayBufferToBase64(iv.buffer as ArrayBuffer),
+        salt: this.arrayBufferToBase64(salt.buffer as ArrayBuffer),
         algorithm: this.encryptionConfig.algorithm,
         version: 1,
       };
@@ -456,7 +456,7 @@ export class CryptoManager {
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
+      binary += String.fromCharCode(bytes[i]!);
     }
     return btoa(binary);
   }

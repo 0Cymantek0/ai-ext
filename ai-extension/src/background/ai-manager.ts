@@ -49,11 +49,16 @@ declare global {
     content: string;
   }
 
-  interface AIDownloadMonitor extends EventTarget {
+  interface AIDownloadMonitor {
     addEventListener(
       type: 'downloadprogress',
       listener: (event: AIDownloadProgressEvent) => void
     ): void;
+    removeEventListener(
+      type: 'downloadprogress',
+      listener: (event: AIDownloadProgressEvent) => void
+    ): void;
+    dispatchEvent(event: Event): boolean;
   }
 
   interface AIDownloadProgressEvent extends Event {
@@ -231,8 +236,8 @@ export class AIManager {
       const options: AISessionOptions = {
         topK: config?.topK ?? params.defaultTopK,
         temperature: config?.temperature ?? params.defaultTemperature,
-        signal: config?.signal,
-        initialPrompts: config?.initialPrompts,
+        ...(config?.signal && { signal: config.signal }),
+        ...(config?.initialPrompts && { initialPrompts: config.initialPrompts }),
       };
 
       // Add download monitor if callback provided
@@ -360,7 +365,7 @@ export class AIManager {
         throw new Error(`Session ${sessionId} not found`);
       }
 
-      const clonedSession = await session.clone({ signal });
+      const clonedSession = await session.clone(signal ? { signal } : undefined);
       const newSessionId = this.generateSessionId();
       this.sessions.set(newSessionId, clonedSession);
 

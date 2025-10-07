@@ -12,8 +12,8 @@ import {
   TaskOperation,
   TaskComplexity,
   ProcessingLocation,
-  Task,
-  ProcessingDecision
+  type Task,
+  type ProcessingDecision
 } from './hybrid-ai-engine';
 
 /**

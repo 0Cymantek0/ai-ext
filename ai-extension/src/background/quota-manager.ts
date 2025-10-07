@@ -5,7 +5,7 @@
  */
 
 import { logger } from './monitoring.js';
-import { getStorageManager, StorageQuota } from './storage-wrapper.js';
+import { getStorageManager, type StorageQuota } from './storage-wrapper.js';
 import { indexedDBManager, StoreName, ProcessingStatus } from './indexeddb-manager.js';
 
 /**

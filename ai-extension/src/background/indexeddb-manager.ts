@@ -318,7 +318,7 @@ export class IndexedDBManager {
       if (content) {
         const pocket = await this.promisifyRequest(tx.objectStore(StoreName.POCKETS).get(content.pocketId));
         if (pocket) {
-          pocket.contentIds = pocket.contentIds.filter((cid) => cid !== id);
+          pocket.contentIds = pocket.contentIds.filter((cid: string) => cid !== id);
           pocket.updatedAt = Date.now();
           await this.promisifyRequest(tx.objectStore(StoreName.POCKETS).put(pocket));
         }

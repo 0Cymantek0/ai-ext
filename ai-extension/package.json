@@ -29,6 +29,7 @@
   "type": "module",
   "private": true,
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "idb": "^8.0.3",
     "zod": "^3.25.76"
   },
