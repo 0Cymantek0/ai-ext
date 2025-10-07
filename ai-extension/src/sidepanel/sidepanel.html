@@ -1,16 +1,77 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI Pocket</title>
-    <link rel="stylesheet" href="../../styles/sidepanel.css" />
-    <link rel="stylesheet" href="../../styles/chat.css" />
-  </head>
-  <body>
-    <main id="app" role="main" aria-label="AI Pocket Assistant">
-      <!-- Chat interface will be initialized here -->
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>AI Pocket</title>
+  <link rel="stylesheet" href="../../styles/sidepanel.css" />
+  <link rel="stylesheet" href="../../styles/chat.css" />
+</head>
+
+<body data-theme="auto">
+  <!-- Side Panel Container -->
+  <div id="sidepanel-root" class="sidepanel-container">
+    <!-- Header Section -->
+    <header class="sidepanel-header" role="banner">
+      <div class="header-content">
+        <h1 class="sidepanel-title">AI Pocket</h1>
+        <div class="header-actions">
+          <button id="theme-toggle" class="icon-button" aria-label="Toggle theme" title="Toggle theme" type="button">
+            <span class="theme-icon" aria-hidden="true">🌓</span>
+          </button>
+          <button id="settings-button" class="icon-button" aria-label="Open settings" title="Settings" type="button">
+            <span class="settings-icon" aria-hidden="true">⚙️</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="sidepanel-nav" role="navigation" aria-label="Main navigation">
+        <div class="nav-tabs" role="tablist">
+          <button id="chat-tab" class="nav-tab active" role="tab" aria-selected="true" aria-controls="chat-panel"
+            type="button">
+            <span aria-hidden="true">💬</span>
+            <span>Chat</span>
+          </button>
+          <button id="pockets-tab" class="nav-tab" role="tab" aria-selected="false" aria-controls="pockets-panel"
+            type="button">
+            <span aria-hidden="true">📚</span>
+            <span>Pockets</span>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="app" class="sidepanel-main" role="main">
+      <!-- Chat Panel -->
+      <div id="chat-panel" class="panel-content active" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
+        <!-- Chat interface will be initialized here by TypeScript -->
+      </div>
+
+      <!-- Pockets Panel (Hidden by default) -->
+      <div id="pockets-panel" class="panel-content" role="tabpanel" aria-labelledby="pockets-tab" aria-hidden="true"
+        tabindex="0">
+        <div class="pockets-placeholder">
+          <p>📚 Pockets feature coming soon</p>
+        </div>
+      </div>
     </main>
-    <script type="module" src="./sidepanel.ts"></script>
-  </body>
+
+    <!-- Footer (Optional - for status or info) -->
+    <footer class="sidepanel-footer" role="contentinfo">
+      <div class="status-bar">
+        <span id="connection-status" class="status-indicator" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span class="status-text">Ready</span>
+        </span>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="./sidepanel.ts"></script>
+</body>
+
 </html>
