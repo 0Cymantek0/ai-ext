@@ -5,6 +5,7 @@
  */
 
 import { logger, performanceMonitor } from "./monitoring.js";
+import { getQuotaManager } from "./quota-manager.js";
 
 interface ServiceWorkerState {
   initialized: boolean;
@@ -45,6 +46,11 @@ class ServiceWorkerLifecycle {
 
       // Start performance monitoring (Requirement 13.1, 13.2)
       performanceMonitor.startMonitoring(30000); // Monitor every 30 seconds
+
+      // Initialize quota manager (Requirement 5.8, 13.1, 13.9)
+      const quotaManager = getQuotaManager();
+      await quotaManager.initialize();
+      quotaManager.startMonitoring(60000); // Monitor every 60 seconds
 
       // Mark as initialized
       this.state.initialized = true;
@@ -170,6 +176,10 @@ class ServiceWorkerLifecycle {
 
       // Stop performance monitoring
       performanceMonitor.stopMonitoring();
+
+      // Stop quota monitoring
+      const quotaManager = getQuotaManager();
+      quotaManager.stopMonitoring();
 
       // Persist final state
       await this.persistState();
@@ -642,6 +652,29 @@ globalThis.addEventListener("memory-cleanup-needed", (event: Event) => {
   performCleanup();
 });
 
+// Quota event listener (Requirement 5.8, 13.1, 13.9)
+globalThis.addEventListener("quota-event", (event: Event) => {
+  const customEvent = event as CustomEvent;
+  const { type, data } = customEvent.detail;
+
+  logger.info("ServiceWorker", `Quota event: ${type}`, data);
+
+  // Handle critical storage events
+  if (type === "critical") {
+    // Notify user about storage issues
+    chrome.notifications.create({
+      type: "basic",
+      iconUrl: "icons/icon-128.png",
+      title: "Storage Almost Full",
+      message: "AI Pocket is running low on storage. Some old data has been cleaned up automatically.",
+    }).catch((error) => {
+      logger.error("ServiceWorker", "Failed to create notification", error);
+    });
+  } else if (type === "warning") {
+    logger.warn("ServiceWorker", "Storage warning threshold exceeded", data);
+  }
+});
+
 /**
  * Perform memory cleanup operations
  * Requirements: 13.7, 13.9
@@ -662,6 +695,14 @@ async function performCleanup(): Promise<void> {
     if (summary.totalMetrics > 300) {
       logger.info("ServiceWorker", "Clearing old metrics");
       // Metrics are automatically trimmed in the PerformanceMonitor class
+    }
+
+    // Trigger quota cleanup if memory usage is high
+    const quotaManager = getQuotaManager();
+    const usage = await quotaManager.getTotalUsage();
+    if (usage.total.percentUsed > 80) {
+      logger.info("ServiceWorker", "Triggering quota cleanup due to high memory usage");
+      await quotaManager.performCleanup("warning");
     }
 
     // Force garbage collection if available (Chrome only)
