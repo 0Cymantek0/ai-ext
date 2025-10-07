@@ -1,0 +1,75 @@
+{
+  "manifest_version": 3,
+  "name": "AI Pocket",
+  "description": "Capture, organize, and interact with web content using hybrid AI.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "120",
+  "action": {
+    "default_title": "AI Pocket"
+  },
+  "background": {
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "sidePanel",
+    "offscreen",
+    "downloads",
+    "notifications",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "side_panel": {
+    "default_path": "src/sidepanel/sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "assets/content-main.ts-CgzIYCEU.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "js": [
+        "assets/text-enhancer.ts-loader-NcaT-BzB.js",
+        "assets/abbreviation-manager.ts-loader-QRduskW7.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "resources": [
+        "src/sidepanel/*",
+        "assets/*",
+        "styles/*",
+        "assets/content-main.ts-CgzIYCEU.js",
+        "assets/text-enhancer.ts-B3GuErnX.js",
+        "assets/abbreviation-manager.ts-CKBx_WQX.js"
+      ],
+      "use_dynamic_url": false
+    }
+  ],
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
+}

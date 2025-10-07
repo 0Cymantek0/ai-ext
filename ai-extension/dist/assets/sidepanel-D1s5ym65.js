@@ -1,0 +1,1 @@
+import"./modulepreload-polyfill-B5Qt9EMX.js";console.info("AI Pocket side panel initialized");const n=document.getElementById("app");if(n){const e=document.createElement("div");e.textContent="Side panel is ready.",n.appendChild(e)}chrome.runtime.sendMessage({kind:"SIDE_PANEL_READY"});
