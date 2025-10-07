@@ -12,6 +12,7 @@ import {
 import { domAnalyzer } from "./dom-analyzer.js";
 import { contentSanitizer } from "./content-sanitizer.js";
 import { fullPageCapture, textCapture } from "./content-capture.js";
+import { elementSelector } from "./element-selector.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -46,6 +47,9 @@ class ContentScriptManager {
 
       // Set up page lifecycle listeners
       this.setupLifecycleListeners();
+
+      // Set up element selector event listeners
+      this.setupElementSelectorListeners();
 
       // Notify service worker that content script is ready
       await this.notifyReady();
@@ -94,6 +98,15 @@ class ContentScriptManager {
             });
             break;
             
+          case "element":
+            // Enable element selector mode
+            elementSelector.enableSelectionMode();
+            // Return immediately - actual capture happens when user confirms
+            return {
+              status: "element-selection-active",
+              message: "Element selection mode enabled. Select elements and click Capture.",
+            };
+            
           default:
             // Will be implemented in future content capture tasks
             capturedContent = {
@@ -124,7 +137,77 @@ class ContentScriptManager {
       return { acknowledged: true };
     });
 
+    // Handler for enabling element selector
+    messageHandler.on("ENABLE_ELEMENT_SELECTOR", async () => {
+      console.debug("[ContentScript] Received ENABLE_ELEMENT_SELECTOR");
+      
+      try {
+        elementSelector.enableSelectionMode();
+        return {
+          status: "success",
+          message: "Element selection mode enabled",
+        };
+      } catch (error) {
+        console.error("[ContentScript] Failed to enable element selector", error);
+        return {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    });
+
+    // Handler for disabling element selector
+    messageHandler.on("DISABLE_ELEMENT_SELECTOR", async () => {
+      console.debug("[ContentScript] Received DISABLE_ELEMENT_SELECTOR");
+      
+      try {
+        elementSelector.disableSelectionMode();
+        return {
+          status: "success",
+          message: "Element selection mode disabled",
+        };
+      } catch (error) {
+        console.error("[ContentScript] Failed to disable element selector", error);
+        return {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    });
+
     console.debug("[ContentScript] Message handlers registered");
+  }
+
+  /**
+   * Set up element selector event listeners
+   */
+  private setupElementSelectorListeners(): void {
+    // Listen for element capture completion
+    window.addEventListener("ai-pocket-elements-captured", async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { elements, count, timestamp } = customEvent.detail;
+
+      console.info("[ContentScript] Elements captured", { count, timestamp });
+
+      try {
+        // Send captured elements to service worker
+        const response = await sendMessage("CAPTURE_RESULT", {
+          status: "success",
+          content: elements,
+          mode: "element",
+          count,
+          timestamp,
+        });
+
+        if (!response.success) {
+          console.error("[ContentScript] Failed to send captured elements", response.error);
+        }
+      } catch (error) {
+        console.error("[ContentScript] Error sending captured elements", error);
+      }
+    });
+
+    console.debug("[ContentScript] Element selector listeners set up");
   }
 
   /**

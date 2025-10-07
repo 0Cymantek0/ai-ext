@@ -14,6 +14,8 @@ export type MessageKind =
   | "POCKET_CREATE"
   | "POCKET_UPDATE"
   | "POCKET_LIST"
+  | "ENABLE_ELEMENT_SELECTOR"
+  | "DISABLE_ELEMENT_SELECTOR"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
