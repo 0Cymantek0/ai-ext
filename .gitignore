@@ -10,7 +10,7 @@
 /research/
 /prompt.md
 /ai-extension/node_modules/
-/dist/
+/ai-extension/dist/
 /build/
 /dist.zip
 /dist.tar.gz
@@ -52,3 +52,9 @@ ai-extension/STREAMING-FLOW.md
 ai-extension/src/content/CONTENT-SCRIPT.md
 ai-extension/TASK-5.1-SUMMARY.md
 ai-extension/ai_docs/
+.vscode
+/ai_docs
+ai-extension/dist
+ai-extension/icons
+/ai-extension/dist
+/ai-extension/icons
