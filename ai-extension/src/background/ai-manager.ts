@@ -7,9 +7,12 @@
  * - Session initialization and lifecycle management
  * - Prompt processing (streaming and non-streaming)
  * - Token usage tracking
+ * - Performance monitoring
  * 
- * Requirements: 3.1, 3.2, 3.3
+ * Requirements: 3.1, 3.2, 3.3, 13.1, 16.2
  */
+
+import { aiPerformanceMonitor, AIModel, AIOperation } from './ai-performance-monitor';
 
 // Type definitions for Chrome's Prompt API
 declare global {
@@ -283,6 +286,8 @@ export class AIManager {
   /**
    * Process a prompt with Gemini Nano (non-streaming)
    * Requirement 3.3: Process content locally
+   * Requirement 13.1: Track response times
+   * Requirement 16.2: Monitor token usage
    * 
    * @param sessionId Session ID
    * @param prompt The prompt text
@@ -292,37 +297,51 @@ export class AIManager {
   async processPrompt(
     sessionId: string,
     prompt: string,
-    options?: { signal?: AbortSignal }
+    options?: { signal?: AbortSignal; operation?: AIOperation }
   ): Promise<string> {
-    const startTime = performance.now();
+    const operation = options?.operation || AIOperation.GENERAL;
 
-    try {
-      const session = this.sessions.get(sessionId);
-      if (!session) {
-        throw new Error(`Session ${sessionId} not found`);
+    // Use performance monitor to track the operation
+    return aiPerformanceMonitor.measureOperation(
+      AIModel.GEMINI_NANO,
+      operation,
+      async () => {
+        const startTime = performance.now();
+
+        try {
+          const session = this.sessions.get(sessionId);
+          if (!session) {
+            throw new Error(`Session ${sessionId} not found`);
+          }
+
+          // Process the prompt
+          const result = await session.prompt(prompt, options);
+          
+          const processingTime = performance.now() - startTime;
+          
+          // Requirement 3.9: Response time should be under 500ms for simple tasks
+          if (processingTime > 500) {
+            console.warn(
+              `Processing took ${processingTime.toFixed(2)}ms (>500ms threshold)`
+            );
+          }
+
+          // Get token usage
+          const usage = this.getSessionUsage(sessionId);
+
+          // Return result with token info for monitoring
+          return result;
+        } catch (error) {
+          console.error('Error processing prompt:', error);
+          throw new Error(`Failed to process prompt: ${error}`);
+        }
       }
-
-      // Process the prompt
-      const result = await session.prompt(prompt, options);
-      
-      const processingTime = performance.now() - startTime;
-      
-      // Requirement 3.9: Response time should be under 500ms for simple tasks
-      if (processingTime > 500) {
-        console.warn(
-          `Processing took ${processingTime.toFixed(2)}ms (>500ms threshold)`
-        );
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Error processing prompt:', error);
-      throw new Error(`Failed to process prompt: ${error}`);
-    }
+    );
   }
 
   /**
    * Process a prompt with streaming response
+   * Requirement 13.1: Track response times for streaming operations
    * 
    * @param sessionId Session ID
    * @param prompt The prompt text
@@ -332,17 +351,86 @@ export class AIManager {
   async processPromptStreaming(
     sessionId: string,
     prompt: string,
-    options?: { signal?: AbortSignal }
+    options?: { signal?: AbortSignal; operation?: AIOperation }
   ): Promise<ReadableStream<string>> {
+    const startTime = performance.now();
+    const operation = options?.operation || AIOperation.GENERAL;
+
     try {
       const session = this.sessions.get(sessionId);
       if (!session) {
         throw new Error(`Session ${sessionId} not found`);
       }
 
-      return session.promptStreaming(prompt, options);
+      const stream = session.promptStreaming(prompt, options);
+
+      // Wrap the stream to track completion time and tokens
+      const transformedStream = new ReadableStream<string>({
+        async start(controller) {
+          const reader = stream.getReader();
+          let totalChunks = 0;
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              
+              if (done) {
+                // Stream completed - record metrics
+                const processingTime = performance.now() - startTime;
+                const usage = session.inputUsage || 0;
+
+                aiPerformanceMonitor.recordOperation({
+                  success: true,
+                  model: AIModel.GEMINI_NANO,
+                  operation,
+                  responseTime: processingTime,
+                  tokensUsed: usage,
+                  timestamp: Date.now(),
+                });
+
+                controller.close();
+                break;
+              }
+
+              totalChunks++;
+              controller.enqueue(value);
+            }
+          } catch (error) {
+            // Stream failed - record error
+            const processingTime = performance.now() - startTime;
+
+            aiPerformanceMonitor.recordOperation({
+              success: false,
+              model: AIModel.GEMINI_NANO,
+              operation,
+              responseTime: processingTime,
+              tokensUsed: 0,
+              error: error instanceof Error ? error.message : 'Unknown error',
+              timestamp: Date.now(),
+            });
+
+            controller.error(error);
+          } finally {
+            reader.releaseLock();
+          }
+        },
+      });
+
+      return transformedStream;
     } catch (error) {
       console.error('Error processing streaming prompt:', error);
+      
+      // Record failed operation
+      aiPerformanceMonitor.recordOperation({
+        success: false,
+        model: AIModel.GEMINI_NANO,
+        operation,
+        responseTime: performance.now() - startTime,
+        tokensUsed: 0,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: Date.now(),
+      });
+
       throw new Error(`Failed to process streaming prompt: ${error}`);
     }
   }

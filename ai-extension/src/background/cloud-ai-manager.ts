@@ -9,13 +9,15 @@
  * - Content sanitization (PII removal)
  * - Request/response handling
  * - Token usage tracking
+ * - Performance monitoring
  * - Error handling and retry logic
  * 
- * Requirements: 4.3, 4.5, 4.6
+ * Requirements: 4.3, 4.5, 4.6, 13.1, 16.2
  */
 
 import { GoogleGenerativeAI, GenerativeModel, type GenerateContentResult } from '@google/generative-ai';
 import type { AIResponse } from './ai-manager';
+import { aiPerformanceMonitor, AIModel, AIOperation } from './ai-performance-monitor';
 
 /**
  * Gemini model types
@@ -213,6 +215,8 @@ export class CloudAIManager {
 
   /**
    * Process content with specified model
+   * Requirement 13.1: Track response times
+   * Requirement 16.2: Monitor token usage
    * 
    * @param modelType Model to use
    * @param prompt Prompt to process
@@ -222,73 +226,100 @@ export class CloudAIManager {
   private async processWithModel(
     modelType: GeminiModel,
     prompt: string,
-    options?: CloudProcessingOptions
+    options?: CloudProcessingOptions & { operation?: AIOperation }
   ): Promise<AIResponse> {
-    const startTime = performance.now();
+    const aiModel = this.mapGeminiModelToAIModel(modelType);
+    const operation = options?.operation || AIOperation.GENERAL;
 
-    if (!this.isAvailable()) {
-      throw new Error('Cloud AI not available. Please check API key configuration.');
-    }
+    // Use performance monitor to track the operation
+    return aiPerformanceMonitor.measureOperation(
+      aiModel,
+      operation,
+      async () => {
+        const startTime = performance.now();
 
-    try {
-      // Sanitize content before sending
-      const sanitizedPrompt = this.sanitizeContent(prompt);
+        if (!this.isAvailable()) {
+          throw new Error('Cloud AI not available. Please check API key configuration.');
+        }
 
-      // Get the model
-      const model = this.getModel(options?.model || modelType);
+        try {
+          // Sanitize content before sending
+          const sanitizedPrompt = this.sanitizeContent(prompt);
 
-      // Prepare generation config
-      const generationConfig: any = {};
-      if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
-      if (options?.topK !== undefined) generationConfig.topK = options.topK;
-      if (options?.topP !== undefined) generationConfig.topP = options.topP;
-      if (options?.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = options.maxOutputTokens;
+          // Get the model
+          const model = this.getModel(options?.model || modelType);
 
-      // Generate content
-      const result: GenerateContentResult = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: sanitizedPrompt }] }],
-        generationConfig: Object.keys(generationConfig).length > 0 ? generationConfig : undefined,
-      });
+          // Prepare generation config
+          const generationConfig: any = {};
+          if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
+          if (options?.topK !== undefined) generationConfig.topK = options.topK;
+          if (options?.topP !== undefined) generationConfig.topP = options.topP;
+          if (options?.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = options.maxOutputTokens;
 
-      const response = result.response;
-      const text = response.text();
+          // Generate content
+          const result: GenerateContentResult = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: sanitizedPrompt }] }],
+            generationConfig: Object.keys(generationConfig).length > 0 ? generationConfig : undefined,
+          });
 
-      // Calculate processing time
-      const processingTime = performance.now() - startTime;
+          const response = result.response;
+          const text = response.text();
 
-      // Extract token usage if available
-      const tokensUsed = this.extractTokenUsage(result);
+          // Calculate processing time
+          const processingTime = performance.now() - startTime;
 
-      // Map model type to source
-      const source = this.mapModelToSource(modelType);
+          // Extract token usage if available
+          const tokensUsed = this.extractTokenUsage(result);
 
-      return {
-        result: text,
-        source,
-        confidence: 0.95, // Cloud models generally have high confidence
-        processingTime,
-        tokensUsed
-      };
-    } catch (error) {
-      console.error(`Error processing with ${modelType}:`, error);
-      
-      // Handle specific error types
-      if (error instanceof Error) {
-        if (error.message.includes('API key')) {
-          throw new Error('Invalid API key. Please check your Gemini API key configuration.');
-        } else if (error.message.includes('quota')) {
-          throw new Error('API quota exceeded. Please check your usage limits.');
-        } else if (error.message.includes('rate limit')) {
-          throw new Error('Rate limit exceeded. Please try again later.');
+          // Map model type to source
+          const source = this.mapModelToSource(modelType);
+
+          return {
+            result: text,
+            source,
+            confidence: 0.95, // Cloud models generally have high confidence
+            processingTime,
+            tokensUsed
+          };
+        } catch (error) {
+          console.error(`Error processing with ${modelType}:`, error);
+          
+          // Handle specific error types
+          if (error instanceof Error) {
+            if (error.message.includes('API key')) {
+              throw new Error('Invalid API key. Please check your Gemini API key configuration.');
+            } else if (error.message.includes('quota')) {
+              throw new Error('API quota exceeded. Please check your usage limits.');
+            } else if (error.message.includes('rate limit')) {
+              throw new Error('Rate limit exceeded. Please try again later.');
+            }
+          }
+
+          throw new Error(`Cloud AI processing failed: ${error}`);
         }
       }
+    );
+  }
 
-      throw new Error(`Cloud AI processing failed: ${error}`);
+  /**
+   * Map GeminiModel to AIModel for monitoring
+   */
+  private mapGeminiModelToAIModel(modelType: GeminiModel): AIModel {
+    switch (modelType) {
+      case GeminiModel.FLASH:
+        return AIModel.GEMINI_FLASH;
+      case GeminiModel.FLASH_LITE:
+        return AIModel.GEMINI_FLASH_LITE;
+      case GeminiModel.PRO:
+        return AIModel.GEMINI_PRO;
+      default:
+        return AIModel.GEMINI_FLASH;
     }
   }
 
   /**
    * Process content with streaming response
+   * Requirement 13.1: Track response times for streaming operations
    * 
    * @param modelType Model to use
    * @param prompt Prompt to process
@@ -298,8 +329,13 @@ export class CloudAIManager {
   async *processWithModelStreaming(
     modelType: GeminiModel,
     prompt: string,
-    options?: CloudProcessingOptions
+    options?: CloudProcessingOptions & { operation?: AIOperation }
   ): AsyncGenerator<string, void, unknown> {
+    const startTime = performance.now();
+    const aiModel = this.mapGeminiModelToAIModel(modelType);
+    const operation = options?.operation || AIOperation.GENERAL;
+    let totalTokens = 0;
+
     if (!this.isAvailable()) {
       throw new Error('Cloud AI not available. Please check API key configuration.');
     }
@@ -329,7 +365,34 @@ export class CloudAIManager {
         const chunkText = chunk.text();
         yield chunkText;
       }
+
+      // After streaming completes, get final token usage
+      const finalResponse = await result.response;
+      totalTokens = this.extractTokenUsage({ response: finalResponse } as GenerateContentResult);
+
+      // Record successful operation
+      const processingTime = performance.now() - startTime;
+      aiPerformanceMonitor.recordOperation({
+        success: true,
+        model: aiModel,
+        operation,
+        responseTime: processingTime,
+        tokensUsed: totalTokens,
+        timestamp: Date.now(),
+      });
     } catch (error) {
+      // Record failed operation
+      const processingTime = performance.now() - startTime;
+      aiPerformanceMonitor.recordOperation({
+        success: false,
+        model: aiModel,
+        operation,
+        responseTime: processingTime,
+        tokensUsed: totalTokens,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: Date.now(),
+      });
+
       console.error(`Error streaming with ${modelType}:`, error);
       throw new Error(`Cloud AI streaming failed: ${error}`);
     }

@@ -5,11 +5,12 @@
  * It analyzes task complexity, device capabilities, and user preferences to determine
  * whether to use on-device Gemini Nano or cloud-based Gemini models.
  * 
- * Requirements: 4.1, 4.2, 4.4
+ * Requirements: 4.1, 4.2, 4.4, 13.1, 16.2
  */
 
 import { AIManager, type ProcessingOptions, type AIResponse } from './ai-manager';
 import { CloudAIManager, GeminiModel } from './cloud-ai-manager';
+import { aiPerformanceMonitor, AIModel } from './ai-performance-monitor';
 
 /**
  * Task complexity levels
@@ -369,6 +370,7 @@ export class HybridAIEngine {
    * Determine optimal processing location for a task
    * Requirement 4.1: Intelligently determine if cloud processing is needed
    * Requirement 4.4: Select appropriate Gemini model based on task complexity
+   * Requirement 13.1: Track model selection decisions
    * 
    * @param task Task to process
    * @param options Processing options
@@ -429,6 +431,10 @@ export class HybridAIEngine {
       reason = 'Using local processing as fallback';
     }
 
+    // Record model selection decision for monitoring
+    const aiModel = this.mapProcessingLocationToAIModel(location);
+    aiPerformanceMonitor.recordModelSelection(aiModel, reason);
+
     return {
       location,
       reason,
@@ -436,6 +442,24 @@ export class HybridAIEngine {
       estimatedTokens,
       complexity
     };
+  }
+
+  /**
+   * Map ProcessingLocation to AIModel for monitoring
+   */
+  private mapProcessingLocationToAIModel(location: ProcessingLocation): AIModel {
+    switch (location) {
+      case ProcessingLocation.GEMINI_NANO:
+        return AIModel.GEMINI_NANO;
+      case ProcessingLocation.GEMINI_FLASH:
+        return AIModel.GEMINI_FLASH;
+      case ProcessingLocation.GEMINI_FLASH_LITE:
+        return AIModel.GEMINI_FLASH_LITE;
+      case ProcessingLocation.GEMINI_PRO:
+        return AIModel.GEMINI_PRO;
+      default:
+        return AIModel.GEMINI_NANO;
+    }
   }
 
   /**
