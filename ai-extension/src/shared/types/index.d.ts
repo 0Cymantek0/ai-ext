@@ -1,6 +1,8 @@
 export type MessageKind =
   | "CAPTURE_REQUEST"
   | "CAPTURE_RESULT"
+  | "SCREENSHOT_REQUEST"
+  | "SCREENSHOT_RESULT"
   | "AI_PROCESS_REQUEST"
   | "AI_PROCESS_UPDATE"
   | "AI_PROCESS_RESULT"
@@ -60,4 +62,15 @@ export interface AiStreamErrorPayload {
 
 export interface AiCancelRequestPayload {
   requestId: string;
+}
+
+export interface ScreenshotRequestPayload {
+  format?: "png" | "jpeg";
+  quality?: number;
+}
+
+export interface ScreenshotResultPayload {
+  screenshot: string;
+  format: string;
+  timestamp: number;
 }

@@ -30,7 +30,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content-main.ts-loader-CkEn3AsJ.js"
+        "assets/content-main.ts-loader-C98dYRvI.js"
       ],
       "matches": [
         "<all_urls>"
@@ -59,7 +59,7 @@
         "src/sidepanel/*",
         "assets/*",
         "styles/*",
-        "assets/content-main.ts-Cq-Oq4iB.js",
+        "assets/content-main.ts-D-w5oA-m.js",
         "assets/text-enhancer.ts-B3GuErnX.js",
         "assets/abbreviation-manager.ts-CKBx_WQX.js"
       ],

@@ -11,6 +11,7 @@ import {
 } from "../shared/message-client.js";
 import { domAnalyzer } from "./dom-analyzer.js";
 import { contentSanitizer } from "./content-sanitizer.js";
+import { fullPageCapture } from "./content-capture.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -72,27 +73,18 @@ class ContentScriptManager {
       console.debug("[ContentScript] Received CAPTURE_REQUEST", payload);
       
       try {
-        // Use DOM analyzer to extract content based on mode
+        // Use content capture module to extract content based on mode
         let capturedContent;
         
         switch (payload.mode) {
           case "full-page":
-            const fullPageText = domAnalyzer.extractText();
-            const sanitizedFullPage = contentSanitizer.sanitize(fullPageText.content);
-            
-            capturedContent = {
-              metadata: domAnalyzer.extractMetadata(),
-              text: {
-                ...fullPageText,
-                content: sanitizedFullPage.sanitizedContent,
-              },
-              readability: domAnalyzer.analyzeReadability(),
-              structuredData: domAnalyzer.extractStructuredData(),
-              sanitization: {
-                detectedPII: sanitizedFullPage.detectedPII.length,
-                redactionCount: sanitizedFullPage.redactionCount,
-              },
-            };
+            // Use the new full page capture implementation
+            capturedContent = await fullPageCapture.captureFullPage({
+              includeScreenshot: true,
+              sanitizeContent: true,
+              includeReadability: true,
+              includeStructuredData: true,
+            });
             break;
             
           case "selection":
@@ -118,7 +110,7 @@ class ContentScriptManager {
             break;
             
           default:
-            // Will be implemented in content capture tasks
+            // Will be implemented in future content capture tasks
             capturedContent = {
               status: "received",
               url: this.state.pageUrl,
