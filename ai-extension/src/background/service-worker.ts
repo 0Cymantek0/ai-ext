@@ -602,6 +602,48 @@ messageRouter.registerHandler("ERROR", async (payload) => {
   return { acknowledged: true };
 });
 
+// Screenshot capture handler
+// Requirements: 2.5
+messageRouter.registerHandler("SCREENSHOT_REQUEST", async (payload: any, sender) => {
+  logger.info("Handler", "SCREENSHOT_REQUEST", payload);
+  
+  try {
+    // Get the tab ID from sender
+    const tabId = sender.tab?.id;
+    if (!tabId) {
+      throw new Error("No tab ID available for screenshot");
+    }
+
+    // Capture visible tab using Chrome API
+    const format = payload.format === "jpeg" ? "jpeg" : "png";
+    const quality = payload.quality || 90;
+
+    // Get the window ID for the tab
+    const tab = await chrome.tabs.get(tabId);
+    const windowId = tab.windowId;
+
+    const dataUrl = await chrome.tabs.captureVisibleTab(windowId, {
+      format: format as "png" | "jpeg",
+      quality: format === "jpeg" ? quality : undefined,
+    });
+
+    logger.debug("Handler", "Screenshot captured", {
+      tabId,
+      format,
+      size: dataUrl.length,
+    });
+
+    return {
+      screenshot: dataUrl,
+      format,
+      timestamp: Date.now(),
+    };
+  } catch (error) {
+    logger.error("Handler", "Screenshot capture failed", error);
+    throw error;
+  }
+});
+
 // Initialize AI managers for streaming
 const aiManager = new AIManager();
 const cloudAIManager = new CloudAIManager();

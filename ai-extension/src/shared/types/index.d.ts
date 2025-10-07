@@ -1,6 +1,8 @@
 export type MessageKind =
   | "CAPTURE_REQUEST"
   | "CAPTURE_RESULT"
+  | "SCREENSHOT_REQUEST"
+  | "SCREENSHOT_RESULT"
   | "AI_PROCESS_REQUEST"
   | "AI_PROCESS_UPDATE"
   | "AI_PROCESS_RESULT"
@@ -12,6 +14,8 @@ export type MessageKind =
   | "POCKET_CREATE"
   | "POCKET_UPDATE"
   | "POCKET_LIST"
+  | "ENABLE_ELEMENT_SELECTOR"
+  | "DISABLE_ELEMENT_SELECTOR"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -21,7 +25,7 @@ export interface BaseMessage<K extends MessageKind, T> {
 }
 
 export interface CaptureRequestPayload {
-  mode: "full-page" | "selection" | "element" | "note";
+  mode: "full-page" | "selection" | "element" | "note" | "media";
   pocketId: string;
 }
 
@@ -60,4 +64,15 @@ export interface AiStreamErrorPayload {
 
 export interface AiCancelRequestPayload {
   requestId: string;
+}
+
+export interface ScreenshotRequestPayload {
+  format?: "png" | "jpeg";
+  quality?: number;
+}
+
+export interface ScreenshotResultPayload {
+  screenshot: string;
+  format: string;
+  timestamp: number;
 }

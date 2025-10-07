@@ -9,9 +9,9 @@
     "file": "assets/abbreviation-manager.ts-loader-QRduskW7.js",
     "src": "_abbreviation-manager.ts-loader-QRduskW7.js"
   },
-  "_content-main.ts-loader-CkEn3AsJ.js": {
-    "file": "assets/content-main.ts-loader-CkEn3AsJ.js",
-    "src": "_content-main.ts-loader-CkEn3AsJ.js"
+  "_content-main.ts-loader-kmaeHLKY.js": {
+    "file": "assets/content-main.ts-loader-kmaeHLKY.js",
+    "src": "_content-main.ts-loader-kmaeHLKY.js"
   },
   "_modulepreload-polyfill-B5Qt9EMX.js": {
     "file": "assets/modulepreload-polyfill-B5Qt9EMX.js",
@@ -22,7 +22,7 @@
     "src": "_text-enhancer.ts-loader-NcaT-BzB.js"
   },
   "src/background/service-worker.ts": {
-    "file": "assets/serviceWorker-CJYdrANX.js",
+    "file": "assets/serviceWorker-vUrx7oV7.js",
     "name": "serviceWorker",
     "src": "src/background/service-worker.ts",
     "isEntry": true
@@ -34,7 +34,7 @@
     "isEntry": true
   },
   "src/content/content-main.ts": {
-    "file": "assets/content-main.ts-Cq-Oq4iB.js",
+    "file": "assets/content-main.ts-3I2s-VI4.js",
     "name": "content-main.ts",
     "src": "src/content/content-main.ts",
     "isEntry": true
