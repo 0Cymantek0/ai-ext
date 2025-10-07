@@ -10,6 +10,7 @@ import {
   sendMessage,
 } from "../shared/message-client.js";
 import { domAnalyzer } from "./dom-analyzer.js";
+import { contentSanitizer } from "./content-sanitizer.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -76,11 +77,21 @@ class ContentScriptManager {
         
         switch (payload.mode) {
           case "full-page":
+            const fullPageText = domAnalyzer.extractText();
+            const sanitizedFullPage = contentSanitizer.sanitize(fullPageText.content);
+            
             capturedContent = {
               metadata: domAnalyzer.extractMetadata(),
-              text: domAnalyzer.extractText(),
+              text: {
+                ...fullPageText,
+                content: sanitizedFullPage.sanitizedContent,
+              },
               readability: domAnalyzer.analyzeReadability(),
               structuredData: domAnalyzer.extractStructuredData(),
+              sanitization: {
+                detectedPII: sanitizedFullPage.detectedPII.length,
+                redactionCount: sanitizedFullPage.redactionCount,
+              },
             };
             break;
             
@@ -89,10 +100,20 @@ class ContentScriptManager {
             if (!selection) {
               throw new Error("No selection found");
             }
+            
+            const sanitizedSelection = contentSanitizer.sanitize(selection.content);
+            
             capturedContent = {
               metadata: domAnalyzer.extractMetadata(),
-              text: selection,
+              text: {
+                ...selection,
+                content: sanitizedSelection.sanitizedContent,
+              },
               context: domAnalyzer.getSelectionContext(),
+              sanitization: {
+                detectedPII: sanitizedSelection.detectedPII.length,
+                redactionCount: sanitizedSelection.redactionCount,
+              },
             };
             break;
             
