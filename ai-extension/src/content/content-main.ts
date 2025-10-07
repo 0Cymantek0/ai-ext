@@ -11,6 +11,8 @@ import {
 } from "../shared/message-client.js";
 import { domAnalyzer } from "./dom-analyzer.js";
 import { contentSanitizer } from "./content-sanitizer.js";
+import { fullPageCapture, textCapture, mediaCapture } from "./content-capture.js";
+import { elementSelector } from "./element-selector.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -46,6 +48,9 @@ class ContentScriptManager {
       // Set up page lifecycle listeners
       this.setupLifecycleListeners();
 
+      // Set up element selector event listeners
+      this.setupElementSelectorListeners();
+
       // Notify service worker that content script is ready
       await this.notifyReady();
 
@@ -72,53 +77,55 @@ class ContentScriptManager {
       console.debug("[ContentScript] Received CAPTURE_REQUEST", payload);
       
       try {
-        // Use DOM analyzer to extract content based on mode
+        // Use content capture module to extract content based on mode
         let capturedContent;
         
         switch (payload.mode) {
           case "full-page":
-            const fullPageText = domAnalyzer.extractText();
-            const sanitizedFullPage = contentSanitizer.sanitize(fullPageText.content);
-            
-            capturedContent = {
-              metadata: domAnalyzer.extractMetadata(),
-              text: {
-                ...fullPageText,
-                content: sanitizedFullPage.sanitizedContent,
-              },
-              readability: domAnalyzer.analyzeReadability(),
-              structuredData: domAnalyzer.extractStructuredData(),
-              sanitization: {
-                detectedPII: sanitizedFullPage.detectedPII.length,
-                redactionCount: sanitizedFullPage.redactionCount,
-              },
-            };
+            // Use the new full page capture implementation
+            capturedContent = await fullPageCapture.captureFullPage({
+              includeScreenshot: true,
+              sanitizeContent: true,
+              includeReadability: true,
+              includeStructuredData: true,
+            });
             break;
             
           case "selection":
-            const selection = domAnalyzer.extractSelection();
-            if (!selection) {
-              throw new Error("No selection found");
-            }
+            // Use the new text capture implementation
+            capturedContent = await textCapture.captureSelection({
+              sanitizeContent: true,
+            });
+            break;
             
-            const sanitizedSelection = contentSanitizer.sanitize(selection.content);
+          case "element":
+            // Enable element selector mode
+            elementSelector.enableSelectionMode();
+            // Return immediately - actual capture happens when user confirms
+            return {
+              status: "element-selection-active",
+              message: "Element selection mode enabled. Select elements and click Capture.",
+            };
             
+          case "media":
+            // Capture all media from the page
+            const mediaResult = await mediaCapture.captureMedia();
             capturedContent = {
+              id: `media_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+              type: "media" as const,
+              url: this.state.pageUrl,
+              title: this.state.pageTitle,
+              capturedAt: Date.now(),
               metadata: domAnalyzer.extractMetadata(),
-              text: {
-                ...selection,
-                content: sanitizedSelection.sanitizedContent,
-              },
-              context: domAnalyzer.getSelectionContext(),
-              sanitization: {
-                detectedPII: sanitizedSelection.detectedPII.length,
-                redactionCount: sanitizedSelection.redactionCount,
-              },
+              text: { content: "", wordCount: 0, characterCount: 0, paragraphs: [] },
+              sanitizedText: "",
+              sanitizationInfo: { detectedPII: 0, redactionCount: 0 },
+              media: mediaResult,
             };
             break;
             
           default:
-            // Will be implemented in content capture tasks
+            // Will be implemented in future content capture tasks
             capturedContent = {
               status: "received",
               url: this.state.pageUrl,
@@ -147,7 +154,77 @@ class ContentScriptManager {
       return { acknowledged: true };
     });
 
+    // Handler for enabling element selector
+    messageHandler.on("ENABLE_ELEMENT_SELECTOR", async () => {
+      console.debug("[ContentScript] Received ENABLE_ELEMENT_SELECTOR");
+      
+      try {
+        elementSelector.enableSelectionMode();
+        return {
+          status: "success",
+          message: "Element selection mode enabled",
+        };
+      } catch (error) {
+        console.error("[ContentScript] Failed to enable element selector", error);
+        return {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    });
+
+    // Handler for disabling element selector
+    messageHandler.on("DISABLE_ELEMENT_SELECTOR", async () => {
+      console.debug("[ContentScript] Received DISABLE_ELEMENT_SELECTOR");
+      
+      try {
+        elementSelector.disableSelectionMode();
+        return {
+          status: "success",
+          message: "Element selection mode disabled",
+        };
+      } catch (error) {
+        console.error("[ContentScript] Failed to disable element selector", error);
+        return {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    });
+
     console.debug("[ContentScript] Message handlers registered");
+  }
+
+  /**
+   * Set up element selector event listeners
+   */
+  private setupElementSelectorListeners(): void {
+    // Listen for element capture completion
+    window.addEventListener("ai-pocket-elements-captured", async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { elements, count, timestamp } = customEvent.detail;
+
+      console.info("[ContentScript] Elements captured", { count, timestamp });
+
+      try {
+        // Send captured elements to service worker
+        const response = await sendMessage("CAPTURE_RESULT", {
+          status: "success",
+          content: elements,
+          mode: "element",
+          count,
+          timestamp,
+        });
+
+        if (!response.success) {
+          console.error("[ContentScript] Failed to send captured elements", response.error);
+        }
+      } catch (error) {
+        console.error("[ContentScript] Error sending captured elements", error);
+      }
+    });
+
+    console.debug("[ContentScript] Element selector listeners set up");
   }
 
   /**
