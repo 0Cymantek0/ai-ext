@@ -9,9 +9,9 @@
     "file": "assets/abbreviation-manager.ts-loader-QRduskW7.js",
     "src": "_abbreviation-manager.ts-loader-QRduskW7.js"
   },
-  "_content-main.ts-loader-DzcQFxV7.js": {
-    "file": "assets/content-main.ts-loader-DzcQFxV7.js",
-    "src": "_content-main.ts-loader-DzcQFxV7.js"
+  "_content-main.ts-loader-kmaeHLKY.js": {
+    "file": "assets/content-main.ts-loader-kmaeHLKY.js",
+    "src": "_content-main.ts-loader-kmaeHLKY.js"
   },
   "_modulepreload-polyfill-B5Qt9EMX.js": {
     "file": "assets/modulepreload-polyfill-B5Qt9EMX.js",
@@ -34,7 +34,7 @@
     "isEntry": true
   },
   "src/content/content-main.ts": {
-    "file": "assets/content-main.ts-D8RnlgID.js",
+    "file": "assets/content-main.ts-3I2s-VI4.js",
     "name": "content-main.ts",
     "src": "src/content/content-main.ts",
     "isEntry": true

@@ -11,7 +11,7 @@ import {
 } from "../shared/message-client.js";
 import { domAnalyzer } from "./dom-analyzer.js";
 import { contentSanitizer } from "./content-sanitizer.js";
-import { fullPageCapture, textCapture } from "./content-capture.js";
+import { fullPageCapture, textCapture, mediaCapture } from "./content-capture.js";
 import { elementSelector } from "./element-selector.js";
 
 interface ContentScriptState {
@@ -106,6 +106,23 @@ class ContentScriptManager {
               status: "element-selection-active",
               message: "Element selection mode enabled. Select elements and click Capture.",
             };
+            
+          case "media":
+            // Capture all media from the page
+            const mediaResult = await mediaCapture.captureMedia();
+            capturedContent = {
+              id: `media_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+              type: "media" as const,
+              url: this.state.pageUrl,
+              title: this.state.pageTitle,
+              capturedAt: Date.now(),
+              metadata: domAnalyzer.extractMetadata(),
+              text: { content: "", wordCount: 0, characterCount: 0, paragraphs: [] },
+              sanitizedText: "",
+              sanitizationInfo: { detectedPII: 0, redactionCount: 0 },
+              media: mediaResult,
+            };
+            break;
             
           default:
             // Will be implemented in future content capture tasks

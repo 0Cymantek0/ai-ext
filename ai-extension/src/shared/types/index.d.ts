@@ -25,7 +25,7 @@ export interface BaseMessage<K extends MessageKind, T> {
 }
 
 export interface CaptureRequestPayload {
-  mode: "full-page" | "selection" | "element" | "note";
+  mode: "full-page" | "selection" | "element" | "note" | "media";
   pocketId: string;
 }
 
