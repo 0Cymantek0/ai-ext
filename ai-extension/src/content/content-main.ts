@@ -11,7 +11,7 @@ import {
 } from "../shared/message-client.js";
 import { domAnalyzer } from "./dom-analyzer.js";
 import { contentSanitizer } from "./content-sanitizer.js";
-import { fullPageCapture } from "./content-capture.js";
+import { fullPageCapture, textCapture } from "./content-capture.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -88,25 +88,10 @@ class ContentScriptManager {
             break;
             
           case "selection":
-            const selection = domAnalyzer.extractSelection();
-            if (!selection) {
-              throw new Error("No selection found");
-            }
-            
-            const sanitizedSelection = contentSanitizer.sanitize(selection.content);
-            
-            capturedContent = {
-              metadata: domAnalyzer.extractMetadata(),
-              text: {
-                ...selection,
-                content: sanitizedSelection.sanitizedContent,
-              },
-              context: domAnalyzer.getSelectionContext(),
-              sanitization: {
-                detectedPII: sanitizedSelection.detectedPII.length,
-                redactionCount: sanitizedSelection.redactionCount,
-              },
-            };
+            // Use the new text capture implementation
+            capturedContent = await textCapture.captureSelection({
+              sanitizeContent: true,
+            });
             break;
             
           default:
