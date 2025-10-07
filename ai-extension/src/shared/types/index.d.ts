@@ -4,6 +4,11 @@ export type MessageKind =
   | "AI_PROCESS_REQUEST"
   | "AI_PROCESS_UPDATE"
   | "AI_PROCESS_RESULT"
+  | "AI_PROCESS_STREAM_START"
+  | "AI_PROCESS_STREAM_CHUNK"
+  | "AI_PROCESS_STREAM_END"
+  | "AI_PROCESS_STREAM_ERROR"
+  | "AI_PROCESS_CANCEL"
   | "POCKET_CREATE"
   | "POCKET_UPDATE"
   | "POCKET_LIST"
@@ -24,4 +29,35 @@ export interface AiProcessRequestPayload {
   contentId: string;
   task: "summarize" | "embed" | "translate" | "alt-text";
   preferLocal: boolean;
+}
+
+export interface AiStreamRequestPayload {
+  prompt: string;
+  conversationId?: string;
+  preferLocal?: boolean;
+  model?: "nano" | "flash" | "pro";
+}
+
+export interface AiStreamChunkPayload {
+  requestId: string;
+  chunk: string;
+  conversationId?: string;
+}
+
+export interface AiStreamEndPayload {
+  requestId: string;
+  conversationId?: string;
+  totalTokens: number;
+  processingTime: number;
+  source: "gemini-nano" | "gemini-flash" | "gemini-pro";
+}
+
+export interface AiStreamErrorPayload {
+  requestId: string;
+  error: string;
+  conversationId?: string;
+}
+
+export interface AiCancelRequestPayload {
+  requestId: string;
 }

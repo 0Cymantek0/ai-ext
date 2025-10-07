@@ -6,6 +6,9 @@
 
 import { logger, performanceMonitor } from "./monitoring.js";
 import { getQuotaManager } from "./quota-manager.js";
+import { AIManager } from './ai-manager.js';
+import { CloudAIManager } from './cloud-ai-manager.js';
+import { getStreamingHandler } from './streaming-handler.js';
 
 interface ServiceWorkerState {
   initialized: boolean;
@@ -597,6 +600,22 @@ messageRouter.registerHandler("ERROR", async (payload) => {
   logger.error("Handler", "ERROR", payload);
   // Log error for debugging
   return { acknowledged: true };
+});
+
+// Initialize AI managers for streaming
+const aiManager = new AIManager();
+const cloudAIManager = new CloudAIManager();
+const streamingHandler = getStreamingHandler(aiManager, cloudAIManager);
+
+// Register streaming handlers
+messageRouter.registerHandler("AI_PROCESS_STREAM_START", async (payload, sender) => {
+  logger.info("Handler", "AI_PROCESS_STREAM_START", payload);
+  return await streamingHandler.startStreaming(payload as any, sender);
+});
+
+messageRouter.registerHandler("AI_PROCESS_CANCEL", async (payload) => {
+  logger.info("Handler", "AI_PROCESS_CANCEL", payload);
+  return await streamingHandler.cancelStreaming(payload as any);
 });
 
 // Message listener - routes all messages through the router

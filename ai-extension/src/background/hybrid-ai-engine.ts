@@ -717,6 +717,158 @@ export class HybridAIEngine {
   getCapabilityDetector(): DeviceCapabilityDetector {
     return this.capabilityDetector;
   }
+
+  /**
+   * Process content with streaming response
+   * Requirement 8.3: Stream responses in real-time for immediate feedback
+   * Requirement 8.9: Display typing indicator during processing
+   * 
+   * @param task Task to process
+   * @param options Processing options
+   * @param onConsentRequired Callback when consent is required
+   * @returns Async generator yielding response chunks
+   */
+  async *processContentStreaming(
+    task: Task,
+    options?: Partial<ProcessingOptions>,
+    onConsentRequired?: (decision: ProcessingDecision) => Promise<boolean>
+  ): AsyncGenerator<string, void, unknown> {
+    try {
+      // Determine processing location
+      const decision = await this.determineProcessingLocation(task, options);
+
+      console.log(`Streaming decision: ${decision.location} - ${decision.reason}`);
+
+      // Check if consent is required
+      if (decision.requiresConsent && onConsentRequired) {
+        const consentGranted = await onConsentRequired(decision);
+        
+        if (!consentGranted) {
+          // User denied consent - try local fallback
+          if (await this.canFallbackToLocal(task)) {
+            console.log('User denied cloud consent, falling back to local streaming');
+            yield* this.processLocallyStreaming(task, options);
+            return;
+          } else {
+            throw new Error('Cloud processing required but consent denied, and local fallback not available');
+          }
+        }
+      }
+
+      // Process based on location
+      if (decision.location === ProcessingLocation.GEMINI_NANO) {
+        yield* this.processLocallyStreaming(task, options);
+      } else {
+        yield* this.processInCloudStreaming(task, decision.location, options);
+      }
+    } catch (error) {
+      console.error('Error streaming content:', error);
+      
+      // Try fallback to local if possible
+      if (await this.canFallbackToLocal(task)) {
+        console.log('Attempting local streaming fallback after error');
+        yield* this.processLocallyStreaming(task, options);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Process task locally with Gemini Nano streaming
+   * Requirement 8.3: Stream responses in real-time
+   */
+  private async *processLocallyStreaming(
+    task: Task,
+    options?: Partial<ProcessingOptions>
+  ): AsyncGenerator<string, void, unknown> {
+    try {
+      // Create or get session
+      const sessionId = await this.aiManager.createSession();
+
+      // Build prompt based on operation
+      const prompt = this.buildPrompt(task);
+
+      // Process with Gemini Nano streaming
+      const stream = await this.aiManager.processPromptStreaming(
+        sessionId,
+        prompt,
+        options?.signal ? { signal: options.signal } : undefined
+      );
+
+      // Read from the stream and yield chunks
+      const reader = stream.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          yield value;
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    } catch (error) {
+      console.error('Local streaming failed:', error);
+      throw new Error(`Local streaming failed: ${error}`);
+    }
+  }
+
+  /**
+   * Process task in cloud with streaming
+   * Requirement 8.3: Stream responses in real-time
+   */
+  private async *processInCloudStreaming(
+    task: Task,
+    model: ProcessingLocation,
+    options?: Partial<ProcessingOptions>
+  ): AsyncGenerator<string, void, unknown> {
+    try {
+      // Check if cloud AI is available
+      if (!this.cloudAIManager.isAvailable()) {
+        throw new Error('Cloud AI not available. Please configure your Gemini API key.');
+      }
+
+      // Build prompt for the task
+      const prompt = this.buildPrompt(task);
+
+      // Process based on selected model
+      switch (model) {
+        case ProcessingLocation.GEMINI_PRO:
+          console.log('Streaming with Gemini 2.5 Pro');
+          yield* this.cloudAIManager.processWithProStreaming(prompt, {
+            ...(options?.signal && { signal: options.signal }),
+            ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
+          });
+          break;
+
+        case ProcessingLocation.GEMINI_FLASH:
+          console.log('Streaming with Gemini 2.5 Flash');
+          yield* this.cloudAIManager.processWithFlashStreaming(prompt, {
+            ...(options?.signal && { signal: options.signal }),
+            ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
+          });
+          break;
+
+        case ProcessingLocation.GEMINI_FLASH_LITE:
+          console.log('Streaming with Gemini 2.5 Flash-Lite');
+          yield* this.cloudAIManager.processWithModelStreaming(
+            GeminiModel.FLASH_LITE,
+            prompt,
+            {
+              ...(options?.signal && { signal: options.signal }),
+              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
+            }
+          );
+          break;
+
+        default:
+          throw new Error(`Unsupported cloud model: ${model}`);
+      }
+    } catch (error) {
+      console.error('Cloud streaming failed:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
