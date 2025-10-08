@@ -2,10 +2,11 @@
  * Message Display Component with Virtual Scrolling
  * 
  * Implements efficient message rendering with virtual scrolling for long conversations.
- * Requirements: 8.1, 8.2, 8.7, 8.3, 8.9
+ * Requirements: 8.1, 8.2, 8.7, 8.3, 8.9, 8.4, 11.2
  */
 
 import { StreamingDisplay } from './streaming-display';
+import { MessageActions, type MessageActionsConfig } from './message-actions';
 
 /**
  * Message interface
@@ -64,6 +65,13 @@ export class MessageDisplay {
   
   // Streaming displays for active streaming messages
   private streamingDisplays: Map<string, StreamingDisplay> = new Map();
+  
+  // Message actions for assistant messages
+  private messageActions: Map<string, MessageActions> = new Map();
+  
+  // Callbacks for message actions
+  private onCopyCallback?: (messageId: string, content: string) => void;
+  private onRegenerateCallback?: (messageId: string) => void;
   
   constructor(containerId: string) {
     const container = document.getElementById(containerId);
@@ -414,6 +422,7 @@ export class MessageDisplay {
   /**
    * Create message DOM element
    * Requirement 8.1: Message display with proper structure
+   * Requirement 8.4: Add message actions for assistant messages
    */
   private createMessageElement(message: Message): HTMLElement {
     const messageElement = document.createElement('div');
@@ -433,11 +442,19 @@ export class MessageDisplay {
     messageElement.appendChild(contentElement);
     messageElement.appendChild(metaElement);
     
+    // Add message actions for assistant messages (not streaming)
+    if (message.role === 'assistant' && !message.isStreaming) {
+      const actions = this.createMessageActions(message);
+      messageElement.appendChild(actions.getElement());
+      this.messageActions.set(message.id, actions);
+    }
+    
     return messageElement;
   }
   
   /**
    * Update message element content
+   * Requirement 8.4: Update message actions when streaming completes
    */
   private updateMessageElement(element: HTMLElement, message: Message): void {
     const contentElement = element.querySelector('.message-content');
@@ -451,10 +468,24 @@ export class MessageDisplay {
     }
     
     // Update streaming class
+    const wasStreaming = element.classList.contains('streaming');
     if (message.isStreaming) {
       element.classList.add('streaming');
     } else {
       element.classList.remove('streaming');
+      
+      // Add message actions when streaming completes for assistant messages
+      if (wasStreaming && message.role === 'assistant' && !this.messageActions.has(message.id)) {
+        const actions = this.createMessageActions(message);
+        element.appendChild(actions.getElement());
+        this.messageActions.set(message.id, actions);
+      }
+    }
+    
+    // Update existing actions content
+    const existingActions = this.messageActions.get(message.id);
+    if (existingActions) {
+      existingActions.updateContent(message.content);
     }
   }
   
@@ -584,6 +615,65 @@ export class MessageDisplay {
   }
   
   /**
+   * Create message actions for a message
+   * Requirement 8.4: Implement copy and regenerate actions
+   */
+  private createMessageActions(message: Message): MessageActions {
+    const config: MessageActionsConfig = {
+      showCopy: true,
+      showRegenerate: true,
+      onCopy: (messageId, content) => {
+        if (this.onCopyCallback) {
+          this.onCopyCallback(messageId, content);
+        }
+      },
+      onRegenerate: (messageId) => {
+        if (this.onRegenerateCallback) {
+          this.onRegenerateCallback(messageId);
+        }
+      }
+    };
+
+    return new MessageActions(message.id, message.content, config);
+  }
+
+  /**
+   * Set callback for copy action
+   * Requirement 8.4: Handle copy events
+   */
+  setOnCopy(callback: (messageId: string, content: string) => void): void {
+    this.onCopyCallback = callback;
+  }
+
+  /**
+   * Set callback for regenerate action
+   * Requirement 8.4: Handle regenerate events
+   */
+  setOnRegenerate(callback: (messageId: string) => void): void {
+    this.onRegenerateCallback = callback;
+  }
+
+  /**
+   * Enable regenerate button for a message
+   */
+  enableRegenerateForMessage(messageId: string): void {
+    const actions = this.messageActions.get(messageId);
+    if (actions) {
+      actions.enableRegenerate();
+    }
+  }
+
+  /**
+   * Disable regenerate button for a message
+   */
+  disableRegenerateForMessage(messageId: string): void {
+    const actions = this.messageActions.get(messageId);
+    if (actions) {
+      actions.disableRegenerate();
+    }
+  }
+
+  /**
    * Destroy the message display
    */
   destroy(): void {
@@ -598,6 +688,12 @@ export class MessageDisplay {
       streamingDisplay.destroy();
     }
     this.streamingDisplays.clear();
+    
+    // Clean up message actions
+    for (const actions of this.messageActions.values()) {
+      actions.destroy();
+    }
+    this.messageActions.clear();
     
     this.contentContainer.innerHTML = '';
     this.messages = [];

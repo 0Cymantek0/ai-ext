@@ -52,6 +52,9 @@ export class ChatInterface {
     }
     this.messageDisplay = new MessageDisplay(messageListContainer.id);
 
+    // Set up message action callbacks
+    this.setupMessageActionCallbacks();
+
     // Initialize typing indicator
     const typingIndicatorElement = document.getElementById('typing-indicator');
     if (typingIndicatorElement) {
@@ -165,6 +168,88 @@ export class ChatInterface {
         this.handleCancel();
       }
     });
+  }
+
+  /**
+   * Set up message action callbacks
+   * Requirement 8.4: Handle copy and regenerate actions
+   */
+  private setupMessageActionCallbacks(): void {
+    // Handle copy action
+    this.messageDisplay.setOnCopy((messageId, content) => {
+      console.log('Message copied:', messageId);
+      // Could add analytics or other tracking here
+    });
+
+    // Handle regenerate action
+    this.messageDisplay.setOnRegenerate((messageId) => {
+      this.handleRegenerateMessage(messageId);
+    });
+  }
+
+  /**
+   * Handle message regeneration
+   * Requirement 8.4: Regenerate AI response
+   */
+  private async handleRegenerateMessage(messageId: string): Promise<void> {
+    const messages = this.messageDisplay.getMessages();
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    
+    if (messageIndex === -1) {
+      console.error('Message not found:', messageId);
+      return;
+    }
+
+    // Find the user message that prompted this response
+    let userMessageIndex = messageIndex - 1;
+    while (userMessageIndex >= 0 && messages[userMessageIndex]?.role !== 'user') {
+      userMessageIndex--;
+    }
+
+    if (userMessageIndex < 0 || !messages[userMessageIndex]) {
+      console.error('Could not find user message for regeneration');
+      return;
+    }
+
+    const userMessage = messages[userMessageIndex];
+    if (!userMessage) {
+      return;
+    }
+
+    // Remove the old assistant message
+    const updatedMessages = messages.filter(m => m.id !== messageId);
+    this.messageDisplay.clearMessages();
+    updatedMessages.forEach(msg => this.messageDisplay.addMessage(msg));
+
+    // Show typing indicator
+    this.showTypingIndicator();
+
+    // Resend the user's message
+    try {
+      const payload: AiStreamRequestPayload = {
+        prompt: userMessage.content,
+        conversationId: this.conversationId,
+        preferLocal: true
+      };
+
+      const response = await this.sendMessage({
+        kind: 'AI_PROCESS_STREAM_START',
+        requestId: crypto.randomUUID(),
+        payload
+      });
+
+      if (response.success && response.data) {
+        this.currentRequestId = response.data.requestId;
+        this.showCancelButton();
+      } else {
+        this.hideTypingIndicator();
+        this.showError('Failed to regenerate response');
+      }
+    } catch (error) {
+      console.error('Error regenerating message:', error);
+      this.hideTypingIndicator();
+      this.showError('Failed to regenerate response');
+    }
   }
 
   /**
