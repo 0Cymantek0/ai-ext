@@ -10,7 +10,7 @@
 /research/
 /prompt.md
 /ai-extension/node_modules/
-/dist/
+ai-extension/dist/
 /build/
 /dist.zip
 /dist.tar.gz
