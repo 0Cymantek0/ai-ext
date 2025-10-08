@@ -48,7 +48,17 @@
     <main id="app" class="sidepanel-main" role="main">
       <!-- Chat Panel -->
       <div id="chat-panel" class="panel-content active" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
-        <!-- Chat interface will be initialized here by TypeScript -->
+        <div class="chat-layout">
+          <!-- Conversation Sidebar -->
+          <aside id="conversation-sidebar-container" class="conversation-sidebar-container" aria-label="Conversation history">
+            <!-- Conversation sidebar will be initialized here by TypeScript -->
+          </aside>
+          
+          <!-- Chat Interface -->
+          <div id="chat-interface-container" class="chat-interface-container">
+            <!-- Chat interface will be initialized here by TypeScript -->
+          </div>
+        </div>
       </div>
 
       <!-- Pockets Panel (Hidden by default) -->

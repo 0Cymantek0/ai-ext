@@ -618,6 +618,48 @@ messageRouter.registerHandler("AI_PROCESS_CANCEL", async (payload) => {
   return await streamingHandler.cancelStreaming(payload as any);
 });
 
+// Register conversation handlers (Requirement 8.8, 7.6)
+messageRouter.registerHandler("CONVERSATION_LIST", async (payload) => {
+  logger.info("Handler", "CONVERSATION_LIST", payload);
+  const { indexedDBManager } = await import('./indexeddb-manager.js');
+  const conversations = await indexedDBManager.listConversations();
+  return { conversations };
+});
+
+messageRouter.registerHandler("CONVERSATION_GET", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_GET", payload);
+  const { indexedDBManager } = await import('./indexeddb-manager.js');
+  const conversation = await indexedDBManager.getConversation(payload.conversationId);
+  return { conversation };
+});
+
+messageRouter.registerHandler("CONVERSATION_CREATE", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_CREATE", payload);
+  const { indexedDBManager } = await import('./indexeddb-manager.js');
+  const conversationId = await indexedDBManager.saveConversation({
+    pocketId: payload.pocketId,
+    messages: [],
+    model: payload.model || 'gemini-nano',
+    tokensUsed: 0
+  });
+  const conversation = await indexedDBManager.getConversation(conversationId);
+  return { conversation };
+});
+
+messageRouter.registerHandler("CONVERSATION_UPDATE", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_UPDATE", payload);
+  const { indexedDBManager } = await import('./indexeddb-manager.js');
+  await indexedDBManager.updateConversation(payload.conversationId, payload.message);
+  return { success: true };
+});
+
+messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_DELETE", payload);
+  const { indexedDBManager } = await import('./indexeddb-manager.js');
+  await indexedDBManager.deleteConversation(payload.conversationId);
+  return { success: true };
+});
+
 // Message listener - routes all messages through the router
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   logger.debug("ServiceWorker", "Received message", {

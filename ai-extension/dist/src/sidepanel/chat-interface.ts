@@ -33,14 +33,14 @@ export class ChatInterface {
   private sendButton!: HTMLButtonElement;
   private cancelButton!: HTMLButtonElement;
 
-  constructor(containerId: string) {
+  constructor(containerId: string, initialConversationId?: string) {
     const container = document.getElementById(containerId);
     if (!container) {
       throw new Error(`Container element with id "${containerId}" not found`);
     }
 
     this.container = container;
-    this.conversationId = crypto.randomUUID();
+    this.conversationId = initialConversationId || crypto.randomUUID();
 
     // Initialize UI
     this.initializeUI();
@@ -580,6 +580,39 @@ export class ChatInterface {
     }
     
     this.conversationId = crypto.randomUUID();
+  }
+
+  /**
+   * Load conversation messages
+   * Requirement 8.8: Load conversation history when switching
+   */
+  loadConversation(conversationId: string, messages: Message[]): void {
+    this.conversationId = conversationId;
+    this.messageDisplay.clearMessages();
+    
+    // Hide welcome message
+    this.hideWelcomeMessage();
+    
+    // Load all messages
+    messages.forEach(message => {
+      this.messageDisplay.addMessage(message);
+    });
+    
+    console.info('[ChatInterface] Loaded conversation:', conversationId, 'with', messages.length, 'messages');
+  }
+
+  /**
+   * Set conversation ID
+   */
+  setConversationId(conversationId: string): void {
+    this.conversationId = conversationId;
+  }
+
+  /**
+   * Get current conversation ID
+   */
+  getConversationId(): string {
+    return this.conversationId;
   }
 
   /**

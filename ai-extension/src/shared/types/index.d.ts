@@ -12,6 +12,11 @@ export type MessageKind =
   | "POCKET_CREATE"
   | "POCKET_UPDATE"
   | "POCKET_LIST"
+  | "CONVERSATION_LIST"
+  | "CONVERSATION_GET"
+  | "CONVERSATION_CREATE"
+  | "CONVERSATION_UPDATE"
+  | "CONVERSATION_DELETE"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {

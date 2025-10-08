@@ -8,6 +8,8 @@ import { ChatInterface } from './chat-interface';
 import { PreferencesManager } from './preferences-manager';
 import { StateManager } from './state-manager';
 import { CommunicationManager } from './communication-manager';
+import { ConversationManager } from './conversation-manager';
+import { ConversationSidebar } from './conversation-sidebar';
 
 /**
  * Side Panel Application
@@ -17,6 +19,8 @@ class SidePanelApp {
   private preferencesManager: PreferencesManager;
   private stateManager: StateManager;
   private communicationManager: CommunicationManager;
+  private conversationManager: ConversationManager | null = null;
+  private conversationSidebar: ConversationSidebar | null = null;
 
   constructor() {
     this.preferencesManager = new PreferencesManager();
@@ -110,16 +114,35 @@ class SidePanelApp {
   /**
    * Initialize UI components
    */
-  private initializeUI(): void {
+  private async initializeUI(): Promise<void> {
     try {
+      // Initialize conversation manager
+      this.conversationManager = new ConversationManager(this.stateManager);
+      await this.conversationManager.initialize();
+      console.info('[SidePanel] Conversation manager initialized');
+
+      // Initialize conversation sidebar
+      const sidebarContainer = document.getElementById('conversation-sidebar-container');
+      if (sidebarContainer) {
+        this.conversationSidebar = new ConversationSidebar('conversation-sidebar-container');
+        this.setupConversationSidebarCallbacks();
+        console.info('[SidePanel] Conversation sidebar initialized');
+      }
+
       // Initialize chat interface
-      const chatPanel = document.getElementById('chat-panel');
-      if (chatPanel) {
-        this.chatInterface = new ChatInterface('chat-panel');
+      const chatInterfaceContainer = document.getElementById('chat-interface-container');
+      if (chatInterfaceContainer) {
+        const currentConversationId = this.conversationManager.getCurrentConversationId();
+        this.chatInterface = new ChatInterface('chat-interface-container', currentConversationId || undefined);
         console.info('[SidePanel] Chat interface initialized');
+        
+        // Load current conversation if exists
+        if (currentConversationId) {
+          await this.loadConversation(currentConversationId);
+        }
       }
     } catch (error) {
-      console.error('[SidePanel] Failed to initialize chat interface:', error);
+      console.error('[SidePanel] Failed to initialize UI components:', error);
       throw error;
     }
   }
@@ -483,6 +506,133 @@ class SidePanelApp {
   }
 
   /**
+   * Set up conversation sidebar callbacks
+   * Requirement 8.8: Handle conversation switching
+   */
+  private setupConversationSidebarCallbacks(): void {
+    if (!this.conversationSidebar || !this.conversationManager) {
+      return;
+    }
+
+    // Handle conversation switch
+    this.conversationSidebar.onSwitch(async (conversationId) => {
+      await this.loadConversation(conversationId);
+    });
+
+    // Handle new conversation
+    this.conversationSidebar.onNew(async () => {
+      await this.createNewConversation();
+    });
+
+    // Handle delete conversation
+    this.conversationSidebar.onDelete(async (conversationId) => {
+      await this.deleteConversation(conversationId);
+    });
+
+    // Subscribe to conversation list updates
+    this.conversationManager.subscribe((conversations) => {
+      if (this.conversationSidebar) {
+        this.conversationSidebar.updateConversations(conversations);
+        const currentId = this.conversationManager?.getCurrentConversationId() || null;
+        this.conversationSidebar.setCurrentConversation(currentId);
+      }
+    });
+  }
+
+  /**
+   * Load a conversation
+   * Requirement 8.8: Switch between conversations
+   */
+  private async loadConversation(conversationId: string): Promise<void> {
+    if (!this.conversationManager || !this.chatInterface) {
+      return;
+    }
+
+    try {
+      console.info('[SidePanel] Loading conversation:', conversationId);
+      
+      const conversation = await this.conversationManager.switchConversation(conversationId);
+      
+      if (conversation) {
+        // Load messages into chat interface
+        this.chatInterface.loadConversation(conversation.id, conversation.messages);
+        
+        // Update sidebar
+        if (this.conversationSidebar) {
+          this.conversationSidebar.setCurrentConversation(conversation.id);
+        }
+        
+        console.info('[SidePanel] Conversation loaded successfully');
+      } else {
+        console.error('[SidePanel] Failed to load conversation');
+      }
+    } catch (error) {
+      console.error('[SidePanel] Error loading conversation:', error);
+    }
+  }
+
+  /**
+   * Create a new conversation
+   * Requirement 8.8: Create new conversation
+   */
+  private async createNewConversation(): Promise<void> {
+    if (!this.conversationManager || !this.chatInterface) {
+      return;
+    }
+
+    try {
+      console.info('[SidePanel] Creating new conversation');
+      
+      const conversationId = await this.conversationManager.createConversation();
+      
+      // Clear chat interface and set new conversation ID
+      this.chatInterface.clearConversation();
+      this.chatInterface.setConversationId(conversationId);
+      
+      // Switch to the new conversation
+      await this.conversationManager.switchConversation(conversationId);
+      
+      // Update sidebar
+      if (this.conversationSidebar) {
+        this.conversationSidebar.setCurrentConversation(conversationId);
+      }
+      
+      console.info('[SidePanel] New conversation created:', conversationId);
+    } catch (error) {
+      console.error('[SidePanel] Error creating new conversation:', error);
+    }
+  }
+
+  /**
+   * Delete a conversation
+   */
+  private async deleteConversation(conversationId: string): Promise<void> {
+    if (!this.conversationManager || !this.chatInterface) {
+      return;
+    }
+
+    try {
+      console.info('[SidePanel] Deleting conversation:', conversationId);
+      
+      const success = await this.conversationManager.deleteConversation(conversationId);
+      
+      if (success) {
+        // If we deleted the current conversation, create a new one
+        const currentId = this.conversationManager.getCurrentConversationId();
+        if (!currentId) {
+          await this.createNewConversation();
+        }
+        
+        console.info('[SidePanel] Conversation deleted successfully');
+      } else {
+        console.error('[SidePanel] Failed to delete conversation');
+      }
+    } catch (error) {
+      console.error('[SidePanel] Error deleting conversation:', error);
+    }
+  }
+
+  /**
    * Get managers for debugging
    */
   getManagers() {
@@ -491,6 +641,8 @@ class SidePanelApp {
       state: this.stateManager,
       communication: this.communicationManager,
       chat: this.chatInterface,
+      conversations: this.conversationManager,
+      sidebar: this.conversationSidebar,
     };
   }
 }
