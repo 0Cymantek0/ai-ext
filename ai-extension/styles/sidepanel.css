@@ -145,39 +145,39 @@ body {
 }
 
 /* ============================================
-   Header Section
+   Compact Top Bar
+   Requirements: 29.1, 29.2, 35.1, 35.2, 35.3
    ============================================ */
 
-.sidepanel-header {
+.compact-top-bar {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 var(--sp-spacing-md);
   background-color: var(--sp-bg-secondary);
   border-bottom: 1px solid var(--sp-border-color);
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--sp-spacing-lg);
+  box-shadow: var(--sp-shadow-sm);
   gap: var(--sp-spacing-md);
 }
 
-.sidepanel-title {
+/* App Title */
+.app-title {
+  flex: 1;
   margin: 0;
-  font-size: var(--sp-font-size-xl);
+  font-size: var(--sp-font-size-lg);
   font-weight: 600;
   color: var(--sp-text-primary);
   line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.header-actions {
-  display: flex;
-  gap: var(--sp-spacing-sm);
-  align-items: center;
-}
-
-/* Icon Buttons */
-.icon-button {
+/* Hamburger Button */
+.hamburger-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -190,68 +190,60 @@ body {
   color: var(--sp-text-secondary);
   cursor: pointer;
   transition: all var(--sp-transition-fast);
-  font-size: var(--sp-font-size-lg);
+  flex-shrink: 0;
 }
 
-.icon-button:hover {
+.hamburger-btn:hover {
   background-color: var(--sp-bg-tertiary);
   color: var(--sp-text-primary);
 }
 
-.icon-button:active {
+.hamburger-btn:active {
   transform: scale(0.95);
 }
 
-/* Requirement 11.2: Keyboard focus indicators */
-.icon-button:focus-visible {
+.hamburger-btn:focus-visible {
   outline: 2px solid var(--sp-accent-primary);
   outline-offset: 2px;
 }
 
-/* ============================================
-   Navigation Tabs
-   ============================================ */
-
-.sidepanel-nav {
-  padding: 0 var(--sp-spacing-lg);
+.hamburger-btn svg {
+  display: block;
 }
 
-.nav-tabs {
-  display: flex;
-  gap: var(--sp-spacing-xs);
-  border-bottom: 1px solid var(--sp-border-light);
-}
-
-.nav-tab {
+/* New Chat Button */
+.new-chat-btn {
   display: flex;
   align-items: center;
-  gap: var(--sp-spacing-sm);
-  padding: var(--sp-spacing-md) var(--sp-spacing-lg);
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--sp-radius-md);
   background-color: transparent;
   color: var(--sp-text-secondary);
-  font-size: var(--sp-font-size-base);
-  font-weight: 500;
   cursor: pointer;
   transition: all var(--sp-transition-fast);
-  position: relative;
-  bottom: -1px;
+  flex-shrink: 0;
 }
 
-.nav-tab:hover {
-  color: var(--sp-text-primary);
+.new-chat-btn:hover {
   background-color: var(--sp-bg-tertiary);
+  color: var(--sp-text-primary);
 }
 
-.nav-tab.active {
-  color: var(--sp-accent-primary);
-  border-bottom-color: var(--sp-accent-primary);
+.new-chat-btn:active {
+  transform: scale(0.95);
 }
 
-.nav-tab:focus-visible {
+.new-chat-btn:focus-visible {
   outline: 2px solid var(--sp-accent-primary);
-  outline-offset: -2px;
+  outline-offset: 2px;
+}
+
+.new-chat-btn svg {
+  display: block;
 }
 
 /* ============================================
@@ -345,56 +337,54 @@ body {
 
 /* Extra Small (200px - 300px) */
 @media (max-width: 300px) {
-  .header-content {
-    padding: var(--sp-spacing-md);
+  .compact-top-bar {
+    padding: 0 var(--sp-spacing-sm);
+    gap: var(--sp-spacing-sm);
   }
   
-  .sidepanel-title {
+  .app-title {
     font-size: var(--sp-font-size-base);
   }
   
-  .icon-button {
+  .hamburger-btn,
+  .new-chat-btn {
     width: 32px;
     height: 32px;
-    font-size: var(--sp-font-size-base);
   }
   
-  .nav-tab {
-    padding: var(--sp-spacing-sm) var(--sp-spacing-md);
-    font-size: var(--sp-font-size-sm);
-  }
-  
-  .nav-tab span:last-child {
-    display: none; /* Hide text labels on very small screens */
+  .hamburger-btn svg,
+  .new-chat-btn svg {
+    width: 16px;
+    height: 16px;
   }
 }
 
 /* Small (300px - 400px) */
 @media (min-width: 300px) and (max-width: 400px) {
-  .header-content {
-    padding: var(--sp-spacing-md) var(--sp-spacing-lg);
+  .compact-top-bar {
+    padding: 0 var(--sp-spacing-md);
   }
   
-  .sidepanel-title {
-    font-size: var(--sp-font-size-lg);
+  .app-title {
+    font-size: var(--sp-font-size-base);
   }
 }
 
 /* Medium (400px - 600px) */
 @media (min-width: 400px) and (max-width: 600px) {
-  .sidepanel-title {
-    font-size: var(--sp-font-size-xl);
+  .app-title {
+    font-size: var(--sp-font-size-lg);
   }
 }
 
 /* Large (600px+) */
 @media (min-width: 600px) {
-  .header-content {
-    padding: var(--sp-spacing-xl);
+  .compact-top-bar {
+    padding: 0 var(--sp-spacing-lg);
   }
   
-  .nav-tabs {
-    gap: var(--sp-spacing-sm);
+  .app-title {
+    font-size: var(--sp-font-size-xl);
   }
 }
 
@@ -404,17 +394,13 @@ body {
 
 /* Requirement 11.9: High contrast mode support */
 @media (prefers-contrast: high) {
-  .sidepanel-header,
+  .compact-top-bar,
   .sidepanel-footer {
     border-width: 2px;
   }
   
-  .nav-tab.active {
-    border-bottom-width: 3px;
-  }
-  
-  .icon-button:focus-visible,
-  .nav-tab:focus-visible {
+  .hamburger-btn:focus-visible,
+  .new-chat-btn:focus-visible {
     outline-width: 3px;
   }
 }

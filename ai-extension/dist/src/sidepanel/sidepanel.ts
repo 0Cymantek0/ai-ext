@@ -151,127 +151,63 @@ class SidePanelApp {
    * Set up event listeners
    */
   private setupEventListeners(): void {
-    // Tab navigation
-    this.setupTabNavigation();
+    // Hamburger button (history overlay)
+    this.setupHamburgerButton();
 
-    // Theme toggle
-    this.setupThemeToggle();
-
-    // Settings button
-    this.setupSettingsButton();
+    // New chat button
+    this.setupNewChatButton();
 
     // Window visibility
     this.setupVisibilityListener();
   }
 
   /**
-   * Set up tab navigation
+   * Set up hamburger button
+   * Requirement 29.2: Open history overlay
    */
-  private setupTabNavigation(): void {
-    const chatTab = document.getElementById('chat-tab');
-    const pocketsTab = document.getElementById('pockets-tab');
-    const chatPanel = document.getElementById('chat-panel');
-    const pocketsPanel = document.getElementById('pockets-panel');
-
-    if (!chatTab || !pocketsTab || !chatPanel || !pocketsPanel) {
-      console.warn('[SidePanel] Tab elements not found');
+  private setupHamburgerButton(): void {
+    const hamburgerButton = document.getElementById('hamburger-button');
+    if (!hamburgerButton) {
+      console.warn('[SidePanel] Hamburger button not found');
       return;
     }
 
-    const switchTab = (tab: 'chat' | 'pockets') => {
-      // Update state
-      this.stateManager.setActiveTab(tab);
-
-      // Update UI
-      if (tab === 'chat') {
-        chatTab.classList.add('active');
-        pocketsTab.classList.remove('active');
-        chatTab.setAttribute('aria-selected', 'true');
-        pocketsTab.setAttribute('aria-selected', 'false');
-        
-        chatPanel.classList.add('active');
-        pocketsPanel.classList.remove('active');
-        chatPanel.removeAttribute('aria-hidden');
-        pocketsPanel.setAttribute('aria-hidden', 'true');
-      } else {
-        pocketsTab.classList.add('active');
-        chatTab.classList.remove('active');
-        pocketsTab.setAttribute('aria-selected', 'true');
-        chatTab.setAttribute('aria-selected', 'false');
-        
-        pocketsPanel.classList.add('active');
-        chatPanel.classList.remove('active');
-        pocketsPanel.removeAttribute('aria-hidden');
-        chatPanel.setAttribute('aria-hidden', 'true');
-      }
-    };
-
-    chatTab.addEventListener('click', () => switchTab('chat'));
-    pocketsTab.addEventListener('click', () => switchTab('pockets'));
-
-    // Keyboard navigation
-    chatTab.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        switchTab('chat');
-      }
+    hamburgerButton.addEventListener('click', () => {
+      // TODO: Open history overlay (will be implemented in task 9.6.2)
+      console.info('[SidePanel] Hamburger button clicked - History overlay coming soon');
     });
 
-    pocketsTab.addEventListener('keydown', (e) => {
+    // Keyboard support
+    hamburgerButton.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        switchTab('pockets');
+        hamburgerButton.click();
       }
     });
   }
 
   /**
-   * Set up theme toggle
+   * Set up new chat button
+   * Requirement 35.3: Create new conversation
    */
-  private setupThemeToggle(): void {
-    const themeToggle = document.getElementById('theme-toggle');
-    if (!themeToggle) {
-      console.warn('[SidePanel] Theme toggle button not found');
+  private setupNewChatButton(): void {
+    const newChatButton = document.getElementById('new-chat-button');
+    if (!newChatButton) {
+      console.warn('[SidePanel] New chat button not found');
       return;
     }
 
-    themeToggle.addEventListener('click', async () => {
-      const currentTheme = this.preferencesManager.getPreference('theme');
-      
-      // Cycle through themes: auto -> light -> dark -> auto
-      let newTheme: 'light' | 'dark' | 'auto';
-      if (currentTheme === 'auto') {
-        newTheme = 'light';
-      } else if (currentTheme === 'light') {
-        newTheme = 'dark';
-      } else {
-        newTheme = 'auto';
-      }
-
-      await this.preferencesManager.updatePreference('theme', newTheme);
-      
-      // Update icon
-      const icon = themeToggle.querySelector('.theme-icon');
-      if (icon) {
-        icon.textContent = newTheme === 'light' ? '☀️' : newTheme === 'dark' ? '🌙' : '🌓';
-      }
+    newChatButton.addEventListener('click', async () => {
+      console.info('[SidePanel] New chat button clicked');
+      await this.createNewConversation();
     });
-  }
 
-  /**
-   * Set up settings button
-   */
-  private setupSettingsButton(): void {
-    const settingsButton = document.getElementById('settings-button');
-    if (!settingsButton) {
-      console.warn('[SidePanel] Settings button not found');
-      return;
-    }
-
-    settingsButton.addEventListener('click', () => {
-      // TODO: Open settings panel (will be implemented in a future task)
-      console.info('[SidePanel] Settings clicked');
-      alert('Settings panel coming soon!');
+    // Keyboard support
+    newChatButton.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        newChatButton.click();
+      }
     });
   }
 
@@ -316,11 +252,6 @@ class SidePanelApp {
       this.stateManager.setScrollPosition('chat', messageList.scrollTop);
     }
 
-    const pocketsPanel = document.getElementById('pockets-panel');
-    if (pocketsPanel) {
-      this.stateManager.setScrollPosition('pockets', pocketsPanel.scrollTop);
-    }
-
     // Save draft message
     const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement;
     if (chatInput && chatInput.value) {
@@ -345,22 +276,6 @@ class SidePanelApp {
         
         scrollTimeout = window.setTimeout(() => {
           this.stateManager.setScrollPosition('chat', messageList.scrollTop);
-          scrollTimeout = null;
-        }, 500);
-      });
-    }
-
-    const pocketsPanel = document.getElementById('pockets-panel');
-    if (pocketsPanel) {
-      let scrollTimeout: number | null = null;
-      
-      pocketsPanel.addEventListener('scroll', () => {
-        if (scrollTimeout !== null) {
-          clearTimeout(scrollTimeout);
-        }
-        
-        scrollTimeout = window.setTimeout(() => {
-          this.stateManager.setScrollPosition('pockets', pocketsPanel.scrollTop);
           scrollTimeout = null;
         }, 500);
       });
@@ -408,15 +323,6 @@ class SidePanelApp {
   private restoreState(): void {
     const state = this.stateManager.get();
 
-    // Restore active tab
-    const activeTab = state.activeTab;
-    if (activeTab === 'pockets') {
-      const pocketsTab = document.getElementById('pockets-tab');
-      if (pocketsTab) {
-        pocketsTab.click();
-      }
-    }
-
     // Restore draft message
     const draftMessage = this.stateManager.getDraftMessage();
     if (draftMessage && this.chatInterface) {
@@ -429,20 +335,12 @@ class SidePanelApp {
 
     // Restore scroll positions
     const chatScrollPos = this.stateManager.getScrollPosition('chat');
-    const pocketsScrollPos = this.stateManager.getScrollPosition('pockets');
     
     if (chatScrollPos > 0) {
       const chatPanel = document.getElementById('chat-panel');
       const messageList = chatPanel?.querySelector('.message-list');
       if (messageList) {
         messageList.scrollTop = chatScrollPos;
-      }
-    }
-
-    if (pocketsScrollPos > 0) {
-      const pocketsPanel = document.getElementById('pockets-panel');
-      if (pocketsPanel) {
-        pocketsPanel.scrollTop = pocketsScrollPos;
       }
     }
 

@@ -55,7 +55,7 @@
     ]
   },
   "src/sidepanel/sidepanel.html": {
-    "file": "assets/sidepanel-CEHwVveH.js",
+    "file": "assets/sidepanel-wnSHL0H0.js",
     "name": "sidepanel",
     "src": "src/sidepanel/sidepanel.html",
     "isEntry": true,
@@ -63,7 +63,7 @@
       "_modulepreload-polyfill-B5Qt9EMX.js"
     ],
     "css": [
-      "assets/sidepanel-BajT5XHJ.css"
+      "assets/sidepanel-Ciz7C9vX.css"
     ]
   }
 }
