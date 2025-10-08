@@ -9,7 +9,7 @@ import { PreferencesManager } from './preferences-manager';
 import { StateManager } from './state-manager';
 import { CommunicationManager } from './communication-manager';
 import { ConversationManager } from './conversation-manager';
-import { ConversationSidebar } from './conversation-sidebar';
+import { HistoryOverlay } from './history-overlay';
 
 /**
  * Side Panel Application
@@ -20,7 +20,7 @@ class SidePanelApp {
   private stateManager: StateManager;
   private communicationManager: CommunicationManager;
   private conversationManager: ConversationManager | null = null;
-  private conversationSidebar: ConversationSidebar | null = null;
+  private historyOverlay: HistoryOverlay | null = null;
 
   constructor() {
     this.preferencesManager = new PreferencesManager();
@@ -121,13 +121,25 @@ class SidePanelApp {
       await this.conversationManager.initialize();
       console.info('[SidePanel] Conversation manager initialized');
 
-      // Initialize conversation sidebar
-      const sidebarContainer = document.getElementById('conversation-sidebar-container');
-      if (sidebarContainer) {
-        this.conversationSidebar = new ConversationSidebar('conversation-sidebar-container');
-        this.setupConversationSidebarCallbacks();
-        console.info('[SidePanel] Conversation sidebar initialized');
-      }
+      // Initialize history overlay
+      this.historyOverlay = new HistoryOverlay({
+        onSwitch: async (conversationId) => {
+          await this.loadConversation(conversationId);
+        },
+        onDelete: async (conversationId) => {
+          await this.deleteConversation(conversationId);
+        },
+      });
+      console.info('[SidePanel] History overlay initialized');
+
+      // Subscribe to conversation list updates
+      this.conversationManager.subscribe((conversations) => {
+        if (this.historyOverlay) {
+          this.historyOverlay.updateConversations(conversations);
+          const currentId = this.conversationManager?.getCurrentConversationId() || null;
+          this.historyOverlay.setCurrentConversation(currentId);
+        }
+      });
 
       // Initialize chat interface
       const chatInterfaceContainer = document.getElementById('chat-interface-container');
@@ -173,8 +185,10 @@ class SidePanelApp {
     }
 
     hamburgerButton.addEventListener('click', () => {
-      // TODO: Open history overlay (will be implemented in task 9.6.2)
-      console.info('[SidePanel] Hamburger button clicked - History overlay coming soon');
+      if (this.historyOverlay) {
+        this.historyOverlay.toggle();
+        console.info('[SidePanel] History overlay toggled');
+      }
     });
 
     // Keyboard support
@@ -403,39 +417,7 @@ class SidePanelApp {
     }
   }
 
-  /**
-   * Set up conversation sidebar callbacks
-   * Requirement 8.8: Handle conversation switching
-   */
-  private setupConversationSidebarCallbacks(): void {
-    if (!this.conversationSidebar || !this.conversationManager) {
-      return;
-    }
 
-    // Handle conversation switch
-    this.conversationSidebar.onSwitch(async (conversationId) => {
-      await this.loadConversation(conversationId);
-    });
-
-    // Handle new conversation
-    this.conversationSidebar.onNew(async () => {
-      await this.createNewConversation();
-    });
-
-    // Handle delete conversation
-    this.conversationSidebar.onDelete(async (conversationId) => {
-      await this.deleteConversation(conversationId);
-    });
-
-    // Subscribe to conversation list updates
-    this.conversationManager.subscribe((conversations) => {
-      if (this.conversationSidebar) {
-        this.conversationSidebar.updateConversations(conversations);
-        const currentId = this.conversationManager?.getCurrentConversationId() || null;
-        this.conversationSidebar.setCurrentConversation(currentId);
-      }
-    });
-  }
 
   /**
    * Load a conversation
@@ -454,11 +436,6 @@ class SidePanelApp {
       if (conversation) {
         // Load messages into chat interface
         this.chatInterface.loadConversation(conversation.id, conversation.messages);
-        
-        // Update sidebar
-        if (this.conversationSidebar) {
-          this.conversationSidebar.setCurrentConversation(conversation.id);
-        }
         
         console.info('[SidePanel] Conversation loaded successfully');
       } else {
@@ -489,11 +466,6 @@ class SidePanelApp {
       
       // Switch to the new conversation
       await this.conversationManager.switchConversation(conversationId);
-      
-      // Update sidebar
-      if (this.conversationSidebar) {
-        this.conversationSidebar.setCurrentConversation(conversationId);
-      }
       
       console.info('[SidePanel] New conversation created:', conversationId);
     } catch (error) {
@@ -540,7 +512,7 @@ class SidePanelApp {
       communication: this.communicationManager,
       chat: this.chatInterface,
       conversations: this.conversationManager,
-      sidebar: this.conversationSidebar,
+      historyOverlay: this.historyOverlay,
     };
   }
 }

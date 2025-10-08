@@ -8,6 +8,7 @@
   <title>AI Pocket</title>
   <link rel="stylesheet" href="../../styles/sidepanel.css" />
   <link rel="stylesheet" href="../../styles/chat.css" />
+  <link rel="stylesheet" href="../../styles/history-overlay.css" />
 </head>
 
 <body data-theme="auto">
@@ -34,16 +35,9 @@
     <main id="app" class="sidepanel-main" role="main">
       <!-- Chat Panel -->
       <div id="chat-panel" class="panel-content active" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
-        <div class="chat-layout">
-          <!-- Conversation Sidebar -->
-          <aside id="conversation-sidebar-container" class="conversation-sidebar-container" aria-label="Conversation history">
-            <!-- Conversation sidebar will be initialized here by TypeScript -->
-          </aside>
-          
-          <!-- Chat Interface -->
-          <div id="chat-interface-container" class="chat-interface-container">
-            <!-- Chat interface will be initialized here by TypeScript -->
-          </div>
+        <!-- Chat Interface (Full Width) -->
+        <div id="chat-interface-container" class="chat-interface-container">
+          <!-- Chat interface will be initialized here by TypeScript -->
         </div>
       </div>
 
