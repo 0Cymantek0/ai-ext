@@ -13,39 +13,20 @@ import type {
   AiCancelRequestPayload,
   BaseMessage
 } from '../shared/types/index.d';
-
-/**
- * Message role
- */
-type MessageRole = 'user' | 'assistant' | 'system';
-
-/**
- * Message interface
- */
-interface Message {
-  id: string;
-  role: MessageRole;
-  content: string;
-  timestamp: number;
-  source?: 'gemini-nano' | 'gemini-flash' | 'gemini-pro';
-  isStreaming?: boolean;
-  processingTime?: number;
-  tokensUsed?: number;
-}
+import { MessageDisplay, type Message } from './message-display';
 
 /**
  * Chat Interface class
  * Manages the chat UI and streaming responses
  */
 export class ChatInterface {
-  private messages: Message[] = [];
+  private messageDisplay: MessageDisplay;
   private currentStreamingMessageId: string | null = null;
   private currentRequestId: string | null = null;
   private conversationId: string;
 
   // DOM elements
   private container: HTMLElement;
-  private messageList!: HTMLElement;
   private inputField!: HTMLTextAreaElement;
   private sendButton!: HTMLButtonElement;
   private cancelButton!: HTMLButtonElement;
@@ -61,6 +42,13 @@ export class ChatInterface {
 
     // Initialize UI
     this.initializeUI();
+
+    // Initialize message display with virtual scrolling
+    const messageListContainer = this.container.querySelector('.message-list-container');
+    if (!messageListContainer) {
+      throw new Error('Message list container not found');
+    }
+    this.messageDisplay = new MessageDisplay(messageListContainer.id);
 
     // Set up message listener
     this.setupMessageListener();
@@ -81,7 +69,7 @@ export class ChatInterface {
           <div class="chat-status" id="chat-status"></div>
         </div>
         
-        <div class="message-list" id="message-list" role="log" aria-live="polite" aria-label="Chat messages">
+        <div class="message-list-container" id="message-list-container">
           <div class="welcome-message">
             <p>👋 Welcome to AI Pocket!</p>
             <p>Ask me anything about your saved content or start a conversation.</p>
@@ -131,7 +119,6 @@ export class ChatInterface {
     `;
 
     // Get DOM references
-    this.messageList = document.getElementById('message-list')!;
     this.inputField = document.getElementById('chat-input') as HTMLTextAreaElement;
     this.sendButton = document.getElementById('send-button') as HTMLButtonElement;
     this.cancelButton = document.getElementById('cancel-button') as HTMLButtonElement;
@@ -181,6 +168,9 @@ export class ChatInterface {
     if (!message || this.currentRequestId) {
       return;
     }
+
+    // Hide welcome message if it exists
+    this.hideWelcomeMessage();
 
     // Add user message to UI
     this.addMessage({
@@ -247,11 +237,13 @@ export class ChatInterface {
 
       // Clean up current streaming message
       if (this.currentStreamingMessageId) {
-        const message = this.messages.find(m => m.id === this.currentStreamingMessageId);
+        const messages = this.messageDisplay.getMessages();
+        const message = messages.find(m => m.id === this.currentStreamingMessageId);
         if (message) {
-          message.isStreaming = false;
-          message.content += '\n\n[Cancelled by user]';
-          this.updateMessageInDOM(message);
+          this.messageDisplay.updateMessage(this.currentStreamingMessageId, {
+            isStreaming: false,
+            content: message.content + '\n\n[Cancelled by user]'
+          });
         }
       }
 
@@ -320,13 +312,12 @@ export class ChatInterface {
       return;
     }
 
-    const message = this.messages.find(m => m.id === this.currentStreamingMessageId);
+    const messages = this.messageDisplay.getMessages();
+    const message = messages.find(m => m.id === this.currentStreamingMessageId);
     if (message) {
-      message.content += payload.chunk;
-      this.updateMessageInDOM(message);
-
-      // Auto-scroll to bottom
-      this.scrollToBottom();
+      this.messageDisplay.updateMessage(this.currentStreamingMessageId, {
+        content: message.content + payload.chunk
+      });
     }
   }
 
@@ -338,14 +329,12 @@ export class ChatInterface {
       return;
     }
 
-    const message = this.messages.find(m => m.id === this.currentStreamingMessageId);
-    if (message) {
-      message.isStreaming = false;
-      message.source = payload.source;
-      message.processingTime = payload.processingTime;
-      message.tokensUsed = payload.totalTokens;
-      this.updateMessageInDOM(message);
-    }
+    this.messageDisplay.updateMessage(this.currentStreamingMessageId, {
+      isStreaming: false,
+      source: payload.source,
+      processingTime: payload.processingTime,
+      tokensUsed: payload.totalTokens
+    });
 
     this.currentRequestId = null;
     this.currentStreamingMessageId = null;
@@ -361,11 +350,13 @@ export class ChatInterface {
     console.error('Stream error:', payload);
 
     if (this.currentStreamingMessageId) {
-      const message = this.messages.find(m => m.id === this.currentStreamingMessageId);
+      const messages = this.messageDisplay.getMessages();
+      const message = messages.find(m => m.id === this.currentStreamingMessageId);
       if (message) {
-        message.isStreaming = false;
-        message.content += `\n\n❌ Error: ${payload.error}`;
-        this.updateMessageInDOM(message);
+        this.messageDisplay.updateMessage(this.currentStreamingMessageId, {
+          isStreaming: false,
+          content: message.content + `\n\n❌ Error: ${payload.error}`
+        });
       }
     } else {
       this.showError(payload.error);
@@ -379,106 +370,20 @@ export class ChatInterface {
 
   /**
    * Add message to the chat
+   * Requirement 8.1: Display message history
    */
   private addMessage(message: Message): void {
-    this.messages.push(message);
-    this.renderMessage(message);
-    this.scrollToBottom();
+    this.messageDisplay.addMessage(message);
   }
-
+  
   /**
-   * Render a message in the DOM
-   * Requirement 8.1: Display message history
-   * Requirement 8.7: Virtual scrolling for long conversations (simplified for MVP)
+   * Hide welcome message
    */
-  private renderMessage(message: Message): void {
-    const messageElement = document.createElement('div');
-    messageElement.className = `message message-${message.role}`;
-    messageElement.id = `message-${message.id}`;
-    messageElement.setAttribute('role', 'article');
-    messageElement.setAttribute('aria-label', `${message.role} message`);
-
-    const contentElement = document.createElement('div');
-    contentElement.className = 'message-content';
-    contentElement.textContent = message.content;
-
-    const metaElement = document.createElement('div');
-    metaElement.className = 'message-meta';
-    
-    const timeString = new Date(message.timestamp).toLocaleTimeString();
-    metaElement.textContent = timeString;
-
-    if (message.source) {
-      const sourceElement = document.createElement('span');
-      sourceElement.className = 'message-source';
-      sourceElement.textContent = ` • ${this.formatSource(message.source)}`;
-      metaElement.appendChild(sourceElement);
-    }
-
-    if (message.isStreaming) {
-      const streamingIndicator = document.createElement('span');
-      streamingIndicator.className = 'streaming-indicator';
-      streamingIndicator.textContent = ' • Streaming...';
-      metaElement.appendChild(streamingIndicator);
-    }
-
-    messageElement.appendChild(contentElement);
-    messageElement.appendChild(metaElement);
-
-    // Remove welcome message if it exists
-    const welcomeMessage = this.messageList.querySelector('.welcome-message');
+  private hideWelcomeMessage(): void {
+    const welcomeMessage = this.container.querySelector('.welcome-message');
     if (welcomeMessage) {
       welcomeMessage.remove();
     }
-
-    this.messageList.appendChild(messageElement);
-  }
-
-  /**
-   * Update message in DOM
-   */
-  private updateMessageInDOM(message: Message): void {
-    const messageElement = document.getElementById(`message-${message.id}`);
-    if (!messageElement) {
-      return;
-    }
-
-    const contentElement = messageElement.querySelector('.message-content');
-    if (contentElement) {
-      contentElement.textContent = message.content;
-    }
-
-    const metaElement = messageElement.querySelector('.message-meta');
-    if (metaElement) {
-      const timeString = new Date(message.timestamp).toLocaleTimeString();
-      metaElement.textContent = timeString;
-
-      if (message.source) {
-        const sourceElement = document.createElement('span');
-        sourceElement.className = 'message-source';
-        sourceElement.textContent = ` • ${this.formatSource(message.source)}`;
-        metaElement.appendChild(sourceElement);
-      }
-
-      if (message.isStreaming) {
-        const streamingIndicator = document.createElement('span');
-        streamingIndicator.className = 'streaming-indicator';
-        streamingIndicator.textContent = ' • Streaming...';
-        metaElement.appendChild(streamingIndicator);
-      }
-    }
-  }
-
-  /**
-   * Format source name for display
-   */
-  private formatSource(source: string): string {
-    const sourceMap: Record<string, string> = {
-      'gemini-nano': 'Gemini Nano (Local)',
-      'gemini-flash': 'Gemini Flash (Cloud)',
-      'gemini-pro': 'Gemini Pro (Cloud)'
-    };
-    return sourceMap[source] || source;
   }
 
   /**
@@ -522,19 +427,13 @@ export class ChatInterface {
    * Show error message
    */
   private showError(error: string): void {
+    this.hideWelcomeMessage();
     this.addMessage({
       id: crypto.randomUUID(),
       role: 'system',
       content: `❌ ${error}`,
       timestamp: Date.now()
     });
-  }
-
-  /**
-   * Scroll to bottom of message list
-   */
-  private scrollToBottom(): void {
-    this.messageList.scrollTop = this.messageList.scrollHeight;
   }
 
   /**
@@ -556,13 +455,20 @@ export class ChatInterface {
    * Clear conversation
    */
   clearConversation(): void {
-    this.messages = [];
-    this.messageList.innerHTML = `
-      <div class="welcome-message">
+    this.messageDisplay.clearMessages();
+    
+    // Show welcome message again
+    const container = this.container.querySelector('.message-list-container');
+    if (container) {
+      const welcomeMessage = document.createElement('div');
+      welcomeMessage.className = 'welcome-message';
+      welcomeMessage.innerHTML = `
         <p>👋 Welcome to AI Pocket!</p>
         <p>Ask me anything about your saved content or start a conversation.</p>
-      </div>
-    `;
+      `;
+      container.appendChild(welcomeMessage);
+    }
+    
     this.conversationId = crypto.randomUUID();
   }
 
@@ -570,6 +476,13 @@ export class ChatInterface {
    * Get conversation history
    */
   getMessages(): Message[] {
-    return [...this.messages];
+    return this.messageDisplay.getMessages();
+  }
+  
+  /**
+   * Get message display instance
+   */
+  getMessageDisplay(): MessageDisplay {
+    return this.messageDisplay;
   }
 }
