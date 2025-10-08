@@ -2,8 +2,10 @@
  * Message Display Component with Virtual Scrolling
  * 
  * Implements efficient message rendering with virtual scrolling for long conversations.
- * Requirements: 8.1, 8.2, 8.7
+ * Requirements: 8.1, 8.2, 8.7, 8.3, 8.9
  */
+
+import { StreamingDisplay } from './streaming-display';
 
 /**
  * Message interface
@@ -59,6 +61,9 @@ export class MessageDisplay {
   private resizeObserver!: ResizeObserver;
   private isAutoScrollEnabled = true;
   private lastScrollHeight = 0;
+  
+  // Streaming displays for active streaming messages
+  private streamingDisplays: Map<string, StreamingDisplay> = new Map();
   
   constructor(containerId: string) {
     const container = document.getElementById(containerId);
@@ -207,11 +212,26 @@ export class MessageDisplay {
       return;
     }
     
+    const wasStreaming = currentMessage.isStreaming;
+    const isNowStreaming = updates.isStreaming ?? wasStreaming;
+    
     // Update message data
     this.messages[index] = { ...currentMessage, ...updates };
     
-    // Re-render if message is visible
-    if (this.isMessageVisible(index)) {
+    // Handle streaming display
+    if (isNowStreaming && !wasStreaming) {
+      // Start streaming
+      this.startMessageStreaming(messageId);
+    } else if (!isNowStreaming && wasStreaming) {
+      // Stop streaming
+      this.stopMessageStreaming(messageId);
+    } else if (isNowStreaming && updates.content !== undefined) {
+      // Update streaming content
+      this.updateStreamingContent(messageId, updates.content);
+    }
+    
+    // Re-render if message is visible and not using streaming display
+    if (this.isMessageVisible(index) && !isNowStreaming) {
       const updatedMessage = this.messages[index];
       if (updatedMessage) {
         this.renderMessage(updatedMessage, index);
@@ -221,6 +241,66 @@ export class MessageDisplay {
     // Auto-scroll if at bottom
     if (this.isAutoScrollEnabled) {
       this.scrollToBottom();
+    }
+  }
+  
+  /**
+   * Start streaming for a message
+   * Requirement 8.3, 8.9: Initialize streaming display
+   */
+  private startMessageStreaming(messageId: string): void {
+    const messageElement = this.contentContainer.querySelector(
+      `[data-message-id="${messageId}"]`
+    ) as HTMLElement;
+    
+    if (!messageElement) {
+      return;
+    }
+    
+    const contentElement = messageElement.querySelector('.message-content') as HTMLElement;
+    if (!contentElement) {
+      return;
+    }
+    
+    // Create streaming display
+    const streamingDisplay = new StreamingDisplay(contentElement, {
+      showCursor: true,
+      autoScroll: true,
+      announceToScreenReader: true
+    });
+    
+    streamingDisplay.startStreaming();
+    this.streamingDisplays.set(messageId, streamingDisplay);
+  }
+  
+  /**
+   * Update streaming content
+   * Requirement 8.3: Progressive content updates
+   */
+  private updateStreamingContent(messageId: string, content: string): void {
+    const streamingDisplay = this.streamingDisplays.get(messageId);
+    if (!streamingDisplay) {
+      return;
+    }
+    
+    // Get current content and calculate new chunk
+    const currentContent = streamingDisplay.getContent();
+    const newChunk = content.substring(currentContent.length);
+    
+    if (newChunk) {
+      streamingDisplay.appendChunk(newChunk);
+    }
+  }
+  
+  /**
+   * Stop streaming for a message
+   * Requirement 8.9: Clean up streaming display
+   */
+  private stopMessageStreaming(messageId: string): void {
+    const streamingDisplay = this.streamingDisplays.get(messageId);
+    if (streamingDisplay) {
+      streamingDisplay.stopStreaming();
+      this.streamingDisplays.delete(messageId);
     }
   }
   
@@ -512,6 +592,12 @@ export class MessageDisplay {
     if (this.scrollTimeout !== null) {
       clearTimeout(this.scrollTimeout);
     }
+    
+    // Clean up streaming displays
+    for (const streamingDisplay of this.streamingDisplays.values()) {
+      streamingDisplay.destroy();
+    }
+    this.streamingDisplays.clear();
     
     this.contentContainer.innerHTML = '';
     this.messages = [];

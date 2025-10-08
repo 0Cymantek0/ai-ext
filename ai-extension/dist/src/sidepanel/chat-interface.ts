@@ -14,6 +14,7 @@ import type {
   BaseMessage
 } from '../shared/types/index.d';
 import { MessageDisplay, type Message } from './message-display';
+import { TypingIndicator } from './typing-indicator';
 
 /**
  * Chat Interface class
@@ -21,6 +22,7 @@ import { MessageDisplay, type Message } from './message-display';
  */
 export class ChatInterface {
   private messageDisplay: MessageDisplay;
+  private typingIndicator!: TypingIndicator;
   private currentStreamingMessageId: string | null = null;
   private currentRequestId: string | null = null;
   private conversationId: string;
@@ -49,6 +51,22 @@ export class ChatInterface {
       throw new Error('Message list container not found');
     }
     this.messageDisplay = new MessageDisplay(messageListContainer.id);
+
+    // Initialize typing indicator
+    const typingIndicatorElement = document.getElementById('typing-indicator');
+    if (typingIndicatorElement) {
+      this.typingIndicator = new TypingIndicator(typingIndicatorElement, {
+        messages: [
+          'AI is thinking...',
+          'Processing your request...',
+          'Generating response...',
+          'Analyzing content...',
+          'Almost there...'
+        ],
+        messageInterval: 2500,
+        showDots: true
+      });
+    }
 
     // Set up message listener
     this.setupMessageListener();
@@ -391,9 +409,8 @@ export class ChatInterface {
    * Requirement 8.9: Display typing indicator during processing
    */
   private showTypingIndicator(): void {
-    const indicator = document.getElementById('typing-indicator');
-    if (indicator) {
-      indicator.style.display = 'flex';
+    if (this.typingIndicator) {
+      this.typingIndicator.show();
     }
   }
 
@@ -401,9 +418,17 @@ export class ChatInterface {
    * Hide typing indicator
    */
   private hideTypingIndicator(): void {
-    const indicator = document.getElementById('typing-indicator');
-    if (indicator) {
-      indicator.style.display = 'none';
+    if (this.typingIndicator) {
+      this.typingIndicator.hide();
+    }
+  }
+  
+  /**
+   * Set custom typing indicator message
+   */
+  private setTypingMessage(message: string): void {
+    if (this.typingIndicator) {
+      this.typingIndicator.setMessage(message);
     }
   }
 
