@@ -85,11 +85,6 @@ export class ChatInterface {
   private initializeUI(): void {
     this.container.innerHTML = `
       <div class="chat-container">
-        <div class="chat-header">
-          <h2>AI Pocket Assistant</h2>
-          <div class="chat-status" id="chat-status"></div>
-        </div>
-        
         <div class="message-list-container" id="message-list-container">
           <div class="welcome-message">
             <p>👋 Welcome to AI Pocket!</p>

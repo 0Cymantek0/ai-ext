@@ -426,10 +426,15 @@ export class MessageDisplay {
    */
   private createMessageElement(message: Message): HTMLElement {
     const messageElement = document.createElement('div');
-    messageElement.className = `message message-${message.role}`;
+    messageElement.className = `message message-${message.role} message-new`;
     messageElement.dataset.messageId = message.id;
     messageElement.setAttribute('role', 'article');
     messageElement.setAttribute('aria-label', `${message.role} message`);
+    
+    // Remove message-new class after animation completes
+    setTimeout(() => {
+      messageElement.classList.remove('message-new');
+    }, 200);
     
     const contentElement = document.createElement('div');
     contentElement.className = 'message-content';
