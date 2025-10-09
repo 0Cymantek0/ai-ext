@@ -1,57 +1,19 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
   <title>AI Pocket</title>
-  <link rel="stylesheet" href="../../styles/globals.css" />
-  <script type="module" crossorigin src="/assets/sidepanel-C0egwOkH.js"></script>
+  <script type="module" crossorigin src="/assets/sidepanel-LL_yyv9D.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
-  <link rel="stylesheet" crossorigin href="/assets/sidepanel-CSCSarjd.css">
+  <link rel="stylesheet" crossorigin href="/assets/sidepanel-gWlGKkcp.css">
 </head>
 
 <body data-theme="auto" class="dark">
-  <!-- Side Panel Container -->
-  <div id="sidepanel-root" class="sidepanel-container">
-    <!-- Compact Top Bar -->
-    <header class="compact-top-bar" role="banner">
-      <button id="hamburger-button" class="hamburger-btn" aria-label="Open history" title="Open history" type="button">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
-      
-      <h1 class="app-title">AI Pocket Assistant</h1>
-      
-      <button id="new-chat-button" class="new-chat-btn" aria-label="New conversation" title="New conversation" type="button">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </header>
+  <!-- React Root Container -->
+  <div id="chat-interface-container" class="h-screen w-full"></div>
 
-    <!-- Main Content Area -->
-    <main id="app" class="sidepanel-main" role="main">
-      <!-- Chat Panel -->
-      <div id="chat-panel" class="panel-content active" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
-        <!-- Chat Interface (Full Width) -->
-        <div id="chat-interface-container" class="chat-interface-container">
-          <!-- Chat interface will be initialized here by TypeScript -->
-        </div>
-      </div>
-
-      <!-- Pockets Panel (Hidden by default) -->
-      <div id="pockets-panel" class="panel-content" role="tabpanel" aria-labelledby="pockets-tab" aria-hidden="true"
-        tabindex="0">
-        <div class="pockets-placeholder">
-          <p>📚 Pockets feature coming soon</p>
-        </div>
-      </div>
-    </main>
-  </div>
-
+  <!-- Scripts -->
 </body>
-
 </html>
