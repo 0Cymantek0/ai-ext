@@ -305,7 +305,12 @@ async function example8_PerformanceMonitoring() {
     operation: TaskOperation.SUMMARIZE
   }));
 
-  const results = [];
+  const results: Array<{
+    source: string;
+    processingTime: number;
+    totalTime: number;
+    tokensUsed: number;
+  }> = [];
 
   for (const task of tasks) {
     try {

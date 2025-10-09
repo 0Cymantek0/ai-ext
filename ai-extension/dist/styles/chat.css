@@ -19,6 +19,7 @@
   overflow-y: auto;
   padding: 20px;
   position: relative;
+  min-height: 0; /* Important: allows flex child to shrink below content size */
 }
 
 /* Message List (Virtual Scrolling) */
@@ -27,8 +28,7 @@
   flex-direction: column;
   gap: 16px;
   scroll-behavior: smooth;
-  height: 100%;
-  overflow-y: auto;
+  /* Remove fixed height to allow natural content flow */
 }
 
 /* Message List Content */
@@ -298,6 +298,8 @@
   border-top: 1px solid var(--border-color, #e0e0e0);
   background-color: var(--bg-primary, #ffffff);
   padding: 16px 20px;
+  flex-shrink: 0; /* Prevent input from being compressed */
+  position: relative; /* Ensure it stays in the document flow */
 }
 
 /* Typing Indicator */
@@ -620,6 +622,7 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
+  overflow: hidden; /* Prevent container from expanding beyond viewport */
 }
 
 .sidebar-header {

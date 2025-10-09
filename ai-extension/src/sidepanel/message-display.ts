@@ -62,6 +62,7 @@ export class MessageDisplay {
   private resizeObserver!: ResizeObserver;
   private isAutoScrollEnabled = true;
   private lastScrollHeight = 0;
+  private renderedMessageIds: Set<string> = new Set(); // Track which messages have been rendered before
   
   // Streaming displays for active streaming messages
   private streamingDisplays: Map<string, StreamingDisplay> = new Map();
@@ -319,6 +320,7 @@ export class MessageDisplay {
     this.messages = [];
     this.messageHeights = {};
     this.visibleRange = { startIndex: 0, endIndex: 0 };
+    this.renderedMessageIds.clear(); // Clear the tracking set when clearing messages
     this.contentContainer.innerHTML = '';
     this.updateSpacers();
   }
@@ -426,15 +428,26 @@ export class MessageDisplay {
    */
   private createMessageElement(message: Message): HTMLElement {
     const messageElement = document.createElement('div');
-    messageElement.className = `message message-${message.role} message-new`;
+    
+    // Only add message-new class for truly new messages (first time rendered)
+    const isNewMessage = !this.renderedMessageIds.has(message.id);
+    const classes = ['message', `message-${message.role}`];
+    if (isNewMessage) {
+      classes.push('message-new');
+      this.renderedMessageIds.add(message.id);
+    }
+    
+    messageElement.className = classes.join(' ');
     messageElement.dataset.messageId = message.id;
     messageElement.setAttribute('role', 'article');
     messageElement.setAttribute('aria-label', `${message.role} message`);
     
-    // Remove message-new class after animation completes
-    setTimeout(() => {
-      messageElement.classList.remove('message-new');
-    }, 200);
+    // Remove message-new class after animation completes (only for new messages)
+    if (isNewMessage) {
+      setTimeout(() => {
+        messageElement.classList.remove('message-new');
+      }, 200);
+    }
     
     const contentElement = document.createElement('div');
     contentElement.className = 'message-content';
@@ -703,5 +716,6 @@ export class MessageDisplay {
     this.contentContainer.innerHTML = '';
     this.messages = [];
     this.messageHeights = {};
+    this.renderedMessageIds.clear();
   }
 }

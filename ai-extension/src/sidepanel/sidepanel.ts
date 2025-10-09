@@ -141,18 +141,9 @@ class SidePanelApp {
         }
       });
 
-      // Initialize chat interface
-      const chatInterfaceContainer = document.getElementById('chat-interface-container');
-      if (chatInterfaceContainer) {
-        const currentConversationId = this.conversationManager.getCurrentConversationId();
-        this.chatInterface = new ChatInterface('chat-interface-container', currentConversationId || undefined);
-        console.info('[SidePanel] Chat interface initialized');
-        
-        // Load current conversation if exists
-        if (currentConversationId) {
-          await this.loadConversation(currentConversationId);
-        }
-      }
+      // Chat interface will be initialized by React (sidepanel-react.tsx)
+      // The old vanilla TypeScript chat interface is now replaced with React components
+      console.info('[SidePanel] Skipping vanilla chat interface - using React version');
     } catch (error) {
       console.error('[SidePanel] Failed to initialize UI components:', error);
       throw error;
