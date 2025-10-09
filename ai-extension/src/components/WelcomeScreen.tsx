@@ -8,32 +8,56 @@ interface WelcomeScreenProps {
 
 const suggestions = [
   {
-    icon: "🔍",
+    icon: (
+      <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    ),
     text: "Summarize this page",
     prompt: "Summarize the key points from this webpage",
   },
   {
-    icon: "💡",
+    icon: (
+      <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+      </svg>
+    ),
     text: "Explain this concept",
     prompt: "Explain this concept in simple terms",
   },
   {
-    icon: "📝",
+    icon: (
+      <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      </svg>
+    ),
     text: "Help me write",
     prompt: "Help me write a professional email",
   },
   {
-    icon: "🎯",
+    icon: (
+      <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
     text: "Analyze content",
     prompt: "Analyze the main arguments in this content",
   },
   {
-    icon: "🔗",
+    icon: (
+      <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+      </svg>
+    ),
     text: "Find connections",
     prompt: "Find connections between my saved content",
   },
   {
-    icon: "🚀",
+    icon: (
+      <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
     text: "Get started",
     prompt: "What can you help me with?",
   },
@@ -43,14 +67,6 @@ export function WelcomeScreen({ onSuggestionClick, className }: WelcomeScreenPro
   return (
     <div className={cn("flex flex-1 flex-col items-center justify-center p-6 text-center overflow-y-auto scrollbar-custom", className)}>
       <div className="mb-8 space-y-4">
-        {/* Icon */}
-        <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-primary/10">
-          <svg className="size-10 text-primary" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" opacity="0.5"/>
-            <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 2.18l8 3.64v7.18c0 4.52-2.98 8.69-7 9.93-4.02-1.24-7-5.41-7-9.93V7.82l8-3.64zM11 7v2H9v2h2v2h2v-2h2V9h-2V7h-2z"/>
-          </svg>
-        </div>
-
         {/* Welcome Message */}
         <div className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight">Welcome to AI Pocket</h2>
@@ -75,7 +91,7 @@ export function WelcomeScreen({ onSuggestionClick, className }: WelcomeScreenPro
               "active:scale-95"
             )}
           >
-            <span className="text-2xl group-hover:scale-110 transition-transform">
+            <span className="text-primary group-hover:scale-110 transition-transform">
               {suggestion.icon}
             </span>
             <span className="text-xs font-medium text-center group-hover:text-foreground transition-colors">

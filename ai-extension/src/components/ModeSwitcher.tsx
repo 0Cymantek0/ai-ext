@@ -1,0 +1,70 @@
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+export type Mode = "ask" | "ai-pocket"
+
+interface ModeSwitcherProps {
+  currentMode: Mode
+  onModeChange: (mode: Mode) => void
+  className?: string
+}
+
+export function ModeSwitcher({ currentMode, onModeChange, className }: ModeSwitcherProps) {
+  const modes: Array<{ id: Mode; label: string; icon: React.ReactNode }> = [
+    { 
+      id: "ask", 
+      label: "Ask", 
+      icon: (
+        <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      )
+    },
+    { 
+      id: "ai-pocket", 
+      label: "AI Pocket", 
+      icon: (
+        <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      )
+    },
+  ]
+
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-full bg-background/95 backdrop-blur-sm p-1",
+        "border border-border shadow-lg",
+        "transition-all duration-200",
+        className
+      )}
+      role="tablist"
+      aria-label="Mode switcher"
+    >
+      {modes.map((mode) => (
+        <button
+          key={mode.id}
+          type="button"
+          role="tab"
+          aria-selected={currentMode === mode.id}
+          aria-controls={`${mode.id}-panel`}
+          onClick={() => onModeChange(mode.id)}
+          className={cn(
+            "relative flex items-center gap-2 rounded-full px-4 py-2",
+            "text-sm font-medium transition-all duration-200",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            currentMode === mode.id
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          )}
+        >
+          <span aria-hidden="true">
+            {mode.icon}
+          </span>
+          <span className="leading-none">{mode.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}

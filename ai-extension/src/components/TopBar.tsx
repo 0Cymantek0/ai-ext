@@ -84,17 +84,8 @@ export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
           </svg>
         </Button>
 
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <svg className="size-6 text-primary" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" opacity="0.3"/>
-              <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 2.18l8 3.64v7.18c0 4.52-2.98 8.69-7 9.93-4.02-1.24-7-5.41-7-9.93V7.82l8-3.64z"/>
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold leading-none">AI Pocket</h1>
-            <p className="text-xs text-muted-foreground">Assistant</p>
-          </div>
+        <div>
+          <h1 className="text-sm font-semibold leading-none">AI Pocket</h1>
         </div>
       </div>
 

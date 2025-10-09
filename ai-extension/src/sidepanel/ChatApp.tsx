@@ -19,6 +19,8 @@ import { Actions, ActionButton } from "@/components/ai/actions"
 import { TopBar } from "@/components/TopBar"
 import { WelcomeScreen } from "@/components/WelcomeScreen"
 import { HistoryPanel } from "@/components/HistoryPanel"
+import { ModeSwitcher } from "@/components/ModeSwitcher"
+import type { Mode } from "@/components/ModeSwitcher"
 import { Button } from "@/components/ui/button"
 
 interface ChatMessage {
@@ -44,6 +46,7 @@ export function ChatApp() {
   const [conversations, setConversations] = React.useState<ConversationData[]>([])
   const [currentConversationId, setCurrentConversationId] = React.useState<string | null>(null)
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false)
+  const [currentMode, setCurrentMode] = React.useState<Mode>("ask")
 
   React.useEffect(() => {
     // Load conversations from storage
@@ -496,6 +499,26 @@ export function ChatApp() {
     }, 100)
   }
 
+  const handleModeChange = (mode: Mode) => {
+    console.log(`🔄 Switching mode from ${currentMode} to ${mode}`)
+    setCurrentMode(mode)
+    
+    // Preserve conversation context - no need to clear messages or state
+    // The mode switch is just a UI state change that affects how the AI responds
+    // Future enhancement: Could adjust AI behavior based on mode
+    
+    // Store mode preference
+    localStorage.setItem("ai-pocket-mode", mode)
+  }
+
+  // Load mode preference on mount
+  React.useEffect(() => {
+    const savedMode = localStorage.getItem("ai-pocket-mode") as Mode
+    if (savedMode && (savedMode === "ask" || savedMode === "ai-pocket")) {
+      setCurrentMode(savedMode)
+    }
+  }, [])
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <TopBar
@@ -513,7 +536,15 @@ export function ChatApp() {
         onNewConversation={handleNewChat}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden relative">
+        {/* Floating Mode Switcher */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+          <ModeSwitcher
+            currentMode={currentMode}
+            onModeChange={handleModeChange}
+          />
+        </div>
+
         {messages.length === 0 ? (
           <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
         ) : (
