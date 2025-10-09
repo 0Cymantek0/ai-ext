@@ -37,7 +37,7 @@ const ConversationContent = React.forwardRef<
         }
       }}
       className={cn(
-        "flex-1 space-y-4 overflow-y-auto p-4",
+        "flex-1 space-y-4 overflow-y-auto scrollbar-custom p-4",
         className
       )}
       {...props}

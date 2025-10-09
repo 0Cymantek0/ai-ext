@@ -64,7 +64,7 @@ export function HistoryPanel({
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+          className="fixed inset-0 z-40 bg-background/95 backdrop-blur-md"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -73,7 +73,7 @@ export function HistoryPanel({
       {/* Panel */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-80 transform border-r bg-background shadow-lg transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 w-80 transform border-r border-border/50 bg-background shadow-xl transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "-translate-x-full",
           className
         )}

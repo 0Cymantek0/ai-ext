@@ -41,7 +41,7 @@ const suggestions = [
 
 export function WelcomeScreen({ onSuggestionClick, className }: WelcomeScreenProps) {
   return (
-    <div className={cn("flex h-full flex-col items-center justify-center p-6 text-center", className)}>
+    <div className={cn("flex flex-1 flex-col items-center justify-center p-6 text-center overflow-y-auto scrollbar-custom", className)}>
       <div className="mb-8 space-y-4">
         {/* Icon */}
         <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-primary/10">
