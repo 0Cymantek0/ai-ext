@@ -11,9 +11,21 @@ import {
 import { Response } from "@/components/ai/response"
 import {
   PromptInput,
-  PromptInputTextarea,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
+  PromptInputAttachment,
+  PromptInputAttachments,
+  PromptInputBody,
+  PromptInputButton,
+  type PromptInputMessage,
+  PromptInputSpeechButton,
   PromptInputSubmit,
-} from "@/components/ai/prompt-input"
+  PromptInputTextarea,
+  PromptInputToolbar,
+  PromptInputTools,
+} from "@/components/ai-elements/prompt-input"
 import { Loader } from "@/components/ai/loader"
 import { Actions, ActionButton } from "@/components/ai/actions"
 import { TopBar } from "@/components/TopBar"
@@ -22,6 +34,7 @@ import { HistoryPanel } from "@/components/HistoryPanel"
 import { ModeSwitcher } from "@/components/ModeSwitcher"
 import type { Mode } from "@/components/ModeSwitcher"
 import { Button } from "@/components/ui/button"
+import type { ChatStatus, FileUIPart } from "ai"
 
 interface ChatMessage {
   id: string
@@ -29,6 +42,7 @@ interface ChatMessage {
   content: string
   timestamp: number
   isStreaming?: boolean
+  files?: FileUIPart[] | undefined
 }
 
 interface ConversationData {
@@ -40,13 +54,13 @@ interface ConversationData {
 
 export function ChatApp() {
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
-  const [input, setInput] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
   const [currentRequestId, setCurrentRequestId] = React.useState<string | null>(null)
   const [conversations, setConversations] = React.useState<ConversationData[]>([])
   const [currentConversationId, setCurrentConversationId] = React.useState<string | null>(null)
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false)
   const [currentMode, setCurrentMode] = React.useState<Mode>("ask")
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   React.useEffect(() => {
     // Load conversations from storage
@@ -196,10 +210,15 @@ export function ChatApp() {
     setCurrentRequestId(null)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (message: PromptInputMessage) => {
+    const hasText = Boolean(message.text?.trim())
+    const hasFiles = Boolean(message.files?.length)
 
-    if (!input.trim() || isLoading) {
+    if (!hasText && !hasFiles) {
+      return
+    }
+
+    if (isLoading) {
       return
     }
 
@@ -207,12 +226,12 @@ export function ChatApp() {
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: input,
+      content: message.text || (hasFiles ? "Sent with attachments" : ""),
       timestamp: Date.now(),
+      files: message.files || undefined,
     }
 
     setMessages((prev) => [...prev, userMessage])
-    setInput("")
     setIsLoading(true)
 
     // Generate or use existing conversation ID
@@ -290,7 +309,7 @@ export function ChatApp() {
         kind: "AI_PROCESS_STREAM_START",
         requestId,
         payload: {
-          prompt: input,
+          prompt: message.text || "Sent with attachments",
           conversationId,
           preferLocal: true,
         },
@@ -333,15 +352,14 @@ export function ChatApp() {
       if (userMessage && userMessage.role === "user") {
         // Remove the assistant message and resend
         setMessages((prev) => prev.filter((m) => m.id !== messageId))
-        setInput(userMessage.content)
-        // Trigger submit
-        setTimeout(() => {
-          const form = document.querySelector("form")
-          if (form) {
-            const event = new Event("submit", { bubbles: true, cancelable: true })
-            form.dispatchEvent(event)
-          }
-        }, 0)
+        // Resend the user message
+        const submitMessage: PromptInputMessage = { 
+          text: userMessage.content
+        }
+        if (userMessage.files) {
+          submitMessage.files = userMessage.files
+        }
+        handleSubmit(submitMessage)
       }
     }
   }
@@ -354,7 +372,6 @@ export function ChatApp() {
     
     setMessages([])
     setCurrentConversationId(null)
-    setInput("")
   }
 
   const handleSelectConversation = async (id: string) => {
@@ -489,14 +506,8 @@ export function ChatApp() {
   }
 
   const handleSuggestionClick = (suggestion: string) => {
-    setInput(suggestion)
-    // Auto-focus the input
-    setTimeout(() => {
-      const textarea = document.querySelector("textarea")
-      if (textarea) {
-        textarea.focus()
-      }
-    }, 100)
+    // Submit the suggestion directly
+    handleSubmit({ text: suggestion })
   }
 
   const handleModeChange = (mode: Mode) => {
@@ -536,7 +547,7 @@ export function ChatApp() {
         onNewConversation={handleNewChat}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden relative">
+      <div className="flex flex-1 flex-col overflow-hidden relative pb-20">
         {/* Floating Mode Switcher */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
           <ModeSwitcher
@@ -557,6 +568,28 @@ export function ChatApp() {
                     name={message.role === "user" ? "You" : message.role === "assistant" ? "AI" : "System"}
                   />
                   <MessageContent>
+                    {/* Display file attachments if present */}
+                    {message.files && message.files.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {message.files.map((file, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2 text-sm"
+                          >
+                            {file.type?.startsWith("image/") ? (
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            ) : (
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            )}
+                            <span className="truncate max-w-[150px]">{file.filename || "File"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <Response>{message.content}</Response>
                     {message.role === "assistant" && !message.isStreaming && (
                       <Actions>
@@ -591,45 +624,67 @@ export function ChatApp() {
             </ConversationContent>
           </Conversation>
         )}
+      </div>
 
-        <PromptInput onSubmit={handleSubmit}>
+      {/* Fixed Bottom Input Bar */}
+      <PromptInput 
+        onSubmit={handleSubmit} 
+        className="fixed bottom-0 left-0 right-0 border-t bg-background"
+        multiple
+        accept="image/*,.pdf,.doc,.docx,.txt"
+      >
+        <PromptInputBody>
+          <PromptInputAttachments>
+            {(attachment) => <PromptInputAttachment data={attachment} />}
+          </PromptInputAttachments>
           <PromptInputTextarea
-            value={input}
-            onChange={(e) => setInput(e.currentTarget.value)}
-            placeholder="Ask me anything..."
+            ref={textareaRef}
+            placeholder="Ask anything"
             onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault()
-                handleSubmit(e)
-              }
               if (e.key === "Escape" && currentRequestId) {
                 handleCancel()
               }
             }}
             disabled={isLoading || !!currentRequestId}
           />
+        </PromptInputBody>
+        <PromptInputToolbar>
+          <PromptInputTools>
+            {/* Attachment Menu */}
+            <PromptInputActionMenu>
+              <PromptInputActionMenuTrigger />
+              <PromptInputActionMenuContent>
+                <PromptInputActionAddAttachments />
+              </PromptInputActionMenuContent>
+            </PromptInputActionMenu>
+            
+            {/* Speech Recognition Button */}
+            <PromptInputSpeechButton
+              textareaRef={textareaRef}
+            />
+          </PromptInputTools>
+          
+          {/* Submit or Cancel Button */}
           {currentRequestId ? (
             <Button
               type="button"
               variant="destructive"
               onClick={handleCancel}
-              size="default"
+              size="icon"
               title="Cancel generation"
+              className="h-10 w-10"
             >
-              <svg className="size-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+              <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-              Cancel
             </Button>
           ) : (
             <PromptInputSubmit
-              status={isLoading ? "loading" : "idle"}
-              disabled={!input.trim()}
+              {...(isLoading && { status: "submitted" as ChatStatus })}
             />
           )}
-        </PromptInput>
-      </div>
+        </PromptInputToolbar>
+      </PromptInput>
     </div>
   )
 }

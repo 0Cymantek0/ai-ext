@@ -92,8 +92,6 @@ body {
 /* Focus styles for accessibility */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(var(--ring));
-  border-radius: 0.125rem;
 }
 
 /* Reduce motion for accessibility */
