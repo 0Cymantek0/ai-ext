@@ -74,28 +74,53 @@ export function ChatApp() {
   }, [])
 
   const loadConversations = async () => {
-    // TODO: Load from chrome.storage
-    const mockConversations: ConversationData[] = [
-      {
-        id: "1",
-        title: "Welcome to AI Pocket",
-        timestamp: Date.now() - 1000 * 60 * 60,
-        messageCount: 5,
-      },
-      {
-        id: "2",
-        title: "How to use web scraping",
-        timestamp: Date.now() - 1000 * 60 * 60 * 24,
-        messageCount: 12,
-      },
-      {
-        id: "3",
-        title: "React best practices",
-        timestamp: Date.now() - 1000 * 60 * 60 * 24 * 2,
-        messageCount: 8,
-      },
-    ]
-    setConversations(mockConversations)
+    console.log("📋 Loading conversations from IndexedDB...")
+    try {
+      // Load all conversations from IndexedDB via service worker
+      const response = await chrome.runtime.sendMessage({
+        kind: "CONVERSATION_LIST",
+        requestId: crypto.randomUUID(),
+        payload: {},
+      })
+
+      console.log("Response from CONVERSATION_LIST:", response)
+
+      if (response.success && response.data.conversations) {
+        console.log(`Found ${response.data.conversations.length} conversations in database`)
+        
+        // Transform IndexedDB Conversation to UI ConversationData format
+        const conversationData: ConversationData[] = response.data.conversations.map((conv: any) => {
+          // Generate title from first user message or use default
+          const firstUserMessage = conv.messages?.find((m: any) => m.role === "user")
+          let title = "New Conversation"
+          
+          if (firstUserMessage) {
+            const content = firstUserMessage.content
+            title = content.length > 50 ? content.slice(0, 50) + "..." : content
+          }
+
+          console.log(`  - Conversation "${title}" (${conv.messages?.length || 0} messages)`)
+
+          return {
+            id: conv.id,
+            title,
+            timestamp: conv.updatedAt || conv.createdAt,
+            messageCount: conv.messages?.length || 0,
+          }
+        })
+
+        // Sort by timestamp descending (newest first)
+        conversationData.sort((a, b) => b.timestamp - a.timestamp)
+        setConversations(conversationData)
+        console.log(`✅ Loaded ${conversationData.length} conversations successfully`)
+      } else {
+        console.log("⚠️ No conversations found or response unsuccessful")
+        setConversations([])
+      }
+    } catch (error) {
+      console.error("❌ Failed to load conversations:", error)
+      setConversations([])
+    }
   }
 
   const handleStreamStart = (payload: any) => {
@@ -126,7 +151,8 @@ export function ChatApp() {
     })
   }
 
-  const handleStreamEnd = (payload: any) => {
+  const handleStreamEnd = async (payload: any) => {
+    // Update the streaming status first
     setMessages((prev) => {
       const lastMessage = prev[prev.length - 1]
       if (lastMessage && lastMessage.isStreaming) {
@@ -142,8 +168,15 @@ export function ChatApp() {
     })
     setCurrentRequestId(null)
     
-    // Save conversation
-    saveConversation()
+    // Save conversation - wait for state to settle
+    setTimeout(async () => {
+      try {
+        await saveConversation()
+        console.log("✅ Conversation saved successfully")
+      } catch (error) {
+        console.error("❌ Failed to save conversation:", error)
+      }
+    }, 100)
   }
 
   const handleStreamError = (payload: { error: string }) => {
@@ -179,15 +212,77 @@ export function ChatApp() {
     setInput("")
     setIsLoading(true)
 
+    // Generate or use existing conversation ID
+    const requestId = crypto.randomUUID()
+    const conversationId = currentConversationId || crypto.randomUUID()
+    
+    if (!currentConversationId) {
+      setCurrentConversationId(conversationId)
+    }
+
+    // Save conversation immediately after user message (don't wait for AI response)
+    // This ensures conversations are saved even if AI doesn't respond
+    setTimeout(async () => {
+      try {
+        console.log('💾 Saving conversation after user message...')
+        // Create a temporary messages array with the user message
+        const tempMessages = [...messages, userMessage]
+        
+        // Transform to IndexedDB format
+        const dbMessages = tempMessages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          source: 'gemini-nano' as const,
+          metadata: { tokensUsed: 0 }
+        }))
+
+        // Check if conversation exists
+        const existingResponse = await chrome.runtime.sendMessage({
+          kind: "CONVERSATION_GET",
+          requestId: crypto.randomUUID(),
+          payload: { conversationId }
+        })
+
+        if (existingResponse.success && existingResponse.data.conversation) {
+          // Update existing - add the user message
+          const lastMessage = dbMessages[dbMessages.length - 1]
+          if (lastMessage) {
+            await chrome.runtime.sendMessage({
+              kind: "CONVERSATION_UPDATE",
+              requestId: crypto.randomUUID(),
+              payload: {
+                conversationId,
+                message: lastMessage
+              }
+            })
+            console.log('✅ User message added to existing conversation')
+          }
+        } else {
+          // Create new conversation
+          await chrome.runtime.sendMessage({
+            kind: "CONVERSATION_CREATE",
+            requestId: crypto.randomUUID(),
+            payload: {
+              conversationId,
+              messages: dbMessages,
+              model: 'gemini-nano',
+              pocketId: undefined
+            }
+          })
+          console.log('✅ New conversation created with user message')
+        }
+
+        // Refresh conversation list
+        await loadConversations()
+      } catch (error) {
+        console.error('❌ Failed to save conversation after user message:', error)
+      }
+    }, 100)
+
     // Send request to service worker
     try {
-      const requestId = crypto.randomUUID()
-      const conversationId = currentConversationId || crypto.randomUUID()
-      
-      if (!currentConversationId) {
-        setCurrentConversationId(conversationId)
-      }
-
       const response = await chrome.runtime.sendMessage({
         kind: "AI_PROCESS_STREAM_START",
         requestId,
@@ -260,52 +355,134 @@ export function ChatApp() {
   }
 
   const handleSelectConversation = async (id: string) => {
-    // TODO: Load conversation messages from storage
-    setCurrentConversationId(id)
-    setMessages([
-      {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `Loaded conversation: ${conversations.find((c) => c.id === id)?.title}`,
-        timestamp: Date.now(),
-      },
-    ])
+    try {
+      // Load full conversation with messages from IndexedDB
+      const response = await chrome.runtime.sendMessage({
+        kind: "CONVERSATION_GET",
+        requestId: crypto.randomUUID(),
+        payload: { conversationId: id },
+      })
+
+      if (response.success && response.data.conversation) {
+        const conversation = response.data.conversation
+        setCurrentConversationId(id)
+
+        // Transform IndexedDB Message[] to ChatMessage[] format
+        const chatMessages: ChatMessage[] = conversation.messages.map((msg: any) => ({
+          id: msg.id || crypto.randomUUID(),
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          isStreaming: false,
+        }))
+
+        setMessages(chatMessages)
+      } else {
+        console.error("Failed to load conversation:", response.error)
+        // Fallback to empty conversation
+        setCurrentConversationId(id)
+        setMessages([])
+      }
+    } catch (error) {
+      console.error("Error loading conversation:", error)
+      setCurrentConversationId(id)
+      setMessages([])
+    }
   }
 
   const handleDeleteConversation = async (id: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== id))
-    if (currentConversationId === id) {
-      setMessages([])
-      setCurrentConversationId(null)
+    try {
+      // Delete from IndexedDB via service worker
+      const response = await chrome.runtime.sendMessage({
+        kind: "CONVERSATION_DELETE",
+        requestId: crypto.randomUUID(),
+        payload: { conversationId: id },
+      })
+
+      if (response.success) {
+        // Update local state
+        setConversations((prev) => prev.filter((c) => c.id !== id))
+        
+        if (currentConversationId === id) {
+          setMessages([])
+          setCurrentConversationId(null)
+        }
+      } else {
+        console.error("Failed to delete conversation:", response.error)
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error)
     }
-    // TODO: Delete from storage
   }
 
   const saveConversation = async () => {
-    if (!currentConversationId || messages.length === 0) return
-
-    // Generate title from first user message
-    const firstUserMessage = messages.find((m) => m.role === "user")
-    const title = firstUserMessage?.content.slice(0, 50) + (firstUserMessage?.content.length! > 50 ? "..." : "") || "New Conversation"
-
-    const conversation: ConversationData = {
-      id: currentConversationId,
-      title,
-      timestamp: Date.now(),
-      messageCount: messages.length,
+    if (!currentConversationId || messages.length === 0) {
+      console.log("⚠️ Skipping save - no conversation ID or messages")
+      return
     }
 
-    setConversations((prev) => {
-      const existing = prev.findIndex((c) => c.id === currentConversationId)
-      if (existing >= 0) {
-        const updated = [...prev]
-        updated[existing] = conversation
-        return updated
-      }
-      return [conversation, ...prev]
-    })
+    console.log(`💾 Saving conversation ${currentConversationId} with ${messages.length} messages`)
 
-    // TODO: Save to chrome.storage
+    try {
+      // Transform ChatMessage[] to IndexedDB Message[] format
+      const dbMessages = messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        source: 'gemini-nano' as const, // Default source
+        metadata: {
+          tokensUsed: 0, // Could track this if needed
+        },
+      }))
+
+      console.log("🔍 Checking if conversation exists in database...")
+      
+      // Check if conversation exists
+      const existingResponse = await chrome.runtime.sendMessage({
+        kind: "CONVERSATION_GET",
+        requestId: crypto.randomUUID(),
+        payload: { conversationId: currentConversationId },
+      })
+
+      if (existingResponse.success && existingResponse.data.conversation) {
+        console.log("📝 Updating existing conversation")
+        // Update existing conversation - add the last message
+        const lastMessage = dbMessages[dbMessages.length - 1]
+        if (lastMessage) {
+          const updateResponse = await chrome.runtime.sendMessage({
+            kind: "CONVERSATION_UPDATE",
+            requestId: crypto.randomUUID(),
+            payload: {
+              conversationId: currentConversationId,
+              message: lastMessage,
+            },
+          })
+          console.log("Update response:", updateResponse)
+        }
+      } else {
+        console.log("✨ Creating new conversation with", dbMessages.length, "messages")
+        // Create new conversation with all messages
+        const createResponse = await chrome.runtime.sendMessage({
+          kind: "CONVERSATION_CREATE",
+          requestId: crypto.randomUUID(),
+          payload: {
+            conversationId: currentConversationId,
+            messages: dbMessages,
+            model: 'gemini-nano',
+            pocketId: undefined, // Could link to a pocket if needed
+          },
+        })
+        console.log("Create response:", createResponse)
+      }
+
+      // Update local conversation list
+      console.log("🔄 Refreshing conversation list...")
+      await loadConversations()
+      console.log("✅ Conversation saved and list refreshed")
+    } catch (error) {
+      console.error("❌ Failed to save conversation:", error)
+    }
   }
 
   const handleSuggestionClick = (suggestion: string) => {

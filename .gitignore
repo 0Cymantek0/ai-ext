@@ -54,4 +54,6 @@ ai-extension/ai_docs/
 ai-extension/dist
 ai-extension/icons
 /.vscode
-/ai_docs
+/ai_docs/
+/.playwright-mcp/
+/.vscode/

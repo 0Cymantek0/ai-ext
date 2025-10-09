@@ -621,43 +621,79 @@ messageRouter.registerHandler("AI_PROCESS_CANCEL", async (payload) => {
 // Register conversation handlers (Requirement 8.8, 7.6)
 messageRouter.registerHandler("CONVERSATION_LIST", async (payload) => {
   logger.info("Handler", "CONVERSATION_LIST", payload);
-  const { indexedDBManager } = await import('./indexeddb-manager.js');
-  const conversations = await indexedDBManager.listConversations();
-  return { conversations };
+  try {
+    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    await indexedDBManager.init(); // Ensure DB is initialized
+    const conversations = await indexedDBManager.listConversations();
+    logger.info("Handler", "CONVERSATION_LIST result", { count: conversations.length });
+    return { conversations };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_LIST error", error);
+    throw error;
+  }
 });
 
 messageRouter.registerHandler("CONVERSATION_GET", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_GET", payload);
-  const { indexedDBManager } = await import('./indexeddb-manager.js');
-  const conversation = await indexedDBManager.getConversation(payload.conversationId);
-  return { conversation };
+  try {
+    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    await indexedDBManager.init();
+    const conversation = await indexedDBManager.getConversation(payload.conversationId);
+    logger.info("Handler", "CONVERSATION_GET result", { found: !!conversation });
+    return { conversation };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_GET error", error);
+    throw error;
+  }
 });
 
 messageRouter.registerHandler("CONVERSATION_CREATE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_CREATE", payload);
-  const { indexedDBManager } = await import('./indexeddb-manager.js');
-  const conversationId = await indexedDBManager.saveConversation({
-    pocketId: payload.pocketId,
-    messages: [],
-    model: payload.model || 'gemini-nano',
-    tokensUsed: 0
-  });
-  const conversation = await indexedDBManager.getConversation(conversationId);
-  return { conversation };
+  try {
+    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    await indexedDBManager.init();
+    logger.info("Handler", "Creating conversation", { messageCount: payload.messages?.length || 0 });
+    const conversationId = await indexedDBManager.saveConversation({
+      pocketId: payload.pocketId,
+      messages: payload.messages || [],
+      model: payload.model || 'gemini-nano',
+      tokensUsed: 0
+    }, payload.conversationId);
+    const conversation = await indexedDBManager.getConversation(conversationId);
+    logger.info("Handler", "CONVERSATION_CREATE result", { id: conversationId });
+    return { conversation };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_CREATE error", error);
+    throw error;
+  }
 });
 
 messageRouter.registerHandler("CONVERSATION_UPDATE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_UPDATE", payload);
-  const { indexedDBManager } = await import('./indexeddb-manager.js');
-  await indexedDBManager.updateConversation(payload.conversationId, payload.message);
-  return { success: true };
+  try {
+    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    await indexedDBManager.init();
+    await indexedDBManager.updateConversation(payload.conversationId, payload.message);
+    logger.info("Handler", "CONVERSATION_UPDATE success");
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_UPDATE error", error);
+    throw error;
+  }
 });
 
 messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_DELETE", payload);
-  const { indexedDBManager } = await import('./indexeddb-manager.js');
-  await indexedDBManager.deleteConversation(payload.conversationId);
-  return { success: true };
+  try {
+    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    await indexedDBManager.init();
+    await indexedDBManager.deleteConversation(payload.conversationId);
+    logger.info("Handler", "CONVERSATION_DELETE success");
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_DELETE error", error);
+    throw error;
+  }
 });
 
 // Message listener - routes all messages through the router

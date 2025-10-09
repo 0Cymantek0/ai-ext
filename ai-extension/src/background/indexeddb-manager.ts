@@ -337,8 +337,8 @@ export class IndexedDBManager {
       return await this.promisifyRequest(index.getAll(IDBKeyRange.only(pocketId)));
     });
   }
-  async saveConversation(conversation: Omit<Conversation, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = crypto.randomUUID();
+  async saveConversation(conversation: Omit<Conversation, 'id' | 'createdAt' | 'updatedAt'>, existingId?: string): Promise<string> {
+    const id = existingId || crypto.randomUUID();
     const now = Date.now();
     const newConversation: Conversation = { id, ...conversation, createdAt: now, updatedAt: now };
     await this.executeTransaction(StoreName.CONVERSATIONS, 'readwrite', async (tx) => {
