@@ -915,6 +915,30 @@ export const PromptInputActionMenuTrigger = ({
   </DropdownMenuTrigger>
 );
 
+export type PromptInputActionAddAttachmentsDirectProps = PromptInputButtonProps & {
+  label?: string;
+};
+
+export const PromptInputActionAddAttachmentsDirect = ({
+  label = "Add photos or files",
+  className,
+  children,
+  ...props
+}: PromptInputActionAddAttachmentsDirectProps) => {
+  const attachments = usePromptInputAttachments();
+
+  return (
+    <PromptInputButton
+      className={className}
+      onClick={() => attachments.openFileDialog()}
+      title={label}
+      {...props}
+    >
+      {children ?? <PlusIcon className="size-4" />}
+    </PromptInputButton>
+  );
+};
+
 export type PromptInputActionMenuContentProps = ComponentProps<
   typeof DropdownMenuContent
 >;

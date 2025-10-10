@@ -13,6 +13,7 @@ import { Response } from "@/components/ai/response"
 import {
   PromptInput,
   PromptInputActionAddAttachments,
+  PromptInputActionAddAttachmentsDirect,
   PromptInputActionMenu,
   PromptInputActionMenuContent,
   PromptInputActionMenuTrigger,
@@ -740,14 +741,9 @@ export function ChatApp() {
         </PromptInputBody>
         <PromptInputToolbar>
           <PromptInputTools>
-            {/* Attachment Menu */}
-            <PromptInputActionMenu>
-              <PromptInputActionMenuTrigger />
-              <PromptInputActionMenuContent>
-                <PromptInputActionAddAttachments />
-              </PromptInputActionMenuContent>
-            </PromptInputActionMenu>
-            
+            {/* Direct Attachment Button */}
+            <PromptInputActionAddAttachmentsDirect />
+
             {/* Speech Recognition Button */}
             <PromptInputSpeechButton
               textareaRef={textareaRef}
