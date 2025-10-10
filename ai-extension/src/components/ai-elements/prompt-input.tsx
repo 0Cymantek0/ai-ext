@@ -794,7 +794,9 @@ export const PromptInputTextarea = ({
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     if (e.key === "Enter") {
       if (e.nativeEvent.isComposing) return;
+      // If Shift+Enter, allow default behavior (new line)
       if (e.shiftKey) return;
+      // Otherwise, submit the form
       e.preventDefault();
       e.currentTarget.form?.requestSubmit();
     }
