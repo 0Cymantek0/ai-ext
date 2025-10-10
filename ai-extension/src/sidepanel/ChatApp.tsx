@@ -732,8 +732,20 @@ export function ChatApp() {
             ref={textareaRef}
             placeholder="Ask anything"
             onKeyDown={(e) => {
+              // Handle Escape key for canceling
               if (e.key === "Escape" && currentRequestId) {
                 handleCancel()
+                return
+              }
+
+              // Handle Enter key behavior
+              if (e.key === "Enter") {
+                if (e.nativeEvent.isComposing) return;
+                // If Shift+Enter, allow default behavior (new line)
+                if (e.shiftKey) return;
+                // Otherwise, submit the form
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
               }
             }}
             disabled={isLoading || !!currentRequestId}

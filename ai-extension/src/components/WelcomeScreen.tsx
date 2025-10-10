@@ -1,5 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { FlipWords } from "@/components/ui/flip-words"
+import { Component as EtheralShadow } from "@/components/ui/etheral-shadow"
 
 interface WelcomeScreenProps {
   onSuggestionClick: (suggestion: string) => void
@@ -65,48 +67,71 @@ const suggestions = [
 
 export function WelcomeScreen({ onSuggestionClick, className }: WelcomeScreenProps) {
   return (
-    <div className={cn("flex flex-1 flex-col items-center justify-center p-6 text-center overflow-y-auto scrollbar-custom", className)}>
-      <div className="mb-8 space-y-4">
-        {/* Welcome Message */}
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight">Welcome to AI Pocket</h2>
-          <p className="text-sm text-muted-foreground max-w-md">
-            Your intelligent assistant for capturing, organizing, and analyzing web content. 
-            Ask me anything or try one of these suggestions:
-          </p>
+    <div className={cn("relative flex flex-1 flex-col overflow-hidden", className)}>
+      {/* Etheral Shadow Background */}
+      <div className="absolute inset-0 z-0">
+        <EtheralShadow
+          color="rgba(99, 102, 241, 0.15)"
+          animation={{ scale: 100, speed: 90 }}
+          noise={{ opacity: 0.3, scale: 1.2 }}
+          sizing="fill"
+          className="w-full h-full"
+        />
+      </div>
+
+      {/* Content Overlay */}
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-6 text-center overflow-y-auto scrollbar-custom">
+        <div className="mb-8 space-y-4">
+          {/* Welcome Message */}
+          <div className="space-y-4 text-center">
+            <div
+              className="text-4xl md:text-5xl font-bold tracking-tight text-foreground welcome-title"
+              style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+            >
+              <span className="text-[0.85em]">Your</span> <FlipWords
+                words={["intelligent", "smart", "powerful", "versatile"]}
+                duration={2000}
+                className="text-primary font-normal"
+              /><span className="text-[0.85em]">assistant</span>
+            </div>
+            <p className="text-base text-muted-foreground max-w-lg mx-auto opacity-40">
+              for capturing, organizing, and analyzing web content.
+              Ask me anything or try one of these suggestions:
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Suggestion Pills */}
-      <div className="grid w-full max-w-2xl grid-cols-2 gap-2">
-        {suggestions.map((suggestion, index) => (
-          <button
-            key={index}
-            onClick={() => onSuggestionClick(suggestion.prompt)}
-            className={cn(
-              "group flex items-center gap-2 rounded-full border bg-card px-3 py-2",
-              "hover:bg-accent hover:border-primary/50 hover:shadow-md",
-              "transition-all duration-200 ease-out",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-              "active:scale-95"
-            )}
-          >
-            <span className="text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-              {suggestion.icon}
-            </span>
-            <span className="text-xs font-medium text-left group-hover:text-foreground transition-colors leading-tight">
-              {suggestion.text}
-            </span>
-          </button>
-        ))}
-      </div>
+        {/* Suggestion Pills */}
+        <div className="grid w-full max-w-2xl grid-cols-2 gap-2">
+          {suggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              onClick={() => onSuggestionClick(suggestion.prompt)}
+              className={cn(
+                "group flex items-center gap-2 rounded-full border bg-card/80 backdrop-blur-sm px-3 py-2",
+                "hover:bg-accent/90 hover:border-primary/50 hover:shadow-md",
+                "transition-all duration-200 ease-out",
+                "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                "active:scale-95"
+              )}
+            >
+              <span className="text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                {suggestion.icon}
+              </span>
+              <span className="text-xs font-medium text-left group-hover:text-foreground transition-colors leading-tight">
+                {suggestion.text}
+              </span>
+            </button>
+          ))}
+        </div>
 
-      {/* Footer Hint */}
-      <div className="mt-8 flex items-center gap-2 text-xs text-muted-foreground">
-        <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-        <span>Press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">Ctrl+Enter</kbd> to send</span>
+        {/* Footer Hint */}
+        <div className="mt-8 flex items-center gap-2 text-xs text-muted-foreground">
+          <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>Press <kbd className="px-1.5 py-0.5 rounded bg-muted/80 backdrop-blur-sm font-mono text-[10px]">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 rounded bg-muted/80 backdrop-blur-sm font-mono text-[10px]">Shift+Enter</kbd> for new line</span>
+        </div>
       </div>
     </div>
   )
