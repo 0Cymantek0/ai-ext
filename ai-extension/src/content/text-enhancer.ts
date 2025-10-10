@@ -85,7 +85,7 @@ class UniversalTextEnhancer {
         border: 1px solid #e0e0e0;
         border-radius: 6px;
         background: white;
-        cursor: pointer;
+        cursor: grab;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -95,6 +95,8 @@ class UniversalTextEnhancer {
         transition: all 0.2s ease;
         opacity: 0;
         pointer-events: none;
+        user-select: none;
+        touch-action: none;
       }
 
       .ai-pocket-enhance-btn.visible {
@@ -102,15 +104,23 @@ class UniversalTextEnhancer {
         pointer-events: auto;
       }
 
-      .ai-pocket-enhance-btn:hover {
+      .ai-pocket-enhance-btn.dragging {
+        cursor: grabbing;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        transform: scale(1.15);
+        transition: none;
+        z-index: 10001;
+      }
+
+      .ai-pocket-enhance-btn:hover:not(.dragging) {
         background: #f5f5f5;
         border-color: #d0d0d0;
         box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
         transform: scale(1.05);
       }
 
-      .ai-pocket-enhance-btn:active {
-        transform: scale(0.95);
+      .ai-pocket-enhance-btn:active:not(.dragging) {
+        cursor: grabbing;
       }
 
       .ai-pocket-enhance-btn:focus {
@@ -232,8 +242,8 @@ class UniversalTextEnhancer {
     const button = document.createElement("button");
     button.className = "ai-pocket-enhance-btn";
     button.setAttribute("type", "button");
-    button.setAttribute("aria-label", "Enhance text with AI");
-    button.setAttribute("title", "Enhance with AI");
+    button.setAttribute("aria-label", "Enhance text with AI (drag to move)");
+    button.setAttribute("title", "Enhance with AI - Drag to reposition");
     button.setAttribute("data-ai-pocket-button", "true");
 
     // Add icon
@@ -242,12 +252,8 @@ class UniversalTextEnhancer {
     icon.textContent = "✨";
     button.appendChild(icon);
 
-    // Add click handler
-    button.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.handleButtonClick(textField, button);
-    });
+    // Make button draggable
+    this.makeDraggable(button, textField);
 
     // Position button
     this.positionButton(button, textField);
@@ -265,10 +271,163 @@ class UniversalTextEnhancer {
   }
 
   /**
+   * Make button draggable
+   */
+  private makeDraggable(button: HTMLElement, textField: HTMLElement): void {
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+    let hasMoved = false;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // Only left click
+
+      isDragging = true;
+      hasMoved = false;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const rect = button.getBoundingClientRect();
+      initialLeft = rect.left + window.scrollX;
+      initialTop = rect.top + window.scrollY;
+
+      button.classList.add("dragging");
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+
+      // Check if moved more than 3px (drag threshold)
+      if (!hasMoved && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
+        hasMoved = true;
+      }
+
+      if (hasMoved) {
+        button.style.left = `${initialLeft + deltaX}px`;
+        button.style.top = `${initialTop + deltaY}px`;
+        (button as any).__isDragged = true;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      isDragging = false;
+      button.classList.remove("dragging");
+
+      // If dragged, prevent click event
+      if (hasMoved) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Block next click
+        const blockClick = (clickEvent: Event) => {
+          clickEvent.preventDefault();
+          clickEvent.stopPropagation();
+          button.removeEventListener("click", blockClick, true);
+        };
+        button.addEventListener("click", blockClick, true);
+      } else {
+        // Not dragged, handle as click
+        this.handleButtonClick(textField, button);
+      }
+    };
+
+    // Touch support
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      isDragging = true;
+      hasMoved = false;
+      startX = touch.clientX;
+      startY = touch.clientY;
+
+      const rect = button.getBoundingClientRect();
+      initialLeft = rect.left + window.scrollX;
+      initialTop = rect.top + window.scrollY;
+
+      button.classList.add("dragging");
+      e.preventDefault();
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isDragging || e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+
+      if (!hasMoved && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
+        hasMoved = true;
+      }
+
+      if (hasMoved) {
+        button.style.left = `${initialLeft + deltaX}px`;
+        button.style.top = `${initialTop + deltaY}px`;
+        (button as any).__isDragged = true;
+      }
+
+      e.preventDefault();
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!isDragging) return;
+
+      isDragging = false;
+      button.classList.remove("dragging");
+
+      if (!hasMoved) {
+        // Handle as click
+        this.handleButtonClick(textField, button);
+      }
+
+      e.preventDefault();
+    };
+
+    button.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+
+    button.addEventListener("touchstart", onTouchStart, { passive: false });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
+
+    // Store cleanup
+    (button as any).__dragCleanup = () => {
+      button.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      button.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }
+
+  /**
    * Position button relative to text field
    */
   private positionButton(button: HTMLElement, textField: HTMLElement): void {
     const updatePosition = () => {
+      // Don't update if button was manually dragged
+      if ((button as any).__isDragged) {
+        return;
+      }
+
       const rect = textField.getBoundingClientRect();
       
       // Position button at top-right corner of text field
@@ -288,6 +447,9 @@ class UniversalTextEnhancer {
     (button as any).__cleanup = () => {
       window.removeEventListener("scroll", updateHandler);
       window.removeEventListener("resize", updateHandler);
+      if ((button as any).__dragCleanup) {
+        (button as any).__dragCleanup();
+      }
     };
   }
 
