@@ -1,4 +1,5 @@
 import * as React from "react"
+import { cn } from "@/lib/utils"
 import {
   Conversation,
   ConversationContent,
@@ -558,11 +559,11 @@ export function ChatApp() {
         </div>
 
         {/* Content Area with top padding to avoid mode switcher */}
-        <div className="flex flex-1 flex-col pt-16">
+        <div className="flex flex-1 flex-col pt-16 overflow-hidden">
           {messages.length === 0 ? (
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
           ) : (
-            <Conversation>
+            <Conversation className="overflow-hidden">
               <ConversationContent bottomInsetRef={promptFormRef}>
               {messages.map((message) => (
                 <Message key={message.id} from={message.role}>
@@ -573,11 +574,17 @@ export function ChatApp() {
                   <MessageContent>
                     {/* Display file attachments if present */}
                     {message.files && message.files.length > 0 && (
-                      <div className="mb-2 flex flex-wrap gap-2">
+                      <div className={cn(
+                        "mb-2 flex flex-wrap gap-2",
+                        message.role === "user" && "justify-end"
+                      )}>
                         {message.files.map((file, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2 text-sm"
+                            className={cn(
+                              "flex items-center gap-2 rounded-md border bg-muted px-3 py-2 text-sm",
+                              message.role === "user" && "bg-gray-100 border-gray-300 dark:bg-gray-800 dark:border-gray-600"
+                            )}
                           >
                             {file.type?.startsWith("image/") ? (
                               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -593,7 +600,18 @@ export function ChatApp() {
                         ))}
                       </div>
                     )}
-                    <Response>{message.content}</Response>
+                    <div className={cn(
+                      "inline-block",
+                      message.role === "user" && "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 max-w-[85%] ml-auto text-right dark:bg-gray-700 dark:text-gray-100"
+                    )}>
+                      <Response className={cn(
+                        "prose prose-sm dark:prose-invert max-w-none",
+                        "prose-p:leading-relaxed prose-pre:p-0",
+                        message.role === "user" && "prose-p:text-gray-900 prose-p:m-0 prose-p:text-right prose-headings:text-gray-900 prose-code:text-gray-900 prose-pre:text-gray-900 dark:prose-p:text-gray-100 dark:prose-headings:text-gray-100 dark:prose-code:text-gray-100 dark:prose-pre:text-gray-100"
+                      )}>
+                        {message.content}
+                      </Response>
+                    </div>
                     {message.role === "assistant" && !message.isStreaming && (
                       <Actions>
                         <ActionButton 
