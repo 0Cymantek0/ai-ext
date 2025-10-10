@@ -785,10 +785,10 @@ export function ChatApp() {
         </div>
       </div>
 
-      {/* Fixed Bottom Input Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-4 shadow-lg backdrop-blur-sm bg-opacity-100 dark:bg-opacity-100">
+      {/* Fixed Bottom Input Bar (floating, no background) */}
+      <div className="fixed bottom-4 left-0 right-0 z-50 bg-transparent pointer-events-none">
         {currentRequestId ? (
-          <div className="max-w-xl mx-auto">
+          <div className="max-w-xl mx-auto pointer-events-auto">
             <Button
               type="button"
               variant="destructive"
@@ -813,18 +813,20 @@ export function ChatApp() {
             </Button>
           </div>
         ) : (
-          <AIInputWithFile
-            onSubmit={handleSubmit}
-            placeholder={
-              isLoading
-                ? "Processing..."
-                : "Ask anything about captured content"
-            }
-            accept="image/*,.pdf,.doc,.docx,.txt"
-            maxFileSize={10}
-            disabled={isLoading}
-            className="max-w-xl mx-auto"
-          />
+          <div className="pointer-events-auto">
+            <AIInputWithFile
+              onSubmit={handleSubmit}
+              placeholder={
+                isLoading
+                  ? "Processing..."
+                  : "Ask anything about captured content"
+              }
+              accept="image/*,.pdf,.doc,.docx,.txt"
+              maxFileSize={10}
+              disabled={isLoading}
+              className="max-w-xl mx-auto p-0 sm:p-0 py-0 px-0"
+            />
+          </div>
         )}
       </div>
     </div>
