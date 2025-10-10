@@ -63,6 +63,13 @@ export function ChatApp() {
   const [currentMode, setCurrentMode] = React.useState<Mode>("ask")
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const promptFormRef = React.useRef<HTMLFormElement>(null)
+  const modeSwitcherWrapperRef = React.useRef<HTMLDivElement>(null)
+  const conversationContentRef = React.useRef<HTMLDivElement>(null)
+  const lastScrollTopRef = React.useRef<number>(0)
+  const [modeSwitcherHeight, setModeSwitcherHeight] = React.useState<number>(0)
+  const [isNearTop, setIsNearTop] = React.useState<boolean>(true)
+  const [isModeSwitcherHidden, setIsModeSwitcherHidden] = React.useState<boolean>(false)
+  const scrollDebounceRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
     // Load conversations from storage
@@ -532,6 +539,54 @@ export function ChatApp() {
     }
   }, [])
 
+  // Measure mode switcher height for initial spacer to avoid overlap
+  React.useLayoutEffect(() => {
+    const el = modeSwitcherWrapperRef.current
+    if (!el) return
+    const measure = () => {
+      const rect = el.getBoundingClientRect()
+      setModeSwitcherHeight(rect.height)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const handleScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
+    const node = e.currentTarget
+    const currentTop = node.scrollTop
+
+    if (scrollDebounceRef.current !== null) {
+      window.clearTimeout(scrollDebounceRef.current)
+    }
+
+    scrollDebounceRef.current = window.setTimeout(() => {
+      // Only consider we are "at top" within a very tight tolerance to stop early flips
+      const atTop = currentTop <= 0.5
+      if (atTop !== isNearTop) setIsNearTop(atTop)
+
+      const lastTop = lastScrollTopRef.current
+      const delta = currentTop - lastTop
+      const threshold = 4 // px, to avoid jitter from tiny movements
+
+      if (delta > threshold) {
+        // Scrolling down -> hide immediately
+        if (!isModeSwitcherHidden) setIsModeSwitcherHidden(true)
+      } else if (delta < -threshold) {
+        // Scrolling up -> only reveal when user actually reaches the very top
+        if (atTop) {
+          if (isModeSwitcherHidden) setIsModeSwitcherHidden(false)
+        } else {
+          // Keep it hidden while navigating upward but not yet at the top
+          if (!isModeSwitcherHidden) setIsModeSwitcherHidden(true)
+        }
+      }
+
+      lastScrollTopRef.current = currentTop < 0 ? 0 : currentTop
+    }, 60)
+  }
+
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <TopBar
@@ -551,7 +606,14 @@ export function ChatApp() {
 
       <div className="flex flex-1 flex-col overflow-hidden relative pb-32 bg-transparent">
         {/* Floating Mode Switcher */}
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 pointer-events-auto bg-transparent">
+        <div
+          ref={modeSwitcherWrapperRef}
+          className={cn(
+            "absolute top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-auto bg-transparent",
+            "transition-transform duration-300 ease-in-out will-change-transform",
+            isModeSwitcherHidden && "-translate-y-32"
+          )}
+        >
           <ModeSwitcher
             currentMode={currentMode}
             onModeChange={handleModeChange}
@@ -564,7 +626,9 @@ export function ChatApp() {
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
           ) : (
             <Conversation className="overflow-hidden">
-              <ConversationContent bottomInsetRef={promptFormRef}>
+              <ConversationContent ref={conversationContentRef} bottomInsetRef={promptFormRef} onScroll={handleScroll}>
+                {/* Dynamic spacer so first message starts below the floating switcher */}
+                <div aria-hidden className="shrink-0" style={{ height: isNearTop ? modeSwitcherHeight + 32 : 0 }} />
               {messages.map((message) => (
                 <Message key={message.id} from={message.role}>
                   <MessageAvatar

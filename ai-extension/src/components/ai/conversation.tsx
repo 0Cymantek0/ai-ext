@@ -22,7 +22,13 @@ const ConversationContent = React.forwardRef<
 
   React.useEffect(() => {
     const element = scrollRef.current
-    if (element) {
+    if (!element) return
+
+    // Only auto-scroll to bottom if user is already near the bottom.
+    // This prevents jumping to the end while the user scrolls up.
+    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight
+    const threshold = 12 // px tolerance for fractional scroll values
+    if (distanceFromBottom <= threshold) {
       element.scrollTop = element.scrollHeight
     }
   }, [children])
