@@ -171,11 +171,25 @@ export class AIManager {
 
       const result = await LanguageModel.availability();
       
+      console.log('[AIManager] Availability check result:', result);
+      
+      // Handle both string and object responses
+      let availabilityStatus: string;
+      if (typeof result === 'string') {
+        availabilityStatus = result;
+      } else if (result && typeof result === 'object' && 'available' in result) {
+        availabilityStatus = (result as any).available;
+      } else {
+        console.warn('[AIManager] Unexpected availability result format:', result);
+        this.availability = 'no';
+        return 'no';
+      }
+      
       // Map the API response to our type
-      if (result.available === 'readily') {
+      if (availabilityStatus === 'readily' || availabilityStatus === 'available') {
         this.availability = 'readily';
         return 'readily';
-      } else if (result.available === 'after-download') {
+      } else if (availabilityStatus === 'after-download') {
         this.availability = 'after-download';
         return 'after-download';
       } else {

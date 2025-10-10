@@ -25,7 +25,6 @@ class UniversalTextEnhancer {
   private observer: MutationObserver | null = null;
   private currentMenu: HTMLElement | null = null;
   private currentTextField: HTMLElement | null = null;
-  private selectedStyle: EnhancementStyle | null = null;
   private sensitivePatterns = [
     /bank|banking|financial|credit|payment/i,
     /health|medical|patient|hospital/i,
@@ -132,7 +131,7 @@ class UniversalTextEnhancer {
    */
   private injectStyles(): void {
     const styleId = "ai-pocket-text-enhancer-styles";
-    
+
     // Don't inject if already exists
     if (document.getElementById(styleId)) {
       return;
@@ -324,6 +323,230 @@ class UniversalTextEnhancer {
         z-index: 10001;
         background: transparent;
       }
+
+      /* Loading Indicator Styles */
+      .ai-pocket-enhancement-loading {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 20px;
+        z-index: 10003;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .ai-pocket-loading-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #f0f0f0;
+        border-top-color: #4285f4;
+        border-radius: 50%;
+        animation: ai-pocket-spin 0.8s linear infinite;
+      }
+
+      @keyframes ai-pocket-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .ai-pocket-loading-message {
+        font-size: 14px;
+        color: #5f6368;
+        font-weight: 500;
+      }
+
+      /* Preview Dialog Styles */
+      .ai-pocket-enhancement-preview {
+        position: fixed;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        z-index: 10004;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        transform: scale(0.95);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+
+      .ai-pocket-enhancement-preview.visible {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .ai-pocket-preview-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .ai-pocket-preview-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #202124;
+        margin: 0;
+      }
+
+      .ai-pocket-preview-close {
+        background: none;
+        border: none;
+        font-size: 20px;
+        color: #5f6368;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background-color 0.1s ease;
+      }
+
+      .ai-pocket-preview-close:hover {
+        background-color: #f5f5f5;
+      }
+
+      .ai-pocket-preview-close:focus {
+        outline: 2px solid #4285f4;
+        outline-offset: 2px;
+      }
+
+      .ai-pocket-preview-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .ai-pocket-preview-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .ai-pocket-preview-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #5f6368;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .ai-pocket-preview-text {
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #202124;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      .ai-pocket-preview-original {
+        background-color: #f8f9fa;
+        border: 1px solid #e0e0e0;
+      }
+
+      .ai-pocket-preview-enhanced {
+        background-color: #e8f0fe;
+        border: 1px solid #4285f4;
+      }
+
+      .ai-pocket-preview-actions {
+        display: flex;
+        gap: 12px;
+        padding: 16px 20px;
+        border-top: 1px solid #e0e0e0;
+        justify-content: flex-end;
+      }
+
+      .ai-pocket-preview-btn {
+        padding: 10px 24px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.1s ease;
+        border: none;
+      }
+
+      .ai-pocket-preview-btn-primary {
+        background-color: #4285f4;
+        color: white;
+      }
+
+      .ai-pocket-preview-btn-primary:hover {
+        background-color: #3367d6;
+      }
+
+      .ai-pocket-preview-btn-primary:focus {
+        outline: 2px solid #4285f4;
+        outline-offset: 2px;
+      }
+
+      .ai-pocket-preview-btn-secondary {
+        background-color: white;
+        color: #5f6368;
+        border: 1px solid #dadce0;
+      }
+
+      .ai-pocket-preview-btn-secondary:hover {
+        background-color: #f8f9fa;
+      }
+
+      .ai-pocket-preview-btn-secondary:focus {
+        outline: 2px solid #4285f4;
+        outline-offset: 2px;
+      }
+
+      .ai-pocket-preview-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10003;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+
+      .ai-pocket-preview-backdrop.visible {
+        opacity: 1;
+      }
+
+      /* Error Message Styles */
+      .ai-pocket-enhancement-error {
+        position: absolute;
+        background: #fce8e6;
+        color: #c5221f;
+        padding: 12px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        z-index: 10003;
+        max-width: 300px;
+        animation: ai-pocket-slide-in 0.2s ease;
+      }
+
+      @keyframes ai-pocket-slide-in {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
     `;
 
     document.head.appendChild(style);
@@ -356,7 +579,7 @@ class UniversalTextEnhancer {
     ];
 
     const fields: HTMLElement[] = [];
-    
+
     selectors.forEach((selector) => {
       const elements = document.querySelectorAll(selector);
       elements.forEach((el) => {
@@ -615,8 +838,19 @@ class UniversalTextEnhancer {
         return;
       }
 
+      // Check if textField is still in DOM
+      if (!textField || !document.body.contains(textField)) {
+        return;
+      }
+
+      // Check if textField is visible
+      if (!this.isVisible(textField)) {
+        button.classList.remove("visible");
+        return;
+      }
+
       const rect = textField.getBoundingClientRect();
-      
+
       // Position button at top-right corner of text field
       button.style.top = `${rect.top + window.scrollY + 4}px`;
       button.style.left = `${rect.right + window.scrollX - 32}px`;
@@ -657,7 +891,7 @@ class UniversalTextEnhancer {
 
     // Get current text value
     const currentText = this.getTextFieldValue(textField);
-    
+
     if (!currentText || currentText.trim().length === 0) {
       console.debug("[TextEnhancer] No text to enhance");
       // Provide visual feedback
@@ -711,15 +945,15 @@ class UniversalTextEnhancer {
     // Header
     const header = document.createElement('div');
     header.className = 'ai-pocket-enhancement-menu-header';
-    
+
     const title = document.createElement('h3');
     title.className = 'ai-pocket-enhancement-menu-title';
     title.textContent = 'Enhance Text';
-    
+
     const subtitle = document.createElement('p');
     subtitle.className = 'ai-pocket-enhancement-menu-subtitle';
     subtitle.textContent = 'Choose a style to improve your text';
-    
+
     header.appendChild(title);
     header.appendChild(subtitle);
     menu.appendChild(header);
@@ -731,47 +965,37 @@ class UniversalTextEnhancer {
       optionButton.setAttribute('role', 'menuitem');
       optionButton.setAttribute('data-style', option.id);
       optionButton.setAttribute('tabindex', index === 0 ? '0' : '-1');
-      
-      // Mark as selected if this is the current selection
-      const isSelected = this.selectedStyle === option.id;
-      console.debug(`[TextEnhancer] Option ${option.id}: selected=${isSelected}, currentSelection=${this.selectedStyle}`);
-      
-      if (isSelected) {
-        optionButton.classList.add('selected');
-        optionButton.setAttribute('aria-checked', 'true');
-      } else {
-        optionButton.setAttribute('aria-checked', 'false');
-      }
-      
+      optionButton.setAttribute('aria-checked', 'false');
+
       const icon = document.createElement('span');
       icon.className = 'ai-pocket-enhancement-option-icon';
       icon.textContent = option.icon;
       icon.setAttribute('aria-hidden', 'true');
-      
+
       const content = document.createElement('div');
       content.className = 'ai-pocket-enhancement-option-content';
-      
+
       const label = document.createElement('div');
       label.className = 'ai-pocket-enhancement-option-label';
       label.textContent = option.label;
-      
+
       const description = document.createElement('div');
       description.className = 'ai-pocket-enhancement-option-description';
       description.textContent = option.description;
-      
+
       content.appendChild(label);
       content.appendChild(description);
-      
+
       optionButton.appendChild(icon);
       optionButton.appendChild(content);
-      
+
       // Add click handler
       optionButton.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         this.handleStyleSelection(option.id, optionButton);
       });
-      
+
       menu.appendChild(optionButton);
     });
 
@@ -839,8 +1063,13 @@ class UniversalTextEnhancer {
    * Position menu near button
    */
   private positionMenu(menu: HTMLElement, button: HTMLElement, textField: HTMLElement): void {
+    // Check if elements are valid
+    if (!button || !document.body.contains(button)) {
+      console.warn("[TextEnhancer] Cannot position menu - button not in DOM");
+      return;
+    }
+
     const buttonRect = button.getBoundingClientRect();
-    const textFieldRect = textField.getBoundingClientRect();
     const menuWidth = 300; // Approximate width
     const menuHeight = 400; // Approximate height
 
@@ -921,7 +1150,7 @@ class UniversalTextEnhancer {
   /**
    * Handle style selection
    */
-  private handleStyleSelection(style: EnhancementStyle, optionElement: HTMLElement): void {
+  private async handleStyleSelection(style: EnhancementStyle, optionElement: HTMLElement): Promise<void> {
     console.info("[TextEnhancer] Style selected:", style);
 
     if (!this.currentTextField || !this.currentMenu) {
@@ -929,46 +1158,405 @@ class UniversalTextEnhancer {
       return;
     }
 
-    // Update selected style
-    this.selectedStyle = style;
-
-    // Update visual selection in menu
+    // Update visual selection in menu FIRST
     const allOptions = this.currentMenu.querySelectorAll('.ai-pocket-enhancement-option');
     allOptions.forEach((opt) => {
       opt.classList.remove('selected');
       opt.setAttribute('aria-checked', 'false');
     });
-    
+
     optionElement.classList.add('selected');
     optionElement.setAttribute('aria-checked', 'true');
 
-    const currentText = this.getTextFieldValue(this.currentTextField);
-    
+    // Store reference to textField BEFORE closing menu
+    const textFieldRef = this.currentTextField;
+    const currentText = this.getTextFieldValue(textFieldRef);
+
     console.debug("[TextEnhancer] Enhancing text with style:", {
       style,
       textLength: currentText.length,
       textPreview: currentText.substring(0, 50)
     });
 
-    // TODO: Task 11.3 will implement the actual enhancement processing
-    // For now, just log the selection
-    console.info("[TextEnhancer] Enhancement requested:", {
-      style,
-      text: currentText,
-      field: this.currentTextField.tagName
-    });
+    // Close the menu (this clears this.currentTextField)
+    this.closeEnhancementMenu();
 
-    // Provide visual feedback on button
-    const button = this.injectedButtons.get(this.currentTextField);
-    if (button) {
-      button.style.transform = "scale(1.1)";
-      setTimeout(() => {
-        button.style.transform = "";
-      }, 200);
+    // Verify textField is still valid
+    if (!textFieldRef || !document.body.contains(textFieldRef)) {
+      console.error("[TextEnhancer] Text field no longer in DOM");
+      return;
     }
 
-    // Keep menu open - don't close it
-    // User can click outside or press ESC to close
+    // Process the enhancement with stored reference
+    await this.processEnhancement(textFieldRef, currentText, style);
+  }
+
+  /**
+   * Process text enhancement
+   * Requirement 9.3: Process and improve text according to selected style
+   * Requirement 9.8: Use on-device AI to maintain privacy
+   */
+  private async processEnhancement(
+    textField: HTMLElement,
+    originalText: string,
+    style: EnhancementStyle
+  ): Promise<void> {
+    console.info("[TextEnhancer] Processing enhancement", { style, textLength: originalText.length });
+
+    // Verify textField is still valid
+    if (!textField || !document.body.contains(textField)) {
+      console.error("[TextEnhancer] Text field no longer in DOM, cannot process");
+      return;
+    }
+
+    // Show loading indicator
+    const loadingOverlay = this.showLoadingIndicator(textField);
+
+    try {
+      // Send enhancement request to service worker
+      const enhancedText = await this.requestEnhancement(originalText, style);
+
+      // Remove loading indicator
+      if (loadingOverlay && loadingOverlay.parentNode) {
+        loadingOverlay.parentNode.removeChild(loadingOverlay);
+      }
+
+      // Verify textField is still valid before showing preview
+      if (!textField || !document.body.contains(textField)) {
+        console.error("[TextEnhancer] Text field removed during processing");
+        return;
+      }
+
+      // Show preview with accept/reject options
+      // Requirement 9.4: Show preview with option to accept or reject
+      this.showEnhancementPreview(textField, originalText, enhancedText, style);
+
+    } catch (error) {
+      console.error("[TextEnhancer] Enhancement failed", error);
+
+      // Remove loading indicator
+      if (loadingOverlay && loadingOverlay.parentNode) {
+        loadingOverlay.parentNode.removeChild(loadingOverlay);
+      }
+
+      // Show error message
+      this.showErrorMessage(textField, error instanceof Error ? error.message : 'Enhancement failed');
+    }
+  }
+
+  /**
+   * Request text enhancement from service worker
+   */
+  private async requestEnhancement(text: string, style: EnhancementStyle): Promise<string> {
+    // Import sendMessage dynamically to avoid circular dependencies
+    const { sendMessage } = await import('../shared/message-client.js');
+
+    // Create enhancement prompt based on style
+    const prompt = this.createEnhancementPrompt(text, style);
+
+    // Send request to service worker
+    const response = await sendMessage<{ enhancedText: string }>(
+      'AI_PROCESS_REQUEST',
+      {
+        prompt,
+        task: 'enhance',
+        preferLocal: true, // Use on-device AI for privacy (Requirement 9.8)
+        style,
+        originalText: text,
+      },
+      { timeout: 30000 }
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || 'Enhancement request failed');
+    }
+
+    return response.data.enhancedText;
+  }
+
+  /**
+   * Create enhancement prompt based on style
+   */
+  private createEnhancementPrompt(text: string, style: EnhancementStyle): string {
+    const styleInstructions: Record<EnhancementStyle, string> = {
+      [EnhancementStyle.PROFESSIONAL]:
+        'Rewrite the following text in a professional, formal, and business-appropriate tone. Maintain the core message but make it suitable for professional communication.',
+      [EnhancementStyle.CONCISE]:
+        'Rewrite the following text to be more concise and direct. Remove unnecessary words while preserving the essential meaning.',
+      [EnhancementStyle.EMPATHETIC]:
+        'Rewrite the following text with a warm, empathetic, and understanding tone. Show compassion and emotional intelligence.',
+      [EnhancementStyle.PERSUASIVE]:
+        'Rewrite the following text to be more persuasive and compelling. Use rhetorical techniques to make the message more convincing.',
+      [EnhancementStyle.FUNNY]:
+        'Rewrite the following text with humor and lightheartedness. Add wit and playfulness while maintaining the core message.',
+      [EnhancementStyle.OPTIMIZE]:
+        'Improve the following text by fixing grammar errors, enhancing clarity, and improving overall flow. Make it more polished and well-written.',
+    };
+
+    return `${styleInstructions[style]}\n\nOriginal text:\n${text}\n\nEnhanced text:`;
+  }
+
+  /**
+   * Show loading indicator while processing
+   */
+  private showLoadingIndicator(textField: HTMLElement): HTMLElement | null {
+    // Check if textField is valid
+    if (!textField || !document.body.contains(textField)) {
+      console.warn("[TextEnhancer] Cannot show loading indicator - textField not in DOM");
+      return null;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'ai-pocket-enhancement-loading';
+    overlay.setAttribute('role', 'status');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.setAttribute('aria-label', 'Enhancing text');
+
+    const spinner = document.createElement('div');
+    spinner.className = 'ai-pocket-loading-spinner';
+
+    const message = document.createElement('div');
+    message.className = 'ai-pocket-loading-message';
+    message.textContent = 'Enhancing text...';
+
+    overlay.appendChild(spinner);
+    overlay.appendChild(message);
+
+    // Position overlay near text field
+    const rect = textField.getBoundingClientRect();
+    overlay.style.position = 'absolute';
+    overlay.style.top = `${rect.top + window.scrollY}px`;
+    overlay.style.left = `${rect.left + window.scrollX}px`;
+    overlay.style.width = `${rect.width}px`;
+    overlay.style.height = `${rect.height}px`;
+
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  /**
+   * Show enhancement preview with accept/reject options
+   * Requirement 9.4: Show preview with option to accept or reject
+   */
+  private showEnhancementPreview(
+    textField: HTMLElement,
+    originalText: string,
+    enhancedText: string,
+    style: EnhancementStyle
+  ): void {
+    console.debug("[TextEnhancer] Showing preview", {
+      originalLength: originalText.length,
+      enhancedLength: enhancedText.length,
+    });
+
+    // Create preview dialog
+    const preview = document.createElement('div');
+    preview.className = 'ai-pocket-enhancement-preview';
+    preview.setAttribute('role', 'dialog');
+    preview.setAttribute('aria-labelledby', 'preview-title');
+    preview.setAttribute('aria-modal', 'true');
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'ai-pocket-preview-header';
+
+    const title = document.createElement('h3');
+    title.id = 'preview-title';
+    title.className = 'ai-pocket-preview-title';
+    title.textContent = `Enhanced Text (${this.getStyleLabel(style)})`;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'ai-pocket-preview-close';
+    closeBtn.setAttribute('aria-label', 'Close preview');
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', () => this.closePreview(preview));
+
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    preview.appendChild(header);
+
+    // Content comparison
+    const content = document.createElement('div');
+    content.className = 'ai-pocket-preview-content';
+
+    // Original text section
+    const originalSection = document.createElement('div');
+    originalSection.className = 'ai-pocket-preview-section';
+
+    const originalLabel = document.createElement('div');
+    originalLabel.className = 'ai-pocket-preview-label';
+    originalLabel.textContent = 'Original';
+
+    const originalTextEl = document.createElement('div');
+    originalTextEl.className = 'ai-pocket-preview-text ai-pocket-preview-original';
+    originalTextEl.textContent = originalText;
+
+    originalSection.appendChild(originalLabel);
+    originalSection.appendChild(originalTextEl);
+
+    // Enhanced text section
+    const enhancedSection = document.createElement('div');
+    enhancedSection.className = 'ai-pocket-preview-section';
+
+    const enhancedLabel = document.createElement('div');
+    enhancedLabel.className = 'ai-pocket-preview-label';
+    enhancedLabel.textContent = 'Enhanced';
+
+    const enhancedTextEl = document.createElement('div');
+    enhancedTextEl.className = 'ai-pocket-preview-text ai-pocket-preview-enhanced';
+    enhancedTextEl.textContent = enhancedText;
+
+    enhancedSection.appendChild(enhancedLabel);
+    enhancedSection.appendChild(enhancedTextEl);
+
+    content.appendChild(originalSection);
+    content.appendChild(enhancedSection);
+    preview.appendChild(content);
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.className = 'ai-pocket-preview-actions';
+
+    const rejectBtn = document.createElement('button');
+    rejectBtn.className = 'ai-pocket-preview-btn ai-pocket-preview-btn-secondary';
+    rejectBtn.textContent = 'Reject';
+    rejectBtn.setAttribute('aria-label', 'Reject enhanced text');
+    rejectBtn.addEventListener('click', () => {
+      console.info("[TextEnhancer] Enhancement rejected");
+      this.closePreview(preview);
+    });
+
+    const acceptBtn = document.createElement('button');
+    acceptBtn.className = 'ai-pocket-preview-btn ai-pocket-preview-btn-primary';
+    acceptBtn.textContent = 'Accept';
+    acceptBtn.setAttribute('aria-label', 'Accept enhanced text');
+    acceptBtn.addEventListener('click', () => {
+      console.info("[TextEnhancer] Enhancement accepted");
+      this.setTextFieldValue(textField, enhancedText);
+      this.closePreview(preview);
+
+      // Provide visual feedback
+      const button = this.injectedButtons.get(textField);
+      if (button) {
+        button.style.transform = "scale(1.2)";
+        button.style.background = "#4caf50";
+        setTimeout(() => {
+          button.style.transform = "";
+          button.style.background = "";
+        }, 500);
+      }
+    });
+
+    actions.appendChild(rejectBtn);
+    actions.appendChild(acceptBtn);
+    preview.appendChild(actions);
+
+    // Create backdrop
+    const backdrop = document.createElement('div');
+    backdrop.className = 'ai-pocket-preview-backdrop';
+    backdrop.addEventListener('click', () => this.closePreview(preview));
+    document.body.appendChild(backdrop);
+    (preview as any).__backdrop = backdrop;
+
+    // Position preview
+    this.positionPreview(preview, textField);
+
+    // Add to DOM
+    document.body.appendChild(preview);
+
+    // Show with animation
+    requestAnimationFrame(() => {
+      preview.classList.add('visible');
+      backdrop.classList.add('visible');
+    });
+
+    // Focus accept button
+    acceptBtn.focus();
+
+    // Add ESC key listener
+    const escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        this.closePreview(preview);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+    (preview as any).__escHandler = escHandler;
+  }
+
+  /**
+   * Get style label for display
+   */
+  private getStyleLabel(style: EnhancementStyle): string {
+    const option = this.enhancementOptions.find(opt => opt.id === style);
+    return option ? option.label : style;
+  }
+
+  /**
+   * Position preview dialog
+   */
+  private positionPreview(preview: HTMLElement, textField: HTMLElement): void {
+    const previewWidth = 600;
+    const previewHeight = 400;
+
+    // Center on screen
+    const top = Math.max(50, (window.innerHeight - previewHeight) / 2);
+    const left = Math.max(20, (window.innerWidth - previewWidth) / 2);
+
+    preview.style.top = `${top}px`;
+    preview.style.left = `${left}px`;
+    preview.style.maxWidth = `${previewWidth}px`;
+  }
+
+  /**
+   * Close preview dialog
+   */
+  private closePreview(preview: HTMLElement): void {
+    // Remove ESC handler
+    const escHandler = (preview as any).__escHandler;
+    if (escHandler) {
+      document.removeEventListener('keydown', escHandler);
+    }
+
+    // Remove backdrop
+    const backdrop = (preview as any).__backdrop;
+    if (backdrop && backdrop.parentNode) {
+      backdrop.parentNode.removeChild(backdrop);
+    }
+
+    // Remove preview
+    if (preview.parentNode) {
+      preview.parentNode.removeChild(preview);
+    }
+  }
+
+  /**
+   * Show error message
+   */
+  private showErrorMessage(textField: HTMLElement, message: string): void {
+    // Check if textField is valid
+    if (!textField || !document.body.contains(textField)) {
+      console.error("[TextEnhancer] Enhancement failed:", message);
+      return;
+    }
+
+    const errorEl = document.createElement('div');
+    errorEl.className = 'ai-pocket-enhancement-error';
+    errorEl.setAttribute('role', 'alert');
+    errorEl.textContent = `Enhancement failed: ${message}`;
+
+    const rect = textField.getBoundingClientRect();
+    errorEl.style.position = 'absolute';
+    errorEl.style.top = `${rect.bottom + window.scrollY + 8}px`;
+    errorEl.style.left = `${rect.left + window.scrollX}px`;
+
+    document.body.appendChild(errorEl);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (errorEl.parentNode) {
+        errorEl.parentNode.removeChild(errorEl);
+      }
+    }, 5000);
   }
 
   /**
