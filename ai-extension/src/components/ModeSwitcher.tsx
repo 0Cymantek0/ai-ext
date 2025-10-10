@@ -34,7 +34,7 @@ export function ModeSwitcher({ currentMode, onModeChange, className }: ModeSwitc
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-full bg-background/95 backdrop-blur-sm p-1",
+        "inline-flex items-center gap-0.5 rounded-full bg-background/95 backdrop-blur-sm p-0.5",
         "border border-border shadow-lg",
         "transition-all duration-200",
         className
@@ -51,15 +51,15 @@ export function ModeSwitcher({ currentMode, onModeChange, className }: ModeSwitc
           aria-controls={`${mode.id}-panel`}
           onClick={() => onModeChange(mode.id)}
           className={cn(
-            "relative flex items-center gap-2 rounded-full px-4 py-2",
-            "text-sm font-medium transition-all duration-200",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "relative flex items-center gap-1.5 rounded-full px-3 py-1.5",
+            "text-xs font-medium transition-all duration-200",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
             currentMode === mode.id
-              ? "bg-primary text-primary-foreground shadow-md"
+              ? "bg-slate-100 text-slate-900 shadow-md dark:bg-slate-800 dark:text-slate-100"
               : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
           )}
         >
-          <span aria-hidden="true">
+          <span aria-hidden="true" className="scale-75">
             {mode.icon}
           </span>
           <span className="leading-none">{mode.label}</span>

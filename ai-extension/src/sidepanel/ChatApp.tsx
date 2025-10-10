@@ -550,7 +550,7 @@ export function ChatApp() {
 
       <div className="flex flex-1 flex-col overflow-hidden relative pb-32">
         {/* Floating Mode Switcher */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
           <ModeSwitcher
             currentMode={currentMode}
             onModeChange={handleModeChange}
