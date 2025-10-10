@@ -4,7 +4,11 @@
  * Requirements: 5.3, 5.4
  */
 
-import { contentSanitizer, PIIType, type SanitizationOptions } from "./content-sanitizer.js";
+import {
+  contentSanitizer,
+  PIIType,
+  type SanitizationOptions,
+} from "./content-sanitizer.js";
 
 /**
  * Example 1: Basic sanitization with default options
@@ -102,8 +106,14 @@ export function exampleContainsPII() {
   const safeContent = "This is a safe message with no sensitive data.";
   const unsafeContent = "Contact me at secret@email.com";
 
-  console.log("Safe content has PII:", contentSanitizer.containsPII(safeContent));
-  console.log("Unsafe content has PII:", contentSanitizer.containsPII(unsafeContent));
+  console.log(
+    "Safe content has PII:",
+    contentSanitizer.containsPII(safeContent),
+  );
+  console.log(
+    "Unsafe content has PII:",
+    contentSanitizer.containsPII(unsafeContent),
+  );
 }
 
 /**
@@ -133,7 +143,10 @@ export function exampleAPIKeyDetection() {
   const result = contentSanitizer.sanitize(content);
 
   console.log("Sanitized API keys:", result.sanitizedContent);
-  console.log("Detected keys:", result.detectedPII.filter(p => p.type === PIIType.API_KEY));
+  console.log(
+    "Detected keys:",
+    result.detectedPII.filter((p) => p.type === PIIType.API_KEY),
+  );
 }
 
 /**
@@ -150,7 +163,10 @@ export function exampleCreditCardValidation() {
 
   console.log("Original:", content);
   console.log("Sanitized (only valid cards):", result.sanitizedContent);
-  console.log("Valid cards found:", result.detectedPII.filter(p => p.type === PIIType.CREDIT_CARD).length);
+  console.log(
+    "Valid cards found:",
+    result.detectedPII.filter((p) => p.type === PIIType.CREDIT_CARD).length,
+  );
 }
 
 /**

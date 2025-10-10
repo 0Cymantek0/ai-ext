@@ -71,14 +71,7 @@ export class DOMAnalyzer {
     "EMBED",
   ]);
 
-  private readonly HEADING_TAGS = new Set([
-    "H1",
-    "H2",
-    "H3",
-    "H4",
-    "H5",
-    "H6",
-  ]);
+  private readonly HEADING_TAGS = new Set(["H1", "H2", "H3", "H4", "H5", "H6"]);
 
   /**
    * Extract comprehensive metadata from the current page
@@ -344,7 +337,7 @@ export class DOMAnalyzer {
     node: Node,
     callback: (node: Node) => boolean | void,
     depth: number = 0,
-    maxDepth: number = 100
+    maxDepth: number = 100,
   ): void {
     if (depth > maxDepth) return;
 
@@ -477,7 +470,7 @@ export class DOMAnalyzer {
    */
   getSelectionContext(
     beforeChars: number = 100,
-    afterChars: number = 100
+    afterChars: number = 100,
   ): string | null {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
@@ -500,11 +493,11 @@ export class DOMAnalyzer {
 
     const before = fullText.substring(
       Math.max(0, startIndex - beforeChars),
-      startIndex
+      startIndex,
     );
     const after = fullText.substring(
       startIndex + selectedText.length,
-      Math.min(fullText.length, startIndex + selectedText.length + afterChars)
+      Math.min(fullText.length, startIndex + selectedText.length + afterChars),
     );
 
     return `${before}[${selectedText}]${after}`;
@@ -519,7 +512,7 @@ export class DOMAnalyzer {
 
     // Extract JSON-LD
     const jsonLdScripts = document.querySelectorAll(
-      'script[type="application/ld+json"]'
+      'script[type="application/ld+json"]',
     );
     jsonLdScripts.forEach((script) => {
       try {

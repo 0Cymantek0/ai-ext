@@ -4,7 +4,11 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { Logger, LogLevel, PerformanceMonitor } from "../src/background/monitoring";
+import {
+  Logger,
+  LogLevel,
+  PerformanceMonitor,
+} from "../src/background/monitoring";
 
 // Mock chrome.storage API
 const mockStorage = {
@@ -140,9 +144,9 @@ describe("PerformanceMonitor", () => {
       throw new Error("Test error");
     };
 
-    await expect(
-      monitor.measureAsync("error-test", errorFn)
-    ).rejects.toThrow("Test error");
+    await expect(monitor.measureAsync("error-test", errorFn)).rejects.toThrow(
+      "Test error",
+    );
 
     const metrics = monitor.getMetrics("error-test");
     expect(metrics.length).toBe(1);

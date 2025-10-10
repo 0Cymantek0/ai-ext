@@ -70,16 +70,18 @@ class ContentScriptManager {
     // Handler for capture requests from service worker
     messageHandler.on("CAPTURE_REQUEST", async (payload) => {
       console.debug("[ContentScript] Received CAPTURE_REQUEST", payload);
-      
+
       try {
         // Use DOM analyzer to extract content based on mode
         let capturedContent;
-        
+
         switch (payload.mode) {
           case "full-page":
             const fullPageText = domAnalyzer.extractText();
-            const sanitizedFullPage = contentSanitizer.sanitize(fullPageText.content);
-            
+            const sanitizedFullPage = contentSanitizer.sanitize(
+              fullPageText.content,
+            );
+
             capturedContent = {
               metadata: domAnalyzer.extractMetadata(),
               text: {
@@ -94,15 +96,17 @@ class ContentScriptManager {
               },
             };
             break;
-            
+
           case "selection":
             const selection = domAnalyzer.extractSelection();
             if (!selection) {
               throw new Error("No selection found");
             }
-            
-            const sanitizedSelection = contentSanitizer.sanitize(selection.content);
-            
+
+            const sanitizedSelection = contentSanitizer.sanitize(
+              selection.content,
+            );
+
             capturedContent = {
               metadata: domAnalyzer.extractMetadata(),
               text: {
@@ -116,7 +120,7 @@ class ContentScriptManager {
               },
             };
             break;
-            
+
           default:
             // Will be implemented in content capture tasks
             capturedContent = {
@@ -125,7 +129,7 @@ class ContentScriptManager {
               title: this.state.pageTitle,
             };
         }
-        
+
         return {
           status: "success",
           content: capturedContent,
@@ -202,7 +206,7 @@ class ContentScriptManager {
       if (!response.success) {
         console.warn(
           "[ContentScript] Failed to notify service worker",
-          response.error
+          response.error,
         );
       }
     } catch (error) {
@@ -215,7 +219,7 @@ class ContentScriptManager {
    */
   async sendToServiceWorker<T = any>(
     kind: any,
-    payload: any
+    payload: any,
   ): Promise<T | null> {
     try {
       const response = await sendMessage<T>(kind, payload);
@@ -223,7 +227,7 @@ class ContentScriptManager {
       if (!response.success) {
         console.error(
           "[ContentScript] Service worker returned error",
-          response.error
+          response.error,
         );
         return null;
       }

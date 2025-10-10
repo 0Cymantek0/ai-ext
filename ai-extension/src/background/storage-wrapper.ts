@@ -24,7 +24,7 @@ export class StorageError extends Error {
   constructor(
     public type: StorageErrorType,
     message: string,
-    public originalError?: unknown
+    public originalError?: unknown,
   ) {
     super(message);
     this.name = "StorageError";
@@ -90,7 +90,7 @@ abstract class ChromeStorageWrapper {
    */
   async get<T = any>(
     keys?: string | string[] | null,
-    options: StorageOptions = {}
+    options: StorageOptions = {},
   ): Promise<T> {
     const operation = async (): Promise<T> => {
       try {
@@ -117,7 +117,7 @@ abstract class ChromeStorageWrapper {
    */
   async set(
     items: Record<string, any>,
-    options: StorageOptions = {}
+    options: StorageOptions = {},
   ): Promise<void> {
     const operation = async (): Promise<void> => {
       try {
@@ -126,7 +126,7 @@ abstract class ChromeStorageWrapper {
         if (quota.isAtLimit && options.throwOnQuotaExceeded !== false) {
           throw new StorageError(
             StorageErrorType.QUOTA_EXCEEDED,
-            `${this.storageName} quota exceeded (${quota.percentUsed.toFixed(1)}% used)`
+            `${this.storageName} quota exceeded (${quota.percentUsed.toFixed(1)}% used)`,
           );
         }
 
@@ -165,7 +165,7 @@ abstract class ChromeStorageWrapper {
    */
   async remove(
     keys: string | string[],
-    options: StorageOptions = {}
+    options: StorageOptions = {},
   ): Promise<void> {
     const operation = async (): Promise<void> => {
       try {
@@ -225,7 +225,11 @@ abstract class ChromeStorageWrapper {
         isAtLimit,
       };
     } catch (error) {
-      logger.error("StorageWrapper", `${this.storageName}.getQuota failed`, error);
+      logger.error(
+        "StorageWrapper",
+        `${this.storageName}.getQuota failed`,
+        error,
+      );
       throw this.handleStorageError(error, "getQuota");
     }
   }
@@ -272,7 +276,7 @@ abstract class ChromeStorageWrapper {
    */
   protected async retryOperation<T>(
     operation: () => Promise<T>,
-    customConfig?: Partial<RetryConfig>
+    customConfig?: Partial<RetryConfig>,
   ): Promise<T> {
     const config = { ...DEFAULT_RETRY_CONFIG, ...customConfig };
     let lastError: Error | undefined;
@@ -294,10 +298,14 @@ abstract class ChromeStorageWrapper {
         }
 
         if (attempt < config.maxAttempts) {
-          logger.warn("StorageWrapper", `Retry attempt ${attempt}/${config.maxAttempts}`, {
-            error: lastError.message,
-            nextDelay: delay,
-          });
+          logger.warn(
+            "StorageWrapper",
+            `Retry attempt ${attempt}/${config.maxAttempts}`,
+            {
+              error: lastError.message,
+              nextDelay: delay,
+            },
+          );
 
           await this.sleep(delay);
           delay = Math.min(delay * config.backoffMultiplier, config.maxDelay);
@@ -319,7 +327,10 @@ abstract class ChromeStorageWrapper {
   /**
    * Handle storage errors and convert to StorageError
    */
-  protected handleStorageError(error: unknown, operation: string): StorageError {
+  protected handleStorageError(
+    error: unknown,
+    operation: string,
+  ): StorageError {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Classify error type
@@ -327,18 +338,27 @@ abstract class ChromeStorageWrapper {
 
     if (errorMessage.includes("QUOTA_BYTES")) {
       errorType = StorageErrorType.QUOTA_EXCEEDED;
-    } else if (errorMessage.includes("access") || errorMessage.includes("permission")) {
+    } else if (
+      errorMessage.includes("access") ||
+      errorMessage.includes("permission")
+    ) {
       errorType = StorageErrorType.ACCESS_DENIED;
-    } else if (errorMessage.includes("network") || errorMessage.includes("offline")) {
+    } else if (
+      errorMessage.includes("network") ||
+      errorMessage.includes("offline")
+    ) {
       errorType = StorageErrorType.NETWORK_ERROR;
-    } else if (errorMessage.includes("corrupt") || errorMessage.includes("invalid")) {
+    } else if (
+      errorMessage.includes("corrupt") ||
+      errorMessage.includes("invalid")
+    ) {
       errorType = StorageErrorType.CORRUPTION;
     }
 
     const storageError = new StorageError(
       errorType,
       `${this.storageName}.${operation} failed: ${errorMessage}`,
-      error
+      error,
     );
 
     logger.error("StorageWrapper", `${this.storageName}.${operation} error`, {
@@ -353,7 +373,7 @@ abstract class ChromeStorageWrapper {
    * Add storage change listener
    */
   onChanged(
-    callback: (changes: Record<string, chrome.storage.StorageChange>) => void
+    callback: (changes: Record<string, chrome.storage.StorageChange>) => void,
   ): void {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === this.storageName) {
@@ -389,25 +409,29 @@ export class ChromeSyncStorage extends ChromeStorageWrapper {
   /**
    * Validate item size before setting
    */
-  async setWithValidation(items: Record<string, any>, options: StorageOptions = {}): Promise<void> {
+  async setWithValidation(
+    items: Record<string, any>,
+    options: StorageOptions = {},
+  ): Promise<void> {
     // Validate each item size
     for (const [key, value] of Object.entries(items)) {
       const size = this.estimateSize(value);
       if (size > this.getMaxBytesPerItem()) {
         throw new StorageError(
           StorageErrorType.QUOTA_EXCEEDED,
-          `Item "${key}" exceeds max bytes per item (${size} > ${this.getMaxBytesPerItem()})`
+          `Item "${key}" exceeds max bytes per item (${size} > ${this.getMaxBytesPerItem()})`,
         );
       }
     }
 
     // Validate total items count
     const currentItems = await this.get();
-    const totalItems = Object.keys(currentItems).length + Object.keys(items).length;
+    const totalItems =
+      Object.keys(currentItems).length + Object.keys(items).length;
     if (totalItems > this.getMaxItems()) {
       throw new StorageError(
         StorageErrorType.QUOTA_EXCEEDED,
-        `Total items would exceed max items (${totalItems} > ${this.getMaxItems()})`
+        `Total items would exceed max items (${totalItems} > ${this.getMaxItems()})`,
       );
     }
 
@@ -427,7 +451,9 @@ export class ChromeLocalStorage extends ChromeStorageWrapper {
   /**
    * Get detailed quota information with breakdown
    */
-  async getDetailedQuota(): Promise<StorageQuota & { itemSizes: Array<{ key: string; bytes: number }> }> {
+  async getDetailedQuota(): Promise<
+    StorageQuota & { itemSizes: Array<{ key: string; bytes: number }> }
+  > {
     const quota = await this.getQuota();
     const allItems = await this.get();
     const itemSizes = Object.keys(allItems).map((key) => ({
@@ -448,11 +474,13 @@ export class ChromeLocalStorage extends ChromeStorageWrapper {
    * Clean up old or large items to free space
    * Requirement: 13.1 - Performance optimization
    */
-  async cleanup(options: {
-    removeKeys?: string[];
-    keepMostRecent?: number;
-    minBytesToFree?: number;
-  } = {}): Promise<{ bytesFreed: number; itemsRemoved: number }> {
+  async cleanup(
+    options: {
+      removeKeys?: string[];
+      keepMostRecent?: number;
+      minBytesToFree?: number;
+    } = {},
+  ): Promise<{ bytesFreed: number; itemsRemoved: number }> {
     const beforeQuota = await this.getQuota();
     let itemsRemoved = 0;
 
@@ -466,7 +494,10 @@ export class ChromeLocalStorage extends ChromeStorageWrapper {
     if (options.keepMostRecent) {
       const allItems = await this.get();
       const itemsWithTimestamp = Object.entries(allItems)
-        .filter(([_, value]) => value && typeof value === "object" && "timestamp" in value)
+        .filter(
+          ([_, value]) =>
+            value && typeof value === "object" && "timestamp" in value,
+        )
         .sort((a, b) => (b[1] as any).timestamp - (a[1] as any).timestamp);
 
       if (itemsWithTimestamp.length > options.keepMostRecent) {
@@ -577,7 +608,7 @@ export class StorageManager {
   private emitQuotaEvent(
     level: "warning" | "critical",
     area: "sync" | "local",
-    quota: StorageQuota
+    quota: StorageQuota,
   ): void {
     const event = new CustomEvent("storage-quota-event", {
       detail: { level, area, quota },

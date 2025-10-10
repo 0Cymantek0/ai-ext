@@ -6,9 +6,9 @@
 
 import { logger, performanceMonitor } from "./monitoring.js";
 import { getQuotaManager } from "./quota-manager.js";
-import { AIManager } from './ai-manager.js';
-import { CloudAIManager } from './cloud-ai-manager.js';
-import { getStreamingHandler } from './streaming-handler.js';
+import { AIManager } from "./ai-manager.js";
+import { CloudAIManager } from "./cloud-ai-manager.js";
+import { getStreamingHandler } from "./streaming-handler.js";
 
 interface ServiceWorkerState {
   initialized: boolean;
@@ -41,7 +41,7 @@ class ServiceWorkerLifecycle {
       // Restore state from storage
       await performanceMonitor.measureAsync(
         "service-worker-restore-state",
-        () => this.restoreState()
+        () => this.restoreState(),
       );
 
       // Set up heartbeat to keep service worker alive during active operations
@@ -65,7 +65,7 @@ class ServiceWorkerLifecycle {
       performanceMonitor.recordMetric(
         "service-worker-init-time",
         initTime,
-        "ms"
+        "ms",
       );
 
       logger.info("ServiceWorker", "Initialized successfully", {
@@ -75,11 +75,9 @@ class ServiceWorkerLifecycle {
 
       // Check if initialization meets performance target (Requirement 13.1)
       if (initTime > 100) {
-        logger.warn(
-          "ServiceWorker",
-          "Initialization exceeded 100ms target",
-          { initTime: `${initTime.toFixed(2)}ms` }
-        );
+        logger.warn("ServiceWorker", "Initialization exceeded 100ms target", {
+          initTime: `${initTime.toFixed(2)}ms`,
+        });
       }
     } catch (error) {
       logger.error("ServiceWorker", "Initialization failed", error);
@@ -150,7 +148,7 @@ class ServiceWorkerLifecycle {
       performanceMonitor.recordMetric(
         "service-worker-heartbeat",
         this.state.activeRequests.size,
-        "count"
+        "count",
       );
     }, this.HEARTBEAT_INTERVAL) as unknown as number;
   }
@@ -215,7 +213,7 @@ class ServiceWorkerLifecycle {
     performanceMonitor.recordMetric(
       "active-requests",
       this.state.activeRequests.size,
-      "count"
+      "count",
     );
   }
 
@@ -226,12 +224,10 @@ class ServiceWorkerLifecycle {
     const request = this.state.activeRequests.get(requestId);
     if (request) {
       const duration = Date.now() - request.startTime;
-      performanceMonitor.recordMetric(
-        "request-duration",
-        duration,
-        "ms",
-        { requestId, kind: request.kind }
-      );
+      performanceMonitor.recordMetric("request-duration", duration, "ms", {
+        requestId,
+        kind: request.kind,
+      });
 
       logger.debug("ServiceWorker", "Request completed", {
         requestId,
@@ -245,7 +241,7 @@ class ServiceWorkerLifecycle {
     performanceMonitor.recordMetric(
       "active-requests",
       this.state.activeRequests.size,
-      "count"
+      "count",
     );
 
     // Stop heartbeat if no active requests (Requirement 13.7)
@@ -386,7 +382,10 @@ class MessageRouter {
   /**
    * Register a message handler for a specific message kind
    */
-  registerHandler<T, R>(kind: MessageKind, handler: MessageHandler<T, R>): void {
+  registerHandler<T, R>(
+    kind: MessageKind,
+    handler: MessageHandler<T, R>,
+  ): void {
     if (this.handlers.has(kind)) {
       logger.warn("MessageRouter", `Overwriting handler for ${kind}`);
     }
@@ -405,7 +404,9 @@ class MessageRouter {
   /**
    * Validate message structure
    */
-  private validateMessage(message: any): message is BaseMessage<MessageKind, any> {
+  private validateMessage(
+    message: any,
+  ): message is BaseMessage<MessageKind, any> {
     if (!message || typeof message !== "object") {
       return false;
     }
@@ -426,7 +427,7 @@ class MessageRouter {
    */
   async routeMessage(
     message: any,
-    sender: chrome.runtime.MessageSender
+    sender: chrome.runtime.MessageSender,
   ): Promise<MessageResponse> {
     // Validate message structure
     if (!this.validateMessage(message)) {
@@ -468,7 +469,7 @@ class MessageRouter {
       const result = await performanceMonitor.measureAsync(
         `message-handler-${kind}`,
         () => handler(payload, sender),
-        { requestId }
+        { requestId },
       );
 
       // Complete request tracking
@@ -504,7 +505,7 @@ class MessageRouter {
    */
   async sendToContentScript<T>(
     tabId: number,
-    message: BaseMessage<MessageKind, any>
+    message: BaseMessage<MessageKind, any>,
   ): Promise<MessageResponse<T>> {
     try {
       const response = await chrome.tabs.sendMessage(tabId, message);
@@ -515,7 +516,8 @@ class MessageRouter {
         success: false,
         error: {
           code: "SEND_FAILED",
-          message: error instanceof Error ? error.message : "Failed to send message",
+          message:
+            error instanceof Error ? error.message : "Failed to send message",
         },
       };
     }
@@ -525,7 +527,7 @@ class MessageRouter {
    * Send message to side panel
    */
   async sendToSidePanel<T>(
-    message: BaseMessage<MessageKind, any>
+    message: BaseMessage<MessageKind, any>,
   ): Promise<MessageResponse<T>> {
     try {
       const response = await chrome.runtime.sendMessage(message);
@@ -536,7 +538,8 @@ class MessageRouter {
         success: false,
         error: {
           code: "SEND_FAILED",
-          message: error instanceof Error ? error.message : "Failed to send message",
+          message:
+            error instanceof Error ? error.message : "Failed to send message",
         },
       };
     }
@@ -551,7 +554,11 @@ class MessageRouter {
       const promises = tabs.map((tab) => {
         if (tab.id) {
           return this.sendToContentScript(tab.id, message).catch((error) => {
-            logger.debug("MessageRouter", `Failed to broadcast to tab ${tab.id}`, error);
+            logger.debug(
+              "MessageRouter",
+              `Failed to broadcast to tab ${tab.id}`,
+              error,
+            );
           });
         }
       });
@@ -608,10 +615,13 @@ const cloudAIManager = new CloudAIManager();
 const streamingHandler = getStreamingHandler(aiManager, cloudAIManager);
 
 // Register streaming handlers
-messageRouter.registerHandler("AI_PROCESS_STREAM_START", async (payload, sender) => {
-  logger.info("Handler", "AI_PROCESS_STREAM_START", payload);
-  return await streamingHandler.startStreaming(payload as any, sender);
-});
+messageRouter.registerHandler(
+  "AI_PROCESS_STREAM_START",
+  async (payload, sender) => {
+    logger.info("Handler", "AI_PROCESS_STREAM_START", payload);
+    return await streamingHandler.startStreaming(payload as any, sender);
+  },
+);
 
 messageRouter.registerHandler("AI_PROCESS_CANCEL", async (payload) => {
   logger.info("Handler", "AI_PROCESS_CANCEL", payload);
@@ -622,10 +632,12 @@ messageRouter.registerHandler("AI_PROCESS_CANCEL", async (payload) => {
 messageRouter.registerHandler("CONVERSATION_LIST", async (payload) => {
   logger.info("Handler", "CONVERSATION_LIST", payload);
   try {
-    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init(); // Ensure DB is initialized
     const conversations = await indexedDBManager.listConversations();
-    logger.info("Handler", "CONVERSATION_LIST result", { count: conversations.length });
+    logger.info("Handler", "CONVERSATION_LIST result", {
+      count: conversations.length,
+    });
     return { conversations };
   } catch (error) {
     logger.error("Handler", "CONVERSATION_LIST error", error);
@@ -636,10 +648,14 @@ messageRouter.registerHandler("CONVERSATION_LIST", async (payload) => {
 messageRouter.registerHandler("CONVERSATION_GET", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_GET", payload);
   try {
-    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
-    const conversation = await indexedDBManager.getConversation(payload.conversationId);
-    logger.info("Handler", "CONVERSATION_GET result", { found: !!conversation });
+    const conversation = await indexedDBManager.getConversation(
+      payload.conversationId,
+    );
+    logger.info("Handler", "CONVERSATION_GET result", {
+      found: !!conversation,
+    });
     return { conversation };
   } catch (error) {
     logger.error("Handler", "CONVERSATION_GET error", error);
@@ -650,17 +666,24 @@ messageRouter.registerHandler("CONVERSATION_GET", async (payload: any) => {
 messageRouter.registerHandler("CONVERSATION_CREATE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_CREATE", payload);
   try {
-    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
-    logger.info("Handler", "Creating conversation", { messageCount: payload.messages?.length || 0 });
-    const conversationId = await indexedDBManager.saveConversation({
-      pocketId: payload.pocketId,
-      messages: payload.messages || [],
-      model: payload.model || 'gemini-nano',
-      tokensUsed: 0
-    }, payload.conversationId);
+    logger.info("Handler", "Creating conversation", {
+      messageCount: payload.messages?.length || 0,
+    });
+    const conversationId = await indexedDBManager.saveConversation(
+      {
+        pocketId: payload.pocketId,
+        messages: payload.messages || [],
+        model: payload.model || "gemini-nano",
+        tokensUsed: 0,
+      },
+      payload.conversationId,
+    );
     const conversation = await indexedDBManager.getConversation(conversationId);
-    logger.info("Handler", "CONVERSATION_CREATE result", { id: conversationId });
+    logger.info("Handler", "CONVERSATION_CREATE result", {
+      id: conversationId,
+    });
     return { conversation };
   } catch (error) {
     logger.error("Handler", "CONVERSATION_CREATE error", error);
@@ -671,9 +694,12 @@ messageRouter.registerHandler("CONVERSATION_CREATE", async (payload: any) => {
 messageRouter.registerHandler("CONVERSATION_UPDATE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_UPDATE", payload);
   try {
-    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
-    await indexedDBManager.updateConversation(payload.conversationId, payload.message);
+    await indexedDBManager.updateConversation(
+      payload.conversationId,
+      payload.message,
+    );
     logger.info("Handler", "CONVERSATION_UPDATE success");
     return { success: true };
   } catch (error) {
@@ -685,7 +711,7 @@ messageRouter.registerHandler("CONVERSATION_UPDATE", async (payload: any) => {
 messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_DELETE", payload);
   try {
-    const { indexedDBManager } = await import('./indexeddb-manager.js');
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     await indexedDBManager.deleteConversation(payload.conversationId);
     logger.info("Handler", "CONVERSATION_DELETE success");
@@ -759,14 +785,17 @@ globalThis.addEventListener("quota-event", (event: Event) => {
   // Handle critical storage events
   if (type === "critical") {
     // Notify user about storage issues
-    chrome.notifications.create({
-      type: "basic",
-      iconUrl: "icons/icon-128.png",
-      title: "Storage Almost Full",
-      message: "AI Pocket is running low on storage. Some old data has been cleaned up automatically.",
-    }).catch((error) => {
-      logger.error("ServiceWorker", "Failed to create notification", error);
-    });
+    chrome.notifications
+      .create({
+        type: "basic",
+        iconUrl: "icons/icon-128.png",
+        title: "Storage Almost Full",
+        message:
+          "AI Pocket is running low on storage. Some old data has been cleaned up automatically.",
+      })
+      .catch((error) => {
+        logger.error("ServiceWorker", "Failed to create notification", error);
+      });
   } else if (type === "warning") {
     logger.warn("ServiceWorker", "Storage warning threshold exceeded", data);
   }
@@ -798,7 +827,10 @@ async function performCleanup(): Promise<void> {
     const quotaManager = getQuotaManager();
     const usage = await quotaManager.getTotalUsage();
     if (usage.total.percentUsed > 80) {
-      logger.info("ServiceWorker", "Triggering quota cleanup due to high memory usage");
+      logger.info(
+        "ServiceWorker",
+        "Triggering quota cleanup due to high memory usage",
+      );
       await quotaManager.performCleanup("warning");
     }
 

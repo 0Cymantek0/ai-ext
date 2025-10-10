@@ -69,10 +69,10 @@ export interface AiCancelRequestPayload {
 
 // User Preferences
 export interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
+  theme: "light" | "dark" | "auto";
   language: string;
-  defaultAIModel: 'nano' | 'flash' | 'pro';
-  privacyMode: 'strict' | 'balanced' | 'performance';
+  defaultAIModel: "nano" | "flash" | "pro";
+  privacyMode: "strict" | "balanced" | "performance";
   accessibility: AccessibilityPreferences;
 }
 
@@ -87,10 +87,10 @@ export interface AccessibilityPreferences {
 // Side Panel State
 export interface SidePanelState {
   version: number;
-  activeTab: 'chat' | 'pockets';
+  activeTab: "chat" | "pockets";
   currentConversationId: string | null;
   lastActiveTimestamp: number;
-  
+
   // UI State
   ui: {
     chatScrollPosition: number;
@@ -98,27 +98,27 @@ export interface SidePanelState {
     expandedSections: string[];
     sidebarCollapsed: boolean;
   };
-  
+
   // Pocket State
   pockets: {
     selectedPocketId: string | null;
     filterQuery: string;
-    sortBy: 'date' | 'name' | 'size';
-    viewMode: 'list' | 'grid';
+    sortBy: "date" | "name" | "size";
+    viewMode: "list" | "grid";
   };
-  
+
   // Chat State
   chat: {
     draftMessage: string;
     recentPrompts: string[];
-    preferredModel: 'nano' | 'flash' | 'pro' | null;
+    preferredModel: "nano" | "flash" | "pro" | null;
   };
 }
 
 // Storage Keys
 export const STORAGE_KEYS = {
-  USER_PREFERENCES: 'userPreferences',
-  SIDE_PANEL_STATE: 'sidePanelState',
-  CONVERSATIONS: 'conversations',
-  POCKETS: 'pockets',
+  USER_PREFERENCES: "userPreferences",
+  SIDE_PANEL_STATE: "sidePanelState",
+  CONVERSATIONS: "conversations",
+  POCKETS: "pockets",
 } as const;

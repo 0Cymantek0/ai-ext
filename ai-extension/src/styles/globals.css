@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* Import Space Grotesk from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap");
 
 :root {
   --background: 0 0% 100%;
@@ -56,7 +56,9 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: "Space Grotesk", sans-serif;
-  font-feature-settings: "rlig" 1, "calt" 1;
+  font-feature-settings:
+    "rlig" 1,
+    "calt" 1;
   transition-property: color, background-color, border-color;
   transition-duration: 150ms;
 }

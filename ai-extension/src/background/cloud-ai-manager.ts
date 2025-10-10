@@ -1,6 +1,6 @@
 /**
  * Cloud AI Manager - Google Gemini Cloud Integration
- * 
+ *
  * This module provides integration with Google's cloud-based Gemini models
  * (Gemini 2.5 Flash and Gemini 2.5 Pro) through the Google Generative AI SDK.
  * It handles:
@@ -11,21 +11,29 @@
  * - Token usage tracking
  * - Performance monitoring
  * - Error handling and retry logic
- * 
+ *
  * Requirements: 4.3, 4.5, 4.6, 13.1, 16.2
  */
 
-import { GoogleGenerativeAI, GenerativeModel, type GenerateContentResult } from '@google/generative-ai';
-import type { AIResponse } from './ai-manager';
-import { aiPerformanceMonitor, AIModel, AIOperation } from './ai-performance-monitor';
+import {
+  GoogleGenerativeAI,
+  GenerativeModel,
+  type GenerateContentResult,
+} from "@google/generative-ai";
+import type { AIResponse } from "./ai-manager";
+import {
+  aiPerformanceMonitor,
+  AIModel,
+  AIOperation,
+} from "./ai-performance-monitor";
 
 /**
  * Gemini model types
  */
 export enum GeminiModel {
-  FLASH = 'gemini-2.5-flash',
-  PRO = 'gemini-2.5-pro',
-  FLASH_LITE = 'gemini-2.5-flash-lite'
+  FLASH = "gemini-2.5-flash",
+  PRO = "gemini-2.5-pro",
+  FLASH_LITE = "gemini-2.5-flash-lite",
 }
 
 /**
@@ -50,7 +58,7 @@ const PII_PATTERNS = {
   ssn: /\b\d{3}-\d{2}-\d{4}\b/g,
   creditCard: /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g,
   ipAddress: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
-  url: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g
+  url: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g,
 };
 
 /**
@@ -63,12 +71,12 @@ export class CloudAIManager {
 
   /**
    * Initialize the Cloud AI Manager with API key
-   * 
+   *
    * @param apiKey Google Gemini API key
    */
   constructor(apiKey?: string) {
     this.apiKey = apiKey || this.getApiKeyFromEnv();
-    
+
     if (this.apiKey) {
       this.initialize();
     }
@@ -92,16 +100,18 @@ export class CloudAIManager {
    */
   private initialize(): void {
     if (!this.apiKey) {
-      console.warn('Gemini API key not provided. Cloud AI features will be unavailable.');
+      console.warn(
+        "Gemini API key not provided. Cloud AI features will be unavailable.",
+      );
       return;
     }
 
     try {
       this.genAI = new GoogleGenerativeAI(this.apiKey);
       this.initialized = true;
-      console.log('Cloud AI Manager initialized successfully');
+      console.log("Cloud AI Manager initialized successfully");
     } catch (error) {
-      console.error('Failed to initialize Cloud AI Manager:', error);
+      console.error("Failed to initialize Cloud AI Manager:", error);
       this.initialized = false;
     }
   }
@@ -115,7 +125,7 @@ export class CloudAIManager {
 
   /**
    * Set API key and reinitialize
-   * 
+   *
    * @param apiKey Google Gemini API key
    */
   setApiKey(apiKey: string): void {
@@ -126,7 +136,7 @@ export class CloudAIManager {
   /**
    * Sanitize content by removing PII
    * Requirement 4.3: Content shall be sanitized before transmission
-   * 
+   *
    * @param content Content to sanitize
    * @returns Sanitized content
    */
@@ -134,19 +144,19 @@ export class CloudAIManager {
     let sanitized = content;
 
     // Remove email addresses
-    sanitized = sanitized.replace(PII_PATTERNS.email, '[EMAIL_REDACTED]');
+    sanitized = sanitized.replace(PII_PATTERNS.email, "[EMAIL_REDACTED]");
 
     // Remove phone numbers
-    sanitized = sanitized.replace(PII_PATTERNS.phone, '[PHONE_REDACTED]');
+    sanitized = sanitized.replace(PII_PATTERNS.phone, "[PHONE_REDACTED]");
 
     // Remove SSN
-    sanitized = sanitized.replace(PII_PATTERNS.ssn, '[SSN_REDACTED]');
+    sanitized = sanitized.replace(PII_PATTERNS.ssn, "[SSN_REDACTED]");
 
     // Remove credit card numbers
-    sanitized = sanitized.replace(PII_PATTERNS.creditCard, '[CARD_REDACTED]');
+    sanitized = sanitized.replace(PII_PATTERNS.creditCard, "[CARD_REDACTED]");
 
     // Remove IP addresses
-    sanitized = sanitized.replace(PII_PATTERNS.ipAddress, '[IP_REDACTED]');
+    sanitized = sanitized.replace(PII_PATTERNS.ipAddress, "[IP_REDACTED]");
 
     // Optionally remove URLs (commented out by default as URLs might be needed)
     // sanitized = sanitized.replace(PII_PATTERNS.url, '[URL_REDACTED]');
@@ -156,13 +166,15 @@ export class CloudAIManager {
 
   /**
    * Get a generative model instance
-   * 
+   *
    * @param modelType Model type to use
    * @returns Generative model instance
    */
   private getModel(modelType: GeminiModel): GenerativeModel {
     if (!this.genAI) {
-      throw new Error('Cloud AI Manager not initialized. Please provide a valid API key.');
+      throw new Error(
+        "Cloud AI Manager not initialized. Please provide a valid API key.",
+      );
     }
 
     return this.genAI.getGenerativeModel({ model: modelType });
@@ -171,14 +183,14 @@ export class CloudAIManager {
   /**
    * Process content with Gemini 2.5 Flash
    * Requirement 4.5: Use Gemini 2.5 Flash for large documents (> 5000 tokens)
-   * 
+   *
    * @param prompt Prompt to process
    * @param options Processing options
    * @returns AI response
    */
   async processWithFlash(
     prompt: string,
-    options?: CloudProcessingOptions
+    options?: CloudProcessingOptions,
   ): Promise<AIResponse> {
     return this.processWithModel(GeminiModel.FLASH, prompt, options);
   }
@@ -186,14 +198,14 @@ export class CloudAIManager {
   /**
    * Process content with Gemini 2.5 Pro
    * Requirement 4.6: Use Gemini 2.5 Pro for complex reasoning or code analysis
-   * 
+   *
    * @param prompt Prompt to process
    * @param options Processing options
    * @returns AI response
    */
   async processWithPro(
     prompt: string,
-    options?: CloudProcessingOptions
+    options?: CloudProcessingOptions,
   ): Promise<AIResponse> {
     return this.processWithModel(GeminiModel.PRO, prompt, options);
   }
@@ -201,14 +213,14 @@ export class CloudAIManager {
   /**
    * Process content with Gemini 2.5 Flash-Lite
    * For simple, high-volume tasks
-   * 
+   *
    * @param prompt Prompt to process
    * @param options Processing options
    * @returns AI response
    */
   async processWithFlashLite(
     prompt: string,
-    options?: CloudProcessingOptions
+    options?: CloudProcessingOptions,
   ): Promise<AIResponse> {
     return this.processWithModel(GeminiModel.FLASH_LITE, prompt, options);
   }
@@ -217,7 +229,7 @@ export class CloudAIManager {
    * Process content with specified model
    * Requirement 13.1: Track response times
    * Requirement 16.2: Monitor token usage
-   * 
+   *
    * @param modelType Model to use
    * @param prompt Prompt to process
    * @param options Processing options
@@ -226,7 +238,7 @@ export class CloudAIManager {
   private async processWithModel(
     modelType: GeminiModel,
     prompt: string,
-    options?: CloudProcessingOptions & { operation?: AIOperation }
+    options?: CloudProcessingOptions & { operation?: AIOperation },
   ): Promise<AIResponse> {
     const aiModel = this.mapGeminiModelToAIModel(modelType);
     const operation = options?.operation || AIOperation.GENERAL;
@@ -239,7 +251,9 @@ export class CloudAIManager {
         const startTime = performance.now();
 
         if (!this.isAvailable()) {
-          throw new Error('Cloud AI not available. Please check API key configuration.');
+          throw new Error(
+            "Cloud AI not available. Please check API key configuration.",
+          );
         }
 
         try {
@@ -251,15 +265,20 @@ export class CloudAIManager {
 
           // Prepare generation config
           const generationConfig: any = {};
-          if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
+          if (options?.temperature !== undefined)
+            generationConfig.temperature = options.temperature;
           if (options?.topK !== undefined) generationConfig.topK = options.topK;
           if (options?.topP !== undefined) generationConfig.topP = options.topP;
-          if (options?.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = options.maxOutputTokens;
+          if (options?.maxOutputTokens !== undefined)
+            generationConfig.maxOutputTokens = options.maxOutputTokens;
 
           // Generate content
           const result: GenerateContentResult = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: sanitizedPrompt }] }],
-            generationConfig: Object.keys(generationConfig).length > 0 ? generationConfig : undefined,
+            contents: [{ role: "user", parts: [{ text: sanitizedPrompt }] }],
+            generationConfig:
+              Object.keys(generationConfig).length > 0
+                ? generationConfig
+                : undefined,
           });
 
           const response = result.response;
@@ -279,25 +298,29 @@ export class CloudAIManager {
             source,
             confidence: 0.95, // Cloud models generally have high confidence
             processingTime,
-            tokensUsed
+            tokensUsed,
           };
         } catch (error) {
           console.error(`Error processing with ${modelType}:`, error);
-          
+
           // Handle specific error types
           if (error instanceof Error) {
-            if (error.message.includes('API key')) {
-              throw new Error('Invalid API key. Please check your Gemini API key configuration.');
-            } else if (error.message.includes('quota')) {
-              throw new Error('API quota exceeded. Please check your usage limits.');
-            } else if (error.message.includes('rate limit')) {
-              throw new Error('Rate limit exceeded. Please try again later.');
+            if (error.message.includes("API key")) {
+              throw new Error(
+                "Invalid API key. Please check your Gemini API key configuration.",
+              );
+            } else if (error.message.includes("quota")) {
+              throw new Error(
+                "API quota exceeded. Please check your usage limits.",
+              );
+            } else if (error.message.includes("rate limit")) {
+              throw new Error("Rate limit exceeded. Please try again later.");
             }
           }
 
           throw new Error(`Cloud AI processing failed: ${error}`);
         }
-      }
+      },
     );
   }
 
@@ -320,7 +343,7 @@ export class CloudAIManager {
   /**
    * Process content with streaming response
    * Requirement 13.1: Track response times for streaming operations
-   * 
+   *
    * @param modelType Model to use
    * @param prompt Prompt to process
    * @param options Processing options
@@ -329,7 +352,7 @@ export class CloudAIManager {
   async *processWithModelStreaming(
     modelType: GeminiModel,
     prompt: string,
-    options?: CloudProcessingOptions & { operation?: AIOperation }
+    options?: CloudProcessingOptions & { operation?: AIOperation },
   ): AsyncGenerator<string, void, unknown> {
     const startTime = performance.now();
     const aiModel = this.mapGeminiModelToAIModel(modelType);
@@ -337,7 +360,9 @@ export class CloudAIManager {
     let totalTokens = 0;
 
     if (!this.isAvailable()) {
-      throw new Error('Cloud AI not available. Please check API key configuration.');
+      throw new Error(
+        "Cloud AI not available. Please check API key configuration.",
+      );
     }
 
     try {
@@ -349,15 +374,20 @@ export class CloudAIManager {
 
       // Prepare generation config
       const generationConfig: any = {};
-      if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
+      if (options?.temperature !== undefined)
+        generationConfig.temperature = options.temperature;
       if (options?.topK !== undefined) generationConfig.topK = options.topK;
       if (options?.topP !== undefined) generationConfig.topP = options.topP;
-      if (options?.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = options.maxOutputTokens;
+      if (options?.maxOutputTokens !== undefined)
+        generationConfig.maxOutputTokens = options.maxOutputTokens;
 
       // Generate content stream
       const result = await model.generateContentStream({
-        contents: [{ role: 'user', parts: [{ text: sanitizedPrompt }] }],
-        generationConfig: Object.keys(generationConfig).length > 0 ? generationConfig : undefined,
+        contents: [{ role: "user", parts: [{ text: sanitizedPrompt }] }],
+        generationConfig:
+          Object.keys(generationConfig).length > 0
+            ? generationConfig
+            : undefined,
       });
 
       // Stream the response
@@ -368,7 +398,9 @@ export class CloudAIManager {
 
       // After streaming completes, get final token usage
       const finalResponse = await result.response;
-      totalTokens = this.extractTokenUsage({ response: finalResponse } as GenerateContentResult);
+      totalTokens = this.extractTokenUsage({
+        response: finalResponse,
+      } as GenerateContentResult);
 
       // Record successful operation
       const processingTime = performance.now() - startTime;
@@ -389,7 +421,7 @@ export class CloudAIManager {
         operation,
         responseTime: processingTime,
         tokensUsed: totalTokens,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
         timestamp: Date.now(),
       });
 
@@ -403,7 +435,7 @@ export class CloudAIManager {
    */
   async *processWithFlashStreaming(
     prompt: string,
-    options?: CloudProcessingOptions
+    options?: CloudProcessingOptions,
   ): AsyncGenerator<string, void, unknown> {
     yield* this.processWithModelStreaming(GeminiModel.FLASH, prompt, options);
   }
@@ -413,14 +445,14 @@ export class CloudAIManager {
    */
   async *processWithProStreaming(
     prompt: string,
-    options?: CloudProcessingOptions
+    options?: CloudProcessingOptions,
   ): AsyncGenerator<string, void, unknown> {
     yield* this.processWithModelStreaming(GeminiModel.PRO, prompt, options);
   }
 
   /**
    * Extract token usage from result
-   * 
+   *
    * @param result Generation result
    * @returns Token count
    */
@@ -430,10 +462,12 @@ export class CloudAIManager {
       const usage = result.response.usageMetadata;
       if (usage) {
         // Return total tokens (prompt + completion)
-        return (usage.promptTokenCount || 0) + (usage.candidatesTokenCount || 0);
+        return (
+          (usage.promptTokenCount || 0) + (usage.candidatesTokenCount || 0)
+        );
       }
     } catch (error) {
-      console.warn('Could not extract token usage:', error);
+      console.warn("Could not extract token usage:", error);
     }
     return 0;
   }
@@ -441,21 +475,23 @@ export class CloudAIManager {
   /**
    * Map model type to AIResponse source
    */
-  private mapModelToSource(modelType: GeminiModel): 'gemini-flash' | 'gemini-pro' | 'gemini-nano' {
+  private mapModelToSource(
+    modelType: GeminiModel,
+  ): "gemini-flash" | "gemini-pro" | "gemini-nano" {
     switch (modelType) {
       case GeminiModel.FLASH:
       case GeminiModel.FLASH_LITE:
-        return 'gemini-flash';
+        return "gemini-flash";
       case GeminiModel.PRO:
-        return 'gemini-pro';
+        return "gemini-pro";
       default:
-        return 'gemini-flash';
+        return "gemini-flash";
     }
   }
 
   /**
    * Retry a function with exponential backoff
-   * 
+   *
    * @param fn Function to retry
    * @param maxRetries Maximum number of retries
    * @param baseDelay Base delay in milliseconds
@@ -464,7 +500,7 @@ export class CloudAIManager {
   async retryWithBackoff<T>(
     fn: () => Promise<T>,
     maxRetries: number = 3,
-    baseDelay: number = 1000
+    baseDelay: number = 1000,
   ): Promise<T> {
     let lastError: Error | null = null;
 
@@ -473,11 +509,13 @@ export class CloudAIManager {
         return await fn();
       } catch (error) {
         lastError = error as Error;
-        
+
         // Don't retry on certain errors
         if (error instanceof Error) {
-          if (error.message.includes('API key') || 
-              error.message.includes('Invalid')) {
+          if (
+            error.message.includes("API key") ||
+            error.message.includes("Invalid")
+          ) {
             throw error;
           }
         }
@@ -489,19 +527,21 @@ export class CloudAIManager {
 
         // Calculate delay with exponential backoff
         const delay = baseDelay * Math.pow(2, attempt);
-        console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
-        
+        console.log(
+          `Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`,
+        );
+
         // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
-    throw lastError || new Error('Max retries exceeded');
+    throw lastError || new Error("Max retries exceeded");
   }
 
   /**
    * Process with automatic retry
-   * 
+   *
    * @param modelType Model to use
    * @param prompt Prompt to process
    * @param options Processing options
@@ -510,12 +550,12 @@ export class CloudAIManager {
   async processWithRetry(
     modelType: GeminiModel,
     prompt: string,
-    options?: CloudProcessingOptions
+    options?: CloudProcessingOptions,
   ): Promise<AIResponse> {
     return this.retryWithBackoff(
       () => this.processWithModel(modelType, prompt, options),
       3,
-      1000
+      1000,
     );
   }
 }
