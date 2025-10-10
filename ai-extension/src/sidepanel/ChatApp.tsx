@@ -70,6 +70,7 @@ export function ChatApp() {
   const [isNearTop, setIsNearTop] = React.useState<boolean>(true)
   const [isModeSwitcherHidden, setIsModeSwitcherHidden] = React.useState<boolean>(false)
   const scrollDebounceRef = React.useRef<number | null>(null)
+  const lastHideTopRef = React.useRef<number>(0)
 
   React.useEffect(() => {
     // Load conversations from storage
@@ -572,14 +573,16 @@ export function ChatApp() {
 
       if (delta > threshold) {
         // Scrolling down -> hide immediately
-        if (!isModeSwitcherHidden) setIsModeSwitcherHidden(true)
+        if (!isModeSwitcherHidden) {
+          setIsModeSwitcherHidden(true)
+          lastHideTopRef.current = currentTop
+        }
       } else if (delta < -threshold) {
-        // Scrolling up -> only reveal when user actually reaches the very top
-        if (atTop) {
-          if (isModeSwitcherHidden) setIsModeSwitcherHidden(false)
-        } else {
-          // Keep it hidden while navigating upward but not yet at the top
-          if (!isModeSwitcherHidden) setIsModeSwitcherHidden(true)
+        // Scrolling up -> reveal when at top OR after sufficient upward travel since last hide
+        const REVEAL_DISTANCE = 120
+        const traveledUp = lastHideTopRef.current - currentTop
+        if (isModeSwitcherHidden && (atTop || traveledUp >= REVEAL_DISTANCE)) {
+          setIsModeSwitcherHidden(false)
         }
       }
 
