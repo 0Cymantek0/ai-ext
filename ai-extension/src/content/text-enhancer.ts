@@ -1,8 +1,11 @@
 /**
  * Universal Text Enhancement System
  * Injects AI enhancement buttons near text input fields
- * Requirements: 9.1, 9.9
+ * Requirements: 9.1, 9.9, 9.5, 9.6
  */
+
+import { PageContextDetector, type PageContext } from './page-context-detector';
+import { PocketContextProvider, type PocketContextResult } from './pocket-context-provider';
 
 enum EnhancementStyle {
   FUNNY = 'funny',
@@ -25,6 +28,8 @@ class UniversalTextEnhancer {
   private observer: MutationObserver | null = null;
   private currentMenu: HTMLElement | null = null;
   private currentTextField: HTMLElement | null = null;
+  private pageContext: PageContext | null = null;
+  private pocketContext: PocketContextResult | null = null;
   private sensitivePatterns = [
     /bank|banking|financial|credit|payment/i,
     /health|medical|patient|hospital/i,
@@ -88,6 +93,9 @@ class UniversalTextEnhancer {
       return;
     }
 
+    // Detect page context (Requirement 9.5)
+    this.detectPageContext();
+
     // Inject CSS
     this.injectStyles();
 
@@ -101,6 +109,48 @@ class UniversalTextEnhancer {
     this.setupFocusListener();
 
     console.info("[TextEnhancer] Initialized successfully");
+  }
+
+  /**
+   * Detect page context for context-aware enhancements
+   * Requirement 9.5: Detect page context
+   */
+  private detectPageContext(): void {
+    try {
+      this.pageContext = PageContextDetector.detectContext();
+      console.debug("[TextEnhancer] Page context detected", {
+        type: this.pageContext.type,
+        domain: this.pageContext.domain
+      });
+
+      // Load relevant pocket content in background (Requirement 9.6)
+      this.loadPocketContext();
+    } catch (error) {
+      console.error("[TextEnhancer] Failed to detect page context", error);
+      this.pageContext = null;
+    }
+  }
+
+  /**
+   * Load relevant pocket content for context
+   * Requirement 9.6: Use pocket content
+   */
+  private async loadPocketContext(): Promise<void> {
+    if (!this.pageContext) return;
+
+    try {
+      this.pocketContext = await PocketContextProvider.getRelevantContent(this.pageContext);
+      
+      if (this.pocketContext.relevantContent.length > 0) {
+        console.debug("[TextEnhancer] Loaded pocket context", {
+          itemCount: this.pocketContext.relevantContent.length,
+          totalFound: this.pocketContext.totalFound
+        });
+      }
+    } catch (error) {
+      console.error("[TextEnhancer] Failed to load pocket context", error);
+      this.pocketContext = null;
+    }
   }
 
   /**
@@ -952,7 +1002,18 @@ class UniversalTextEnhancer {
 
     const subtitle = document.createElement('p');
     subtitle.className = 'ai-pocket-enhancement-menu-subtitle';
-    subtitle.textContent = 'Choose a style to improve your text';
+    
+    // Show context-aware subtitle if context is available
+    if (this.pageContext) {
+      const contextLabel = this.pageContext.type.replace('_', ' ');
+      subtitle.textContent = `Optimized for ${contextLabel}`;
+      
+      if (this.pocketContext && this.pocketContext.relevantContent.length > 0) {
+        subtitle.textContent += ` • ${this.pocketContext.relevantContent.length} saved items`;
+      }
+    } else {
+      subtitle.textContent = 'Choose a style to improve your text';
+    }
 
     header.appendChild(title);
     header.appendChild(subtitle);
@@ -1275,7 +1336,8 @@ class UniversalTextEnhancer {
   }
 
   /**
-   * Create enhancement prompt based on style
+   * Create enhancement prompt based on style with context awareness
+   * Requirements 9.5, 9.6: Include page context and pocket content
    */
   private createEnhancementPrompt(text: string, style: EnhancementStyle): string {
     const styleInstructions: Record<EnhancementStyle, string> = {
@@ -1293,7 +1355,40 @@ class UniversalTextEnhancer {
         'Improve the following text by fixing grammar errors, enhancing clarity, and improving overall flow. Make it more polished and well-written.',
     };
 
-    return `${styleInstructions[style]}\n\nOriginal text:\n${text}\n\nEnhanced text:`;
+    let prompt = styleInstructions[style];
+
+    // Add page context if available (Requirement 9.5)
+    if (this.pageContext) {
+      prompt += `\n\nContext: You are helping the user write text on a ${this.pageContext.type} page`;
+      
+      if (this.pageContext.title) {
+        prompt += ` titled "${this.pageContext.title}"`;
+      }
+      
+      // Add contextual suggestions
+      const suggestions = PageContextDetector.getContextualSuggestions(this.pageContext);
+      if (suggestions.length > 0) {
+        prompt += `\n\nConsiderations for this context:\n${suggestions.map(s => `- ${s}`).join('\n')}`;
+      }
+    }
+
+    // Add pocket context if available (Requirement 9.6)
+    if (this.pocketContext && this.pocketContext.relevantContent.length > 0) {
+      prompt += `\n\nRelevant information from user's saved content:`;
+      
+      this.pocketContext.relevantContent.slice(0, 3).forEach((item, index) => {
+        prompt += `\n${index + 1}. ${item.title}`;
+        if (item.snippet) {
+          prompt += `\n   ${item.snippet}`;
+        }
+      });
+      
+      prompt += `\n\nYou may reference or incorporate relevant information from the user's saved content if appropriate.`;
+    }
+
+    prompt += `\n\nOriginal text:\n${text}\n\nEnhanced text:`;
+
+    return prompt;
   }
 
   /**
