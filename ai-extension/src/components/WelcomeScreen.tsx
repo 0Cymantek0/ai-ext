@@ -65,7 +65,7 @@ const suggestions = [
 
 export function WelcomeScreen({ onSuggestionClick, className }: WelcomeScreenProps) {
   return (
-    <div className={cn("flex flex-1 flex-col items-center justify-center p-6 pt-16 text-center overflow-y-auto scrollbar-custom", className)}>
+    <div className={cn("flex flex-1 flex-col items-center justify-center p-6 text-center overflow-y-auto scrollbar-custom", className)}>
       <div className="mb-8 space-y-4">
         {/* Welcome Message */}
         <div className="space-y-2">

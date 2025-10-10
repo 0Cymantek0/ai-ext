@@ -533,7 +533,7 @@ export function ChatApp() {
   }, [])
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-screen flex-col overflow-hidden">
       <TopBar
         onOpenHistory={() => setIsHistoryOpen(true)}
         onNewChat={handleNewChat}
@@ -549,17 +549,17 @@ export function ChatApp() {
         onNewConversation={handleNewChat}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden relative pb-32">
+      <div className="flex flex-1 flex-col overflow-hidden relative pb-32 bg-transparent">
         {/* Floating Mode Switcher */}
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 pointer-events-auto bg-transparent">
           <ModeSwitcher
             currentMode={currentMode}
             onModeChange={handleModeChange}
           />
         </div>
 
-        {/* Content Area with top padding to avoid mode switcher */}
-        <div className="flex flex-1 flex-col pt-16 overflow-hidden">
+        {/* Content Area */}
+        <div className="flex flex-1 flex-col overflow-hidden bg-transparent">
           {messages.length === 0 ? (
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
           ) : (
