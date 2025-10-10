@@ -557,11 +557,13 @@ export function ChatApp() {
           />
         </div>
 
-        {messages.length === 0 ? (
-          <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
-        ) : (
-          <Conversation>
-            <ConversationContent bottomInsetRef={promptFormRef}>
+        {/* Content Area with top padding to avoid mode switcher */}
+        <div className="flex flex-1 flex-col pt-16">
+          {messages.length === 0 ? (
+            <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
+          ) : (
+            <Conversation>
+              <ConversationContent bottomInsetRef={promptFormRef}>
               {messages.map((message) => (
                 <Message key={message.id} from={message.role}>
                   <MessageAvatar
@@ -625,6 +627,7 @@ export function ChatApp() {
             </ConversationContent>
           </Conversation>
         )}
+        </div>
       </div>
 
       {/* Fixed Bottom Input Bar */}
