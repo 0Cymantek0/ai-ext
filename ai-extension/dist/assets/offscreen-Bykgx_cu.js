@@ -1,1 +1,0 @@
-import"./modulepreload-polyfill-B5Qt9EMX.js";console.info("AI Pocket offscreen document ready");chrome.runtime.onMessage.addListener((e,o,r)=>(console.debug("Offscreen received message",{message:e,sender:o}),r({ok:!0}),!1));

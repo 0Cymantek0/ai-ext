@@ -1,1 +1,0 @@
-function t(){console.info("AI Pocket text enhancer ready")}document.addEventListener("focusin",n=>{const e=n.target;(e instanceof HTMLInputElement||e instanceof HTMLTextAreaElement)&&console.debug("Text enhancer would inject button",{name:e.name})});export{t as initializeTextEnhancer};
