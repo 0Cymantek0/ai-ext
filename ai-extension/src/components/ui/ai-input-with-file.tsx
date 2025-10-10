@@ -106,7 +106,7 @@ export function AIInputWithFile({
 
   return (
     <div className={cn("w-full py-2 sm:py-4 px-2 sm:px-0", className)}>
-      <div className="relative max-w-xl w-full mx-auto flex flex-col gap-2">
+      <div className="relative max-w-lg w-full mx-auto flex flex-col gap-2">
         {/* Error Display */}
         {error && (
           <div className="text-red-500 text-sm px-3 py-1 bg-red-50 dark:bg-red-900/20 rounded-lg">
@@ -150,7 +150,7 @@ export function AIInputWithFile({
         {/* Drop Zone */}
         <div
           className={cn(
-            "relative max-w-xl w-full mx-auto",
+            "relative max-w-lg w-full mx-auto",
             isDragging &&
               "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-2xl"
           )}
@@ -163,10 +163,10 @@ export function AIInputWithFile({
             {/* Attachment Button */}
             <div
               className={cn(
-                "absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 flex items-center justify-center h-7 sm:h-8 w-7 sm:w-8 rounded-lg bg-black/5 dark:bg-white/5",
+                "absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center h-7 sm:h-8 w-7 sm:w-8 rounded-lg bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10",
                 disabled
                   ? "opacity-50 cursor-not-allowed"
-                  : "hover:cursor-pointer hover:bg-black/10 dark:hover:bg-white/10",
+                  : "hover:cursor-pointer hover:bg-black/40 dark:hover:bg-white/15",
               )}
               onClick={() => !disabled && openFilePicker()}
               title={`Attach file (${accept || 'any type'})`}
@@ -191,10 +191,10 @@ export function AIInputWithFile({
               placeholder={isDragging ? "Drop file here..." : placeholder}
               disabled={disabled}
               className={cn(
-                "max-w-xl bg-black/5 dark:bg-white/5 w-full rounded-2xl sm:rounded-3xl pl-10 sm:pl-12 pr-12 sm:pr-16",
-                "placeholder:text-black/70 dark:placeholder:text-white/70",
-                "border-none ring-black/30 dark:ring-white/30",
-                "text-black dark:text-white text-wrap py-3 sm:py-4",
+                "max-w-lg bg-black/30 dark:bg-white/10 backdrop-blur-sm w-full rounded-2xl sm:rounded-3xl pl-14 sm:pl-16 pr-12 sm:pr-16 border border-white/10 shadow-lg",
+                "placeholder:text-white/40",
+                "ring-0",
+                "text-white text-wrap py-3.5 sm:py-4 leading-[1.4]",
                 "text-sm sm:text-base",
                 "max-h-[200px] overflow-y-auto resize-none leading-[1.2]",
                 `min-h-[${minHeight}px]`,
@@ -238,7 +238,7 @@ export function AIInputWithFile({
             <button
               onClick={handleSubmit}
               className={cn(
-                "absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1",
+                "absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 rounded-xl bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 py-1 px-1",
                 disabled ? "opacity-50 cursor-not-allowed" : "",
               )}
               type="button"
@@ -252,14 +252,7 @@ export function AIInputWithFile({
                 )}
               />
             </button>
-          </div>
-
-          {/* File Upload Hint */}
-          {!inputValue && (!files || files.length === 0) && !isDragging && (
-            <div className="text-xs text-muted-foreground mt-1 text-center">
-              Click the paperclip to attach files or drag and drop
-            </div>
-          )}
+          </div>          
         </div>
       </div>
     </div>

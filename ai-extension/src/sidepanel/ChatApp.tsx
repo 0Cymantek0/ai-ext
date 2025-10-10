@@ -613,7 +613,7 @@ export function ChatApp() {
         onNewConversation={handleNewChat}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden relative pb-32 bg-transparent">
+      <div className="flex flex-1 flex-col overflow-hidden relative bg-transparent">
         {/* Floating Mode Switcher */}
         <div
           ref={modeSwitcherWrapperRef}
@@ -824,7 +824,7 @@ export function ChatApp() {
               accept="image/*,.pdf,.doc,.docx,.txt"
               maxFileSize={10}
               disabled={isLoading}
-              className="max-w-xl mx-auto p-0 sm:p-0 py-0 px-0"
+              className="max-w-lg mx-auto p-0 sm:p-0 py-0 px-0"
             />
           </div>
         )}
