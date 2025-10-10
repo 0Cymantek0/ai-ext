@@ -25,6 +25,7 @@ class UniversalTextEnhancer {
   private observer: MutationObserver | null = null;
   private currentMenu: HTMLElement | null = null;
   private currentTextField: HTMLElement | null = null;
+  private selectedStyle: EnhancementStyle | null = null;
   private sensitivePatterns = [
     /bank|banking|financial|credit|payment/i,
     /health|medical|patient|hospital/i,
@@ -243,26 +244,39 @@ class UniversalTextEnhancer {
         padding: 10px 12px;
         border-radius: 6px;
         cursor: pointer;
-        transition: background-color 0.1s ease;
-        border: none;
+        transition: background-color 0.1s ease, border 0.1s ease;
+        border: 2px solid transparent;
         background: none;
         width: 100%;
         text-align: left;
         margin: 2px 0;
       }
 
-      .ai-pocket-enhancement-option:hover {
+      .ai-pocket-enhancement-option:hover:not(.selected) {
         background-color: #f5f5f5;
       }
 
-      .ai-pocket-enhancement-option:focus {
+      .ai-pocket-enhancement-option:focus:not(.selected) {
         outline: 2px solid #4285f4;
         outline-offset: -2px;
         background-color: #f5f5f5;
       }
 
-      .ai-pocket-enhancement-option:active {
+      .ai-pocket-enhancement-option:active:not(.selected) {
         background-color: #e8e8e8;
+      }
+
+      .ai-pocket-enhancement-option.selected {
+        background-color: #e8f0fe !important;
+        border: 2px solid #4285f4 !important;
+      }
+
+      .ai-pocket-enhancement-option.selected:hover {
+        background-color: #d2e3fc !important;
+      }
+
+      .ai-pocket-enhancement-option.selected:focus {
+        outline: none;
       }
 
       .ai-pocket-enhancement-option-icon {
@@ -718,6 +732,17 @@ class UniversalTextEnhancer {
       optionButton.setAttribute('data-style', option.id);
       optionButton.setAttribute('tabindex', index === 0 ? '0' : '-1');
       
+      // Mark as selected if this is the current selection
+      const isSelected = this.selectedStyle === option.id;
+      console.debug(`[TextEnhancer] Option ${option.id}: selected=${isSelected}, currentSelection=${this.selectedStyle}`);
+      
+      if (isSelected) {
+        optionButton.classList.add('selected');
+        optionButton.setAttribute('aria-checked', 'true');
+      } else {
+        optionButton.setAttribute('aria-checked', 'false');
+      }
+      
       const icon = document.createElement('span');
       icon.className = 'ai-pocket-enhancement-option-icon';
       icon.textContent = option.icon;
@@ -744,7 +769,7 @@ class UniversalTextEnhancer {
       optionButton.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.handleStyleSelection(option.id);
+        this.handleStyleSelection(option.id, optionButton);
       });
       
       menu.appendChild(optionButton);
@@ -882,10 +907,10 @@ class UniversalTextEnhancer {
         case 'Enter':
         case ' ':
           e.preventDefault();
-          if (currentIndex >= 0) {
-            const style = options[currentIndex]?.getAttribute('data-style') as EnhancementStyle;
+          if (currentIndex >= 0 && options[currentIndex]) {
+            const style = options[currentIndex].getAttribute('data-style') as EnhancementStyle;
             if (style) {
-              this.handleStyleSelection(style);
+              this.handleStyleSelection(style, options[currentIndex]);
             }
           }
           break;
@@ -896,14 +921,26 @@ class UniversalTextEnhancer {
   /**
    * Handle style selection
    */
-  private handleStyleSelection(style: EnhancementStyle): void {
+  private handleStyleSelection(style: EnhancementStyle, optionElement: HTMLElement): void {
     console.info("[TextEnhancer] Style selected:", style);
 
-    if (!this.currentTextField) {
-      console.error("[TextEnhancer] No text field selected");
-      this.closeEnhancementMenu();
+    if (!this.currentTextField || !this.currentMenu) {
+      console.error("[TextEnhancer] No text field or menu available");
       return;
     }
+
+    // Update selected style
+    this.selectedStyle = style;
+
+    // Update visual selection in menu
+    const allOptions = this.currentMenu.querySelectorAll('.ai-pocket-enhancement-option');
+    allOptions.forEach((opt) => {
+      opt.classList.remove('selected');
+      opt.setAttribute('aria-checked', 'false');
+    });
+    
+    optionElement.classList.add('selected');
+    optionElement.setAttribute('aria-checked', 'true');
 
     const currentText = this.getTextFieldValue(this.currentTextField);
     
@@ -913,9 +950,6 @@ class UniversalTextEnhancer {
       textPreview: currentText.substring(0, 50)
     });
 
-    // Close menu
-    this.closeEnhancementMenu();
-
     // TODO: Task 11.3 will implement the actual enhancement processing
     // For now, just log the selection
     console.info("[TextEnhancer] Enhancement requested:", {
@@ -924,7 +958,7 @@ class UniversalTextEnhancer {
       field: this.currentTextField.tagName
     });
 
-    // Provide visual feedback
+    // Provide visual feedback on button
     const button = this.injectedButtons.get(this.currentTextField);
     if (button) {
       button.style.transform = "scale(1.1)";
@@ -932,6 +966,9 @@ class UniversalTextEnhancer {
         button.style.transform = "";
       }, 200);
     }
+
+    // Keep menu open - don't close it
+    // User can click outside or press ESC to close
   }
 
   /**
