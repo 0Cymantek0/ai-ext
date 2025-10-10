@@ -57,3 +57,5 @@ ai-extension/icons
 /ai_docs/
 /.playwright-mcp/
 /.vscode/
+/ai-extension/dist
+firebase-debug.log
