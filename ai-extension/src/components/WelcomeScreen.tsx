@@ -65,7 +65,7 @@ const suggestions = [
 
 export function WelcomeScreen({ onSuggestionClick, className }: WelcomeScreenProps) {
   return (
-    <div className={cn("flex flex-1 flex-col items-center justify-center p-6 text-center overflow-y-auto scrollbar-custom", className)}>
+    <div className={cn("flex flex-1 flex-col items-center justify-center p-6 pt-16 text-center overflow-y-auto scrollbar-custom", className)}>
       <div className="mb-8 space-y-4">
         {/* Welcome Message */}
         <div className="space-y-2">
@@ -78,23 +78,23 @@ export function WelcomeScreen({ onSuggestionClick, className }: WelcomeScreenPro
       </div>
 
       {/* Suggestion Pills */}
-      <div className="grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid w-full max-w-2xl grid-cols-2 gap-2">
         {suggestions.map((suggestion, index) => (
           <button
             key={index}
             onClick={() => onSuggestionClick(suggestion.prompt)}
             className={cn(
-              "group flex flex-col items-center gap-2 rounded-lg border bg-card p-4",
+              "group flex items-center gap-2 rounded-full border bg-card px-3 py-2",
               "hover:bg-accent hover:border-primary/50 hover:shadow-md",
               "transition-all duration-200 ease-out",
               "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
               "active:scale-95"
             )}
           >
-            <span className="text-primary group-hover:scale-110 transition-transform">
+            <span className="text-primary group-hover:scale-110 transition-transform flex-shrink-0">
               {suggestion.icon}
             </span>
-            <span className="text-xs font-medium text-center group-hover:text-foreground transition-colors">
+            <span className="text-xs font-medium text-left group-hover:text-foreground transition-colors leading-tight">
               {suggestion.text}
             </span>
           </button>
