@@ -4,20 +4,71 @@
  * Requirements: 9.1, 9.9
  */
 
-interface EnhancementButton {
-  button: HTMLElement;
-  textField: HTMLElement;
+enum EnhancementStyle {
+  FUNNY = 'funny',
+  PROFESSIONAL = 'professional',
+  CONCISE = 'concise',
+  EMPATHETIC = 'empathetic',
+  PERSUASIVE = 'persuasive',
+  OPTIMIZE = 'optimize'
+}
+
+interface EnhancementOption {
+  id: EnhancementStyle;
+  label: string;
+  icon: string;
+  description: string;
 }
 
 class UniversalTextEnhancer {
   private injectedButtons: WeakMap<HTMLElement, HTMLElement> = new WeakMap();
   private observer: MutationObserver | null = null;
-  private isEnabled: boolean = true;
+  private currentMenu: HTMLElement | null = null;
+  private currentTextField: HTMLElement | null = null;
   private sensitivePatterns = [
     /bank|banking|financial|credit|payment/i,
     /health|medical|patient|hospital/i,
     /password|login|signin|auth/i,
     /ssn|social.security/i,
+  ];
+
+  private enhancementOptions: EnhancementOption[] = [
+    {
+      id: EnhancementStyle.PROFESSIONAL,
+      label: 'Professional',
+      icon: '💼',
+      description: 'Make it more formal and business-appropriate'
+    },
+    {
+      id: EnhancementStyle.CONCISE,
+      label: 'Concise',
+      icon: '✂️',
+      description: 'Shorten and simplify the text'
+    },
+    {
+      id: EnhancementStyle.EMPATHETIC,
+      label: 'Empathetic',
+      icon: '❤️',
+      description: 'Add warmth and understanding'
+    },
+    {
+      id: EnhancementStyle.PERSUASIVE,
+      label: 'Persuasive',
+      icon: '🎯',
+      description: 'Make it more convincing and compelling'
+    },
+    {
+      id: EnhancementStyle.FUNNY,
+      label: 'Funny',
+      icon: '😄',
+      description: 'Add humor and lightheartedness'
+    },
+    {
+      id: EnhancementStyle.OPTIMIZE,
+      label: 'Optimize',
+      icon: '✨',
+      description: 'Improve grammar, clarity, and flow'
+    }
   ];
 
   constructor() {
@@ -33,7 +84,6 @@ class UniversalTextEnhancer {
     // Check if we're on a sensitive site
     if (this.isSensitiveSite()) {
       console.info("[TextEnhancer] Sensitive site detected, disabling by default");
-      this.isEnabled = false;
       // TODO: Show UI to allow user to enable per-site
       return;
     }
@@ -62,6 +112,18 @@ class UniversalTextEnhancer {
     const content = `${url} ${title}`;
 
     return this.sensitivePatterns.some((pattern) => pattern.test(content));
+  }
+
+  /**
+   * Check if enhancement is enabled
+   */
+  private isEnhancementEnabled(): boolean {
+    // Check if on sensitive site
+    if (this.isSensitiveSite()) {
+      // TODO: Check user preference for per-site override
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -133,9 +195,120 @@ class UniversalTextEnhancer {
         pointer-events: none;
       }
 
-      /* Hide button when text field is not focused */
-      .ai-pocket-text-field-wrapper {
-        position: relative;
+      /* Enhancement Menu Styles */
+      .ai-pocket-enhancement-menu {
+        position: absolute;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 10002;
+        min-width: 280px;
+        max-width: 320px;
+        padding: 8px;
+        opacity: 0;
+        transform: scale(0.95);
+        transition: opacity 0.15s ease, transform 0.15s ease;
+        pointer-events: none;
+      }
+
+      .ai-pocket-enhancement-menu.visible {
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+      }
+
+      .ai-pocket-enhancement-menu-header {
+        padding: 8px 12px;
+        border-bottom: 1px solid #f0f0f0;
+        margin-bottom: 4px;
+      }
+
+      .ai-pocket-enhancement-menu-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #202124;
+        margin: 0;
+      }
+
+      .ai-pocket-enhancement-menu-subtitle {
+        font-size: 12px;
+        color: #5f6368;
+        margin: 2px 0 0 0;
+      }
+
+      .ai-pocket-enhancement-option {
+        display: flex;
+        align-items: flex-start;
+        padding: 10px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+        margin: 2px 0;
+      }
+
+      .ai-pocket-enhancement-option:hover {
+        background-color: #f5f5f5;
+      }
+
+      .ai-pocket-enhancement-option:focus {
+        outline: 2px solid #4285f4;
+        outline-offset: -2px;
+        background-color: #f5f5f5;
+      }
+
+      .ai-pocket-enhancement-option:active {
+        background-color: #e8e8e8;
+      }
+
+      .ai-pocket-enhancement-option-icon {
+        font-size: 20px;
+        margin-right: 12px;
+        flex-shrink: 0;
+        line-height: 1;
+      }
+
+      .ai-pocket-enhancement-option-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .ai-pocket-enhancement-option-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #202124;
+        margin: 0 0 2px 0;
+      }
+
+      .ai-pocket-enhancement-option-description {
+        font-size: 12px;
+        color: #5f6368;
+        margin: 0;
+        line-height: 1.4;
+      }
+
+      .ai-pocket-enhancement-menu-footer {
+        padding: 8px 12px;
+        border-top: 1px solid #f0f0f0;
+        margin-top: 4px;
+        font-size: 11px;
+        color: #5f6368;
+        text-align: center;
+      }
+
+      /* Menu backdrop */
+      .ai-pocket-menu-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10001;
+        background: transparent;
       }
     `;
 
@@ -462,12 +635,331 @@ class UniversalTextEnhancer {
       value: (textField as HTMLInputElement).value,
     });
 
-    // TODO: Show enhancement menu (will be implemented in task 11.2)
-    // For now, just provide visual feedback
-    button.style.transform = "scale(1.1)";
-    setTimeout(() => {
-      button.style.transform = "";
-    }, 200);
+    // Check if enhancement is enabled
+    if (!this.isEnhancementEnabled()) {
+      console.warn("[TextEnhancer] Enhancement disabled on this site");
+      return;
+    }
+
+    // Get current text value
+    const currentText = this.getTextFieldValue(textField);
+    
+    if (!currentText || currentText.trim().length === 0) {
+      console.debug("[TextEnhancer] No text to enhance");
+      // Provide visual feedback
+      button.style.transform = "scale(1.1)";
+      setTimeout(() => {
+        button.style.transform = "";
+      }, 200);
+      return;
+    }
+
+    // Show enhancement menu
+    this.showEnhancementMenu(textField, button);
+  }
+
+  /**
+   * Get text field value
+   */
+  private getTextFieldValue(textField: HTMLElement): string {
+    if (textField instanceof HTMLInputElement || textField instanceof HTMLTextAreaElement) {
+      return textField.value;
+    } else if (textField.isContentEditable) {
+      return textField.textContent || '';
+    }
+    return '';
+  }
+
+  /**
+   * Set text field value
+   */
+  private setTextFieldValue(textField: HTMLElement, value: string): void {
+    if (textField instanceof HTMLInputElement || textField instanceof HTMLTextAreaElement) {
+      textField.value = value;
+      // Trigger input event for frameworks
+      textField.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (textField.isContentEditable) {
+      textField.textContent = value;
+      // Trigger input event
+      textField.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+
+  /**
+   * Create enhancement menu
+   */
+  private createEnhancementMenu(): HTMLElement {
+    const menu = document.createElement('div');
+    menu.className = 'ai-pocket-enhancement-menu';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'Text enhancement options');
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'ai-pocket-enhancement-menu-header';
+    
+    const title = document.createElement('h3');
+    title.className = 'ai-pocket-enhancement-menu-title';
+    title.textContent = 'Enhance Text';
+    
+    const subtitle = document.createElement('p');
+    subtitle.className = 'ai-pocket-enhancement-menu-subtitle';
+    subtitle.textContent = 'Choose a style to improve your text';
+    
+    header.appendChild(title);
+    header.appendChild(subtitle);
+    menu.appendChild(header);
+
+    // Options
+    this.enhancementOptions.forEach((option, index) => {
+      const optionButton = document.createElement('button');
+      optionButton.className = 'ai-pocket-enhancement-option';
+      optionButton.setAttribute('role', 'menuitem');
+      optionButton.setAttribute('data-style', option.id);
+      optionButton.setAttribute('tabindex', index === 0 ? '0' : '-1');
+      
+      const icon = document.createElement('span');
+      icon.className = 'ai-pocket-enhancement-option-icon';
+      icon.textContent = option.icon;
+      icon.setAttribute('aria-hidden', 'true');
+      
+      const content = document.createElement('div');
+      content.className = 'ai-pocket-enhancement-option-content';
+      
+      const label = document.createElement('div');
+      label.className = 'ai-pocket-enhancement-option-label';
+      label.textContent = option.label;
+      
+      const description = document.createElement('div');
+      description.className = 'ai-pocket-enhancement-option-description';
+      description.textContent = option.description;
+      
+      content.appendChild(label);
+      content.appendChild(description);
+      
+      optionButton.appendChild(icon);
+      optionButton.appendChild(content);
+      
+      // Add click handler
+      optionButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleStyleSelection(option.id);
+      });
+      
+      menu.appendChild(optionButton);
+    });
+
+    // Footer
+    const footer = document.createElement('div');
+    footer.className = 'ai-pocket-enhancement-menu-footer';
+    footer.textContent = 'Press ESC to close';
+    menu.appendChild(footer);
+
+    // Keyboard navigation
+    this.setupMenuKeyboardNavigation(menu);
+
+    return menu;
+  }
+
+  /**
+   * Show enhancement menu
+   */
+  private showEnhancementMenu(textField: HTMLElement, button: HTMLElement): void {
+    // Close existing menu if any
+    this.closeEnhancementMenu();
+
+    // Store current text field
+    this.currentTextField = textField;
+
+    // Create menu
+    this.currentMenu = this.createEnhancementMenu();
+    document.body.appendChild(this.currentMenu);
+
+    // Create backdrop
+    const backdrop = document.createElement('div');
+    backdrop.className = 'ai-pocket-menu-backdrop';
+    backdrop.addEventListener('click', () => this.closeEnhancementMenu());
+    document.body.appendChild(backdrop);
+    (this.currentMenu as any).__backdrop = backdrop;
+
+    // Position menu
+    this.positionMenu(this.currentMenu, button, textField);
+
+    // Show menu with animation
+    requestAnimationFrame(() => {
+      this.currentMenu?.classList.add('visible');
+    });
+
+    // Focus first option
+    const firstOption = this.currentMenu.querySelector('.ai-pocket-enhancement-option') as HTMLElement;
+    if (firstOption) {
+      firstOption.focus();
+    }
+
+    // Add ESC key listener
+    const escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        this.closeEnhancementMenu();
+        button.focus();
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+    (this.currentMenu as any).__escHandler = escHandler;
+
+    console.debug("[TextEnhancer] Enhancement menu shown");
+  }
+
+  /**
+   * Position menu near button
+   */
+  private positionMenu(menu: HTMLElement, button: HTMLElement, textField: HTMLElement): void {
+    const buttonRect = button.getBoundingClientRect();
+    const textFieldRect = textField.getBoundingClientRect();
+    const menuWidth = 300; // Approximate width
+    const menuHeight = 400; // Approximate height
+
+    let top = buttonRect.bottom + window.scrollY + 8;
+    let left = buttonRect.left + window.scrollX;
+
+    // Check if menu would go off-screen to the right
+    if (left + menuWidth > window.innerWidth) {
+      left = buttonRect.right + window.scrollX - menuWidth;
+    }
+
+    // Check if menu would go off-screen to the bottom
+    if (buttonRect.bottom + menuHeight > window.innerHeight) {
+      // Position above button instead
+      top = buttonRect.top + window.scrollY - menuHeight - 8;
+    }
+
+    // Ensure menu doesn't go off-screen to the left
+    if (left < 0) {
+      left = 8;
+    }
+
+    // Ensure menu doesn't go off-screen to the top
+    if (top < 0) {
+      top = 8;
+    }
+
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+  }
+
+  /**
+   * Setup keyboard navigation for menu
+   */
+  private setupMenuKeyboardNavigation(menu: HTMLElement): void {
+    const options = Array.from(menu.querySelectorAll('.ai-pocket-enhancement-option')) as HTMLElement[];
+
+    menu.addEventListener('keydown', (e: KeyboardEvent) => {
+      const currentIndex = options.findIndex(opt => opt === document.activeElement);
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          const nextIndex = (currentIndex + 1) % options.length;
+          options[nextIndex]?.focus();
+          break;
+
+        case 'ArrowUp':
+          e.preventDefault();
+          const prevIndex = currentIndex <= 0 ? options.length - 1 : currentIndex - 1;
+          options[prevIndex]?.focus();
+          break;
+
+        case 'Home':
+          e.preventDefault();
+          options[0]?.focus();
+          break;
+
+        case 'End':
+          e.preventDefault();
+          options[options.length - 1]?.focus();
+          break;
+
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (currentIndex >= 0) {
+            const style = options[currentIndex]?.getAttribute('data-style') as EnhancementStyle;
+            if (style) {
+              this.handleStyleSelection(style);
+            }
+          }
+          break;
+      }
+    });
+  }
+
+  /**
+   * Handle style selection
+   */
+  private handleStyleSelection(style: EnhancementStyle): void {
+    console.info("[TextEnhancer] Style selected:", style);
+
+    if (!this.currentTextField) {
+      console.error("[TextEnhancer] No text field selected");
+      this.closeEnhancementMenu();
+      return;
+    }
+
+    const currentText = this.getTextFieldValue(this.currentTextField);
+    
+    console.debug("[TextEnhancer] Enhancing text with style:", {
+      style,
+      textLength: currentText.length,
+      textPreview: currentText.substring(0, 50)
+    });
+
+    // Close menu
+    this.closeEnhancementMenu();
+
+    // TODO: Task 11.3 will implement the actual enhancement processing
+    // For now, just log the selection
+    console.info("[TextEnhancer] Enhancement requested:", {
+      style,
+      text: currentText,
+      field: this.currentTextField.tagName
+    });
+
+    // Provide visual feedback
+    const button = this.injectedButtons.get(this.currentTextField);
+    if (button) {
+      button.style.transform = "scale(1.1)";
+      setTimeout(() => {
+        button.style.transform = "";
+      }, 200);
+    }
+  }
+
+  /**
+   * Close enhancement menu
+   */
+  private closeEnhancementMenu(): void {
+    if (this.currentMenu) {
+      // Remove ESC handler
+      const escHandler = (this.currentMenu as any).__escHandler;
+      if (escHandler) {
+        document.removeEventListener('keydown', escHandler);
+      }
+
+      // Remove backdrop
+      const backdrop = (this.currentMenu as any).__backdrop;
+      if (backdrop && backdrop.parentNode) {
+        backdrop.parentNode.removeChild(backdrop);
+      }
+
+      // Remove menu
+      if (this.currentMenu.parentNode) {
+        this.currentMenu.parentNode.removeChild(this.currentMenu);
+      }
+
+      this.currentMenu = null;
+    }
+
+    this.currentTextField = null;
   }
 
   /**
@@ -547,6 +1039,9 @@ class UniversalTextEnhancer {
     if (this.observer) {
       this.observer.disconnect();
     }
+
+    // Close menu if open
+    this.closeEnhancementMenu();
 
     // Clean up all buttons
     this.injectedButtons = new WeakMap();
