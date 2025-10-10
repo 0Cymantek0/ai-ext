@@ -22,7 +22,7 @@
     "src": "_text-enhancer.ts-loader-NcaT-BzB.js"
   },
   "src/background/service-worker.ts": {
-    "file": "assets/serviceWorker-C22VbyjP.js",
+    "file": "assets/serviceWorker-D81Dn51_.js",
     "name": "serviceWorker",
     "src": "src/background/service-worker.ts",
     "isEntry": true
@@ -55,7 +55,7 @@
     ]
   },
   "src/sidepanel/sidepanel.html": {
-    "file": "assets/sidepanel-BRilshsf.js",
+    "file": "assets/sidepanel-CLzBbr38.js",
     "name": "sidepanel",
     "src": "src/sidepanel/sidepanel.html",
     "isEntry": true,
@@ -63,7 +63,7 @@
       "_modulepreload-polyfill-B5Qt9EMX.js"
     ],
     "css": [
-      "assets/sidepanel-BWjZY5er.css"
+      "assets/sidepanel-DnDESLLl.css"
     ]
   }
 }

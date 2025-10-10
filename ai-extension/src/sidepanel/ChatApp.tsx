@@ -61,6 +61,7 @@ export function ChatApp() {
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false)
   const [currentMode, setCurrentMode] = React.useState<Mode>("ask")
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+  const promptFormRef = React.useRef<HTMLFormElement>(null)
 
   React.useEffect(() => {
     // Load conversations from storage
@@ -547,7 +548,7 @@ export function ChatApp() {
         onNewConversation={handleNewChat}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden relative pb-20">
+      <div className="flex flex-1 flex-col overflow-hidden relative pb-32">
         {/* Floating Mode Switcher */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
           <ModeSwitcher
@@ -560,7 +561,7 @@ export function ChatApp() {
           <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
         ) : (
           <Conversation>
-            <ConversationContent>
+            <ConversationContent bottomInsetRef={promptFormRef}>
               {messages.map((message) => (
                 <Message key={message.id} from={message.role}>
                   <MessageAvatar
@@ -627,11 +628,12 @@ export function ChatApp() {
       </div>
 
       {/* Fixed Bottom Input Bar */}
-      <PromptInput 
-        onSubmit={handleSubmit} 
-        className="fixed bottom-0 left-0 right-0 border-t bg-background"
+      <PromptInput
+        onSubmit={handleSubmit}
+        className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-4 shadow-lg backdrop-blur-sm bg-opacity-100 dark:bg-opacity-100"
         multiple
         accept="image/*,.pdf,.doc,.docx,.txt"
+        ref={promptFormRef}
       >
         <PromptInputBody>
           <PromptInputAttachments>

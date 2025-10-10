@@ -15,16 +15,34 @@ Conversation.displayName = "Conversation"
 
 const ConversationContent = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => {
+  React.HTMLAttributes<HTMLDivElement> & { bottomInsetRef?: React.RefObject<HTMLFormElement | null> }
+>(({ className, children, bottomInsetRef, ...props }, ref) => {
   const scrollRef = React.useRef<HTMLDivElement>(null)
-  
+  const [bottomInset, setBottomInset] = React.useState<number>(128) // fallback padding
+
   React.useEffect(() => {
     const element = scrollRef.current
     if (element) {
       element.scrollTop = element.scrollHeight
     }
   }, [children])
+
+  // Dynamically measure the bottom input's height so content never overlaps
+  React.useEffect(() => {
+    const formEl = bottomInsetRef?.current
+    if (!formEl) return
+
+    const measure = () => {
+      const rect = formEl.getBoundingClientRect()
+      // Add a small gap (16px) for visual breathing room
+      setBottomInset(rect.height + 16)
+    }
+
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(formEl)
+    return () => ro.disconnect()
+  }, [bottomInsetRef])
 
   return (
     <div
@@ -40,6 +58,7 @@ const ConversationContent = React.forwardRef<
         "flex-1 space-y-4 overflow-y-auto scrollbar-custom p-4",
         className
       )}
+      style={{ paddingBottom: bottomInset }}
       {...props}
     >
       {children}

@@ -106,6 +106,15 @@ body {
   }
 }
 
+/* Input area solid background fix */
+[data-slot="input-group"] {
+  background-color: hsl(var(--card)) !important;
+}
+
+.dark [data-slot="input-group"] {
+  background-color: hsl(var(--card)) !important;
+}
+
 /* Custom scrollbar */
 .scrollbar-custom {
   scrollbar-width: thin;

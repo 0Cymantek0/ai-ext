@@ -185,6 +185,25 @@ export class StreamingHandler {
         source
       );
 
+      // Persist final assistant message to conversation history if available
+      try {
+        if (payload.conversationId) {
+          const { indexedDBManager } = await import('./indexeddb-manager.js');
+          await indexedDBManager.init();
+          const message = {
+            id: crypto.randomUUID(),
+            role: 'assistant' as const,
+            content: fullResponse,
+            timestamp: Date.now(),
+            source,
+            metadata: { tokensUsed: totalTokens, processingTime },
+          };
+          await indexedDBManager.updateConversation(payload.conversationId, message);
+        }
+      } catch (persistError) {
+        logger.error('StreamingHandler', 'Failed to persist assistant message', persistError);
+      }
+
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         logger.info('StreamingHandler', 'Stream aborted', { requestId: session.requestId });

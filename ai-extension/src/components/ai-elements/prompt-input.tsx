@@ -1,5 +1,5 @@
 "use client";
-
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -437,7 +437,7 @@ export type PromptInputProps = Omit<
   ) => void | Promise<void>;
 };
 
-export const PromptInput = ({
+export const PromptInput = React.forwardRef<HTMLFormElement, PromptInputProps>(({
   className,
   accept,
   multiple,
@@ -449,22 +449,18 @@ export const PromptInput = ({
   onSubmit,
   children,
   ...props
-}: PromptInputProps) => {
+}, forwardedRef) => {
   // Try to use a provider controller if present
   const controller = useOptionalPromptInputController();
   const usingProvider = !!controller;
 
   // Refs
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const anchorRef = useRef<HTMLSpanElement>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  // Find nearest form to scope drag & drop
+  // Keep internal formRef in sync with rendered form node
   useEffect(() => {
-    const root = anchorRef.current?.closest("form");
-    if (root instanceof HTMLFormElement) {
-      formRef.current = root;
-    }
+    // no-op: formRef is set via the JSX ref callback below
   }, []);
 
   // ----- Local attachments (only used when no provider)
@@ -734,7 +730,7 @@ export const PromptInput = ({
   // Render with or without local provider
   const inner = (
     <>
-      <span aria-hidden="true" className="hidden" ref={anchorRef} />
+      {/* Anchor is no longer needed now that we directly ref the form */}
       <input
         accept={accept}
         aria-label="Upload files"
@@ -746,8 +742,17 @@ export const PromptInput = ({
         type="file"
       />
       <form
-        className={cn("w-full", className)}
+        className={cn("w-full bg-background", className)}
         onSubmit={handleSubmit}
+        // Expose form node via both internal and forwarded refs
+        ref={(node) => {
+          formRef.current = node;
+          if (typeof forwardedRef === "function") {
+            forwardedRef(node as HTMLFormElement);
+          } else if (forwardedRef) {
+            (forwardedRef as React.MutableRefObject<HTMLFormElement | null>).current = node as HTMLFormElement | null;
+          }
+        }}
         {...props}
       >
         <InputGroup>{children}</InputGroup>
@@ -762,7 +767,7 @@ export const PromptInput = ({
       {inner}
     </LocalAttachmentsContext.Provider>
   );
-};
+});
 
 export type PromptInputBodyProps = HTMLAttributes<HTMLDivElement>;
 
@@ -833,7 +838,7 @@ export const PromptInputTextarea = ({
 
   return (
     <InputGroupTextarea
-      className={cn("field-sizing-content max-h-48 min-h-16", className)}
+      className={cn("field-sizing-content max-h-48 min-h-16 bg-card", className)}
       name="message"
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
