@@ -864,7 +864,7 @@ export function ChatApp() {
               accept="image/*,.pdf,.doc,.docx,.txt"
               maxFileSize={10}
               disabled={isLoading}
-              className="max-w-lg mx-auto p-0 sm:p-0 py-0 px-0"
+              className="mx-auto p-0 sm:p-0 py-0 px-0 max-w-[92vw] sm:max-w-xl md:max-w-2xl lg:max-w-3xl"
               model={selectedModel}
               onModelChange={setSelectedModel}
             />

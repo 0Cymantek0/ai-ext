@@ -230,68 +230,7 @@ export function AIInputWithFile({
               <Paperclip className="w-3.5 sm:w-4 h-3.5 sm:h-4 transition-opacity transform scale-x-[-1] rotate-45 dark:text-white" />
             </div>
 
-            {/* Model Selector */}
-            <div
-              className={cn(
-                "absolute right-10 sm:right-12 top-1/2 -translate-y-1/2 z-20",
-                disabled && "pointer-events-none opacity-60",
-              )}
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Select
-                    value={model}
-                    onValueChange={(val) => onModelChange?.(val as any)}
-                    disabled={disabled}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="h-7 sm:h-8 px-2 rounded-2xl bg-white/10 dark:bg-white/10 backdrop-blur-md border border-white/10 text-xs text-white shadow-md hover:bg-white/20 transition-colors focus-visible:ring-2 focus-visible:ring-white/30"
-                    >
-                      <SelectValue>
-                        <span className="inline-flex items-center gap-1.5">
-                          {getModelIcon(model)}
-                          <span>{getModelLabel(model)}</span>
-                        </span>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent
-                      align="end"
-                      className="backdrop-blur-md bg-white/10 dark:bg-white/10 border border-white/10 shadow-lg"
-                    >
-                      <SelectItem value="auto">
-                        <span className="inline-flex items-center gap-2">
-                          <Sparkles className="size-4" /> Auto
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="nano">
-                        <span className="inline-flex items-center gap-2">
-                          <Cpu className="size-4" /> Gemini Nano
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="flash-lite">
-                        <span className="inline-flex items-center gap-2">
-                          <Zap className="size-4" /> Gemini 2.5 Flash Lite
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="flash">
-                        <span className="inline-flex items-center gap-2">
-                          <Zap className="size-4" /> Gemini 2.5 Flash
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="pro">
-                        <span className="inline-flex items-center gap-2">
-                          <Cloud className="size-4" /> Gemini 2.5 Pro
-                        </span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TooltipTrigger>
-                <TooltipContent sideOffset={6}>
-                  {getModelTooltip(model)}
-                </TooltipContent>
-              </Tooltip>
-            </div>
+            {/* Model Selector moved below input */}
 
             {/* Drag and Drop Overlay */}
             {isDragging && (
@@ -315,7 +254,7 @@ export function AIInputWithFile({
                 "ring-0",
                 "text-white text-wrap py-3.5 sm:py-4 leading-[1.4]",
                 "text-sm sm:text-base",
-                "max-h-[200px] overflow-y-auto resize-none leading-[1.2]",
+                "max-h-[200px] sm:max-h-[220px] md:max-h-[260px] lg:max-h-[300px] overflow-y-auto resize-none leading-[1.2] scrollbar-custom",
                 `min-h-[${minHeight}px]`,
                 disabled && "opacity-50 cursor-not-allowed",
                 isDragging && "opacity-50",
@@ -372,6 +311,64 @@ export function AIInputWithFile({
               />
             </button>
           </div>          
+
+          {/* Model Selector row below input */}
+          <div className={cn("mt-2 flex justify-start", disabled && "opacity-60 pointer-events-none")}> 
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Select
+                  value={model}
+                  onValueChange={(val) => onModelChange?.(val as any)}
+                  disabled={disabled}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="h-7 sm:h-8 px-2 rounded-2xl bg-white/10 dark:bg-white/10 backdrop-blur-md border border-white/10 text-xs text-white shadow-md hover:bg-white/20 transition-colors focus-visible:ring-2 focus-visible:ring-white/30"
+                  >
+                    <SelectValue>
+                      <span className="inline-flex items-center gap-1.5">
+                        {getModelIcon(model)}
+                        <span>{getModelLabel(model)}</span>
+                      </span>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent
+                    align="start"
+                    className="backdrop-blur-md bg-white/10 dark:bg-white/10 border border-white/10 shadow-lg"
+                  >
+                    <SelectItem value="auto">
+                      <span className="inline-flex items-center gap-2">
+                        <Sparkles className="size-4" /> Auto
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="nano">
+                      <span className="inline-flex items-center gap-2">
+                        <Cpu className="size-4" /> Gemini Nano
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="flash-lite">
+                      <span className="inline-flex items-center gap-2">
+                        <Zap className="size-4" /> Gemini 2.5 Flash Lite
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="flash">
+                      <span className="inline-flex items-center gap-2">
+                        <Zap className="size-4" /> Gemini 2.5 Flash
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="pro">
+                      <span className="inline-flex items-center gap-2">
+                        <Cloud className="size-4" /> Gemini 2.5 Pro
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </TooltipTrigger>
+              <TooltipContent sideOffset={6}>
+                {getModelTooltip(model)}
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </div>
     </div>
