@@ -753,14 +753,15 @@ export function ChatApp() {
                       )}
                       <div
                         className={cn(
-                          "inline-block",
+                          "inline-block max-w-[85%] break-words",
                           message.role === "user" &&
-                            "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 max-w-[85%] ml-auto text-right dark:bg-gray-700 dark:text-gray-100",
+                            "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 ml-auto text-right dark:bg-gray-700 dark:text-gray-100",
                         )}
+                        style={{ overflowWrap: "anywhere" }}
                       >
                         <Response
                           className={cn(
-                            "prose prose-sm dark:prose-invert max-w-none",
+                            "prose prose-sm dark:prose-invert max-w-full",
                             "prose-p:leading-relaxed prose-pre:p-0",
                             message.role === "user" &&
                               "prose-p:text-gray-900 prose-p:m-0 prose-p:text-right prose-headings:text-gray-900 prose-code:text-gray-900 prose-pre:text-gray-900 dark:prose-p:text-gray-100 dark:prose-headings:text-gray-100 dark:prose-code:text-gray-100 dark:prose-pre:text-gray-100",

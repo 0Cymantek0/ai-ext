@@ -42,7 +42,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children }) =>
   }
 
   return (
-    <div className="group relative my-4">
+    <div className="group relative my-4 max-w-full overflow-x-auto rounded-lg">
       <div className="absolute right-2 top-2 z-10">
         <Button
           variant="ghost"
@@ -62,11 +62,13 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children }) =>
         style={oneDark}
         language={language || "text"}
         PreTag="div"
-        className="rounded-lg !bg-[#282c34] text-sm"
+        className="rounded-lg !bg-[#282c34] text-sm min-w-0"
         customStyle={{
           margin: 0,
           padding: "1rem",
           paddingTop: "2.5rem",
+          overflowX: "auto",
+          maxWidth: "100%",
         }}
       >
         {code}
@@ -80,7 +82,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   className,
 }) => {
   return (
-    <div className={cn("markdown-content", className)}>
+    <div className={cn("markdown-content break-words max-w-full", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
@@ -138,7 +140,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           
           // Paragraphs
           p: ({ node, ...props }) => (
-            <p {...props} className="mb-4 leading-7 last:mb-0" />
+            <p {...props} className="mb-4 leading-7 last:mb-0 break-words" />
           ),
           
           // Unordered lists

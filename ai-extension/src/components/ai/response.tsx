@@ -12,7 +12,7 @@ const Response = React.forwardRef<HTMLDivElement, ResponseProps>(
       <div
         ref={ref}
         className={cn(
-          "prose prose-sm dark:prose-invert max-w-none",
+          "prose prose-sm dark:prose-invert max-w-full break-words",
           "prose-p:leading-relaxed prose-pre:p-0",
           className,
         )}
