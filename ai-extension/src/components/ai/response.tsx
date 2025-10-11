@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { MarkdownRenderer } from "./markdown-renderer";
 
 interface ResponseProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
@@ -18,7 +19,7 @@ const Response = React.forwardRef<HTMLDivElement, ResponseProps>(
         {...props}
       >
         {typeof children === "string" ? (
-          <div className="whitespace-pre-wrap">{children}</div>
+          <MarkdownRenderer content={children} />
         ) : (
           children
         )}
