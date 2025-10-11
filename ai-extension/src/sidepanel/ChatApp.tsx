@@ -53,6 +53,8 @@ export function ChatApp() {
   const conversationContentRef = React.useRef<HTMLDivElement>(null);
   // Floating mode switcher removed; drop scroll bookkeeping
   const pocketManagerRef = React.useRef<PocketManagerRef>(null);
+  // Track if the conversation scroll is at the very top
+  const [isAtTop, setIsAtTop] = React.useState(true);
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<
@@ -586,10 +588,13 @@ export function ChatApp() {
     }
   }, []);
 
-  // Floating mode switcher removed; no spacer needed
-
-  const handleScroll: React.UIEventHandler<HTMLDivElement> = () => {
-    // No-op: floating mode switcher removed
+  // Floating mode switcher removed; add top buffer behavior
+  const handleScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
+    // Toggle top buffer based on scroll position
+    const atTop = e.currentTarget.scrollTop <= 0;
+    if (atTop !== isAtTop) {
+      setIsAtTop(atTop);
+    }
   };
 
   return (
@@ -620,10 +625,11 @@ export function ChatApp() {
           ) : messages.length === 0 ? (
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
           ) : (
-            <Conversation className="overflow-hidden">
+              <Conversation className="overflow-hidden">
               <ConversationContent
                 ref={conversationContentRef}
                 onScroll={handleScroll}
+                className={cn(isAtTop ? "pt-16" : undefined)}
               >
                 {messages.map((message) => (
                   <Message key={message.id} from={message.role}>

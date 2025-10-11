@@ -96,11 +96,15 @@ export function PocketDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="bg-background rounded-lg shadow-lg w-full max-w-md p-6 m-4"
+        className={cn(
+          "w-full max-w-md m-4 p-6 rounded-2xl shadow-2xl border",
+          "bg-[rgba(17,25,40,0.75)] border-white/10 backdrop-blur-xl",
+          "text-white"
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-semibold mb-4">
@@ -116,6 +120,7 @@ export function PocketDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter pocket name"
+              className="bg-white/10 border-white/10 text-white placeholder-white/60 focus:ring-white/30"
               autoFocus
             />
           </div>
@@ -130,9 +135,9 @@ export function PocketDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter description (optional)"
               className={cn(
-                "w-full px-3 py-2 rounded-md border border-input bg-background",
-                "focus:outline-none focus:ring-2 focus:ring-ring",
-                "resize-none"
+                "w-full px-3 py-2 rounded-md border bg-white/10 border-white/10 text-white placeholder-white/60",
+                "focus:outline-none focus:ring-2 focus:ring-white/30",
+                "resize-none text-base"
               )}
               rows={3}
             />
@@ -152,7 +157,7 @@ export function PocketDialog({
                     "border-2 transition-colors",
                     icon === presetIcon
                       ? "border-primary bg-accent"
-                      : "border-transparent hover:border-muted-foreground/20"
+                      : "border-transparent hover:border-white/20"
                   )}
                 >
                   {presetIcon}
@@ -193,6 +198,7 @@ export function PocketDialog({
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Add tag and press Enter"
+                className="bg-white/10 border-white/10 text-white placeholder-white/60 focus:ring-white/30"
               />
               <Button type="button" onClick={handleAddTag} size="sm">
                 Add

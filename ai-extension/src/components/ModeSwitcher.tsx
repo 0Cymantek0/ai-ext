@@ -58,7 +58,7 @@ export function ModeSwitcher({
   return (
     <div
       className={cn(
-        "inline-flex h-8 items-stretch gap-0.5 rounded-full bg-background/95 backdrop-blur-sm p-0.5",
+        "mode-switcher inline-flex h-8 items-stretch gap-0.5 rounded-full bg-background/95 backdrop-blur-sm p-0.5",
         "border border-border shadow-lg",
         "transition-all duration-200",
         className,
@@ -86,7 +86,7 @@ export function ModeSwitcher({
           <span aria-hidden="true" className="scale-75">
             {mode.icon}
           </span>
-          <span className="leading-none">{mode.label}</span>
+          <span className="mode-label leading-none">{mode.label}</span>
         </button>
       ))}
     </div>

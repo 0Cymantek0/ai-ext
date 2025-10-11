@@ -104,7 +104,7 @@ export function TopBar({ onOpenHistory, onNewChat, onNewPocket, currentMode = "a
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between px-4 bg-transparent",
+        "fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between px-4 bg-transparent pointer-events-none",
         className,
       )}
     >
@@ -115,6 +115,7 @@ export function TopBar({ onOpenHistory, onNewChat, onNewPocket, currentMode = "a
           "bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/40",
           "border border-border shadow-sm",
         )}
+        style={{ pointerEvents: "auto" }}
       >
         <Button
           variant="ghost"
@@ -143,7 +144,7 @@ export function TopBar({ onOpenHistory, onNewChat, onNewPocket, currentMode = "a
       </div>
 
       {/* Center: Mode switcher */}
-      <div className="absolute left-1/2 -translate-x-1/2">
+      <div className="absolute left-1/2 -translate-x-1/2" style={{ pointerEvents: "auto" }}>
         <ModeSwitcher currentMode={currentMode} onModeChange={onModeChange ?? (() => {})} />
       </div>
 
@@ -154,6 +155,7 @@ export function TopBar({ onOpenHistory, onNewChat, onNewPocket, currentMode = "a
           "bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/40",
           "border border-border shadow-sm",
         )}
+        style={{ pointerEvents: "auto" }}
       >
         {/* Theme Toggle */}
         <Button

@@ -272,3 +272,10 @@ kbd {
   background-color: hsl(var(--muted));
   font-weight: 600;
 }
+
+/* Responsive: hide mode labels only on very narrow widths */
+@media (max-aspect-ratio: 3/5), (max-width: 360px) {
+  .mode-switcher .mode-label {
+    display: none;
+  }
+}

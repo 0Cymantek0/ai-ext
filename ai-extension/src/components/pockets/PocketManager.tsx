@@ -3,7 +3,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PocketCard, type PocketData } from "./PocketCard";
 import { PocketDialog } from "./PocketDialog";
-import { SearchBar } from "./SearchBar";
+import { SearchBar } from "@/components/SearchBar";
+import { GlassSelector, GlassSort, FloatingPanel } from "@/components/FloatingControls";
 
 type ViewMode = "list" | "grid";
 type SortBy = "date" | "name" | "size";
@@ -230,90 +231,58 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Controls Header */}
-      <div className="p-4 border-b space-y-4">
-        {/* Search */}
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          onSearch={handleSearch}
-          isSearching={isSearching}
-        />
-
-        {/* Controls */}
-        <div className="flex items-center justify-between">
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 border rounded-md p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={cn(
-                "p-2 rounded transition-colors",
-                viewMode === "list"
-                  ? "bg-accent text-accent-foreground"
-                  : "hover:bg-accent/50"
-              )}
-              title="List view"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              className={cn(
-                "p-2 rounded transition-colors",
-                viewMode === "grid"
-                  ? "bg-accent text-accent-foreground"
-                  : "hover:bg-accent/50"
-              )}
-              title="Grid view"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
-                />
-              </svg>
-            </button>
+      {/* Floating Controls */}
+      <FloatingPanel className="top-16">
+        <div className="flex flex-col items-stretch gap-2">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onSearch={handleSearch}
+            isSearching={isSearching}
+          />
+          <div className="flex items-center gap-2">
+            <GlassSelector
+              label="View"
+              value={viewMode}
+              onChange={(v) => setViewMode(v as ViewMode)}
+              options={[
+                {
+                  value: "list",
+                  label: "List",
+                  icon: (
+                    <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  ),
+                },
+                {
+                  value: "grid",
+                  label: "Grid",
+                  icon: (
+                    <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h4v4H4V5zm10 0h4v4h-4V5zM4 15h4v4H4v-4zm10 0h4v4h-4v-4z" />
+                    </svg>
+                  ),
+                },
+              ]}
+            />
+            <div className="ml-auto">
+              <GlassSort
+                value={sortBy}
+                onChange={(v) => setSortBy(v as SortBy)}
+                options={[
+                  { value: "date", label: "Date" },
+                  { value: "name", label: "Name" },
+                  { value: "size", label: "Size" },
+                ]}
+              />
+            </div>
           </div>
-
-          {/* Sort Dropdown */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortBy)}
-            className={cn(
-              "px-3 py-1.5 rounded-md border border-input bg-background",
-              "text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            )}
-          >
-            <option value="date">Sort by Date</option>
-            <option value="name">Sort by Name</option>
-            <option value="size">Sort by Size</option>
-          </select>
         </div>
-      </div>
+      </FloatingPanel>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 pt-40 sm:pt-44 md:pt-48">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
