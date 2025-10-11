@@ -1,51 +1,55 @@
 /**
  * Hybrid AI Decision Engine
- * 
+ *
  * This module implements intelligent decision-making for AI processing location.
  * It analyzes task complexity, device capabilities, and user preferences to determine
  * whether to use on-device Gemini Nano or cloud-based Gemini models.
- * 
+ *
  * Requirements: 4.1, 4.2, 4.4, 13.1, 16.2
  */
 
-import { AIManager, type ProcessingOptions, type AIResponse } from './ai-manager';
-import { CloudAIManager, GeminiModel } from './cloud-ai-manager';
-import { aiPerformanceMonitor, AIModel } from './ai-performance-monitor';
+import {
+  AIManager,
+  type ProcessingOptions,
+  type AIResponse,
+} from "./ai-manager";
+import { CloudAIManager, GeminiModel } from "./cloud-ai-manager";
+import { aiPerformanceMonitor, AIModel } from "./ai-performance-monitor";
 
 /**
  * Task complexity levels
  * Requirement 4.1: Determine if cloud processing is needed based on task complexity
  */
 export enum TaskComplexity {
-  SIMPLE = 'simple',       // < 1000 tokens, basic operations
-  MODERATE = 'moderate',   // 1000-5000 tokens, standard operations
-  COMPLEX = 'complex',     // > 5000 tokens, advanced reasoning
-  MULTIMODAL = 'multimodal' // Image/audio processing
+  SIMPLE = "simple", // < 1000 tokens, basic operations
+  MODERATE = "moderate", // 1000-5000 tokens, standard operations
+  COMPLEX = "complex", // > 5000 tokens, advanced reasoning
+  MULTIMODAL = "multimodal", // Image/audio processing
 }
 
 /**
  * Processing location options
  */
 export enum ProcessingLocation {
-  GEMINI_NANO = 'gemini-nano',
-  GEMINI_FLASH = 'gemini-flash',
-  GEMINI_FLASH_LITE = 'gemini-flash-lite',
-  GEMINI_PRO = 'gemini-pro'
+  GEMINI_NANO = "gemini-nano",
+  GEMINI_FLASH = "gemini-flash",
+  GEMINI_FLASH_LITE = "gemini-flash-lite",
+  GEMINI_PRO = "gemini-pro",
 }
 
 /**
  * Task operation types
  */
 export enum TaskOperation {
-  SUMMARIZE = 'summarize',
-  TRANSLATE = 'translate',
-  EMBED = 'embed',
-  ALT_TEXT = 'alt-text',
-  TRANSCRIBE = 'transcribe',
-  ENHANCE = 'enhance',
-  ANALYZE = 'analyze',
-  GENERATE = 'generate',
-  GENERAL = 'general'
+  SUMMARIZE = "summarize",
+  TRANSLATE = "translate",
+  EMBED = "embed",
+  ALT_TEXT = "alt-text",
+  TRANSCRIBE = "transcribe",
+  ENHANCE = "enhance",
+  ANALYZE = "analyze",
+  GENERATE = "generate",
+  GENERAL = "general",
 }
 
 /**
@@ -74,7 +78,7 @@ export interface DeviceCapabilities {
   memory: number; // Available memory in MB
   cpuCores: number;
   isOnline: boolean;
-  connectionType: 'slow-2g' | '2g' | '3g' | '4g' | 'wifi' | 'unknown';
+  connectionType: "slow-2g" | "2g" | "3g" | "4g" | "wifi" | "unknown";
   batteryLevel?: number;
   isCharging?: boolean;
   geminiNanoAvailable: boolean;
@@ -98,7 +102,7 @@ export interface ProcessingDecision {
 export class TaskClassifier {
   /**
    * Classify a task based on content and operation
-   * 
+   *
    * @param task Task to classify
    * @returns Task complexity level
    */
@@ -112,10 +116,7 @@ export class TaskClassifier {
     const tokens = this.estimateTokens(task.content);
 
     // Check operation complexity
-    const complexOperations = [
-      TaskOperation.ANALYZE,
-      TaskOperation.GENERATE
-    ];
+    const complexOperations = [TaskOperation.ANALYZE, TaskOperation.GENERATE];
 
     if (complexOperations.includes(task.operation) || tokens > 5000) {
       return TaskComplexity.COMPLEX;
@@ -131,7 +132,7 @@ export class TaskClassifier {
   /**
    * Estimate token count for content
    * Uses rough approximation: 1 token ≈ 4 characters
-   * 
+   *
    * @param content Content to estimate
    * @returns Estimated token count
    */
@@ -161,7 +162,7 @@ export class TaskClassifier {
 
   /**
    * Determine if a task requires cloud processing
-   * 
+   *
    * @param task Task to check
    * @param deviceCapabilities Current device capabilities
    * @returns True if cloud processing is required
@@ -177,7 +178,10 @@ export class TaskClassifier {
     // Multimodal tasks require cloud if Gemini Nano doesn't support them
     if (complexity === TaskComplexity.MULTIMODAL) {
       // Check if the operation is supported locally
-      const localMultimodalOps = [TaskOperation.ALT_TEXT, TaskOperation.TRANSCRIBE];
+      const localMultimodalOps = [
+        TaskOperation.ALT_TEXT,
+        TaskOperation.TRANSCRIBE,
+      ];
       if (!localMultimodalOps.includes(task.operation)) {
         return true;
       }
@@ -189,8 +193,12 @@ export class TaskClassifier {
     }
 
     // If device is low on resources, prefer cloud
-    if (deviceCapabilities.memory < 500 || 
-        (deviceCapabilities.batteryLevel && deviceCapabilities.batteryLevel < 20 && !deviceCapabilities.isCharging)) {
+    if (
+      deviceCapabilities.memory < 500 ||
+      (deviceCapabilities.batteryLevel &&
+        deviceCapabilities.batteryLevel < 20 &&
+        !deviceCapabilities.isCharging)
+    ) {
       return true;
     }
 
@@ -206,7 +214,7 @@ export class DeviceCapabilityDetector {
   /**
    * Detect current device capabilities
    * Requirement 4.1: Check device capabilities to determine processing location
-   * 
+   *
    * @param aiManager AI Manager instance to check Gemini Nano availability
    * @returns Device capabilities
    */
@@ -216,25 +224,25 @@ export class DeviceCapabilityDetector {
       cpuCores: this.getCPUCores(),
       isOnline: navigator.onLine,
       connectionType: this.getConnectionType(),
-      geminiNanoAvailable: false
+      geminiNanoAvailable: false,
     };
 
     // Check Gemini Nano availability
     try {
       const availability = await aiManager.checkModelAvailability();
-      capabilities.geminiNanoAvailable = availability === 'readily';
+      capabilities.geminiNanoAvailable = availability === "readily";
     } catch (error) {
-      console.error('Error checking Gemini Nano availability:', error);
+      console.error("Error checking Gemini Nano availability:", error);
     }
 
     // Get battery information if available
-    if ('getBattery' in navigator) {
+    if ("getBattery" in navigator) {
       try {
         const battery = await (navigator as any).getBattery();
         capabilities.batteryLevel = battery.level * 100;
         capabilities.isCharging = battery.charging;
       } catch (error) {
-        console.warn('Battery API not available:', error);
+        console.warn("Battery API not available:", error);
       }
     }
 
@@ -246,7 +254,7 @@ export class DeviceCapabilityDetector {
    * Uses performance.memory if available, otherwise estimates
    */
   private async getAvailableMemory(): Promise<number> {
-    if ('memory' in performance) {
+    if ("memory" in performance) {
       const memory = (performance as any).memory;
       // Return available memory in MB
       const usedMemory = memory.usedJSHeapSize / (1024 * 1024);
@@ -269,27 +277,30 @@ export class DeviceCapabilityDetector {
   /**
    * Get connection type
    */
-  private getConnectionType(): DeviceCapabilities['connectionType'] {
-    if ('connection' in navigator) {
+  private getConnectionType(): DeviceCapabilities["connectionType"] {
+    if ("connection" in navigator) {
       const connection = (navigator as any).connection;
       const effectiveType = connection?.effectiveType;
-      
+
       if (effectiveType) {
-        return effectiveType as DeviceCapabilities['connectionType'];
+        return effectiveType as DeviceCapabilities["connectionType"];
       }
     }
 
-    return 'unknown';
+    return "unknown";
   }
 
   /**
    * Check if device can handle local processing
-   * 
+   *
    * @param capabilities Device capabilities
    * @param complexity Task complexity
    * @returns True if device can handle local processing
    */
-  canHandleLocal(capabilities: DeviceCapabilities, complexity: TaskComplexity): boolean {
+  canHandleLocal(
+    capabilities: DeviceCapabilities,
+    complexity: TaskComplexity,
+  ): boolean {
     // Gemini Nano must be available
     if (!capabilities.geminiNanoAvailable) {
       return false;
@@ -302,9 +313,11 @@ export class DeviceCapabilityDetector {
     }
 
     // Check battery level if available
-    if (capabilities.batteryLevel !== undefined && 
-        capabilities.batteryLevel < 15 && 
-        !capabilities.isCharging) {
+    if (
+      capabilities.batteryLevel !== undefined &&
+      capabilities.batteryLevel < 15 &&
+      !capabilities.isCharging
+    ) {
       return false;
     }
 
@@ -313,7 +326,7 @@ export class DeviceCapabilityDetector {
 
   /**
    * Get performance profile description
-   * 
+   *
    * @param capabilities Device capabilities
    * @returns Performance profile description
    */
@@ -321,28 +334,31 @@ export class DeviceCapabilityDetector {
     const profiles: string[] = [];
 
     if (capabilities.memory > 2000) {
-      profiles.push('high-memory');
+      profiles.push("high-memory");
     } else if (capabilities.memory > 1000) {
-      profiles.push('medium-memory');
+      profiles.push("medium-memory");
     } else {
-      profiles.push('low-memory');
+      profiles.push("low-memory");
     }
 
     if (capabilities.cpuCores >= 8) {
-      profiles.push('high-cpu');
+      profiles.push("high-cpu");
     } else if (capabilities.cpuCores >= 4) {
-      profiles.push('medium-cpu');
+      profiles.push("medium-cpu");
     } else {
-      profiles.push('low-cpu');
+      profiles.push("low-cpu");
     }
 
-    if (capabilities.connectionType === 'wifi' || capabilities.connectionType === '4g') {
-      profiles.push('fast-network');
+    if (
+      capabilities.connectionType === "wifi" ||
+      capabilities.connectionType === "4g"
+    ) {
+      profiles.push("fast-network");
     } else {
-      profiles.push('slow-network');
+      profiles.push("slow-network");
     }
 
-    return profiles.join(', ');
+    return profiles.join(", ");
   }
 }
 
@@ -371,14 +387,14 @@ export class HybridAIEngine {
    * Requirement 4.1: Intelligently determine if cloud processing is needed
    * Requirement 4.4: Select appropriate Gemini model based on task complexity
    * Requirement 13.1: Track model selection decisions
-   * 
+   *
    * @param task Task to process
    * @param options Processing options
    * @returns Processing decision
    */
   async determineProcessingLocation(
     task: Task,
-    options?: Partial<ProcessingOptions>
+    options?: Partial<ProcessingOptions>,
   ): Promise<ProcessingDecision> {
     // Get device capabilities (cached for performance)
     const capabilities = await this.getDeviceCapabilities();
@@ -401,34 +417,41 @@ export class HybridAIEngine {
     if (preferLocal && !requiresCloud && capabilities.geminiNanoAvailable) {
       // Use local processing
       location = ProcessingLocation.GEMINI_NANO;
-      reason = 'Task can be processed locally with Gemini Nano';
+      reason = "Task can be processed locally with Gemini Nano";
     } else if (requiresCloud || !capabilities.geminiNanoAvailable) {
       // Need cloud processing - select appropriate model
       requiresConsent = true;
 
-      if (complexity === TaskComplexity.COMPLEX || task.operation === TaskOperation.ANALYZE) {
+      if (
+        complexity === TaskComplexity.COMPLEX ||
+        task.operation === TaskOperation.ANALYZE
+      ) {
         location = ProcessingLocation.GEMINI_PRO;
-        reason = 'Complex task requires Gemini Pro for advanced reasoning';
-      } else if (complexity === TaskComplexity.MODERATE || estimatedTokens > 1000) {
+        reason = "Complex task requires Gemini Pro for advanced reasoning";
+      } else if (
+        complexity === TaskComplexity.MODERATE ||
+        estimatedTokens > 1000
+      ) {
         location = ProcessingLocation.GEMINI_FLASH;
-        reason = 'Moderate complexity task uses Gemini Flash for balanced performance';
+        reason =
+          "Moderate complexity task uses Gemini Flash for balanced performance";
       } else {
         location = ProcessingLocation.GEMINI_FLASH_LITE;
-        reason = 'Simple task uses Gemini Flash-Lite for cost efficiency';
+        reason = "Simple task uses Gemini Flash-Lite for cost efficiency";
       }
 
       // Add specific reasons for cloud requirement
       if (!capabilities.geminiNanoAvailable) {
-        reason += ' (Gemini Nano not available)';
+        reason += " (Gemini Nano not available)";
       } else if (complexity === TaskComplexity.COMPLEX) {
-        reason += ' (exceeds local processing capabilities)';
+        reason += " (exceeds local processing capabilities)";
       } else if (capabilities.memory < 500) {
-        reason += ' (low device memory)';
+        reason += " (low device memory)";
       }
     } else {
       // Fallback to local
       location = ProcessingLocation.GEMINI_NANO;
-      reason = 'Using local processing as fallback';
+      reason = "Using local processing as fallback";
     }
 
     // Record model selection decision for monitoring
@@ -440,14 +463,16 @@ export class HybridAIEngine {
       reason,
       requiresConsent,
       estimatedTokens,
-      complexity
+      complexity,
     };
   }
 
   /**
    * Map ProcessingLocation to AIModel for monitoring
    */
-  private mapProcessingLocationToAIModel(location: ProcessingLocation): AIModel {
+  private mapProcessingLocationToAIModel(
+    location: ProcessingLocation,
+  ): AIModel {
     switch (location) {
       case ProcessingLocation.GEMINI_NANO:
         return AIModel.GEMINI_NANO;
@@ -465,7 +490,7 @@ export class HybridAIEngine {
   /**
    * Process content with automatic location selection
    * Requirement 4.2: Prompt for consent if cloud processing is required
-   * 
+   *
    * @param task Task to process
    * @param options Processing options
    * @param onConsentRequired Callback when consent is required
@@ -474,7 +499,7 @@ export class HybridAIEngine {
   async processContent(
     task: Task,
     options?: Partial<ProcessingOptions>,
-    onConsentRequired?: (decision: ProcessingDecision) => Promise<boolean>
+    onConsentRequired?: (decision: ProcessingDecision) => Promise<boolean>,
   ): Promise<AIResponse> {
     const startTime = performance.now();
 
@@ -482,19 +507,25 @@ export class HybridAIEngine {
       // Determine processing location
       const decision = await this.determineProcessingLocation(task, options);
 
-      console.log(`Processing decision: ${decision.location} - ${decision.reason}`);
+      console.log(
+        `Processing decision: ${decision.location} - ${decision.reason}`,
+      );
 
       // Check if consent is required
       if (decision.requiresConsent && onConsentRequired) {
         const consentGranted = await onConsentRequired(decision);
-        
+
         if (!consentGranted) {
           // User denied consent - try local fallback
           if (await this.canFallbackToLocal(task)) {
-            console.log('User denied cloud consent, falling back to local processing');
+            console.log(
+              "User denied cloud consent, falling back to local processing",
+            );
             return await this.processLocally(task, options);
           } else {
-            throw new Error('Cloud processing required but consent denied, and local fallback not available');
+            throw new Error(
+              "Cloud processing required but consent denied, and local fallback not available",
+            );
           }
         }
       }
@@ -506,11 +537,11 @@ export class HybridAIEngine {
         return await this.processInCloud(task, decision.location, options);
       }
     } catch (error) {
-      console.error('Error processing content:', error);
-      
+      console.error("Error processing content:", error);
+
       // Try fallback to local if possible
       if (await this.canFallbackToLocal(task)) {
-        console.log('Attempting local fallback after error');
+        console.log("Attempting local fallback after error");
         return await this.processLocally(task, options);
       }
 
@@ -523,7 +554,7 @@ export class HybridAIEngine {
    */
   private async processLocally(
     task: Task,
-    options?: Partial<ProcessingOptions>
+    options?: Partial<ProcessingOptions>,
   ): Promise<AIResponse> {
     const startTime = performance.now();
 
@@ -538,7 +569,7 @@ export class HybridAIEngine {
       const result = await this.aiManager.processPrompt(
         sessionId,
         prompt,
-        options?.signal ? { signal: options.signal } : undefined
+        options?.signal ? { signal: options.signal } : undefined,
       );
 
       const processingTime = performance.now() - startTime;
@@ -546,13 +577,13 @@ export class HybridAIEngine {
 
       return {
         result,
-        source: 'gemini-nano',
+        source: "gemini-nano",
         confidence: 0.9,
         processingTime,
-        tokensUsed: usage.used
+        tokensUsed: usage.used,
       };
     } catch (error) {
-      console.error('Local processing failed:', error);
+      console.error("Local processing failed:", error);
       throw new Error(`Local processing failed: ${error}`);
     }
   }
@@ -566,14 +597,16 @@ export class HybridAIEngine {
   private async processInCloud(
     task: Task,
     model: ProcessingLocation,
-    options?: Partial<ProcessingOptions>
+    options?: Partial<ProcessingOptions>,
   ): Promise<AIResponse> {
     const startTime = performance.now();
 
     try {
       // Check if cloud AI is available
       if (!this.cloudAIManager.isAvailable()) {
-        throw new Error('Cloud AI not available. Please configure your Gemini API key.');
+        throw new Error(
+          "Cloud AI not available. Please configure your Gemini API key.",
+        );
       }
 
       // Build prompt for the task
@@ -585,40 +618,42 @@ export class HybridAIEngine {
       switch (model) {
         case ProcessingLocation.GEMINI_PRO:
           // Requirement 4.6: Use Gemini Pro for complex reasoning
-          console.log('Processing with Gemini 2.5 Pro (complex reasoning)');
+          console.log("Processing with Gemini 2.5 Pro (complex reasoning)");
           response = await this.cloudAIManager.processWithRetry(
             GeminiModel.PRO,
             prompt,
             {
               ...(options?.signal && { signal: options.signal }),
-              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
-            }
+              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens }),
+            },
           );
           break;
 
         case ProcessingLocation.GEMINI_FLASH:
           // Requirement 4.5: Use Gemini Flash for large documents
-          console.log('Processing with Gemini 2.5 Flash (balanced performance)');
+          console.log(
+            "Processing with Gemini 2.5 Flash (balanced performance)",
+          );
           response = await this.cloudAIManager.processWithRetry(
             GeminiModel.FLASH,
             prompt,
             {
               ...(options?.signal && { signal: options.signal }),
-              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
-            }
+              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens }),
+            },
           );
           break;
 
         case ProcessingLocation.GEMINI_FLASH_LITE:
           // Use Flash-Lite for simple, high-volume tasks
-          console.log('Processing with Gemini 2.5 Flash-Lite (cost-efficient)');
+          console.log("Processing with Gemini 2.5 Flash-Lite (cost-efficient)");
           response = await this.cloudAIManager.processWithRetry(
             GeminiModel.FLASH_LITE,
             prompt,
             {
               ...(options?.signal && { signal: options.signal }),
-              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
-            }
+              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens }),
+            },
           );
           break;
 
@@ -631,7 +666,7 @@ export class HybridAIEngine {
 
       return response;
     } catch (error) {
-      console.error('Cloud processing failed:', error);
+      console.error("Cloud processing failed:", error);
       throw error;
     }
   }
@@ -641,16 +676,18 @@ export class HybridAIEngine {
    */
   private async canFallbackToLocal(task: Task): Promise<boolean> {
     const capabilities = await this.getDeviceCapabilities();
-    
+
     if (!capabilities.geminiNanoAvailable) {
       return false;
     }
 
     const complexity = this.taskClassifier.classifyTask(task);
-    
+
     // Only simple and moderate tasks can fallback to local
-    return complexity === TaskComplexity.SIMPLE || 
-           complexity === TaskComplexity.MODERATE;
+    return (
+      complexity === TaskComplexity.SIMPLE ||
+      complexity === TaskComplexity.MODERATE
+    );
   }
 
   /**
@@ -659,7 +696,7 @@ export class HybridAIEngine {
   private buildPrompt(task: Task): string {
     const { content, operation, context } = task;
 
-    let prompt = '';
+    let prompt = "";
 
     // Add context if provided
     if (context) {
@@ -669,22 +706,23 @@ export class HybridAIEngine {
     // Add operation-specific instructions
     switch (operation) {
       case TaskOperation.SUMMARIZE:
-        prompt += 'Please provide a concise summary of the following content:\n\n';
+        prompt +=
+          "Please provide a concise summary of the following content:\n\n";
         break;
       case TaskOperation.TRANSLATE:
-        prompt += 'Please translate the following content:\n\n';
+        prompt += "Please translate the following content:\n\n";
         break;
       case TaskOperation.ENHANCE:
-        prompt += 'Please enhance and improve the following text:\n\n';
+        prompt += "Please enhance and improve the following text:\n\n";
         break;
       case TaskOperation.ANALYZE:
-        prompt += 'Please analyze the following content:\n\n';
+        prompt += "Please analyze the following content:\n\n";
         break;
       case TaskOperation.ALT_TEXT:
-        prompt += 'Please generate descriptive alt-text for accessibility:\n\n';
+        prompt += "Please generate descriptive alt-text for accessibility:\n\n";
         break;
       default:
-        prompt += 'Please process the following content:\n\n';
+        prompt += "Please process the following content:\n\n";
     }
 
     // Add content
@@ -702,12 +740,17 @@ export class HybridAIEngine {
     const now = Date.now();
 
     // Return cached capabilities if still valid
-    if (this.cachedCapabilities && (now - this.capabilitiesCacheTime) < this.CACHE_DURATION) {
+    if (
+      this.cachedCapabilities &&
+      now - this.capabilitiesCacheTime < this.CACHE_DURATION
+    ) {
       return this.cachedCapabilities;
     }
 
     // Detect fresh capabilities
-    this.cachedCapabilities = await this.capabilityDetector.detectCapabilities(this.aiManager);
+    this.cachedCapabilities = await this.capabilityDetector.detectCapabilities(
+      this.aiManager,
+    );
     this.capabilitiesCacheTime = now;
 
     return this.cachedCapabilities;
@@ -746,7 +789,7 @@ export class HybridAIEngine {
    * Process content with streaming response
    * Requirement 8.3: Stream responses in real-time for immediate feedback
    * Requirement 8.9: Display typing indicator during processing
-   * 
+   *
    * @param task Task to process
    * @param options Processing options
    * @param onConsentRequired Callback when consent is required
@@ -755,26 +798,32 @@ export class HybridAIEngine {
   async *processContentStreaming(
     task: Task,
     options?: Partial<ProcessingOptions>,
-    onConsentRequired?: (decision: ProcessingDecision) => Promise<boolean>
+    onConsentRequired?: (decision: ProcessingDecision) => Promise<boolean>,
   ): AsyncGenerator<string, void, unknown> {
     try {
       // Determine processing location
       const decision = await this.determineProcessingLocation(task, options);
 
-      console.log(`Streaming decision: ${decision.location} - ${decision.reason}`);
+      console.log(
+        `Streaming decision: ${decision.location} - ${decision.reason}`,
+      );
 
       // Check if consent is required
       if (decision.requiresConsent && onConsentRequired) {
         const consentGranted = await onConsentRequired(decision);
-        
+
         if (!consentGranted) {
           // User denied consent - try local fallback
           if (await this.canFallbackToLocal(task)) {
-            console.log('User denied cloud consent, falling back to local streaming');
+            console.log(
+              "User denied cloud consent, falling back to local streaming",
+            );
             yield* this.processLocallyStreaming(task, options);
             return;
           } else {
-            throw new Error('Cloud processing required but consent denied, and local fallback not available');
+            throw new Error(
+              "Cloud processing required but consent denied, and local fallback not available",
+            );
           }
         }
       }
@@ -786,11 +835,11 @@ export class HybridAIEngine {
         yield* this.processInCloudStreaming(task, decision.location, options);
       }
     } catch (error) {
-      console.error('Error streaming content:', error);
-      
+      console.error("Error streaming content:", error);
+
       // Try fallback to local if possible
       if (await this.canFallbackToLocal(task)) {
-        console.log('Attempting local streaming fallback after error');
+        console.log("Attempting local streaming fallback after error");
         yield* this.processLocallyStreaming(task, options);
       } else {
         throw error;
@@ -804,7 +853,7 @@ export class HybridAIEngine {
    */
   private async *processLocallyStreaming(
     task: Task,
-    options?: Partial<ProcessingOptions>
+    options?: Partial<ProcessingOptions>,
   ): AsyncGenerator<string, void, unknown> {
     try {
       // Create or get session
@@ -817,7 +866,7 @@ export class HybridAIEngine {
       const stream = await this.aiManager.processPromptStreaming(
         sessionId,
         prompt,
-        options?.signal ? { signal: options.signal } : undefined
+        options?.signal ? { signal: options.signal } : undefined,
       );
 
       // Read from the stream and yield chunks
@@ -832,7 +881,7 @@ export class HybridAIEngine {
         reader.releaseLock();
       }
     } catch (error) {
-      console.error('Local streaming failed:', error);
+      console.error("Local streaming failed:", error);
       throw new Error(`Local streaming failed: ${error}`);
     }
   }
@@ -844,12 +893,14 @@ export class HybridAIEngine {
   private async *processInCloudStreaming(
     task: Task,
     model: ProcessingLocation,
-    options?: Partial<ProcessingOptions>
+    options?: Partial<ProcessingOptions>,
   ): AsyncGenerator<string, void, unknown> {
     try {
       // Check if cloud AI is available
       if (!this.cloudAIManager.isAvailable()) {
-        throw new Error('Cloud AI not available. Please configure your Gemini API key.');
+        throw new Error(
+          "Cloud AI not available. Please configure your Gemini API key.",
+        );
       }
 
       // Build prompt for the task
@@ -858,30 +909,30 @@ export class HybridAIEngine {
       // Process based on selected model
       switch (model) {
         case ProcessingLocation.GEMINI_PRO:
-          console.log('Streaming with Gemini 2.5 Pro');
+          console.log("Streaming with Gemini 2.5 Pro");
           yield* this.cloudAIManager.processWithProStreaming(prompt, {
             ...(options?.signal && { signal: options.signal }),
-            ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
+            ...(options?.maxTokens && { maxOutputTokens: options.maxTokens }),
           });
           break;
 
         case ProcessingLocation.GEMINI_FLASH:
-          console.log('Streaming with Gemini 2.5 Flash');
+          console.log("Streaming with Gemini 2.5 Flash");
           yield* this.cloudAIManager.processWithFlashStreaming(prompt, {
             ...(options?.signal && { signal: options.signal }),
-            ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
+            ...(options?.maxTokens && { maxOutputTokens: options.maxTokens }),
           });
           break;
 
         case ProcessingLocation.GEMINI_FLASH_LITE:
-          console.log('Streaming with Gemini 2.5 Flash-Lite');
+          console.log("Streaming with Gemini 2.5 Flash-Lite");
           yield* this.cloudAIManager.processWithModelStreaming(
             GeminiModel.FLASH_LITE,
             prompt,
             {
               ...(options?.signal && { signal: options.signal }),
-              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens })
-            }
+              ...(options?.maxTokens && { maxOutputTokens: options.maxTokens }),
+            },
           );
           break;
 
@@ -889,7 +940,7 @@ export class HybridAIEngine {
           throw new Error(`Unsupported cloud model: ${model}`);
       }
     } catch (error) {
-      console.error('Cloud streaming failed:', error);
+      console.error("Cloud streaming failed:", error);
       throw error;
     }
   }
@@ -898,7 +949,7 @@ export class HybridAIEngine {
 // Export singleton instance
 export const createHybridAIEngine = (
   aiManager: AIManager,
-  cloudAIManager?: CloudAIManager
+  cloudAIManager?: CloudAIManager,
 ): HybridAIEngine => {
   return new HybridAIEngine(aiManager, cloudAIManager);
 };

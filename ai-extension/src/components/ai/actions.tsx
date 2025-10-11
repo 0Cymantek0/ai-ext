@@ -1,5 +1,5 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 const Actions = React.forwardRef<
   HTMLDivElement,
@@ -10,8 +10,8 @@ const Actions = React.forwardRef<
     className={cn("flex items-center gap-2 pt-2", className)}
     {...props}
   />
-))
-Actions.displayName = "Actions"
+));
+Actions.displayName = "Actions";
 
 const ActionButton = React.forwardRef<
   HTMLButtonElement,
@@ -25,12 +25,11 @@ const ActionButton = React.forwardRef<
       "hover:bg-accent hover:text-accent-foreground",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       "disabled:pointer-events-none disabled:opacity-50",
-      className
+      className,
     )}
     {...props}
   />
-))
-ActionButton.displayName = "ActionButton"
+));
+ActionButton.displayName = "ActionButton";
 
-export { Actions, ActionButton }
-
+export { Actions, ActionButton };

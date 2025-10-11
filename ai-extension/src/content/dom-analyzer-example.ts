@@ -38,7 +38,7 @@ export async function captureFullPage() {
   console.log("Avg Word Length:", readability.averageWordLength.toFixed(2));
   console.log(
     "Avg Sentence Length:",
-    readability.averageSentenceLength.toFixed(2)
+    readability.averageSentenceLength.toFixed(2),
   );
 
   // Extract structured data

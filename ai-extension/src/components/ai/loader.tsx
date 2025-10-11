@@ -1,5 +1,5 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 const Loader = React.forwardRef<
   HTMLDivElement,
@@ -16,8 +16,7 @@ const Loader = React.forwardRef<
       <div className="h-2 w-2 animate-pulse rounded-full bg-primary" />
     </div>
   </div>
-))
-Loader.displayName = "Loader"
+));
+Loader.displayName = "Loader";
 
-export { Loader }
-
+export { Loader };

@@ -132,7 +132,7 @@ describe("ChromeSyncStorage", () => {
       mockSyncStorage.getBytesInUse.mockResolvedValue(102300); // Over 95% limit
 
       await expect(syncStorage.set({ key1: "value1" })).rejects.toThrow(
-        StorageError
+        StorageError,
       );
     });
 
@@ -214,7 +214,7 @@ describe("ChromeSyncStorage", () => {
       mockSyncStorage.getBytesInUse.mockResolvedValue(1000);
 
       await expect(
-        syncStorage.setWithValidation({ key1: largeValue })
+        syncStorage.setWithValidation({ key1: largeValue }),
       ).rejects.toThrow(StorageError);
     });
 
@@ -228,7 +228,7 @@ describe("ChromeSyncStorage", () => {
       mockSyncStorage.getBytesInUse.mockResolvedValue(1000);
 
       await expect(
-        syncStorage.setWithValidation({ newKey: "value" })
+        syncStorage.setWithValidation({ newKey: "value" }),
       ).rejects.toThrow(StorageError);
     });
 
@@ -386,17 +386,17 @@ describe("StorageManager", () => {
       mockLocalStorage.getBytesInUse.mockResolvedValue(5000000);
 
       const eventListener = vi.fn();
-      
+
       // Mock addEventListener if not available in test environment
       const originalAddEventListener = globalThis.addEventListener;
       const originalDispatchEvent = globalThis.dispatchEvent;
-      
+
       globalThis.addEventListener = vi.fn((event, handler) => {
         if (event === "storage-quota-event") {
           eventListener.mockImplementation(handler as any);
         }
       }) as any;
-      
+
       globalThis.dispatchEvent = vi.fn((event) => {
         if (event.type === "storage-quota-event") {
           eventListener(event);
@@ -407,7 +407,7 @@ describe("StorageManager", () => {
       await storageManager.monitorQuota();
 
       expect(eventListener).toHaveBeenCalled();
-      
+
       // Restore
       globalThis.addEventListener = originalAddEventListener;
       globalThis.dispatchEvent = originalDispatchEvent;
@@ -419,17 +419,17 @@ describe("StorageManager", () => {
       mockLocalStorage.getBytesInUse.mockResolvedValue(5000000);
 
       const eventListener = vi.fn();
-      
+
       // Mock addEventListener if not available in test environment
       const originalAddEventListener = globalThis.addEventListener;
       const originalDispatchEvent = globalThis.dispatchEvent;
-      
+
       globalThis.addEventListener = vi.fn((event, handler) => {
         if (event === "storage-quota-event") {
           eventListener.mockImplementation(handler as any);
         }
       }) as any;
-      
+
       globalThis.dispatchEvent = vi.fn((event) => {
         if (event.type === "storage-quota-event") {
           eventListener(event);
@@ -443,7 +443,7 @@ describe("StorageManager", () => {
       expect(eventListener).toHaveBeenCalled();
       const event = eventListener.mock.calls[0][0] as CustomEvent;
       expect(event.detail.level).toBe("critical");
-      
+
       // Restore
       globalThis.addEventListener = originalAddEventListener;
       globalThis.dispatchEvent = originalDispatchEvent;
@@ -478,7 +478,7 @@ describe("Error Handling", () => {
     mockSyncStorage.getBytesInUse.mockResolvedValue(102300);
 
     await expect(syncStorage.set({ key: "value" })).rejects.toThrow(
-      StorageError
+      StorageError,
     );
   });
 
@@ -504,7 +504,7 @@ describe("Error Handling", () => {
     mockSyncStorage.getBytesInUse.mockResolvedValue(102300);
 
     await expect(syncStorage.set({ key: "value" })).rejects.toThrow(
-      StorageError
+      StorageError,
     );
     expect(mockSyncStorage.set).not.toHaveBeenCalled();
   });

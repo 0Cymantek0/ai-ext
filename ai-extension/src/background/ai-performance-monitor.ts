@@ -1,41 +1,41 @@
 /**
  * AI Performance Monitor
- * 
+ *
  * Specialized monitoring for AI operations including:
  * - Response time tracking by model and operation
  * - Token usage tracking and cost estimation
  * - Success/failure rate monitoring
  * - Model selection statistics
- * 
+ *
  * Requirements: 13.1 (Performance Optimization), 16.2 (Cost Management)
  */
 
-import { logger, performanceMonitor } from './monitoring';
+import { logger, performanceMonitor } from "./monitoring";
 
 /**
  * AI model types for tracking
  */
 export enum AIModel {
-  GEMINI_NANO = 'gemini-nano',
-  GEMINI_FLASH = 'gemini-flash',
-  GEMINI_FLASH_LITE = 'gemini-flash-lite',
-  GEMINI_PRO = 'gemini-pro'
+  GEMINI_NANO = "gemini-nano",
+  GEMINI_FLASH = "gemini-flash",
+  GEMINI_FLASH_LITE = "gemini-flash-lite",
+  GEMINI_PRO = "gemini-pro",
 }
 
 /**
  * AI operation types
  */
 export enum AIOperation {
-  SUMMARIZE = 'summarize',
-  TRANSLATE = 'translate',
-  EMBED = 'embed',
-  ALT_TEXT = 'alt-text',
-  TRANSCRIBE = 'transcribe',
-  ENHANCE = 'enhance',
-  ANALYZE = 'analyze',
-  GENERATE = 'generate',
-  CHAT = 'chat',
-  GENERAL = 'general'
+  SUMMARIZE = "summarize",
+  TRANSLATE = "translate",
+  EMBED = "embed",
+  ALT_TEXT = "alt-text",
+  TRANSCRIBE = "transcribe",
+  ENHANCE = "enhance",
+  ANALYZE = "analyze",
+  GENERATE = "generate",
+  CHAT = "chat",
+  GENERAL = "general",
 }
 
 /**
@@ -84,7 +84,10 @@ export interface SuccessRateStats {
   failed: number;
   successRate: number;
   byModel: Record<AIModel, { total: number; successful: number; rate: number }>;
-  byOperation: Record<AIOperation, { total: number; successful: number; rate: number }>;
+  byOperation: Record<
+    AIOperation,
+    { total: number; successful: number; rate: number }
+  >;
 }
 
 /**
@@ -118,7 +121,7 @@ const TOKEN_COSTS = {
 export class AIPerformanceMonitor {
   private operations: AIOperationResult[] = [];
   private readonly MAX_OPERATIONS = 1000;
-  private readonly STORAGE_KEY = 'ai_performance_metrics';
+  private readonly STORAGE_KEY = "ai_performance_metrics";
 
   // Cumulative statistics
   private totalTokens = 0;
@@ -136,7 +139,7 @@ export class AIPerformanceMonitor {
    */
   private initializeCounters(): void {
     // Initialize model counters
-    Object.values(AIModel).forEach(model => {
+    Object.values(AIModel).forEach((model) => {
       if (!this.tokensByModel.has(model)) {
         this.tokensByModel.set(model, 0);
       }
@@ -146,7 +149,7 @@ export class AIPerformanceMonitor {
     });
 
     // Initialize operation counters
-    Object.values(AIOperation).forEach(operation => {
+    Object.values(AIOperation).forEach((operation) => {
       if (!this.tokensByOperation.has(operation)) {
         this.tokensByOperation.set(operation, 0);
       }
@@ -157,7 +160,7 @@ export class AIPerformanceMonitor {
    * Record an AI operation
    * Requirement 13.1: Track response times
    * Requirement 16.2: Monitor token usage
-   * 
+   *
    * @param result Operation result
    */
   recordOperation(result: AIOperationResult): void {
@@ -171,7 +174,7 @@ export class AIPerformanceMonitor {
 
     // Update cumulative statistics
     this.totalTokens += result.tokensUsed;
-    
+
     const modelTokens = this.tokensByModel.get(result.model) || 0;
     this.tokensByModel.set(result.model, modelTokens + result.tokensUsed);
 
@@ -180,7 +183,7 @@ export class AIPerformanceMonitor {
 
     // Log the operation
     if (result.success) {
-      logger.info('AIPerformance', `${result.operation} completed`, {
+      logger.info("AIPerformance", `${result.operation} completed`, {
         model: result.model,
         responseTime: `${result.responseTime.toFixed(2)}ms`,
         tokens: result.tokensUsed,
@@ -190,15 +193,15 @@ export class AIPerformanceMonitor {
       performanceMonitor.recordMetric(
         `ai-${result.operation}`,
         result.responseTime,
-        'ms',
+        "ms",
         {
           model: result.model,
           tokens: result.tokensUsed,
           success: true,
-        }
+        },
       );
     } else {
-      logger.error('AIPerformance', `${result.operation} failed`, {
+      logger.error("AIPerformance", `${result.operation} failed`, {
         model: result.model,
         error: result.error,
       });
@@ -206,12 +209,12 @@ export class AIPerformanceMonitor {
       performanceMonitor.recordMetric(
         `ai-${result.operation}`,
         result.responseTime,
-        'ms',
+        "ms",
         {
           model: result.model,
           success: false,
           error: result.error,
-        }
+        },
       );
     }
 
@@ -221,7 +224,7 @@ export class AIPerformanceMonitor {
 
   /**
    * Record model selection decision
-   * 
+   *
    * @param model Selected model
    * @param reason Reason for selection
    */
@@ -229,7 +232,7 @@ export class AIPerformanceMonitor {
     const count = this.modelSelections.get(model) || 0;
     this.modelSelections.set(model, count + 1);
 
-    logger.debug('AIPerformance', 'Model selected', {
+    logger.debug("AIPerformance", "Model selected", {
       model,
       reason,
       totalSelections: count + 1,
@@ -240,7 +243,7 @@ export class AIPerformanceMonitor {
 
   /**
    * Measure an AI operation with automatic recording
-   * 
+   *
    * @param model AI model used
    * @param operation Operation type
    * @param fn Function to measure
@@ -249,7 +252,7 @@ export class AIPerformanceMonitor {
   async measureOperation<T>(
     model: AIModel,
     operation: AIOperation,
-    fn: () => Promise<T>
+    fn: () => Promise<T>,
   ): Promise<T> {
     const startTime = performance.now();
     let tokensUsed = 0;
@@ -258,16 +261,16 @@ export class AIPerformanceMonitor {
 
     try {
       const result = await fn();
-      
+
       // Extract token usage if result is an AIResponse
-      if (result && typeof result === 'object' && 'tokensUsed' in result) {
+      if (result && typeof result === "object" && "tokensUsed" in result) {
         tokensUsed = (result as any).tokensUsed || 0;
       }
 
       return result;
     } catch (err) {
       success = false;
-      error = err instanceof Error ? err.message : 'Unknown error';
+      error = err instanceof Error ? err.message : "Unknown error";
       throw err;
     } finally {
       const responseTime = performance.now() - startTime;
@@ -288,12 +291,15 @@ export class AIPerformanceMonitor {
   /**
    * Get token usage statistics
    * Requirement 16.2: Monitor token usage
-   * 
+   *
    * @returns Token usage stats
    */
   getTokenUsageStats(): TokenUsageStats {
     const byModel: Record<AIModel, number> = {} as Record<AIModel, number>;
-    const byOperation: Record<AIOperation, number> = {} as Record<AIOperation, number>;
+    const byOperation: Record<AIOperation, number> = {} as Record<
+      AIOperation,
+      number
+    >;
 
     // Convert maps to records
     this.tokensByModel.forEach((tokens, model) => {
@@ -318,7 +324,7 @@ export class AIPerformanceMonitor {
   /**
    * Calculate total cost based on token usage
    * Requirement 16.2: Track costs for budget management
-   * 
+   *
    * @returns Estimated cost in USD
    */
   private calculateTotalCost(): number {
@@ -335,11 +341,12 @@ export class AIPerformanceMonitor {
 
   /**
    * Get cost breakdown by model
-   * 
+   *
    * @returns Cost breakdown
    */
   getCostBreakdown(): Record<AIModel, { tokens: number; cost: number }> {
-    const breakdown: Record<AIModel, { tokens: number; cost: number }> = {} as any;
+    const breakdown: Record<AIModel, { tokens: number; cost: number }> =
+      {} as any;
 
     this.tokensByModel.forEach((tokens, model) => {
       const costPerMillion = TOKEN_COSTS[model] || 0;
@@ -353,7 +360,7 @@ export class AIPerformanceMonitor {
   /**
    * Get response time statistics
    * Requirement 13.1: Track response times
-   * 
+   *
    * @returns Response time stats
    */
   getResponseTimeStats(): ResponseTimeStats {
@@ -370,7 +377,7 @@ export class AIPerformanceMonitor {
       };
     }
 
-    const responseTimes = this.operations.map(op => op.responseTime);
+    const responseTimes = this.operations.map((op) => op.responseTime);
     const sorted = [...responseTimes].sort((a, b) => a - b);
 
     // Calculate percentiles
@@ -380,26 +387,34 @@ export class AIPerformanceMonitor {
 
     // Calculate by model
     const byModel: Record<AIModel, number> = {} as Record<AIModel, number>;
-    Object.values(AIModel).forEach(model => {
-      const modelOps = this.operations.filter(op => op.model === model);
+    Object.values(AIModel).forEach((model) => {
+      const modelOps = this.operations.filter((op) => op.model === model);
       if (modelOps.length > 0) {
-        const avg = modelOps.reduce((sum, op) => sum + op.responseTime, 0) / modelOps.length;
+        const avg =
+          modelOps.reduce((sum, op) => sum + op.responseTime, 0) /
+          modelOps.length;
         byModel[model] = avg;
       }
     });
 
     // Calculate by operation
-    const byOperation: Record<AIOperation, number> = {} as Record<AIOperation, number>;
-    Object.values(AIOperation).forEach(operation => {
-      const opOps = this.operations.filter(op => op.operation === operation);
+    const byOperation: Record<AIOperation, number> = {} as Record<
+      AIOperation,
+      number
+    >;
+    Object.values(AIOperation).forEach((operation) => {
+      const opOps = this.operations.filter((op) => op.operation === operation);
       if (opOps.length > 0) {
-        const avg = opOps.reduce((sum, op) => sum + op.responseTime, 0) / opOps.length;
+        const avg =
+          opOps.reduce((sum, op) => sum + op.responseTime, 0) / opOps.length;
         byOperation[operation] = avg;
       }
     });
 
     return {
-      average: responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length,
+      average:
+        responseTimes.reduce((sum, time) => sum + time, 0) /
+        responseTimes.length,
       min: Math.min(...responseTimes),
       max: Math.max(...responseTimes),
       p50,
@@ -420,19 +435,22 @@ export class AIPerformanceMonitor {
 
   /**
    * Get success rate statistics
-   * 
+   *
    * @returns Success rate stats
    */
   getSuccessRateStats(): SuccessRateStats {
     const total = this.operations.length;
-    const successful = this.operations.filter(op => op.success).length;
+    const successful = this.operations.filter((op) => op.success).length;
     const failed = total - successful;
 
     // Calculate by model
-    const byModel: Record<AIModel, { total: number; successful: number; rate: number }> = {} as any;
-    Object.values(AIModel).forEach(model => {
-      const modelOps = this.operations.filter(op => op.model === model);
-      const modelSuccessful = modelOps.filter(op => op.success).length;
+    const byModel: Record<
+      AIModel,
+      { total: number; successful: number; rate: number }
+    > = {} as any;
+    Object.values(AIModel).forEach((model) => {
+      const modelOps = this.operations.filter((op) => op.model === model);
+      const modelSuccessful = modelOps.filter((op) => op.success).length;
       if (modelOps.length > 0) {
         byModel[model] = {
           total: modelOps.length,
@@ -443,10 +461,13 @@ export class AIPerformanceMonitor {
     });
 
     // Calculate by operation
-    const byOperation: Record<AIOperation, { total: number; successful: number; rate: number }> = {} as any;
-    Object.values(AIOperation).forEach(operation => {
-      const opOps = this.operations.filter(op => op.operation === operation);
-      const opSuccessful = opOps.filter(op => op.success).length;
+    const byOperation: Record<
+      AIOperation,
+      { total: number; successful: number; rate: number }
+    > = {} as any;
+    Object.values(AIOperation).forEach((operation) => {
+      const opOps = this.operations.filter((op) => op.operation === operation);
+      const opSuccessful = opOps.filter((op) => op.success).length;
       if (opOps.length > 0) {
         byOperation[operation] = {
           total: opOps.length,
@@ -468,18 +489,25 @@ export class AIPerformanceMonitor {
 
   /**
    * Get model selection statistics
-   * 
+   *
    * @returns Model selection stats
    */
   getModelSelectionStats(): ModelSelectionStats {
-    const totalDecisions = Array.from(this.modelSelections.values()).reduce((sum, count) => sum + count, 0);
+    const totalDecisions = Array.from(this.modelSelections.values()).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
 
     const selections: Record<AIModel, number> = {} as Record<AIModel, number>;
-    const selectionRate: Record<AIModel, number> = {} as Record<AIModel, number>;
+    const selectionRate: Record<AIModel, number> = {} as Record<
+      AIModel,
+      number
+    >;
 
     this.modelSelections.forEach((count, model) => {
       selections[model] = count;
-      selectionRate[model] = totalDecisions > 0 ? (count / totalDecisions) * 100 : 0;
+      selectionRate[model] =
+        totalDecisions > 0 ? (count / totalDecisions) * 100 : 0;
     });
 
     // Calculate local vs cloud
@@ -500,7 +528,7 @@ export class AIPerformanceMonitor {
 
   /**
    * Get comprehensive performance summary
-   * 
+   *
    * @returns Performance summary
    */
   getSummary(): {
@@ -519,7 +547,7 @@ export class AIPerformanceMonitor {
 
   /**
    * Get recent operations
-   * 
+   *
    * @param limit Number of operations to return
    * @returns Recent operations
    */
@@ -539,7 +567,7 @@ export class AIPerformanceMonitor {
     this.initializeCounters();
 
     await chrome.storage.local.remove(this.STORAGE_KEY);
-    logger.info('AIPerformance', 'Metrics cleared');
+    logger.info("AIPerformance", "Metrics cleared");
   }
 
   /**
@@ -559,7 +587,7 @@ export class AIPerformanceMonitor {
         [this.STORAGE_KEY]: data,
       });
     } catch (error) {
-      logger.error('AIPerformance', 'Failed to persist metrics', error);
+      logger.error("AIPerformance", "Failed to persist metrics", error);
     }
   }
 
@@ -574,32 +602,38 @@ export class AIPerformanceMonitor {
       if (data) {
         this.operations = data.operations || [];
         this.totalTokens = data.totalTokens || 0;
-        
+
         if (data.tokensByModel) {
-          this.tokensByModel = new Map(Object.entries(data.tokensByModel) as [AIModel, number][]);
-        }
-        
-        if (data.tokensByOperation) {
-          this.tokensByOperation = new Map(Object.entries(data.tokensByOperation) as [AIOperation, number][]);
-        }
-        
-        if (data.modelSelections) {
-          this.modelSelections = new Map(Object.entries(data.modelSelections) as [AIModel, number][]);
+          this.tokensByModel = new Map(
+            Object.entries(data.tokensByModel) as [AIModel, number][],
+          );
         }
 
-        logger.info('AIPerformance', 'Metrics loaded', {
+        if (data.tokensByOperation) {
+          this.tokensByOperation = new Map(
+            Object.entries(data.tokensByOperation) as [AIOperation, number][],
+          );
+        }
+
+        if (data.modelSelections) {
+          this.modelSelections = new Map(
+            Object.entries(data.modelSelections) as [AIModel, number][],
+          );
+        }
+
+        logger.info("AIPerformance", "Metrics loaded", {
           operations: this.operations.length,
           totalTokens: this.totalTokens,
         });
       }
     } catch (error) {
-      logger.error('AIPerformance', 'Failed to load metrics', error);
+      logger.error("AIPerformance", "Failed to load metrics", error);
     }
   }
 
   /**
    * Export metrics as JSON
-   * 
+   *
    * @returns JSON string of metrics
    */
   exportMetrics(): string {
@@ -610,7 +644,7 @@ export class AIPerformanceMonitor {
         costBreakdown: this.getCostBreakdown(),
       },
       null,
-      2
+      2,
     );
   }
 }

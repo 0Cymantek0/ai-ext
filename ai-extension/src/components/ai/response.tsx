@@ -1,8 +1,8 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 interface ResponseProps extends React.HTMLAttributes<HTMLDivElement> {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 const Response = React.forwardRef<HTMLDivElement, ResponseProps>(
@@ -13,7 +13,7 @@ const Response = React.forwardRef<HTMLDivElement, ResponseProps>(
         className={cn(
           "prose prose-sm dark:prose-invert max-w-none",
           "prose-p:leading-relaxed prose-pre:p-0",
-          className
+          className,
         )}
         {...props}
       >
@@ -23,10 +23,9 @@ const Response = React.forwardRef<HTMLDivElement, ResponseProps>(
           children
         )}
       </div>
-    )
-  }
-)
-Response.displayName = "Response"
+    );
+  },
+);
+Response.displayName = "Response";
 
-export { Response }
-
+export { Response };

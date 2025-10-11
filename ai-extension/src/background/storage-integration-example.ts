@@ -1,12 +1,16 @@
 /**
  * Example: Integrating Storage Wrapper with Service Worker
- * 
+ *
  * This file demonstrates how to use the storage wrapper in the service worker
  * for state persistence and data management.
  */
 
-import { storageManager, StorageError, StorageErrorType } from './storage-wrapper.js';
-import { logger } from './monitoring.js';
+import {
+  storageManager,
+  StorageError,
+  StorageErrorType,
+} from "./storage-wrapper.js";
+import { logger } from "./monitoring.js";
 
 /**
  * Example 1: Persisting Service Worker State
@@ -19,15 +23,18 @@ export async function persistServiceWorkerState(state: any): Promise<void> {
         timestamp: Date.now(),
       },
     });
-    logger.debug('StorageIntegration', 'State persisted successfully');
+    logger.debug("StorageIntegration", "State persisted successfully");
   } catch (error) {
-    if (error instanceof StorageError && error.type === StorageErrorType.QUOTA_EXCEEDED) {
+    if (
+      error instanceof StorageError &&
+      error.type === StorageErrorType.QUOTA_EXCEEDED
+    ) {
       // Clean up old data and retry
-      logger.warn('StorageIntegration', 'Quota exceeded, cleaning up');
+      logger.warn("StorageIntegration", "Quota exceeded, cleaning up");
       await storageManager.local.cleanup({ keepMostRecent: 50 });
       await storageManager.local.set({ service_worker_state: state });
     } else {
-      logger.error('StorageIntegration', 'Failed to persist state', error);
+      logger.error("StorageIntegration", "Failed to persist state", error);
       throw error;
     }
   }
@@ -38,10 +45,10 @@ export async function persistServiceWorkerState(state: any): Promise<void> {
  */
 export async function restoreServiceWorkerState(): Promise<any> {
   try {
-    const result = await storageManager.local.get('service_worker_state');
+    const result = await storageManager.local.get("service_worker_state");
     return result.service_worker_state || null;
   } catch (error) {
-    logger.error('StorageIntegration', 'Failed to restore state', error);
+    logger.error("StorageIntegration", "Failed to restore state", error);
     return null;
   }
 }
@@ -53,8 +60,8 @@ export async function saveUserPreferences(preferences: any): Promise<void> {
   try {
     // Validate size before storing
     const size = storageManager.sync.estimateSize(preferences);
-    const maxSize = storageManager.sync['getMaxBytesPerItem']();
-    
+    const maxSize = storageManager.sync["getMaxBytesPerItem"]();
+
     if (size > maxSize) {
       throw new Error(`Preferences too large: ${size} > ${maxSize} bytes`);
     }
@@ -63,12 +70,12 @@ export async function saveUserPreferences(preferences: any): Promise<void> {
       userPreferences: preferences,
     });
 
-    logger.info('StorageIntegration', 'User preferences saved', {
+    logger.info("StorageIntegration", "User preferences saved", {
       size,
       keys: Object.keys(preferences),
     });
   } catch (error) {
-    logger.error('StorageIntegration', 'Failed to save preferences', error);
+    logger.error("StorageIntegration", "Failed to save preferences", error);
     throw error;
   }
 }
@@ -78,20 +85,20 @@ export async function saveUserPreferences(preferences: any): Promise<void> {
  */
 export async function loadUserPreferences(): Promise<any> {
   try {
-    const result = await storageManager.sync.get('userPreferences');
+    const result = await storageManager.sync.get("userPreferences");
     return result.userPreferences || getDefaultPreferences();
   } catch (error) {
-    logger.error('StorageIntegration', 'Failed to load preferences', error);
+    logger.error("StorageIntegration", "Failed to load preferences", error);
     return getDefaultPreferences();
   }
 }
 
 function getDefaultPreferences() {
   return {
-    theme: 'auto',
-    language: 'en',
-    defaultAIModel: 'nano',
-    privacyMode: 'balanced',
+    theme: "auto",
+    language: "en",
+    defaultAIModel: "nano",
+    privacyMode: "balanced",
   };
 }
 
@@ -100,14 +107,14 @@ function getDefaultPreferences() {
  */
 export async function saveCapturedContent(content: any): Promise<string> {
   const contentId = crypto.randomUUID();
-  
+
   try {
     // Check if we have enough space
     const estimatedSize = storageManager.local.estimateSize(content);
     const hasSpace = await storageManager.local.hasSpace(estimatedSize);
 
     if (!hasSpace) {
-      logger.warn('StorageIntegration', 'Insufficient space, cleaning up');
+      logger.warn("StorageIntegration", "Insufficient space, cleaning up");
       await storageManager.local.cleanup({
         keepMostRecent: 100,
         minBytesToFree: estimatedSize,
@@ -122,14 +129,14 @@ export async function saveCapturedContent(content: any): Promise<string> {
       },
     });
 
-    logger.info('StorageIntegration', 'Content saved', {
+    logger.info("StorageIntegration", "Content saved", {
       contentId,
       size: estimatedSize,
     });
 
     return contentId;
   } catch (error) {
-    logger.error('StorageIntegration', 'Failed to save content', error);
+    logger.error("StorageIntegration", "Failed to save content", error);
     throw error;
   }
 }
@@ -138,27 +145,27 @@ export async function saveCapturedContent(content: any): Promise<string> {
  * Example 6: Monitoring Storage Quota
  */
 export function startStorageMonitoring(): number {
-  logger.info('StorageIntegration', 'Starting storage monitoring');
+  logger.info("StorageIntegration", "Starting storage monitoring");
 
   // Listen for quota events
-  globalThis.addEventListener('storage-quota-event', async (event: Event) => {
+  globalThis.addEventListener("storage-quota-event", async (event: Event) => {
     const customEvent = event as CustomEvent;
     const { level, area, quota } = customEvent.detail;
 
-    if (level === 'critical') {
-      logger.error('StorageIntegration', `${area} storage critical`, {
+    if (level === "critical") {
+      logger.error("StorageIntegration", `${area} storage critical`, {
         percentUsed: quota.percentUsed.toFixed(1),
       });
 
       // Trigger aggressive cleanup
-      if (area === 'local') {
+      if (area === "local") {
         await storageManager.local.cleanup({
           keepMostRecent: 50,
           minBytesToFree: quota.bytesInUse * 0.2, // Free 20%
         });
       }
-    } else if (level === 'warning') {
-      logger.warn('StorageIntegration', `${area} storage warning`, {
+    } else if (level === "warning") {
+      logger.warn("StorageIntegration", `${area} storage warning`, {
         percentUsed: quota.percentUsed.toFixed(1),
       });
     }
@@ -194,21 +201,21 @@ export async function saveBatchContent(items: any[]): Promise<string[]> {
     if (!hasSpace) {
       throw new StorageError(
         StorageErrorType.QUOTA_EXCEEDED,
-        `Insufficient space for batch: ${totalSize} bytes needed`
+        `Insufficient space for batch: ${totalSize} bytes needed`,
       );
     }
 
     // Save all at once
     await storageManager.local.set(batchData);
 
-    logger.info('StorageIntegration', 'Batch saved', {
+    logger.info("StorageIntegration", "Batch saved", {
       count: items.length,
       totalSize,
     });
 
     return contentIds;
   } catch (error) {
-    logger.error('StorageIntegration', 'Failed to save batch', error);
+    logger.error("StorageIntegration", "Failed to save batch", error);
     throw error;
   }
 }
@@ -253,10 +260,10 @@ export async function safeDeleteContent(contentId: string): Promise<boolean> {
       },
     });
 
-    logger.info('StorageIntegration', 'Content deleted', { contentId });
+    logger.info("StorageIntegration", "Content deleted", { contentId });
     return true;
   } catch (error) {
-    logger.error('StorageIntegration', 'Failed to delete content', error);
+    logger.error("StorageIntegration", "Failed to delete content", error);
     return false;
   }
 }
@@ -267,24 +274,24 @@ export async function safeDeleteContent(contentId: string): Promise<boolean> {
 export function setupStorageChangeListener(): void {
   storageManager.sync.onChanged((changes) => {
     for (const [key, change] of Object.entries(changes)) {
-      logger.debug('StorageIntegration', 'Sync storage changed', {
+      logger.debug("StorageIntegration", "Sync storage changed", {
         key,
         oldValue: change.oldValue,
         newValue: change.newValue,
       });
 
       // Handle specific changes
-      if (key === 'userPreferences') {
+      if (key === "userPreferences") {
         // Reload preferences
-        logger.info('StorageIntegration', 'User preferences updated');
+        logger.info("StorageIntegration", "User preferences updated");
       }
     }
   });
 
   storageManager.local.onChanged((changes) => {
     for (const [key, change] of Object.entries(changes)) {
-      if (key.startsWith('content_')) {
-        logger.debug('StorageIntegration', 'Content changed', { key });
+      if (key.startsWith("content_")) {
+        logger.debug("StorageIntegration", "Content changed", { key });
       }
     }
   });
