@@ -13,6 +13,9 @@ export type MessageKind =
   | "POCKET_UPDATE"
   | "POCKET_LIST"
   | "POCKET_DELETE"
+  | "CONTENT_LIST"
+  | "CONTENT_GET"
+  | "CONTENT_DELETE"
   | "CONVERSATION_LIST"
   | "CONVERSATION_GET"
   | "CONVERSATION_CREATE"
@@ -66,6 +69,18 @@ export interface AiStreamErrorPayload {
 
 export interface AiCancelRequestPayload {
   requestId: string;
+}
+
+export interface ContentListPayload {
+  pocketId: string;
+}
+
+export interface ContentGetPayload {
+  contentId: string;
+}
+
+export interface ContentDeletePayload {
+  contentId: string;
 }
 
 // User Preferences

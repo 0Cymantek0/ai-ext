@@ -713,6 +713,55 @@ messageRouter.registerHandler("POCKET_DELETE", async (payload: any) => {
   }
 });
 
+// Register content handlers (Requirement 2.6, 7.6)
+messageRouter.registerHandler("CONTENT_LIST", async (payload: any) => {
+  logger.info("Handler", "CONTENT_LIST", payload);
+  try {
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
+    await indexedDBManager.init();
+    const contents = await indexedDBManager.getContentByPocket(payload.pocketId);
+    logger.info("Handler", "CONTENT_LIST result", {
+      pocketId: payload.pocketId,
+      count: contents.length,
+    });
+    return { contents };
+  } catch (error) {
+    logger.error("Handler", "CONTENT_LIST error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("CONTENT_GET", async (payload: any) => {
+  logger.info("Handler", "CONTENT_GET", payload);
+  try {
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
+    await indexedDBManager.init();
+    const content = await indexedDBManager.getContent(payload.contentId);
+    logger.info("Handler", "CONTENT_GET result", {
+      contentId: payload.contentId,
+      found: !!content,
+    });
+    return { content };
+  } catch (error) {
+    logger.error("Handler", "CONTENT_GET error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
+  logger.info("Handler", "CONTENT_DELETE", payload);
+  try {
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
+    await indexedDBManager.init();
+    await indexedDBManager.deleteContent(payload.contentId);
+    logger.info("Handler", "CONTENT_DELETE success", { contentId: payload.contentId });
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "CONTENT_DELETE error", error);
+    throw error;
+  }
+});
+
 messageRouter.registerHandler("ERROR", async (payload) => {
   logger.error("Handler", "ERROR", payload);
   // Log error for debugging

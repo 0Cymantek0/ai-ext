@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PocketCard, type PocketData } from "./PocketCard";
 import { PocketDialog } from "./PocketDialog";
+import { ContentList } from "./ContentList";
 import { SearchBar } from "@/components/SearchBar";
 import { GlassSelector, GlassSort, FloatingPanel } from "@/components/FloatingControls";
 
@@ -29,6 +30,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingPocket, setEditingPocket] = React.useState<PocketData | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [selectedPocket, setSelectedPocket] = React.useState<PocketData | null>(null);
 
   // Load pockets on mount
   React.useEffect(() => {
@@ -219,15 +221,25 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   };
 
   const handlePocketClick = (pocket: PocketData) => {
+    setSelectedPocket(pocket);
     if (onSelectPocket) {
       onSelectPocket(pocket);
     }
+  };
+
+  const handleBackToPockets = () => {
+    setSelectedPocket(null);
   };
 
   // Expose handleNewPocket method via ref
   React.useImperativeHandle(ref, () => ({
     handleNewPocket,
   }));
+
+  // If a pocket is selected, show the content list
+  if (selectedPocket) {
+    return <ContentList pocket={selectedPocket} onBack={handleBackToPockets} />;
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
