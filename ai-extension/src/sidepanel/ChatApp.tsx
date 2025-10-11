@@ -60,6 +60,36 @@ export function ChatApp() {
   const scrollDebounceRef = React.useRef<number | null>(null);
   const lastHideTopRef = React.useRef<number>(0);
 
+  // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
+  const [selectedModel, setSelectedModel] = React.useState<
+    "auto" | "nano" | "flash-lite" | "flash" | "pro"
+  >("auto");
+
+  const mapSelectedToPreferLocal = (
+    model: typeof selectedModel,
+  ): boolean | undefined => {
+    if (model === "nano") return true;
+    if (model === "auto") return true; // Currently bias to local in engine
+    return false; // cloud models
+  };
+
+  const mapSelectedToConversationModel = (
+    model: typeof selectedModel,
+  ): "gemini-nano" | "gemini-flash" | "gemini-pro" => {
+    if (model === "pro") return "gemini-pro";
+    if (model === "flash" || model === "flash-lite") return "gemini-flash";
+    return "gemini-nano";
+  };
+
+  const mapSelectedToPayloadModel = (
+    model: typeof selectedModel,
+  ): "nano" | "flash" | "pro" | undefined => {
+    if (model === "nano") return "nano";
+    if (model === "pro") return "pro";
+    if (model === "flash" || model === "flash-lite") return "flash";
+    return undefined;
+  };
+
   React.useEffect(() => {
     // Load conversations from storage
     loadConversations();
@@ -219,6 +249,15 @@ export function ChatApp() {
   };
 
   const handleSubmit = async (text: string, files?: File[]) => {
+    // Consent check for cloud models
+    if (selectedModel === "flash" || selectedModel === "flash-lite" || selectedModel === "pro") {
+      const confirmed = confirm(
+        `This will use a cloud model (${selectedModel === "pro" ? "Gemini 2.5 Pro" : selectedModel === "flash" ? "Gemini 2.5 Flash" : "Gemini 2.5 Flash Lite"}). Your data may be sent to the cloud. Continue?`,
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
     const hasText = Boolean(text?.trim());
     const hasFiles = Array.isArray(files) && files.length > 0;
 
@@ -297,7 +336,7 @@ export function ChatApp() {
             payload: {
               conversationId,
               messages: dbMessages,
-              model: "gemini-nano",
+              model: mapSelectedToConversationModel(selectedModel),
               pocketId: undefined,
             },
           });
@@ -322,7 +361,8 @@ export function ChatApp() {
         payload: {
           prompt: text || "Sent with attachment",
           conversationId,
-          preferLocal: true,
+          preferLocal: mapSelectedToPreferLocal(selectedModel),
+          model: mapSelectedToPayloadModel(selectedModel),
         },
       });
 
@@ -825,6 +865,8 @@ export function ChatApp() {
               maxFileSize={10}
               disabled={isLoading}
               className="max-w-lg mx-auto p-0 sm:p-0 py-0 px-0"
+              model={selectedModel}
+              onModelChange={setSelectedModel}
             />
           </div>
         )}

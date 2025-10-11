@@ -10,7 +10,6 @@ interface TopBarProps {
 
 export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
   const [theme, setTheme] = React.useState<"light" | "dark" | "auto">("auto");
-  const [model, setModel] = React.useState("gemini-nano");
 
   React.useEffect(() => {
     // Load theme preference
@@ -133,23 +132,6 @@ export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Model Selector */}
-        <select
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          className={cn(
-            "h-8 rounded-md border bg-background px-2 text-xs font-medium",
-            "focus:outline-none focus:ring-2 focus:ring-ring",
-            "hover:bg-accent hover:text-accent-foreground",
-            "cursor-pointer",
-          )}
-          aria-label="Select AI model"
-        >
-          <option value="gemini-nano">Gemini Nano (Local)</option>
-          <option value="gemini-pro">Gemini Pro (Cloud)</option>
-          <option value="gpt-4">GPT-4 (Cloud)</option>
-        </select>
-
         {/* Theme Toggle */}
         <Button
           variant="ghost"
