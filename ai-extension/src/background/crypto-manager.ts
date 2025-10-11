@@ -4,19 +4,19 @@
  * Requirements: 5.2, 19.1
  */
 
-import { logger } from './monitoring.js';
+import { logger } from "./monitoring.js";
 
 /**
  * Crypto error types
  */
 export enum CryptoErrorType {
-  ENCRYPTION_FAILED = 'ENCRYPTION_FAILED',
-  DECRYPTION_FAILED = 'DECRYPTION_FAILED',
-  KEY_DERIVATION_FAILED = 'KEY_DERIVATION_FAILED',
-  KEY_GENERATION_FAILED = 'KEY_GENERATION_FAILED',
-  INVALID_DATA = 'INVALID_DATA',
-  NOT_INITIALIZED = 'NOT_INITIALIZED',
-  UNKNOWN = 'UNKNOWN',
+  ENCRYPTION_FAILED = "ENCRYPTION_FAILED",
+  DECRYPTION_FAILED = "DECRYPTION_FAILED",
+  KEY_DERIVATION_FAILED = "KEY_DERIVATION_FAILED",
+  KEY_GENERATION_FAILED = "KEY_GENERATION_FAILED",
+  INVALID_DATA = "INVALID_DATA",
+  NOT_INITIALIZED = "NOT_INITIALIZED",
+  UNKNOWN = "UNKNOWN",
 }
 
 /**
@@ -26,10 +26,10 @@ export class CryptoError extends Error {
   constructor(
     public type: CryptoErrorType,
     message: string,
-    public originalError?: unknown
+    public originalError?: unknown,
   ) {
     super(message);
-    this.name = 'CryptoError';
+    this.name = "CryptoError";
   }
 }
 
@@ -45,7 +45,7 @@ export interface EncryptedData {
   /** Base64-encoded salt (used for key derivation) */
   salt: string;
   /** Algorithm used for encryption */
-  algorithm: 'AES-GCM';
+  algorithm: "AES-GCM";
   /** Version for future compatibility */
   version: number;
 }
@@ -67,7 +67,7 @@ interface KeyDerivationConfig {
  */
 interface EncryptionConfig {
   /** Algorithm name */
-  algorithm: 'AES-GCM';
+  algorithm: "AES-GCM";
   /** Key length in bits */
   keyLength: 256;
   /** IV length in bytes */
@@ -81,12 +81,12 @@ interface EncryptionConfig {
  */
 const DEFAULT_KEY_DERIVATION_CONFIG: KeyDerivationConfig = {
   iterations: 100000, // OWASP recommendation
-  hash: 'SHA-256',
+  hash: "SHA-256",
   saltLength: 16, // 128 bits
 };
 
 const DEFAULT_ENCRYPTION_CONFIG: EncryptionConfig = {
-  algorithm: 'AES-GCM',
+  algorithm: "AES-GCM",
   keyLength: 256,
   ivLength: 12, // 96 bits (recommended for GCM)
   tagLength: 128, // 128 bits (recommended for GCM)
@@ -95,7 +95,7 @@ const DEFAULT_ENCRYPTION_CONFIG: EncryptionConfig = {
 /**
  * Crypto Manager
  * Provides encryption/decryption services using Web Crypto API
- * 
+ *
  * Features:
  * - AES-256-GCM authenticated encryption
  * - PBKDF2 key derivation with 100,000 iterations
@@ -110,7 +110,7 @@ export class CryptoManager {
 
   constructor(
     keyDerivationConfig: Partial<KeyDerivationConfig> = {},
-    encryptionConfig: Partial<EncryptionConfig> = {}
+    encryptionConfig: Partial<EncryptionConfig> = {},
   ) {
     this.keyDerivationConfig = {
       ...DEFAULT_KEY_DERIVATION_CONFIG,
@@ -125,7 +125,7 @@ export class CryptoManager {
   /**
    * Initialize the crypto manager with a master key
    * The master key can be derived from a password or generated randomly
-   * 
+   *
    * @param password - Optional password to derive key from
    * @param salt - Optional salt for key derivation (required if password provided)
    */
@@ -135,7 +135,7 @@ export class CryptoManager {
         if (!salt) {
           throw new CryptoError(
             CryptoErrorType.KEY_DERIVATION_FAILED,
-            'Salt is required when deriving key from password'
+            "Salt is required when deriving key from password",
           );
         }
         this.masterKey = await this.deriveKey(password, salt);
@@ -144,14 +144,14 @@ export class CryptoManager {
       }
 
       this.initialized = true;
-      logger.info('CryptoManager', 'Initialized', {
-        keyDerivation: password ? 'password-based' : 'generated',
+      logger.info("CryptoManager", "Initialized", {
+        keyDerivation: password ? "password-based" : "generated",
       });
     } catch (error) {
       throw new CryptoError(
         CryptoErrorType.KEY_GENERATION_FAILED,
-        'Failed to initialize crypto manager',
-        error
+        "Failed to initialize crypto manager",
+        error,
       );
     }
   }
@@ -175,23 +175,23 @@ export class CryptoManager {
           length: this.encryptionConfig.keyLength,
         },
         true, // extractable
-        ['encrypt', 'decrypt']
+        ["encrypt", "decrypt"],
       );
 
-      logger.debug('CryptoManager', 'Master key generated');
+      logger.debug("CryptoManager", "Master key generated");
       return key;
     } catch (error) {
       throw new CryptoError(
         CryptoErrorType.KEY_GENERATION_FAILED,
-        'Failed to generate master key',
-        error
+        "Failed to generate master key",
+        error,
       );
     }
   }
 
   /**
    * Derive a key from a password using PBKDF2
-   * 
+   *
    * @param password - Password to derive key from
    * @param salt - Salt for key derivation
    * @returns Derived CryptoKey
@@ -200,17 +200,17 @@ export class CryptoManager {
     try {
       // Import password as key material
       const passwordKey = await crypto.subtle.importKey(
-        'raw',
+        "raw",
         new TextEncoder().encode(password),
-        'PBKDF2',
+        "PBKDF2",
         false,
-        ['deriveBits', 'deriveKey']
+        ["deriveBits", "deriveKey"],
       );
 
       // Derive key using PBKDF2
       const derivedKey = await crypto.subtle.deriveKey(
         {
-          name: 'PBKDF2',
+          name: "PBKDF2",
           salt: new Uint8Array(salt.buffer as ArrayBuffer),
           iterations: this.keyDerivationConfig.iterations,
           hash: this.keyDerivationConfig.hash,
@@ -221,18 +221,18 @@ export class CryptoManager {
           length: this.encryptionConfig.keyLength,
         },
         false, // not extractable for security
-        ['encrypt', 'decrypt']
+        ["encrypt", "decrypt"],
       );
 
-      logger.debug('CryptoManager', 'Key derived from password', {
+      logger.debug("CryptoManager", "Key derived from password", {
         iterations: this.keyDerivationConfig.iterations,
       });
       return derivedKey;
     } catch (error) {
       throw new CryptoError(
         CryptoErrorType.KEY_DERIVATION_FAILED,
-        'Failed to derive key from password',
-        error
+        "Failed to derive key from password",
+        error,
       );
     }
   }
@@ -242,7 +242,7 @@ export class CryptoManager {
    */
   generateSalt(): Uint8Array {
     return crypto.getRandomValues(
-      new Uint8Array(this.keyDerivationConfig.saltLength)
+      new Uint8Array(this.keyDerivationConfig.saltLength),
     );
   }
 
@@ -251,13 +251,13 @@ export class CryptoManager {
    */
   private generateIV(): Uint8Array {
     return crypto.getRandomValues(
-      new Uint8Array(this.encryptionConfig.ivLength)
+      new Uint8Array(this.encryptionConfig.ivLength),
     );
   }
 
   /**
    * Encrypt data using AES-256-GCM
-   * 
+   *
    * @param data - Data to encrypt (string or object)
    * @returns Encrypted data with IV and salt
    */
@@ -265,13 +265,13 @@ export class CryptoManager {
     if (!this.isInitialized()) {
       throw new CryptoError(
         CryptoErrorType.NOT_INITIALIZED,
-        'Crypto manager not initialized. Call initialize() first.'
+        "Crypto manager not initialized. Call initialize() first.",
       );
     }
 
     try {
       // Convert data to string if it's an object
-      const plaintext = typeof data === 'string' ? data : JSON.stringify(data);
+      const plaintext = typeof data === "string" ? data : JSON.stringify(data);
       const plaintextBuffer = new TextEncoder().encode(plaintext);
 
       // Generate random IV for this encryption
@@ -288,7 +288,7 @@ export class CryptoManager {
           tagLength: this.encryptionConfig.tagLength,
         },
         this.masterKey!,
-        plaintextBuffer
+        plaintextBuffer,
       );
 
       // Convert to base64 for storage
@@ -300,7 +300,7 @@ export class CryptoManager {
         version: 1,
       };
 
-      logger.debug('CryptoManager', 'Data encrypted', {
+      logger.debug("CryptoManager", "Data encrypted", {
         plaintextSize: plaintextBuffer.length,
         ciphertextSize: ciphertextBuffer.byteLength,
       });
@@ -309,27 +309,27 @@ export class CryptoManager {
     } catch (error) {
       throw new CryptoError(
         CryptoErrorType.ENCRYPTION_FAILED,
-        'Failed to encrypt data',
-        error
+        "Failed to encrypt data",
+        error,
       );
     }
   }
 
   /**
    * Decrypt data using AES-256-GCM
-   * 
+   *
    * @param encryptedData - Encrypted data with IV and salt
    * @param returnAsObject - If true, parse result as JSON object
    * @returns Decrypted data
    */
   async decrypt<T = string>(
     encryptedData: EncryptedData,
-    returnAsObject = false
+    returnAsObject = false,
   ): Promise<T> {
     if (!this.isInitialized()) {
       throw new CryptoError(
         CryptoErrorType.NOT_INITIALIZED,
-        'Crypto manager not initialized. Call initialize() first.'
+        "Crypto manager not initialized. Call initialize() first.",
       );
     }
 
@@ -342,13 +342,13 @@ export class CryptoManager {
       ) {
         throw new CryptoError(
           CryptoErrorType.INVALID_DATA,
-          'Invalid encrypted data structure'
+          "Invalid encrypted data structure",
         );
       }
 
       // Convert from base64
       const ciphertextBuffer = this.base64ToArrayBuffer(
-        encryptedData.ciphertext
+        encryptedData.ciphertext,
       );
       const iv = this.base64ToArrayBuffer(encryptedData.iv);
 
@@ -360,13 +360,13 @@ export class CryptoManager {
           tagLength: this.encryptionConfig.tagLength,
         },
         this.masterKey!,
-        ciphertextBuffer
+        ciphertextBuffer,
       );
 
       // Convert to string
       const plaintext = new TextDecoder().decode(plaintextBuffer);
 
-      logger.debug('CryptoManager', 'Data decrypted', {
+      logger.debug("CryptoManager", "Data decrypted", {
         ciphertextSize: ciphertextBuffer.byteLength,
         plaintextSize: plaintextBuffer.byteLength,
       });
@@ -378,8 +378,8 @@ export class CryptoManager {
         } catch (error) {
           throw new CryptoError(
             CryptoErrorType.DECRYPTION_FAILED,
-            'Failed to parse decrypted data as JSON',
-            error
+            "Failed to parse decrypted data as JSON",
+            error,
           );
         }
       }
@@ -391,8 +391,8 @@ export class CryptoManager {
       }
       throw new CryptoError(
         CryptoErrorType.DECRYPTION_FAILED,
-        'Failed to decrypt data',
-        error
+        "Failed to decrypt data",
+        error,
       );
     }
   }
@@ -405,18 +405,18 @@ export class CryptoManager {
     if (!this.isInitialized()) {
       throw new CryptoError(
         CryptoErrorType.NOT_INITIALIZED,
-        'Crypto manager not initialized'
+        "Crypto manager not initialized",
       );
     }
 
     try {
-      const exportedKey = await crypto.subtle.exportKey('raw', this.masterKey!);
+      const exportedKey = await crypto.subtle.exportKey("raw", this.masterKey!);
       return this.arrayBufferToBase64(exportedKey);
     } catch (error) {
       throw new CryptoError(
         CryptoErrorType.KEY_GENERATION_FAILED,
-        'Failed to export master key',
-        error
+        "Failed to export master key",
+        error,
       );
     }
   }
@@ -428,23 +428,23 @@ export class CryptoManager {
     try {
       const keyBuffer = this.base64ToArrayBuffer(keyBase64);
       this.masterKey = await crypto.subtle.importKey(
-        'raw',
+        "raw",
         keyBuffer,
         {
           name: this.encryptionConfig.algorithm,
           length: this.encryptionConfig.keyLength,
         },
         true,
-        ['encrypt', 'decrypt']
+        ["encrypt", "decrypt"],
       );
 
       this.initialized = true;
-      logger.info('CryptoManager', 'Master key imported');
+      logger.info("CryptoManager", "Master key imported");
     } catch (error) {
       throw new CryptoError(
         CryptoErrorType.KEY_GENERATION_FAILED,
-        'Failed to import master key',
-        error
+        "Failed to import master key",
+        error,
       );
     }
   }
@@ -454,7 +454,7 @@ export class CryptoManager {
    */
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
-    let binary = '';
+    let binary = "";
     for (let i = 0; i < bytes.length; i++) {
       binary += String.fromCharCode(bytes[i]!);
     }
@@ -480,7 +480,7 @@ export class CryptoManager {
   clear(): void {
     this.masterKey = null;
     this.initialized = false;
-    logger.info('CryptoManager', 'Cleared master key from memory');
+    logger.info("CryptoManager", "Cleared master key from memory");
   }
 }
 
@@ -504,7 +504,7 @@ export function getCryptoManager(): CryptoManager {
  */
 export async function initializeCrypto(
   password?: string,
-  salt?: Uint8Array
+  salt?: Uint8Array,
 ): Promise<void> {
   const manager = getCryptoManager();
   await manager.initialize(password, salt);
@@ -514,7 +514,7 @@ export async function initializeCrypto(
  * Encrypt data using the singleton crypto manager
  */
 export async function encryptData(
-  data: string | object
+  data: string | object,
 ): Promise<EncryptedData> {
   const manager = getCryptoManager();
   return manager.encrypt(data);
@@ -525,7 +525,7 @@ export async function encryptData(
  */
 export async function decryptData<T = string>(
   encryptedData: EncryptedData,
-  returnAsObject = false
+  returnAsObject = false,
 ): Promise<T> {
   const manager = getCryptoManager();
   return manager.decrypt<T>(encryptedData, returnAsObject);

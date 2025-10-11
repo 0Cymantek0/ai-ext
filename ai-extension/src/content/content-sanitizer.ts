@@ -63,11 +63,14 @@ export class ContentSanitizer {
   // PII detection patterns
   private readonly patterns = {
     email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-    phone: /\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
+    phone:
+      /\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
     ssn: /\b\d{3}-\d{2}-\d{4}\b/g,
     creditCard: /\b(?:\d{4}[-\s]?){3}\d{4}(?:\d{3})?\b/g,
-    ipAddress: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
-    apiKey: /\b(?:AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z\-_]{35}|sk-[a-zA-Z0-9]{48})\b/g,
+    ipAddress:
+      /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+    apiKey:
+      /\b(?:AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z\-_]{35}|sk-[a-zA-Z0-9]{48})\b/g,
     password: /(?:password|passwd|pwd)[\s]*[=:]\s*[^\s&]+/gi,
   };
 
@@ -88,26 +91,44 @@ export class ContentSanitizer {
    * Sanitize content by detecting and removing PII
    * Requirements: 5.3, 5.4
    */
-  sanitize(content: string, options: SanitizationOptions = {}): SanitizationResult {
+  sanitize(
+    content: string,
+    options: SanitizationOptions = {},
+  ): SanitizationResult {
     const opts = { ...this.defaultOptions, ...options };
     const detectedPII: DetectedPII[] = [];
     let sanitizedContent = content;
     const originalLength = content.length;
 
     if (opts.redactEmails) {
-      const result = this.detectAndRedact(sanitizedContent, this.patterns.email, PIIType.EMAIL, opts);
+      const result = this.detectAndRedact(
+        sanitizedContent,
+        this.patterns.email,
+        PIIType.EMAIL,
+        opts,
+      );
       sanitizedContent = result.content;
       detectedPII.push(...result.detected);
     }
 
     if (opts.redactPhones) {
-      const result = this.detectAndRedact(sanitizedContent, this.patterns.phone, PIIType.PHONE, opts);
+      const result = this.detectAndRedact(
+        sanitizedContent,
+        this.patterns.phone,
+        PIIType.PHONE,
+        opts,
+      );
       sanitizedContent = result.content;
       detectedPII.push(...result.detected);
     }
 
     if (opts.redactSSN) {
-      const result = this.detectAndRedact(sanitizedContent, this.patterns.ssn, PIIType.SSN, opts);
+      const result = this.detectAndRedact(
+        sanitizedContent,
+        this.patterns.ssn,
+        PIIType.SSN,
+        opts,
+      );
       sanitizedContent = result.content;
       detectedPII.push(...result.detected);
     }
@@ -119,19 +140,34 @@ export class ContentSanitizer {
     }
 
     if (opts.redactIPAddresses) {
-      const result = this.detectAndRedact(sanitizedContent, this.patterns.ipAddress, PIIType.IP_ADDRESS, opts);
+      const result = this.detectAndRedact(
+        sanitizedContent,
+        this.patterns.ipAddress,
+        PIIType.IP_ADDRESS,
+        opts,
+      );
       sanitizedContent = result.content;
       detectedPII.push(...result.detected);
     }
 
     if (opts.redactAPIKeys) {
-      const result = this.detectAndRedact(sanitizedContent, this.patterns.apiKey, PIIType.API_KEY, opts);
+      const result = this.detectAndRedact(
+        sanitizedContent,
+        this.patterns.apiKey,
+        PIIType.API_KEY,
+        opts,
+      );
       sanitizedContent = result.content;
       detectedPII.push(...result.detected);
     }
 
     if (opts.redactPasswords) {
-      const result = this.detectAndRedact(sanitizedContent, this.patterns.password, PIIType.PASSWORD, opts);
+      const result = this.detectAndRedact(
+        sanitizedContent,
+        this.patterns.password,
+        PIIType.PASSWORD,
+        opts,
+      );
       sanitizedContent = result.content;
       detectedPII.push(...result.detected);
     }
@@ -160,25 +196,45 @@ export class ContentSanitizer {
     const detected: DetectedPII[] = [];
 
     if (opts.redactEmails) {
-      detected.push(...this.detectPattern(content, this.patterns.email, PIIType.EMAIL));
+      detected.push(
+        ...this.detectPattern(content, this.patterns.email, PIIType.EMAIL),
+      );
     }
     if (opts.redactPhones) {
-      detected.push(...this.detectPattern(content, this.patterns.phone, PIIType.PHONE));
+      detected.push(
+        ...this.detectPattern(content, this.patterns.phone, PIIType.PHONE),
+      );
     }
     if (opts.redactSSN) {
-      detected.push(...this.detectPattern(content, this.patterns.ssn, PIIType.SSN));
+      detected.push(
+        ...this.detectPattern(content, this.patterns.ssn, PIIType.SSN),
+      );
     }
     if (opts.redactCreditCards) {
       detected.push(...this.detectCreditCards(content));
     }
     if (opts.redactIPAddresses) {
-      detected.push(...this.detectPattern(content, this.patterns.ipAddress, PIIType.IP_ADDRESS));
+      detected.push(
+        ...this.detectPattern(
+          content,
+          this.patterns.ipAddress,
+          PIIType.IP_ADDRESS,
+        ),
+      );
     }
     if (opts.redactAPIKeys) {
-      detected.push(...this.detectPattern(content, this.patterns.apiKey, PIIType.API_KEY));
+      detected.push(
+        ...this.detectPattern(content, this.patterns.apiKey, PIIType.API_KEY),
+      );
     }
     if (opts.redactPasswords) {
-      detected.push(...this.detectPattern(content, this.patterns.password, PIIType.PASSWORD));
+      detected.push(
+        ...this.detectPattern(
+          content,
+          this.patterns.password,
+          PIIType.PASSWORD,
+        ),
+      );
     }
 
     return detected;
@@ -209,7 +265,9 @@ export class ContentSanitizer {
 
     const reductionPercentage =
       result.originalLength > 0
-        ? ((result.originalLength - result.sanitizedLength) / result.originalLength) * 100
+        ? ((result.originalLength - result.sanitizedLength) /
+            result.originalLength) *
+          100
         : 0;
 
     return {
@@ -219,7 +277,11 @@ export class ContentSanitizer {
     };
   }
 
-  private detectPattern(content: string, pattern: RegExp, type: PIIType): DetectedPII[] {
+  private detectPattern(
+    content: string,
+    pattern: RegExp,
+    type: PIIType,
+  ): DetectedPII[] {
     const detected: DetectedPII[] = [];
     const regex = new RegExp(pattern.source, pattern.flags);
     let match;
@@ -241,7 +303,7 @@ export class ContentSanitizer {
     content: string,
     pattern: RegExp,
     type: PIIType,
-    options: SanitizationOptions
+    options: SanitizationOptions,
   ): { content: string; detected: DetectedPII[] } {
     const detected: DetectedPII[] = [];
     const regex = new RegExp(pattern.source, pattern.flags);
@@ -278,7 +340,10 @@ export class ContentSanitizer {
 
   private detectCreditCards(content: string): DetectedPII[] {
     const detected: DetectedPII[] = [];
-    const regex = new RegExp(this.patterns.creditCard.source, this.patterns.creditCard.flags);
+    const regex = new RegExp(
+      this.patterns.creditCard.source,
+      this.patterns.creditCard.flags,
+    );
     let match;
 
     while ((match = regex.exec(content)) !== null) {
@@ -300,10 +365,13 @@ export class ContentSanitizer {
 
   private detectAndRedactCreditCards(
     content: string,
-    options: SanitizationOptions
+    options: SanitizationOptions,
   ): { content: string; detected: DetectedPII[] } {
     const detected: DetectedPII[] = [];
-    const regex = new RegExp(this.patterns.creditCard.source, this.patterns.creditCard.flags);
+    const regex = new RegExp(
+      this.patterns.creditCard.source,
+      this.patterns.creditCard.flags,
+    );
     let result = content;
     const matches: RegExpExecArray[] = [];
     let match;
@@ -319,7 +387,11 @@ export class ContentSanitizer {
       const match = matches[i];
       if (!match) continue;
 
-      const redactionText = this.getRedactionText(PIIType.CREDIT_CARD, match[0], options);
+      const redactionText = this.getRedactionText(
+        PIIType.CREDIT_CARD,
+        match[0],
+        options,
+      );
       const before = result.substring(0, match.index);
       const after = result.substring(match.index + match[0].length);
       result = before + redactionText + after;
@@ -365,7 +437,7 @@ export class ContentSanitizer {
 
   private redactURLParameters(
     content: string,
-    options: SanitizationOptions
+    options: SanitizationOptions,
   ): { content: string; detected: DetectedPII[] } {
     const detected: DetectedPII[] = [];
     const urlPattern = /https?:\/\/[^\s]+\?[^\s]+/g;
@@ -400,7 +472,11 @@ export class ContentSanitizer {
     return { content: result, detected };
   }
 
-  private getRedactionText(type: PIIType, originalValue: string, options: SanitizationOptions): string {
+  private getRedactionText(
+    type: PIIType,
+    originalValue: string,
+    options: SanitizationOptions,
+  ): string {
     if (options.customRedactionText && options.customRedactionText.length > 0) {
       return options.customRedactionText;
     }

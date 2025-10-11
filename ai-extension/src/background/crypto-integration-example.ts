@@ -3,15 +3,20 @@
  * Demonstrates how to integrate the crypto manager with storage systems
  */
 
-import { getCryptoManager, type EncryptedData } from './crypto-manager.js';
-import { getStorageManager } from './storage-wrapper.js';
-import { indexedDBManager, type CapturedContent, ContentType, ProcessingStatus } from './indexeddb-manager.js';
+import { getCryptoManager, type EncryptedData } from "./crypto-manager.js";
+import { getStorageManager } from "./storage-wrapper.js";
+import {
+  indexedDBManager,
+  type CapturedContent,
+  ContentType,
+  ProcessingStatus,
+} from "./indexeddb-manager.js";
 
 /**
  * Example 1: Encrypting data before storing in chrome.storage.local
  */
 export async function storeEncryptedUserPreferences(
-  preferences: Record<string, any>
+  preferences: Record<string, any>,
 ): Promise<void> {
   const cryptoManager = getCryptoManager();
   const storageManager = getStorageManager();
@@ -24,7 +29,7 @@ export async function storeEncryptedUserPreferences(
     encryptedPreferences: encrypted,
   });
 
-  console.log('User preferences encrypted and stored');
+  console.log("User preferences encrypted and stored");
 }
 
 /**
@@ -39,16 +44,16 @@ export async function retrieveEncryptedUserPreferences(): Promise<
   // Retrieve encrypted data
   const stored = await storageManager.local.get<{
     encryptedPreferences: EncryptedData;
-  }>('encryptedPreferences');
+  }>("encryptedPreferences");
 
   if (!stored.encryptedPreferences) {
-    throw new Error('No encrypted preferences found');
+    throw new Error("No encrypted preferences found");
   }
 
   // Decrypt the data
   const decrypted = await cryptoManager.decrypt<Record<string, any>>(
     stored.encryptedPreferences,
-    true // Parse as object
+    true, // Parse as object
   );
 
   return decrypted;
@@ -60,7 +65,7 @@ export async function retrieveEncryptedUserPreferences(): Promise<
 export async function saveSensitiveContent(
   pocketId: string,
   sensitiveText: string,
-  sourceUrl: string
+  sourceUrl: string,
 ): Promise<string> {
   const cryptoManager = getCryptoManager();
 
@@ -74,13 +79,13 @@ export async function saveSensitiveContent(
     content: JSON.stringify(encrypted), // Store as JSON string
     metadata: {
       domain: new URL(sourceUrl).hostname,
-      title: 'Encrypted Content',
+      title: "Encrypted Content",
     },
     sourceUrl,
     processingStatus: ProcessingStatus.COMPLETED,
   });
 
-  console.log('Sensitive content encrypted and saved:', contentId);
+  console.log("Sensitive content encrypted and saved:", contentId);
   return contentId;
 }
 
@@ -88,7 +93,7 @@ export async function saveSensitiveContent(
  * Example 4: Retrieving and decrypting content from IndexedDB
  */
 export async function retrieveSensitiveContent(
-  contentId: string
+  contentId: string,
 ): Promise<string> {
   const cryptoManager = getCryptoManager();
 
@@ -96,7 +101,7 @@ export async function retrieveSensitiveContent(
   const content = await indexedDBManager.getContent(contentId);
 
   if (!content) {
-    throw new Error('Content not found');
+    throw new Error("Content not found");
   }
 
   // Parse and decrypt
@@ -110,7 +115,7 @@ export async function retrieveSensitiveContent(
  * Example 5: Batch encryption for multiple items
  */
 export async function encryptMultipleItems(
-  items: Array<{ id: string; data: any }>
+  items: Array<{ id: string; data: any }>,
 ): Promise<Array<{ id: string; encrypted: EncryptedData }>> {
   const cryptoManager = getCryptoManager();
 
@@ -118,7 +123,7 @@ export async function encryptMultipleItems(
     items.map(async (item) => ({
       id: item.id,
       encrypted: await cryptoManager.encrypt(item.data),
-    }))
+    })),
   );
 
   return encryptedItems;
@@ -129,7 +134,7 @@ export async function encryptMultipleItems(
  */
 export async function storeAPIKey(
   serviceName: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<void> {
   const cryptoManager = getCryptoManager();
   const storageManager = getStorageManager();
@@ -170,9 +175,7 @@ export async function retrieveAPIKey(serviceName: string): Promise<string> {
 /**
  * Example 8: Initialize crypto manager with password-based encryption
  */
-export async function initializeWithPassword(
-  password: string
-): Promise<void> {
+export async function initializeWithPassword(password: string): Promise<void> {
   const cryptoManager = getCryptoManager();
   const storageManager = getStorageManager();
 
@@ -187,25 +190,25 @@ export async function initializeWithPassword(
   // Initialize with password
   await cryptoManager.initialize(password, salt);
 
-  console.log('Crypto manager initialized with password');
+  console.log("Crypto manager initialized with password");
 }
 
 /**
  * Example 9: Initialize crypto manager from stored salt
  */
 export async function initializeFromStoredSalt(
-  password: string
+  password: string,
 ): Promise<void> {
   const cryptoManager = getCryptoManager();
   const storageManager = getStorageManager();
 
   // Retrieve stored salt
   const stored = await storageManager.local.get<{ cryptoSalt: number[] }>(
-    'cryptoSalt'
+    "cryptoSalt",
   );
 
   if (!stored.cryptoSalt) {
-    throw new Error('No salt found. Initialize with password first.');
+    throw new Error("No salt found. Initialize with password first.");
   }
 
   // Convert array back to Uint8Array
@@ -214,7 +217,7 @@ export async function initializeFromStoredSalt(
   // Initialize with password and salt
   await cryptoManager.initialize(password, salt);
 
-  console.log('Crypto manager initialized from stored salt');
+  console.log("Crypto manager initialized from stored salt");
 }
 
 /**
@@ -232,7 +235,7 @@ export async function backupMasterKey(): Promise<void> {
     masterKeyBackup: exportedKey,
   });
 
-  console.log('Master key backed up');
+  console.log("Master key backed up");
 }
 
 /**
@@ -244,17 +247,17 @@ export async function restoreFromBackup(): Promise<void> {
 
   // Retrieve backup
   const stored = await storageManager.local.get<{ masterKeyBackup: string }>(
-    'masterKeyBackup'
+    "masterKeyBackup",
   );
 
   if (!stored.masterKeyBackup) {
-    throw new Error('No backup found');
+    throw new Error("No backup found");
   }
 
   // Import master key
   await cryptoManager.importMasterKey(stored.masterKeyBackup);
 
-  console.log('Master key restored from backup');
+  console.log("Master key restored from backup");
 }
 
 /**
@@ -266,49 +269,49 @@ export async function completeEncryptionWorkflow(): Promise<void> {
 
   // 1. Initialize crypto manager
   await cryptoManager.initialize();
-  console.log('✓ Crypto manager initialized');
+  console.log("✓ Crypto manager initialized");
 
   // 2. Prepare sensitive data
   const sensitiveData = {
-    userId: 'user-123',
-    email: 'user@example.com',
-    apiToken: 'secret-token-xyz',
+    userId: "user-123",
+    email: "user@example.com",
+    apiToken: "secret-token-xyz",
     preferences: {
-      theme: 'dark',
+      theme: "dark",
       notifications: true,
     },
   };
 
   // 3. Encrypt data
   const encrypted = await cryptoManager.encrypt(sensitiveData);
-  console.log('✓ Data encrypted');
+  console.log("✓ Data encrypted");
 
   // 4. Store encrypted data
   await storageManager.local.set({ userData: encrypted });
-  console.log('✓ Encrypted data stored');
+  console.log("✓ Encrypted data stored");
 
   // 5. Retrieve encrypted data
   const stored = await storageManager.local.get<{ userData: EncryptedData }>(
-    'userData'
+    "userData",
   );
-  console.log('✓ Encrypted data retrieved');
+  console.log("✓ Encrypted data retrieved");
 
   // 6. Decrypt data
   const decrypted = await cryptoManager.decrypt<typeof sensitiveData>(
     stored.userData,
-    true
+    true,
   );
-  console.log('✓ Data decrypted');
+  console.log("✓ Data decrypted");
 
   // 7. Verify data integrity
   if (
     decrypted.userId === sensitiveData.userId &&
     decrypted.email === sensitiveData.email
   ) {
-    console.log('✓ Data integrity verified');
+    console.log("✓ Data integrity verified");
   }
 
   // 8. Clean up
-  await storageManager.local.remove('userData');
-  console.log('✓ Data cleaned up');
+  await storageManager.local.remove("userData");
+  console.log("✓ Data cleaned up");
 }

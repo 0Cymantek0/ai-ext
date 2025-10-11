@@ -37,6 +37,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "ai": "^5.0.63",
+    "framer-motion": "^12.23.24",
     "harden-react-markdown": "^1.1.2",
     "idb": "^8.0.3",
     "katex": "^0.16.23",

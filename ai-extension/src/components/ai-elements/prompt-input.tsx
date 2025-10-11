@@ -86,20 +86,20 @@ export type PromptInputController = {
   /** INTERNAL: Allows PromptInput to register its file textInput + "open" callback */
   __registerFileInput: (
     ref: RefObject<HTMLInputElement | null>,
-    open: () => void
+    open: () => void,
   ) => void;
 };
 
 const PromptInputContext = createContext<PromptInputController | null>(null);
 const ProviderAttachmentsContext = createContext<AttachmentsContext | null>(
-  null
+  null,
 );
 
 export const usePromptInputController = () => {
   const ctx = useContext(PromptInputContext);
   if (!ctx) {
     throw new Error(
-      "Wrap your component inside <PromptInputProvider> to use usePromptInputController()."
+      "Wrap your component inside <PromptInputProvider> to use usePromptInputController().",
     );
   }
   return ctx;
@@ -114,7 +114,7 @@ export const useProviderAttachments = () => {
   const ctx = useContext(ProviderAttachmentsContext);
   if (!ctx) {
     throw new Error(
-      "Wrap your component inside <PromptInputProvider> to use useProviderAttachments()."
+      "Wrap your component inside <PromptInputProvider> to use useProviderAttachments().",
     );
   }
   return ctx;
@@ -159,8 +159,8 @@ export function PromptInputProvider({
           url: URL.createObjectURL(file),
           mediaType: file.type,
           filename: file.name,
-        }))
-      )
+        })),
+      ),
     );
   }, []);
 
@@ -192,7 +192,7 @@ export function PromptInputProvider({
       openFileDialog,
       fileInputRef,
     }),
-    [attachements, add, remove, clear, openFileDialog]
+    [attachements, add, remove, clear, openFileDialog],
   );
 
   const __registerFileInput = useCallback(
@@ -200,7 +200,7 @@ export function PromptInputProvider({
       fileInputRef.current = ref.current;
       openRef.current = open;
     },
-    []
+    [],
   );
 
   const controller = useMemo<PromptInputController>(
@@ -213,7 +213,7 @@ export function PromptInputProvider({
       attachments,
       __registerFileInput,
     }),
-    [textInput, clearInput, attachments, __registerFileInput]
+    [textInput, clearInput, attachments, __registerFileInput],
   );
 
   return (
@@ -238,7 +238,7 @@ export const usePromptInputAttachments = () => {
   const context = provider ?? local;
   if (!context) {
     throw new Error(
-      "usePromptInputAttachments must be used within a PromptInput or PromptInputProvider"
+      "usePromptInputAttachments must be used within a PromptInput or PromptInputProvider",
     );
   }
   return context;
@@ -264,7 +264,7 @@ export function PromptInputAttachment({
       className={cn(
         "group relative h-14 w-14 rounded-md border",
         className,
-        mediaType === "image" ? "h-14 w-14" : "h-8 w-auto max-w-full"
+        mediaType === "image" ? "h-14 w-14" : "h-8 w-auto max-w-full",
       )}
       key={data.id}
       {...props}
@@ -359,7 +359,7 @@ export function PromptInputAttachments({
       aria-live="polite"
       className={cn(
         "overflow-hidden transition-[height] duration-200 ease-out",
-        className
+        className,
       )}
       style={{ height: attachments.files.length ? height : 0 }}
       {...props}
@@ -433,341 +433,348 @@ export type PromptInputProps = Omit<
   }) => void;
   onSubmit: (
     message: PromptInputMessage,
-    event: FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>,
   ) => void | Promise<void>;
 };
 
-export const PromptInput = React.forwardRef<HTMLFormElement, PromptInputProps>(({
-  className,
-  accept,
-  multiple,
-  globalDrop,
-  syncHiddenInput,
-  maxFiles,
-  maxFileSize,
-  onError,
-  onSubmit,
-  children,
-  ...props
-}, forwardedRef) => {
-  // Try to use a provider controller if present
-  const controller = useOptionalPromptInputController();
-  const usingProvider = !!controller;
+export const PromptInput = React.forwardRef<HTMLFormElement, PromptInputProps>(
+  (
+    {
+      className,
+      accept,
+      multiple,
+      globalDrop,
+      syncHiddenInput,
+      maxFiles,
+      maxFileSize,
+      onError,
+      onSubmit,
+      children,
+      ...props
+    },
+    forwardedRef,
+  ) => {
+    // Try to use a provider controller if present
+    const controller = useOptionalPromptInputController();
+    const usingProvider = !!controller;
 
-  // Refs
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const formRef = useRef<HTMLFormElement | null>(null);
+    // Refs
+    const inputRef = useRef<HTMLInputElement | null>(null);
+    const formRef = useRef<HTMLFormElement | null>(null);
 
-  // Keep internal formRef in sync with rendered form node
-  useEffect(() => {
-    // no-op: formRef is set via the JSX ref callback below
-  }, []);
+    // Keep internal formRef in sync with rendered form node
+    useEffect(() => {
+      // no-op: formRef is set via the JSX ref callback below
+    }, []);
 
-  // ----- Local attachments (only used when no provider)
-  const [items, setItems] = useState<(FileUIPart & { id: string })[]>([]);
-  const files = usingProvider ? controller.attachments.files : items;
+    // ----- Local attachments (only used when no provider)
+    const [items, setItems] = useState<(FileUIPart & { id: string })[]>([]);
+    const files = usingProvider ? controller.attachments.files : items;
 
-  const openFileDialogLocal = useCallback(() => {
-    inputRef.current?.click();
-  }, []);
+    const openFileDialogLocal = useCallback(() => {
+      inputRef.current?.click();
+    }, []);
 
-  const matchesAccept = useCallback(
-    (f: File) => {
-      if (!accept || accept.trim() === "") {
+    const matchesAccept = useCallback(
+      (f: File) => {
+        if (!accept || accept.trim() === "") {
+          return true;
+        }
+        if (accept.includes("image/*")) {
+          return f.type.startsWith("image/");
+        }
+        // NOTE: keep simple; expand as needed
         return true;
-      }
-      if (accept.includes("image/*")) {
-        return f.type.startsWith("image/");
-      }
-      // NOTE: keep simple; expand as needed
-      return true;
-    },
-    [accept]
-  );
+      },
+      [accept],
+    );
 
-  const addLocal = useCallback(
-    (fileList: File[] | FileList) => {
-      const incoming = Array.from(fileList);
-      const accepted = incoming.filter((f) => matchesAccept(f));
-      if (incoming.length && accepted.length === 0) {
-        onError?.({
-          code: "accept",
-          message: "No files match the accepted types.",
-        });
-        return;
-      }
-      const withinSize = (f: File) =>
-        maxFileSize ? f.size <= maxFileSize : true;
-      const sized = accepted.filter(withinSize);
-      if (accepted.length > 0 && sized.length === 0) {
-        onError?.({
-          code: "max_file_size",
-          message: "All files exceed the maximum size.",
-        });
-        return;
-      }
-
-      setItems((prev) => {
-        const capacity =
-          typeof maxFiles === "number"
-            ? Math.max(0, maxFiles - prev.length)
-            : undefined;
-        const capped =
-          typeof capacity === "number" ? sized.slice(0, capacity) : sized;
-        if (typeof capacity === "number" && sized.length > capacity) {
+    const addLocal = useCallback(
+      (fileList: File[] | FileList) => {
+        const incoming = Array.from(fileList);
+        const accepted = incoming.filter((f) => matchesAccept(f));
+        if (incoming.length && accepted.length === 0) {
           onError?.({
-            code: "max_files",
-            message: "Too many files. Some were not added.",
+            code: "accept",
+            message: "No files match the accepted types.",
           });
+          return;
         }
-        const next: (FileUIPart & { id: string })[] = [];
-        for (const file of capped) {
-          next.push({
-            id: nanoid(),
-            type: "file",
-            url: URL.createObjectURL(file),
-            mediaType: file.type,
-            filename: file.name,
+        const withinSize = (f: File) =>
+          maxFileSize ? f.size <= maxFileSize : true;
+        const sized = accepted.filter(withinSize);
+        if (accepted.length > 0 && sized.length === 0) {
+          onError?.({
+            code: "max_file_size",
+            message: "All files exceed the maximum size.",
           });
+          return;
         }
-        return prev.concat(next);
-      });
-    },
-    [matchesAccept, maxFiles, maxFileSize, onError]
-  );
 
-  const add = usingProvider
-    ? (files: File[] | FileList) => controller.attachments.add(files)
-    : addLocal;
-
-  const remove = usingProvider
-    ? (id: string) => controller.attachments.remove(id)
-    : (id: string) =>
         setItems((prev) => {
-          const found = prev.find((file) => file.id === id);
-          if (found?.url) {
-            URL.revokeObjectURL(found.url);
+          const capacity =
+            typeof maxFiles === "number"
+              ? Math.max(0, maxFiles - prev.length)
+              : undefined;
+          const capped =
+            typeof capacity === "number" ? sized.slice(0, capacity) : sized;
+          if (typeof capacity === "number" && sized.length > capacity) {
+            onError?.({
+              code: "max_files",
+              message: "Too many files. Some were not added.",
+            });
           }
-          return prev.filter((file) => file.id !== id);
+          const next: (FileUIPart & { id: string })[] = [];
+          for (const file of capped) {
+            next.push({
+              id: nanoid(),
+              type: "file",
+              url: URL.createObjectURL(file),
+              mediaType: file.type,
+              filename: file.name,
+            });
+          }
+          return prev.concat(next);
         });
+      },
+      [matchesAccept, maxFiles, maxFileSize, onError],
+    );
 
-  const clear = usingProvider
-    ? () => controller.attachments.clear()
-    : () =>
-        setItems((prev) => {
-          for (const file of prev) {
-            if (file.url) {
-              URL.revokeObjectURL(file.url);
+    const add = usingProvider
+      ? (files: File[] | FileList) => controller.attachments.add(files)
+      : addLocal;
+
+    const remove = usingProvider
+      ? (id: string) => controller.attachments.remove(id)
+      : (id: string) =>
+          setItems((prev) => {
+            const found = prev.find((file) => file.id === id);
+            if (found?.url) {
+              URL.revokeObjectURL(found.url);
+            }
+            return prev.filter((file) => file.id !== id);
+          });
+
+    const clear = usingProvider
+      ? () => controller.attachments.clear()
+      : () =>
+          setItems((prev) => {
+            for (const file of prev) {
+              if (file.url) {
+                URL.revokeObjectURL(file.url);
+              }
+            }
+            return [];
+          });
+
+    const openFileDialog = usingProvider
+      ? () => controller.attachments.openFileDialog()
+      : openFileDialogLocal;
+
+    // Let provider know about our hidden file input so external menus can call openFileDialog()
+    useEffect(() => {
+      if (!usingProvider) return;
+      controller.__registerFileInput(inputRef, () => inputRef.current?.click());
+    }, [usingProvider, controller]);
+
+    // Note: File input cannot be programmatically set for security reasons
+    // The syncHiddenInput prop is no longer functional
+    useEffect(() => {
+      if (syncHiddenInput && inputRef.current && files.length === 0) {
+        inputRef.current.value = "";
+      }
+    }, [files, syncHiddenInput]);
+
+    // Attach drop handlers on nearest form and document (opt-in)
+    useEffect(() => {
+      const form = formRef.current;
+      if (!form) return;
+
+      const onDragOver = (e: DragEvent) => {
+        if (e.dataTransfer?.types?.includes("Files")) {
+          e.preventDefault();
+        }
+      };
+      const onDrop = (e: DragEvent) => {
+        if (e.dataTransfer?.types?.includes("Files")) {
+          e.preventDefault();
+        }
+        if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+          add(e.dataTransfer.files);
+        }
+      };
+      form.addEventListener("dragover", onDragOver);
+      form.addEventListener("drop", onDrop);
+      return () => {
+        form.removeEventListener("dragover", onDragOver);
+        form.removeEventListener("drop", onDrop);
+      };
+    }, [add]);
+
+    useEffect(() => {
+      if (!globalDrop) return;
+
+      const onDragOver = (e: DragEvent) => {
+        if (e.dataTransfer?.types?.includes("Files")) {
+          e.preventDefault();
+        }
+      };
+      const onDrop = (e: DragEvent) => {
+        if (e.dataTransfer?.types?.includes("Files")) {
+          e.preventDefault();
+        }
+        if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+          add(e.dataTransfer.files);
+        }
+      };
+      document.addEventListener("dragover", onDragOver);
+      document.addEventListener("drop", onDrop);
+      return () => {
+        document.removeEventListener("dragover", onDragOver);
+        document.removeEventListener("drop", onDrop);
+      };
+    }, [add, globalDrop]);
+
+    useEffect(() => {
+      return () => {
+        if (!usingProvider) {
+          for (const f of files) {
+            if (f.url) URL.revokeObjectURL(f.url);
+          }
+        }
+      };
+    }, [usingProvider, files]);
+
+    const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
+      if (event.currentTarget.files) {
+        add(event.currentTarget.files);
+      }
+    };
+
+    const convertBlobUrlToDataUrl = async (url: string): Promise<string> => {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    };
+
+    const ctx = useMemo<AttachmentsContext>(
+      () => ({
+        files: files.map((item) => ({ ...item, id: item.id })),
+        add,
+        remove,
+        clear,
+        openFileDialog,
+        fileInputRef: inputRef,
+      }),
+      [files, add, remove, clear, openFileDialog],
+    );
+
+    const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
+      event.preventDefault();
+
+      const form = event.currentTarget;
+      const text = usingProvider
+        ? controller.textInput.value
+        : (() => {
+            const formData = new FormData(form);
+            return (formData.get("message") as string) || "";
+          })();
+
+      // Reset form immediately after capturing text to avoid race condition
+      // where user input during async blob conversion would be lost
+      if (!usingProvider) {
+        form.reset();
+      }
+
+      // Convert blob URLs to data URLs asynchronously
+      Promise.all(
+        files.map(async ({ id, ...item }) => {
+          if (item.url && item.url.startsWith("blob:")) {
+            return {
+              ...item,
+              url: await convertBlobUrlToDataUrl(item.url),
+            };
+          }
+          return item;
+        }),
+      ).then((convertedFiles: FileUIPart[]) => {
+        try {
+          const result = onSubmit({ text, files: convertedFiles }, event);
+
+          // Handle both sync and async onSubmit
+          if (result instanceof Promise) {
+            result
+              .then(() => {
+                clear();
+                if (usingProvider) {
+                  controller.textInput.clear();
+                }
+              })
+              .catch(() => {
+                // Don't clear on error - user may want to retry
+              });
+          } else {
+            // Sync function completed without throwing, clear attachments
+            clear();
+            if (usingProvider) {
+              controller.textInput.clear();
             }
           }
-          return [];
-        });
-
-  const openFileDialog = usingProvider
-    ? () => controller.attachments.openFileDialog()
-    : openFileDialogLocal;
-
-  // Let provider know about our hidden file input so external menus can call openFileDialog()
-  useEffect(() => {
-    if (!usingProvider) return;
-    controller.__registerFileInput(inputRef, () => inputRef.current?.click());
-  }, [usingProvider, controller]);
-
-  // Note: File input cannot be programmatically set for security reasons
-  // The syncHiddenInput prop is no longer functional
-  useEffect(() => {
-    if (syncHiddenInput && inputRef.current && files.length === 0) {
-      inputRef.current.value = "";
-    }
-  }, [files, syncHiddenInput]);
-
-  // Attach drop handlers on nearest form and document (opt-in)
-  useEffect(() => {
-    const form = formRef.current;
-    if (!form) return;
-
-    const onDragOver = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes("Files")) {
-        e.preventDefault();
-      }
-    };
-    const onDrop = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes("Files")) {
-        e.preventDefault();
-      }
-      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        add(e.dataTransfer.files);
-      }
-    };
-    form.addEventListener("dragover", onDragOver);
-    form.addEventListener("drop", onDrop);
-    return () => {
-      form.removeEventListener("dragover", onDragOver);
-      form.removeEventListener("drop", onDrop);
-    };
-  }, [add]);
-
-  useEffect(() => {
-    if (!globalDrop) return;
-
-    const onDragOver = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes("Files")) {
-        e.preventDefault();
-      }
-    };
-    const onDrop = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes("Files")) {
-        e.preventDefault();
-      }
-      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        add(e.dataTransfer.files);
-      }
-    };
-    document.addEventListener("dragover", onDragOver);
-    document.addEventListener("drop", onDrop);
-    return () => {
-      document.removeEventListener("dragover", onDragOver);
-      document.removeEventListener("drop", onDrop);
-    };
-  }, [add, globalDrop]);
-
-  useEffect(() => {
-    return () => {
-      if (!usingProvider) {
-        for (const f of files) {
-          if (f.url) URL.revokeObjectURL(f.url);
+        } catch (error) {
+          // Don't clear on error - user may want to retry
         }
-      }
+      });
     };
-  }, [usingProvider, files]);
 
-  const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
-    if (event.currentTarget.files) {
-      add(event.currentTarget.files);
-    }
-  };
+    // Render with or without local provider
+    const inner = (
+      <>
+        {/* Anchor is no longer needed now that we directly ref the form */}
+        <input
+          accept={accept}
+          aria-label="Upload files"
+          className="hidden"
+          multiple={multiple}
+          onChange={handleChange}
+          ref={inputRef}
+          title="Upload files"
+          type="file"
+        />
+        <form
+          className={cn("w-full bg-background", className)}
+          onSubmit={handleSubmit}
+          // Expose form node via both internal and forwarded refs
+          ref={(node) => {
+            formRef.current = node;
+            if (typeof forwardedRef === "function") {
+              forwardedRef(node as HTMLFormElement);
+            } else if (forwardedRef) {
+              (
+                forwardedRef as React.MutableRefObject<HTMLFormElement | null>
+              ).current = node as HTMLFormElement | null;
+            }
+          }}
+          {...props}
+        >
+          <InputGroup>{children}</InputGroup>
+        </form>
+      </>
+    );
 
-  const convertBlobUrlToDataUrl = async (url: string): Promise<string> => {
-    const response = await fetch(url);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  };
-
-  const ctx = useMemo<AttachmentsContext>(
-    () => ({
-      files: files.map((item) => ({ ...item, id: item.id })),
-      add,
-      remove,
-      clear,
-      openFileDialog,
-      fileInputRef: inputRef,
-    }),
-    [files, add, remove, clear, openFileDialog]
-  );
-
-  const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
-    event.preventDefault();
-
-    const form = event.currentTarget;
-    const text = usingProvider
-      ? controller.textInput.value
-      : (() => {
-          const formData = new FormData(form);
-          return (formData.get("message") as string) || "";
-        })();
-
-    // Reset form immediately after capturing text to avoid race condition
-    // where user input during async blob conversion would be lost
-    if (!usingProvider) {
-      form.reset();
-    }
-
-    // Convert blob URLs to data URLs asynchronously
-    Promise.all(
-      files.map(async ({ id, ...item }) => {
-        if (item.url && item.url.startsWith("blob:")) {
-          return {
-            ...item,
-            url: await convertBlobUrlToDataUrl(item.url),
-          };
-        }
-        return item;
-      })
-    ).then((convertedFiles: FileUIPart[]) => {
-      try {
-        const result = onSubmit({ text, files: convertedFiles }, event);
-
-        // Handle both sync and async onSubmit
-        if (result instanceof Promise) {
-          result
-            .then(() => {
-              clear();
-              if (usingProvider) {
-                controller.textInput.clear();
-              }
-            })
-            .catch(() => {
-              // Don't clear on error - user may want to retry
-            });
-        } else {
-          // Sync function completed without throwing, clear attachments
-          clear();
-          if (usingProvider) {
-            controller.textInput.clear();
-          }
-        }
-      } catch (error) {
-        // Don't clear on error - user may want to retry
-      }
-    });
-  };
-
-  // Render with or without local provider
-  const inner = (
-    <>
-      {/* Anchor is no longer needed now that we directly ref the form */}
-      <input
-        accept={accept}
-        aria-label="Upload files"
-        className="hidden"
-        multiple={multiple}
-        onChange={handleChange}
-        ref={inputRef}
-        title="Upload files"
-        type="file"
-      />
-      <form
-        className={cn("w-full bg-background", className)}
-        onSubmit={handleSubmit}
-        // Expose form node via both internal and forwarded refs
-        ref={(node) => {
-          formRef.current = node;
-          if (typeof forwardedRef === "function") {
-            forwardedRef(node as HTMLFormElement);
-          } else if (forwardedRef) {
-            (forwardedRef as React.MutableRefObject<HTMLFormElement | null>).current = node as HTMLFormElement | null;
-          }
-        }}
-        {...props}
-      >
-        <InputGroup>{children}</InputGroup>
-      </form>
-    </>
-  );
-
-  return usingProvider ? (
-    inner
-  ) : (
-    <LocalAttachmentsContext.Provider value={ctx}>
-      {inner}
-    </LocalAttachmentsContext.Provider>
-  );
-});
+    return usingProvider ? (
+      inner
+    ) : (
+      <LocalAttachmentsContext.Provider value={ctx}>
+        {inner}
+      </LocalAttachmentsContext.Provider>
+    );
+  },
+);
 
 export type PromptInputBodyProps = HTMLAttributes<HTMLDivElement>;
 
@@ -794,7 +801,9 @@ export const PromptInputTextarea = ({
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     if (e.key === "Enter") {
       if (e.nativeEvent.isComposing) return;
+      // If Shift+Enter, allow default behavior (new line)
       if (e.shiftKey) return;
+      // Otherwise, submit the form
       e.preventDefault();
       e.currentTarget.form?.requestSubmit();
     }
@@ -838,7 +847,10 @@ export const PromptInputTextarea = ({
 
   return (
     <InputGroupTextarea
-      className={cn("field-sizing-content max-h-48 min-h-16 bg-card", className)}
+      className={cn(
+        "field-sizing-content max-h-48 min-h-16 bg-card",
+        className,
+      )}
       name="message"
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
@@ -914,6 +926,31 @@ export const PromptInputActionMenuTrigger = ({
     </PromptInputButton>
   </DropdownMenuTrigger>
 );
+
+export type PromptInputActionAddAttachmentsDirectProps =
+  PromptInputButtonProps & {
+    label?: string;
+  };
+
+export const PromptInputActionAddAttachmentsDirect = ({
+  label = "Add photos or files",
+  className,
+  children,
+  ...props
+}: PromptInputActionAddAttachmentsDirectProps) => {
+  const attachments = usePromptInputAttachments();
+
+  return (
+    <PromptInputButton
+      className={className}
+      onClick={() => attachments.openFileDialog()}
+      title={label}
+      {...props}
+    >
+      {children ?? <PlusIcon className="size-4" />}
+    </PromptInputButton>
+  );
+};
 
 export type PromptInputActionMenuContentProps = ComponentProps<
   typeof DropdownMenuContent
@@ -1042,7 +1079,7 @@ export const PromptInputSpeechButton = ({
 }: PromptInputSpeechButtonProps) => {
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(
-    null
+    null,
   );
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -1123,7 +1160,7 @@ export const PromptInputSpeechButton = ({
       className={cn(
         "relative transition-all duration-200",
         isListening && "animate-pulse bg-accent text-accent-foreground",
-        className
+        className,
       )}
       disabled={!recognition}
       onClick={toggleListening}
@@ -1152,7 +1189,7 @@ export const PromptInputModelSelectTrigger = ({
     className={cn(
       "border-none bg-transparent font-medium text-muted-foreground shadow-none transition-colors",
       'hover:bg-accent hover:text-foreground [&[aria-expanded="true"]]:bg-accent [&[aria-expanded="true"]]:text-foreground',
-      className
+      className,
     )}
     {...props}
   />

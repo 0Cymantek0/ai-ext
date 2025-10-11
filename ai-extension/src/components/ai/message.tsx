@@ -1,9 +1,9 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface MessageProps extends React.HTMLAttributes<HTMLDivElement> {
-  from: "user" | "assistant" | "system"
+  from: "user" | "assistant" | "system";
 }
 
 const Message = React.forwardRef<HTMLDivElement, MessageProps>(
@@ -15,16 +15,16 @@ const Message = React.forwardRef<HTMLDivElement, MessageProps>(
           "group flex gap-3 py-4",
           from === "user" && "flex-row-reverse",
           from === "system" && "justify-center",
-          className
+          className,
         )}
         {...props}
       >
         {children}
       </div>
-    )
-  }
-)
-Message.displayName = "Message"
+    );
+  },
+);
+Message.displayName = "Message";
 
 const MessageAvatar = React.forwardRef<
   HTMLDivElement,
@@ -37,18 +37,16 @@ const MessageAvatar = React.forwardRef<
         .join("")
         .slice(0, 2)
         .toUpperCase()
-    : "AI"
+    : "AI";
 
   return (
     <Avatar ref={ref} className={cn("h-8 w-8", className)} {...props}>
-      {src ? (
-        <AvatarImage src={src} alt={name || "Avatar"} />
-      ) : null}
+      {src ? <AvatarImage src={src} alt={name || "Avatar"} /> : null}
       <AvatarFallback>{initials}</AvatarFallback>
     </Avatar>
-  )
-})
-MessageAvatar.displayName = "MessageAvatar"
+  );
+});
+MessageAvatar.displayName = "MessageAvatar";
 
 const MessageContent = React.forwardRef<
   HTMLDivElement,
@@ -56,14 +54,10 @@ const MessageContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn(
-      "flex flex-1 flex-col gap-2 text-sm",
-      className
-    )}
+    className={cn("flex flex-1 flex-col gap-2 text-sm", className)}
     {...props}
   />
-))
-MessageContent.displayName = "MessageContent"
+));
+MessageContent.displayName = "MessageContent";
 
-export { Message, MessageAvatar, MessageContent }
-
+export { Message, MessageAvatar, MessageContent };

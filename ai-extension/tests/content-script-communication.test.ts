@@ -56,13 +56,13 @@ describe("Content Script Communication", () => {
         () =>
           new Promise((resolve) => {
             setTimeout(() => resolve({ success: true }), 100);
-          })
+          }),
       );
 
       const response = await sendMessage(
         "CAPTURE_REQUEST",
         { mode: "full-page", pocketId: "test" },
-        { timeout: 50 }
+        { timeout: 50 },
       );
 
       expect(response.success).toBe(false);

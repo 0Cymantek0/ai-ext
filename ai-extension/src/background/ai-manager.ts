@@ -1,6 +1,6 @@
 /**
  * AI Manager - Gemini Nano Integration
- * 
+ *
  * This module provides integration with Chrome's built-in Gemini Nano AI model
  * through the Prompt API. It handles:
  * - Availability detection
@@ -8,11 +8,15 @@
  * - Prompt processing (streaming and non-streaming)
  * - Token usage tracking
  * - Performance monitoring
- * 
+ *
  * Requirements: 3.1, 3.2, 3.3, 13.1, 16.2
  */
 
-import { aiPerformanceMonitor, AIModel, AIOperation } from './ai-performance-monitor';
+import {
+  aiPerformanceMonitor,
+  AIModel,
+  AIOperation,
+} from "./ai-performance-monitor";
 
 // Type definitions for Chrome's Prompt API
 declare global {
@@ -29,7 +33,7 @@ declare global {
   }
 
   interface AIModelAvailability {
-    available: 'readily' | 'after-download' | 'no';
+    available: "readily" | "after-download" | "no";
   }
 
   interface AIModelParams {
@@ -48,18 +52,18 @@ declare global {
   }
 
   interface AIPrompt {
-    role: 'system' | 'user' | 'assistant';
+    role: "system" | "user" | "assistant";
     content: string;
   }
 
   interface AIDownloadMonitor {
     addEventListener(
-      type: 'downloadprogress',
-      listener: (event: AIDownloadProgressEvent) => void
+      type: "downloadprogress",
+      listener: (event: AIDownloadProgressEvent) => void,
     ): void;
     removeEventListener(
-      type: 'downloadprogress',
-      listener: (event: AIDownloadProgressEvent) => void
+      type: "downloadprogress",
+      listener: (event: AIDownloadProgressEvent) => void,
     ): void;
     dispatchEvent(event: Event): boolean;
   }
@@ -73,7 +77,7 @@ declare global {
     prompt(input: string, options?: AIPromptOptions): Promise<string>;
     promptStreaming(
       input: string,
-      options?: AIPromptOptions
+      options?: AIPromptOptions,
     ): ReadableStream<string>;
     clone(options?: { signal?: AbortSignal }): Promise<AISession>;
     destroy(): void;
@@ -91,12 +95,12 @@ declare global {
 /**
  * Availability status for Gemini Nano
  */
-export type ModelAvailability = 'readily' | 'after-download' | 'no';
+export type ModelAvailability = "readily" | "after-download" | "no";
 
 /**
  * Processing location for AI tasks
  */
-export type ProcessingLocation = 'gemini-nano' | 'cloud';
+export type ProcessingLocation = "gemini-nano" | "cloud";
 
 /**
  * AI session configuration
@@ -113,7 +117,7 @@ export interface SessionConfig {
  */
 export interface AIResponse {
   result: string;
-  source: 'gemini-nano' | 'gemini-flash' | 'gemini-pro';
+  source: "gemini-nano" | "gemini-flash" | "gemini-pro";
   confidence: number;
   processingTime: number;
   tokensUsed: number;
@@ -124,8 +128,8 @@ export interface AIResponse {
  */
 export interface ProcessingOptions {
   preferLocal: boolean;
-  taskType: 'summarize' | 'embed' | 'translate' | 'alt-text' | 'general';
-  priority: 'low' | 'normal' | 'high';
+  taskType: "summarize" | "embed" | "translate" | "alt-text" | "general";
+  priority: "low" | "normal" | "high";
   maxTokens?: number;
   signal?: AbortSignal;
 }
@@ -163,10 +167,10 @@ export class AIManager {
   async checkModelAvailability(): Promise<ModelAvailability> {
     try {
       // Check if the Prompt API is available
-      if (!('LanguageModel' in globalThis)) {
-        console.warn('Prompt API not available in this browser');
-        this.availability = 'no';
-        return 'no';
+      if (!("LanguageModel" in globalThis)) {
+        console.warn("Prompt API not available in this browser");
+        this.availability = "no";
+        return "no";
       }
 
       const result = await LanguageModel.availability();
@@ -193,13 +197,13 @@ export class AIManager {
         this.availability = 'after-download';
         return 'after-download';
       } else {
-        this.availability = 'no';
-        return 'no';
+        this.availability = "no";
+        return "no";
       }
     } catch (error) {
-      console.error('Error checking model availability:', error);
-      this.availability = 'no';
-      return 'no';
+      console.error("Error checking model availability:", error);
+      this.availability = "no";
+      return "no";
     }
   }
 
@@ -212,38 +216,38 @@ export class AIManager {
     }
 
     try {
-      if (!('LanguageModel' in globalThis)) {
-        throw new Error('Prompt API not available');
+      if (!("LanguageModel" in globalThis)) {
+        throw new Error("Prompt API not available");
       }
 
       this.modelParams = await LanguageModel.params();
       return this.modelParams;
     } catch (error) {
-      console.error('Error getting model params:', error);
-      throw new Error('Failed to get model parameters');
+      console.error("Error getting model params:", error);
+      throw new Error("Failed to get model parameters");
     }
   }
 
   /**
    * Initialize Gemini Nano and create a session
    * Requirement 3.2: Initialize Gemini Nano if available
-   * 
+   *
    * @param config Session configuration options
    * @param onDownloadProgress Optional callback for download progress
    * @returns Session ID
    */
   async initializeGeminiNano(
     config?: SessionConfig,
-    onDownloadProgress?: (progress: DownloadProgress) => void
+    onDownloadProgress?: (progress: DownloadProgress) => void,
   ): Promise<string> {
     const startTime = performance.now();
 
     try {
       // Check availability first
       const availability = await this.checkModelAvailability();
-      
-      if (availability === 'no') {
-        throw new Error('Gemini Nano is not available on this device');
+
+      if (availability === "no") {
+        throw new Error("Gemini Nano is not available on this device");
       }
 
       // Get model parameters
@@ -254,13 +258,15 @@ export class AIManager {
         topK: config?.topK ?? params.defaultTopK,
         temperature: config?.temperature ?? params.defaultTemperature,
         ...(config?.signal && { signal: config.signal }),
-        ...(config?.initialPrompts && { initialPrompts: config.initialPrompts }),
+        ...(config?.initialPrompts && {
+          initialPrompts: config.initialPrompts,
+        }),
       };
 
       // Add download monitor if callback provided
       if (onDownloadProgress) {
         options.monitor = (monitor: AIDownloadMonitor) => {
-          monitor.addEventListener('downloadprogress', (event) => {
+          monitor.addEventListener("downloadprogress", (event) => {
             onDownloadProgress({
               loaded: event.loaded,
               total: event.total,
@@ -272,24 +278,26 @@ export class AIManager {
 
       // Create the session
       const session = await LanguageModel.create(options);
-      
+
       // Generate session ID
       const sessionId = this.generateSessionId();
       this.sessions.set(sessionId, session);
 
       const initTime = performance.now() - startTime;
-      console.log(`Gemini Nano session initialized in ${initTime.toFixed(2)}ms`);
+      console.log(
+        `Gemini Nano session initialized in ${initTime.toFixed(2)}ms`,
+      );
 
       return sessionId;
     } catch (error) {
-      console.error('Error initializing Gemini Nano:', error);
+      console.error("Error initializing Gemini Nano:", error);
       throw new Error(`Failed to initialize Gemini Nano: ${error}`);
     }
   }
 
   /**
    * Create a new session with custom configuration
-   * 
+   *
    * @param config Session configuration
    * @returns Session ID
    */
@@ -302,7 +310,7 @@ export class AIManager {
    * Requirement 3.3: Process content locally
    * Requirement 13.1: Track response times
    * Requirement 16.2: Monitor token usage
-   * 
+   *
    * @param sessionId Session ID
    * @param prompt The prompt text
    * @param options Processing options
@@ -311,7 +319,7 @@ export class AIManager {
   async processPrompt(
     sessionId: string,
     prompt: string,
-    options?: { signal?: AbortSignal; operation?: AIOperation }
+    options?: { signal?: AbortSignal; operation?: AIOperation },
   ): Promise<string> {
     const operation = options?.operation || AIOperation.GENERAL;
 
@@ -330,13 +338,13 @@ export class AIManager {
 
           // Process the prompt
           const result = await session.prompt(prompt, options);
-          
+
           const processingTime = performance.now() - startTime;
-          
+
           // Requirement 3.9: Response time should be under 500ms for simple tasks
           if (processingTime > 500) {
             console.warn(
-              `Processing took ${processingTime.toFixed(2)}ms (>500ms threshold)`
+              `Processing took ${processingTime.toFixed(2)}ms (>500ms threshold)`,
             );
           }
 
@@ -346,17 +354,17 @@ export class AIManager {
           // Return result with token info for monitoring
           return result;
         } catch (error) {
-          console.error('Error processing prompt:', error);
+          console.error("Error processing prompt:", error);
           throw new Error(`Failed to process prompt: ${error}`);
         }
-      }
+      },
     );
   }
 
   /**
    * Process a prompt with streaming response
    * Requirement 13.1: Track response times for streaming operations
-   * 
+   *
    * @param sessionId Session ID
    * @param prompt The prompt text
    * @param options Processing options
@@ -365,7 +373,7 @@ export class AIManager {
   async processPromptStreaming(
     sessionId: string,
     prompt: string,
-    options?: { signal?: AbortSignal; operation?: AIOperation }
+    options?: { signal?: AbortSignal; operation?: AIOperation },
   ): Promise<ReadableStream<string>> {
     const startTime = performance.now();
     const operation = options?.operation || AIOperation.GENERAL;
@@ -387,7 +395,7 @@ export class AIManager {
           try {
             while (true) {
               const { done, value } = await reader.read();
-              
+
               if (done) {
                 // Stream completed - record metrics
                 const processingTime = performance.now() - startTime;
@@ -419,7 +427,7 @@ export class AIManager {
               operation,
               responseTime: processingTime,
               tokensUsed: 0,
-              error: error instanceof Error ? error.message : 'Unknown error',
+              error: error instanceof Error ? error.message : "Unknown error",
               timestamp: Date.now(),
             });
 
@@ -432,8 +440,8 @@ export class AIManager {
 
       return transformedStream;
     } catch (error) {
-      console.error('Error processing streaming prompt:', error);
-      
+      console.error("Error processing streaming prompt:", error);
+
       // Record failed operation
       aiPerformanceMonitor.recordOperation({
         success: false,
@@ -441,7 +449,7 @@ export class AIManager {
         operation,
         responseTime: performance.now() - startTime,
         tokensUsed: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
         timestamp: Date.now(),
       });
 
@@ -452,36 +460,35 @@ export class AIManager {
   /**
    * Clone an existing session
    * Preserves initial prompts but resets conversation context
-   * 
+   *
    * @param sessionId Source session ID
    * @param signal Optional abort signal
    * @returns New session ID
    */
-  async cloneSession(
-    sessionId: string,
-    signal?: AbortSignal
-  ): Promise<string> {
+  async cloneSession(sessionId: string, signal?: AbortSignal): Promise<string> {
     try {
       const session = this.sessions.get(sessionId);
       if (!session) {
         throw new Error(`Session ${sessionId} not found`);
       }
 
-      const clonedSession = await session.clone(signal ? { signal } : undefined);
+      const clonedSession = await session.clone(
+        signal ? { signal } : undefined,
+      );
       const newSessionId = this.generateSessionId();
       this.sessions.set(newSessionId, clonedSession);
 
       console.log(`Session ${sessionId} cloned to ${newSessionId}`);
       return newSessionId;
     } catch (error) {
-      console.error('Error cloning session:', error);
+      console.error("Error cloning session:", error);
       throw new Error(`Failed to clone session: ${error}`);
     }
   }
 
   /**
    * Destroy a session and free resources
-   * 
+   *
    * @param sessionId Session ID to destroy
    */
   destroySession(sessionId: string): void {
@@ -496,13 +503,13 @@ export class AIManager {
       this.sessions.delete(sessionId);
       console.log(`Session ${sessionId} destroyed`);
     } catch (error) {
-      console.error('Error destroying session:', error);
+      console.error("Error destroying session:", error);
     }
   }
 
   /**
    * Get session usage information
-   * 
+   *
    * @param sessionId Session ID
    * @returns Usage information
    */
@@ -521,7 +528,7 @@ export class AIManager {
 
   /**
    * Check if a session exists
-   * 
+   *
    * @param sessionId Session ID
    * @returns True if session exists
    */
@@ -531,7 +538,7 @@ export class AIManager {
 
   /**
    * Get all active session IDs
-   * 
+   *
    * @returns Array of session IDs
    */
   getActiveSessions(): string[] {

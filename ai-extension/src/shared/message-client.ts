@@ -4,10 +4,7 @@
  * Requirements: 14.5, 15.1
  */
 
-import type {
-  MessageKind,
-  BaseMessage,
-} from "./types/index.d.ts";
+import type { MessageKind, BaseMessage } from "./types/index.d.ts";
 
 interface MessageResponse<T = any> {
   success: boolean;
@@ -32,7 +29,7 @@ function generateRequestId(): string {
 export async function sendMessage<T = any>(
   kind: MessageKind,
   payload: any,
-  options: { timeout?: number; requestId?: string } = {}
+  options: { timeout?: number; requestId?: string } = {},
 ): Promise<MessageResponse<T>> {
   const { timeout = 30000, requestId = generateRequestId() } = options;
 
@@ -68,7 +65,8 @@ export async function sendMessage<T = any>(
       success: false,
       error: {
         code: "SEND_FAILED",
-        message: error instanceof Error ? error.message : "Failed to send message",
+        message:
+          error instanceof Error ? error.message : "Failed to send message",
         details: error,
       },
     };
@@ -78,10 +76,7 @@ export async function sendMessage<T = any>(
 /**
  * Send a message without waiting for response (fire and forget)
  */
-export function sendMessageAsync(
-  kind: MessageKind,
-  payload: any
-): void {
+export function sendMessageAsync(kind: MessageKind, payload: any): void {
   const message: BaseMessage<MessageKind, any> = {
     kind,
     payload,
@@ -101,7 +96,7 @@ export function sendMessageAsync(
  */
 export type MessageListener<T = any> = (
   payload: T,
-  sender: chrome.runtime.MessageSender
+  sender: chrome.runtime.MessageSender,
 ) => Promise<any> | any;
 
 /**
@@ -132,7 +127,7 @@ class ContentMessageHandler {
    */
   async handleMessage(
     message: any,
-    sender: chrome.runtime.MessageSender
+    sender: chrome.runtime.MessageSender,
   ): Promise<MessageResponse> {
     // Validate message structure
     if (!message || typeof message !== "object" || !message.kind) {
@@ -178,7 +173,7 @@ class ContentMessageHandler {
   getListener(): (
     message: any,
     sender: chrome.runtime.MessageSender,
-    sendResponse: (response: any) => void
+    sendResponse: (response: any) => void,
   ) => boolean {
     return (message, sender, sendResponse) => {
       this.handleMessage(message, sender)
