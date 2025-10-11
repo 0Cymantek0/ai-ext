@@ -377,7 +377,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
           <div
             className={cn(
               viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
+                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"
                 : "space-y-3"
             )}
           >

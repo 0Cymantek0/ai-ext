@@ -164,7 +164,7 @@ export function PocketCard({
   return (
     <div
       className={cn(
-        "group relative flex flex-col p-4 rounded-lg border",
+        "group relative flex flex-col p-3 rounded-lg border",
         "hover:bg-accent/50 cursor-pointer transition-colors",
         "bg-card h-full"
       )}
@@ -174,7 +174,7 @@ export function PocketCard({
     >
       {/* Icon/Color indicator */}
       <div
-        className="w-full aspect-square rounded-lg flex items-center justify-center text-4xl mb-3"
+        className="w-full h-24 rounded-md flex items-center justify-center text-2xl mb-2"
         style={{ backgroundColor: pocket.color || "#6366f1" }}
       >
         {pocket.icon || "📁"}
@@ -182,8 +182,8 @@ export function PocketCard({
 
       {/* Content */}
       <div className="flex-1">
-        <h3 className="font-semibold text-base truncate mb-1">{pocket.name}</h3>
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+        <h3 className="font-semibold text-sm truncate mb-1">{pocket.name}</h3>
+        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
           {pocket.description || "No description"}
         </p>
         <div className="text-xs text-muted-foreground">
@@ -207,7 +207,7 @@ export function PocketCard({
       {/* Actions */}
       <div
         className={cn(
-          "absolute top-2 right-2 flex gap-1 transition-opacity",
+          "mt-2 flex gap-1 justify-end transition-opacity",
           showActions ? "opacity-100" : "opacity-0"
         )}
       >
@@ -216,7 +216,7 @@ export function PocketCard({
           size="sm"
           onClick={handleEdit}
           title="Edit pocket"
-          className="h-8 w-8 p-0"
+          className="h-7 w-7 p-0"
         >
           <svg
             className="w-4 h-4"
@@ -237,7 +237,7 @@ export function PocketCard({
           size="sm"
           onClick={handleDelete}
           title="Delete pocket"
-          className="h-8 w-8 p-0"
+          className="h-7 w-7 p-0"
         >
           <svg
             className="w-4 h-4"
