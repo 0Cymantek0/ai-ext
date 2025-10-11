@@ -10,9 +10,15 @@ type SortBy = "date" | "name" | "size";
 
 interface PocketManagerProps {
   onSelectPocket?: (pocket: PocketData) => void;
+  onNewPocket?: () => void;
 }
 
-export function PocketManager({ onSelectPocket }: PocketManagerProps) {
+export interface PocketManagerRef {
+  handleNewPocket: () => void;
+}
+
+export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerProps>(
+  ({ onSelectPocket, onNewPocket }, ref) => {
   const [pockets, setPockets] = React.useState<PocketData[]>([]);
   const [filteredPockets, setFilteredPockets] = React.useState<PocketData[]>([]);
   const [viewMode, setViewMode] = React.useState<ViewMode>("grid");
@@ -217,30 +223,15 @@ export function PocketManager({ onSelectPocket }: PocketManagerProps) {
     }
   };
 
+  // Expose handleNewPocket method via ref
+  React.useImperativeHandle(ref, () => ({
+    handleNewPocket,
+  }));
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Header */}
+      {/* Controls Header */}
       <div className="p-4 border-b space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Pockets</h2>
-          <Button onClick={handleNewPocket} size="sm">
-            <svg
-              className="w-4 h-4 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            New Pocket
-          </Button>
-        </div>
-
         {/* Search */}
         <SearchBar
           value={searchQuery}
@@ -393,7 +384,7 @@ export function PocketManager({ onSelectPocket }: PocketManagerProps) {
                   <p className="text-sm text-muted-foreground mb-4">
                     Create your first pocket to start organizing content
                   </p>
-                  <Button onClick={handleNewPocket}>
+                  <Button onClick={onNewPocket || handleNewPocket}>
                     <svg
                       className="w-4 h-4 mr-2"
                       fill="none"
@@ -444,4 +435,5 @@ export function PocketManager({ onSelectPocket }: PocketManagerProps) {
       />
     </div>
   );
-}
+  }
+);

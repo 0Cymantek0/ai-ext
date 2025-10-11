@@ -19,7 +19,7 @@ import { HistoryPanel } from "@/components/HistoryPanel";
 import { ModeSwitcher } from "@/components/ModeSwitcher";
 import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
-import { PocketManager } from "@/components/pockets";
+import { PocketManager, type PocketManagerRef } from "@/components/pockets";
 
 interface ChatMessage {
   id: string;
@@ -60,6 +60,7 @@ export function ChatApp() {
     React.useState<boolean>(false);
   const scrollDebounceRef = React.useRef<number | null>(null);
   const lastHideTopRef = React.useRef<number>(0);
+  const pocketManagerRef = React.useRef<PocketManagerRef>(null);
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<
@@ -423,6 +424,12 @@ export function ChatApp() {
     setCurrentConversationId(null);
   };
 
+  const handleNewPocket = () => {
+    if (pocketManagerRef.current) {
+      pocketManagerRef.current.handleNewPocket();
+    }
+  };
+
   const handleSelectConversation = async (id: string) => {
     try {
       // Load full conversation with messages from IndexedDB
@@ -642,6 +649,8 @@ export function ChatApp() {
       <TopBar
         onOpenHistory={() => setIsHistoryOpen(true)}
         onNewChat={handleNewChat}
+        onNewPocket={handleNewPocket}
+        currentMode={currentMode}
       />
 
       <HistoryPanel
@@ -673,7 +682,7 @@ export function ChatApp() {
         {/* Content Area */}
         <div className="flex flex-1 flex-col overflow-hidden bg-transparent">
           {currentMode === "ai-pocket" ? (
-            <PocketManager />
+            <PocketManager ref={pocketManagerRef} />
           ) : messages.length === 0 ? (
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
           ) : (

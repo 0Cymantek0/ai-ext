@@ -5,10 +5,12 @@ import { cn } from "@/lib/utils";
 interface TopBarProps {
   onOpenHistory: () => void;
   onNewChat: () => void;
+  onNewPocket?: () => void;
+  currentMode?: "ask" | "ai-pocket";
   className?: string;
 }
 
-export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
+export function TopBar({ onOpenHistory, onNewChat, onNewPocket, currentMode = "ask", className }: TopBarProps) {
   const [theme, setTheme] = React.useState<"light" | "dark" | "auto">("auto");
 
   React.useEffect(() => {
@@ -127,7 +129,9 @@ export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
         </Button>
 
         <div>
-          <h1 className="text-sm font-semibold leading-none">AI Pocket</h1>
+          <h1 className="text-sm font-semibold leading-none">
+            {currentMode === "ai-pocket" ? "AI Pocket" : "Chat"}
+          </h1>
         </div>
       </div>
 
@@ -143,13 +147,13 @@ export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
           {getThemeIcon()}
         </Button>
 
-        {/* New Chat Button */}
+        {/* New Chat/Pocket Button */}
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={onNewChat}
-          aria-label="Start new conversation"
-          title="New Chat"
+          onClick={currentMode === "ai-pocket" ? onNewPocket : onNewChat}
+          aria-label={currentMode === "ai-pocket" ? "Create new pocket" : "Start new conversation"}
+          title={currentMode === "ai-pocket" ? "New Pocket" : "New Chat"}
         >
           <svg
             className="size-4"
