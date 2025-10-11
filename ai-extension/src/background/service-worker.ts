@@ -792,6 +792,95 @@ messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
   }
 });
 
+// Register abbreviation handlers (Requirement 10.1, 10.2, 10.3, 10.5)
+messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
+  logger.info("Handler", "ABBREVIATION_CREATE", payload);
+  try {
+    const { createAbbreviation } = await import("./abbreviation-storage.js");
+    const abbreviation = await createAbbreviation(
+      payload.shortcut,
+      payload.expansion,
+      payload.category
+    );
+    logger.info("Handler", "ABBREVIATION_CREATE success", { shortcut: abbreviation.shortcut });
+    return { success: true, data: abbreviation };
+  } catch (error) {
+    logger.error("Handler", "ABBREVIATION_CREATE error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("ABBREVIATION_GET", async (payload: any) => {
+  logger.info("Handler", "ABBREVIATION_GET", payload);
+  try {
+    const { getAbbreviation } = await import("./abbreviation-storage.js");
+    const abbreviation = await getAbbreviation(payload.shortcut);
+    logger.info("Handler", "ABBREVIATION_GET success", { found: !!abbreviation });
+    return { success: true, data: abbreviation };
+  } catch (error) {
+    logger.error("Handler", "ABBREVIATION_GET error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("ABBREVIATION_UPDATE", async (payload: any) => {
+  logger.info("Handler", "ABBREVIATION_UPDATE", payload);
+  try {
+    const { updateAbbreviation } = await import("./abbreviation-storage.js");
+    const abbreviation = await updateAbbreviation(payload.shortcut, {
+      expansion: payload.expansion,
+      category: payload.category
+    });
+    logger.info("Handler", "ABBREVIATION_UPDATE success", { shortcut: abbreviation.shortcut });
+    return { success: true, data: abbreviation };
+  } catch (error) {
+    logger.error("Handler", "ABBREVIATION_UPDATE error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("ABBREVIATION_DELETE", async (payload: any) => {
+  logger.info("Handler", "ABBREVIATION_DELETE", payload);
+  try {
+    const { deleteAbbreviation } = await import("./abbreviation-storage.js");
+    await deleteAbbreviation(payload.shortcut);
+    logger.info("Handler", "ABBREVIATION_DELETE success", { shortcut: payload.shortcut });
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "ABBREVIATION_DELETE error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("ABBREVIATION_LIST", async (payload: any) => {
+  logger.info("Handler", "ABBREVIATION_LIST", payload);
+  try {
+    const { listAbbreviations } = await import("./abbreviation-storage.js");
+    const abbreviations = await listAbbreviations(payload?.category);
+    logger.info("Handler", "ABBREVIATION_LIST success", { count: abbreviations.length });
+    return { success: true, data: abbreviations };
+  } catch (error) {
+    logger.error("Handler", "ABBREVIATION_LIST error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("ABBREVIATION_EXPAND", async (payload: any) => {
+  logger.info("Handler", "ABBREVIATION_EXPAND", payload);
+  try {
+    const { expandAbbreviation } = await import("./abbreviation-storage.js");
+    const result = await expandAbbreviation(payload.shortcut);
+    logger.info("Handler", "ABBREVIATION_EXPAND success", { 
+      shortcut: payload.shortcut,
+      expansion: result.expansion 
+    });
+    return { success: true, data: result };
+  } catch (error) {
+    logger.error("Handler", "ABBREVIATION_EXPAND error", error);
+    throw error;
+  }
+});
+
 // Message listener - routes all messages through the router
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   logger.debug("ServiceWorker", "Received message", {
