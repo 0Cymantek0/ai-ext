@@ -579,10 +579,80 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload) => {
   return { status: "queued", contentId: crypto.randomUUID() };
 });
 
-messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload) => {
+messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
   logger.info("Handler", "AI_PROCESS_REQUEST", payload);
-  // Placeholder - will be implemented in AI processing tasks
-  return { status: "processing", taskId: crypto.randomUUID() };
+  
+  try {
+    const { prompt, task, preferLocal, style, originalText } = payload as {
+      prompt: string;
+      task: string;
+      preferLocal: boolean;
+      style?: string;
+      originalText?: string;
+    };
+    
+    // For text enhancement tasks
+    if (task === 'enhance') {
+      logger.info("Handler", "Processing text enhancement", { style, textLength: originalText?.length });
+      
+      // Check if Gemini Nano is available
+      const availability = await aiManager.checkModelAvailability();
+      
+      if (availability === 'no' && preferLocal) {
+        throw new Error('Gemini Nano is not available on this device. Please enable on-device AI in Chrome settings.');
+      }
+      
+      // Initialize or get session
+      let sessionId: string;
+      const activeSessions = aiManager.getActiveSessions();
+      
+      if (activeSessions.length > 0) {
+        // Reuse existing session
+        sessionId = activeSessions[0]!;
+        logger.debug("Handler", "Reusing existing AI session", { sessionId });
+      } else {
+        // Create new session
+        sessionId = await aiManager.initializeGeminiNano({
+          temperature: 0.7, // Slightly creative for text enhancement
+        });
+        logger.info("Handler", "Created new AI session", { sessionId });
+      }
+      
+      // Process the enhancement prompt
+      const startTime = performance.now();
+      const enhancedText = await aiManager.processPrompt(
+        sessionId,
+        prompt,
+        { operation: 'enhance' as any }
+      );
+      const processingTime = performance.now() - startTime;
+      
+      logger.info("Handler", "Enhancement completed", {
+        processingTime: `${processingTime.toFixed(2)}ms`,
+        originalLength: originalText?.length,
+        enhancedLength: enhancedText.length,
+      });
+      
+      // Get token usage
+      const usage = aiManager.getSessionUsage(sessionId);
+      logger.debug("Handler", "Token usage", usage);
+      
+      return {
+        enhancedText,
+        processingTime,
+        tokensUsed: usage.used,
+        source: 'gemini-nano',
+      };
+    }
+    
+    // For other AI tasks (summarize, embed, etc.)
+    logger.warn("Handler", "Unsupported AI task type", { task });
+    return { status: "processing", taskId: crypto.randomUUID() };
+    
+  } catch (error) {
+    logger.error("Handler", "AI_PROCESS_REQUEST error", error);
+    throw error;
+  }
 });
 
 messageRouter.registerHandler("POCKET_CREATE", async (payload) => {

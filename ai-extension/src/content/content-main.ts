@@ -204,13 +204,15 @@ class ContentScriptManager {
       });
 
       if (!response.success) {
-        console.warn(
-          "[ContentScript] Failed to notify service worker",
-          response.error,
+        // Silently log - this is not critical for text enhancer functionality
+        console.debug(
+          "[ContentScript] Service worker notification skipped",
+          response.error
         );
       }
     } catch (error) {
-      console.error("[ContentScript] Error notifying service worker", error);
+      // Non-critical error - content scripts can work independently
+      console.debug("[ContentScript] Service worker not responding (non-critical)", error);
     }
   }
 
