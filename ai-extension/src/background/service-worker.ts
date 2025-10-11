@@ -655,22 +655,62 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
   }
 });
 
-messageRouter.registerHandler("POCKET_CREATE", async (payload) => {
+messageRouter.registerHandler("POCKET_CREATE", async (payload: any) => {
   logger.info("Handler", "POCKET_CREATE", payload);
-  // Placeholder - will be implemented in storage tasks
-  return { pocketId: crypto.randomUUID() };
+  try {
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
+    await indexedDBManager.init();
+    const pocketId = await indexedDBManager.createPocket(payload);
+    const pocket = await indexedDBManager.getPocket(pocketId);
+    logger.info("Handler", "POCKET_CREATE success", { pocketId });
+    return { pocket };
+  } catch (error) {
+    logger.error("Handler", "POCKET_CREATE error", error);
+    throw error;
+  }
 });
 
-messageRouter.registerHandler("POCKET_UPDATE", async (payload) => {
+messageRouter.registerHandler("POCKET_UPDATE", async (payload: any) => {
   logger.info("Handler", "POCKET_UPDATE", payload);
-  // Placeholder - will be implemented in storage tasks
-  return { success: true };
+  try {
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
+    await indexedDBManager.init();
+    await indexedDBManager.updatePocket(payload.id, payload.updates);
+    const pocket = await indexedDBManager.getPocket(payload.id);
+    logger.info("Handler", "POCKET_UPDATE success", { id: payload.id });
+    return { pocket };
+  } catch (error) {
+    logger.error("Handler", "POCKET_UPDATE error", error);
+    throw error;
+  }
 });
 
 messageRouter.registerHandler("POCKET_LIST", async (payload) => {
   logger.info("Handler", "POCKET_LIST", payload);
-  // Placeholder - will be implemented in storage tasks
-  return { pockets: [] };
+  try {
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
+    await indexedDBManager.init();
+    const pockets = await indexedDBManager.listPockets();
+    logger.info("Handler", "POCKET_LIST success", { count: pockets.length });
+    return { pockets };
+  } catch (error) {
+    logger.error("Handler", "POCKET_LIST error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("POCKET_DELETE", async (payload: any) => {
+  logger.info("Handler", "POCKET_DELETE", payload);
+  try {
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
+    await indexedDBManager.init();
+    await indexedDBManager.deletePocket(payload.id);
+    logger.info("Handler", "POCKET_DELETE success", { id: payload.id });
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "POCKET_DELETE error", error);
+    throw error;
+  }
 });
 
 messageRouter.registerHandler("ERROR", async (payload) => {

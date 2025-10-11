@@ -19,6 +19,7 @@ import { HistoryPanel } from "@/components/HistoryPanel";
 import { ModeSwitcher } from "@/components/ModeSwitcher";
 import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
+import { PocketManager } from "@/components/pockets";
 
 interface ChatMessage {
   id: string;
@@ -671,7 +672,9 @@ export function ChatApp() {
 
         {/* Content Area */}
         <div className="flex flex-1 flex-col overflow-hidden bg-transparent">
-          {messages.length === 0 ? (
+          {currentMode === "ai-pocket" ? (
+            <PocketManager />
+          ) : messages.length === 0 ? (
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
           ) : (
             <Conversation className="overflow-hidden">
@@ -826,9 +829,10 @@ export function ChatApp() {
         </div>
       </div>
 
-      {/* Fixed Bottom Input Bar (floating, no background) */}
-      <div className="fixed bottom-4 left-0 right-0 z-50 bg-transparent pointer-events-none">
-        {currentRequestId ? (
+      {/* Fixed Bottom Input Bar (floating, no background) - Only show in ask mode */}
+      {currentMode === "ask" && (
+        <div className="fixed bottom-4 left-0 right-0 z-50 bg-transparent pointer-events-none">
+          {currentRequestId ? (
           <div className="max-w-xl mx-auto pointer-events-auto">
             <Button
               type="button"
@@ -871,7 +875,8 @@ export function ChatApp() {
             />
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
