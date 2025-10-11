@@ -16,7 +16,6 @@ import { Actions, ActionButton } from "@/components/ai/actions";
 import { TopBar } from "@/components/TopBar";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { HistoryPanel } from "@/components/HistoryPanel";
-import { ModeSwitcher } from "@/components/ModeSwitcher";
 import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
 import { PocketManager, type PocketManagerRef } from "@/components/pockets";
@@ -51,15 +50,8 @@ export function ChatApp() {
   >(null);
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
   const [currentMode, setCurrentMode] = React.useState<Mode>("ask");
-  const modeSwitcherWrapperRef = React.useRef<HTMLDivElement>(null);
   const conversationContentRef = React.useRef<HTMLDivElement>(null);
-  const lastScrollTopRef = React.useRef<number>(0);
-  const [modeSwitcherHeight, setModeSwitcherHeight] = React.useState<number>(0);
-  const [isNearTop, setIsNearTop] = React.useState<boolean>(true);
-  const [isModeSwitcherHidden, setIsModeSwitcherHidden] =
-    React.useState<boolean>(false);
-  const scrollDebounceRef = React.useRef<number | null>(null);
-  const lastHideTopRef = React.useRef<number>(0);
+  // Floating mode switcher removed; drop scroll bookkeeping
   const pocketManagerRef = React.useRef<PocketManagerRef>(null);
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
@@ -594,54 +586,10 @@ export function ChatApp() {
     }
   }, []);
 
-  // Measure mode switcher height for initial spacer to avoid overlap
-  React.useLayoutEffect(() => {
-    const el = modeSwitcherWrapperRef.current;
-    if (!el) return;
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      setModeSwitcherHeight(rect.height);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  // Floating mode switcher removed; no spacer needed
 
-  const handleScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
-    const node = e.currentTarget;
-    const currentTop = node.scrollTop;
-
-    if (scrollDebounceRef.current !== null) {
-      window.clearTimeout(scrollDebounceRef.current);
-    }
-
-    scrollDebounceRef.current = window.setTimeout(() => {
-      // Only consider we are "at top" within a very tight tolerance to stop early flips
-      const atTop = currentTop <= 0.5;
-      if (atTop !== isNearTop) setIsNearTop(atTop);
-
-      const lastTop = lastScrollTopRef.current;
-      const delta = currentTop - lastTop;
-      const threshold = 4; // px, to avoid jitter from tiny movements
-
-      if (delta > threshold) {
-        // Scrolling down -> hide immediately
-        if (!isModeSwitcherHidden) {
-          setIsModeSwitcherHidden(true);
-          lastHideTopRef.current = currentTop;
-        }
-      } else if (delta < -threshold) {
-        // Scrolling up -> reveal when at top OR after sufficient upward travel since last hide
-        const REVEAL_DISTANCE = 120;
-        const traveledUp = lastHideTopRef.current - currentTop;
-        if (isModeSwitcherHidden && (atTop || traveledUp >= REVEAL_DISTANCE)) {
-          setIsModeSwitcherHidden(false);
-        }
-      }
-
-      lastScrollTopRef.current = currentTop < 0 ? 0 : currentTop;
-    }, 60);
+  const handleScroll: React.UIEventHandler<HTMLDivElement> = () => {
+    // No-op: floating mode switcher removed
   };
 
   return (
@@ -651,6 +599,7 @@ export function ChatApp() {
         onNewChat={handleNewChat}
         onNewPocket={handleNewPocket}
         currentMode={currentMode}
+        onModeChange={handleModeChange}
       />
 
       <HistoryPanel
@@ -664,21 +613,6 @@ export function ChatApp() {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden relative bg-transparent">
-        {/* Floating Mode Switcher */}
-        <div
-          ref={modeSwitcherWrapperRef}
-          className={cn(
-            "absolute top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-auto bg-transparent",
-            "transition-transform duration-300 ease-in-out will-change-transform",
-            isModeSwitcherHidden && "-translate-y-32",
-          )}
-        >
-          <ModeSwitcher
-            currentMode={currentMode}
-            onModeChange={handleModeChange}
-          />
-        </div>
-
         {/* Content Area */}
         <div className="flex flex-1 flex-col overflow-hidden bg-transparent">
           {currentMode === "ai-pocket" ? (
@@ -691,12 +625,6 @@ export function ChatApp() {
                 ref={conversationContentRef}
                 onScroll={handleScroll}
               >
-                {/* Dynamic spacer so first message starts below the floating switcher */}
-                <div
-                  aria-hidden
-                  className="shrink-0"
-                  style={{ height: isNearTop ? modeSwitcherHeight + 32 : 0 }}
-                />
                 {messages.map((message) => (
                   <Message key={message.id} from={message.role}>
                     <MessageAvatar
