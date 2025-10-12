@@ -108,7 +108,7 @@ export function TopBar({ onOpenHistory, onNewChat, onNewPocket, currentMode = "a
         className,
       )}
     >
-      {/* Left pill: burger + title */}
+      {/* Left pill: burger + title (burger only in chat mode) */}
       <div
         className={cn(
           "flex h-8 items-center gap-2 rounded-full px-3",
@@ -117,27 +117,29 @@ export function TopBar({ onOpenHistory, onNewChat, onNewPocket, currentMode = "a
         )}
         style={{ pointerEvents: "auto" }}
       >
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onOpenHistory}
-          aria-label="Open conversation history"
-          title="History"
-        >
-          <svg
-            className="size-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {currentMode !== "ai-pocket" && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onOpenHistory}
+            aria-label="Open conversation history"
+            title="History"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M4 12h16M4 18h16"
-            />
-          </svg>
-        </Button>
+            <svg
+              className="size-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </Button>
+        )}
         <h1 className="text-sm font-semibold leading-none">
           {currentMode === "ai-pocket" ? "AI Pocket" : "Chat"}
         </h1>
