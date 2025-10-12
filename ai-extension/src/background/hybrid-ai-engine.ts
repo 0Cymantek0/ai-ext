@@ -786,6 +786,33 @@ export class HybridAIEngine {
   }
 
   /**
+   * Generate embedding for text
+   * Uses cloud API for embedding generation
+   * Requirement 7.2: Generate embeddings for semantic search
+   *
+   * @param text Text to generate embedding for
+   * @returns Embedding vector
+   */
+  async generateEmbedding(text: string): Promise<number[]> {
+    try {
+      // Check if cloud AI is available
+      if (!this.cloudAIManager.isAvailable()) {
+        throw new Error(
+          "Cloud AI not available. Embeddings require Gemini API key.",
+        );
+      }
+
+      // Use cloud AI to generate embedding
+      const embedding = await this.cloudAIManager.generateEmbedding(text);
+      
+      return embedding;
+    } catch (error) {
+      console.error("Failed to generate embedding:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Process content with streaming response
    * Requirement 8.3: Stream responses in real-time for immediate feedback
    * Requirement 8.9: Display typing indicator during processing
@@ -953,3 +980,8 @@ export const createHybridAIEngine = (
 ): HybridAIEngine => {
   return new HybridAIEngine(aiManager, cloudAIManager);
 };
+
+// Create default singleton instance
+const aiManager = new AIManager();
+const cloudAI = new CloudAIManager();
+export const hybridAIEngine = new HybridAIEngine(aiManager, cloudAI);

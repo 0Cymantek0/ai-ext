@@ -1,14 +1,19 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ModeSwitcher } from "@/components/ModeSwitcher";
+import type { Mode } from "@/components/ModeSwitcher";
 
 interface TopBarProps {
   onOpenHistory: () => void;
   onNewChat: () => void;
+  onNewPocket?: () => void;
+  currentMode?: Mode;
+  onModeChange?: (mode: Mode) => void;
   className?: string;
 }
 
-export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
+export function TopBar({ onOpenHistory, onNewChat, onNewPocket, currentMode = "ask", onModeChange, className }: TopBarProps) {
   const [theme, setTheme] = React.useState<"light" | "dark" | "auto">("auto");
 
   React.useEffect(() => {
@@ -99,11 +104,19 @@ export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
   return (
     <header
       className={cn(
-        "flex h-14 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 shrink-0",
+        "fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between px-4 bg-transparent pointer-events-none",
         className,
       )}
     >
-      <div className="flex items-center gap-2">
+      {/* Left pill: burger + title */}
+      <div
+        className={cn(
+          "flex h-8 items-center gap-2 rounded-full px-3",
+          "bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/40",
+          "border border-border shadow-sm",
+        )}
+        style={{ pointerEvents: "auto" }}
+      >
         <Button
           variant="ghost"
           size="icon-sm"
@@ -125,13 +138,25 @@ export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
             />
           </svg>
         </Button>
-
-        <div>
-          <h1 className="text-sm font-semibold leading-none">AI Pocket</h1>
-        </div>
+        <h1 className="text-sm font-semibold leading-none">
+          {currentMode === "ai-pocket" ? "AI Pocket" : "Chat"}
+        </h1>
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* Center: Mode switcher */}
+      <div className="absolute left-1/2 -translate-x-1/2" style={{ pointerEvents: "auto" }}>
+        <ModeSwitcher currentMode={currentMode} onModeChange={onModeChange ?? (() => {})} />
+      </div>
+
+      {/* Right pill: theme + new */}
+      <div
+        className={cn(
+          "flex h-8 items-center gap-2 rounded-full px-3",
+          "bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/40",
+          "border border-border shadow-sm",
+        )}
+        style={{ pointerEvents: "auto" }}
+      >
         {/* Theme Toggle */}
         <Button
           variant="ghost"
@@ -143,13 +168,17 @@ export function TopBar({ onOpenHistory, onNewChat, className }: TopBarProps) {
           {getThemeIcon()}
         </Button>
 
-        {/* New Chat Button */}
+        {/* New Chat/Pocket Button */}
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={onNewChat}
-          aria-label="Start new conversation"
-          title="New Chat"
+          onClick={currentMode === "ai-pocket" ? onNewPocket : onNewChat}
+          aria-label={
+            currentMode === "ai-pocket"
+              ? "Create new pocket"
+              : "Start new conversation"
+          }
+          title={currentMode === "ai-pocket" ? "New Pocket" : "New Chat"}
         >
           <svg
             className="size-4"
