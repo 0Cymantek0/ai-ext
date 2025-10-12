@@ -53,6 +53,9 @@ export interface AiStreamRequestPayload {
   conversationId?: string;
   preferLocal?: boolean;
   model?: "nano" | "flash" | "pro";
+  mode?: "ask" | "ai-pocket";
+  pocketId?: string;
+  autoContext?: boolean; // Whether to automatically include context
 }
 
 export interface AiStreamChunkPayload {

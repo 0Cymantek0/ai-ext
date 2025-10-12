@@ -349,7 +349,7 @@ export function ChatApp() {
       }
     }, 100);
 
-    // Send request to service worker
+    // Send request to service worker with mode information
     try {
       const response = await chrome.runtime.sendMessage({
         kind: "AI_PROCESS_STREAM_START",
@@ -359,6 +359,8 @@ export function ChatApp() {
           conversationId,
           preferLocal: mapSelectedToPreferLocal(selectedModel),
           model: mapSelectedToPayloadModel(selectedModel),
+          mode: currentMode, // Include current mode
+          autoContext: true, // Enable automatic context inclusion
         },
       });
 

@@ -11,6 +11,7 @@ import { HybridAIEngine, TaskOperation } from "./hybrid-ai-engine";
 import type { Task, Content } from "./hybrid-ai-engine";
 import { logger } from "./monitoring";
 import { conversationContextLoader, type ConversationContext } from "./conversation-context-loader";
+import { getModeAwareProcessor, ModeAwareProcessor, type ModeAwareRequest } from "./mode-aware-processor";
 import type {
   AiStreamRequestPayload,
   AiStreamChunkPayload,
@@ -39,12 +40,14 @@ export class StreamingHandler {
   private aiManager: AIManager;
   private cloudAIManager: CloudAIManager;
   private hybridEngine: HybridAIEngine;
+  private modeAwareProcessor: ModeAwareProcessor;
   private activeSessions: Map<string, StreamingSession> = new Map();
 
   constructor(aiManager: AIManager, cloudAIManager: CloudAIManager) {
     this.aiManager = aiManager;
     this.cloudAIManager = cloudAIManager;
     this.hybridEngine = new HybridAIEngine(aiManager, cloudAIManager);
+    this.modeAwareProcessor = getModeAwareProcessor(aiManager, cloudAIManager);
   }
 
   /**
@@ -100,7 +103,9 @@ export class StreamingHandler {
   }
 
   /**
-   * Process streaming request
+   * Process streaming request with mode-aware routing
+   * 
+   * Requirement 8.2.1, 8.2.2, 8.2.3: Mode detection and routing
    */
   private async processStream(
     payload: AiStreamRequestPayload,
@@ -108,85 +113,40 @@ export class StreamingHandler {
     sender: chrome.runtime.MessageSender,
   ): Promise<void> {
     try {
-      // Load conversation context if conversationId is provided
-      // Requirement 8.1.1, 8.1.2, 8.1.3: Load and format conversation history
-      let conversationContext: ConversationContext | null = null;
+      // Detect mode from payload
+      // Requirement 8.2.1: Create mode detection logic according to UI
+      const mode = payload.mode || "ask"; // Default to "ask" mode
       
-      if (payload.conversationId) {
-        try {
-          logger.info("StreamingHandler", "Loading conversation context", {
-            conversationId: payload.conversationId,
-          });
+      logger.info("StreamingHandler", "Processing with mode-aware routing", {
+        mode,
+        conversationId: payload.conversationId,
+        pocketId: payload.pocketId,
+        autoContext: payload.autoContext,
+      });
 
-          conversationContext = await conversationContextLoader.buildConversationContext(
-            payload.conversationId
-          );
-
-          logger.info("StreamingHandler", "Conversation context loaded", {
-            conversationId: payload.conversationId,
-            messageCount: conversationContext.messages.length,
-            totalTokens: conversationContext.totalTokens,
-            truncated: conversationContext.truncated,
-          });
-        } catch (error) {
-          // Log error but continue without context
-          // Requirement 8.1.7: Error handling for context loading
-          logger.error("StreamingHandler", "Failed to load conversation context", {
-            conversationId: payload.conversationId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          
-          // Continue without context rather than failing the entire request
-          conversationContext = null;
-        }
-      }
-
-      // Build context string for AI
-      let contextString = "";
-      if (conversationContext && conversationContext.messages.length > 0) {
-        contextString = conversationContextLoader.formatContextAsString(conversationContext);
-        
-        if (conversationContext.truncated) {
-          logger.info("StreamingHandler", "Context was truncated to fit token budget", {
-            originalMessageCount: conversationContext.messages.length,
-            totalTokens: conversationContext.totalTokens,
-          });
-        }
-      }
-
-      // Create task from payload with conversation context
-      const task: Task = {
-        content: {
-          text: payload.prompt,
-        } as Content,
-        operation: TaskOperation.GENERAL,
-        ...(contextString && {
-          context: contextString,
-        }),
+      // Build mode-aware request
+      const modeAwareRequest: ModeAwareRequest = {
+        prompt: payload.prompt,
+        mode,
+        conversationId: payload.conversationId,
+        pocketId: payload.pocketId,
+        preferLocal: payload.preferLocal,
+        model: payload.model,
+        autoContext: payload.autoContext ?? true, // Default to true
       };
 
-      // Process with streaming
-      const streamGenerator = this.hybridEngine.processContentStreaming(
-        task,
-        {
-          preferLocal: payload.preferLocal ?? true,
-          taskType: "general",
-          priority: "normal",
-          signal: session.abortController.signal,
-        },
-        async (decision) => {
-          // Consent callback - for now, auto-approve
-          // In production, this should prompt the user
-          logger.info("StreamingHandler", "Cloud consent required", {
-            location: decision.location,
-            reason: decision.reason,
-          });
-          return true;
-        },
+      // Process with mode-aware processor
+      // Requirement 8.2.3: Implement message routing based on AI mode
+      // Requirement 8.2.4: Add "Ask" mode pipeline for general conversation
+      // Requirement 8.2.5: Add "AI Pocket" mode pipeline for RAG processing
+      const streamGenerator = this.modeAwareProcessor.processRequest(
+        modeAwareRequest,
+        session.abortController.signal,
       );
 
       let fullResponse = "";
       let source: "gemini-nano" | "gemini-flash" | "gemini-pro" = "gemini-nano";
+      let contextUsed: string[] = [];
 
       // Stream chunks
       for await (const chunk of streamGenerator) {
@@ -198,6 +158,16 @@ export class StreamingHandler {
           break;
         }
 
+        // Check if this is the final response object
+        if (typeof chunk === "object" && "content" in chunk) {
+          // This is the final ModeAwareResponse
+          const response = chunk as any;
+          source = response.source;
+          contextUsed = response.contextUsed || [];
+          break;
+        }
+
+        // Regular chunk
         fullResponse += chunk;
         session.totalChunks++;
 
@@ -216,15 +186,18 @@ export class StreamingHandler {
       const totalTokens = this.estimateTokens(fullResponse);
 
       // Determine source based on decision
-      // This is a simplification - in production, track the actual source
-      source = payload.preferLocal ? "gemini-nano" : "gemini-flash";
+      if (!source) {
+        source = payload.preferLocal ? "gemini-nano" : "gemini-flash";
+      }
 
       logger.info("StreamingHandler", "Stream completed", {
         requestId: session.requestId,
+        mode,
         totalChunks: session.totalChunks,
         processingTime: `${processingTime.toFixed(2)}ms`,
         totalTokens,
         source,
+        contextUsed,
       });
 
       // Send stream end message
@@ -247,7 +220,12 @@ export class StreamingHandler {
             content: fullResponse,
             timestamp: Date.now(),
             source,
-            metadata: { tokensUsed: totalTokens, processingTime },
+            metadata: { 
+              tokensUsed: totalTokens, 
+              processingTime,
+              mode,
+              contextUsed,
+            },
           };
           await indexedDBManager.updateConversation(
             payload.conversationId,
@@ -267,6 +245,14 @@ export class StreamingHandler {
           requestId: session.requestId,
         });
       } else {
+        // Requirement 8.2.7: Add fallback to "Ask" mode on mode detection failure
+        logger.error("StreamingHandler", "Stream processing failed", {
+          error: error instanceof Error ? error.message : String(error),
+          mode: payload.mode,
+        });
+        
+        // If we were in AI Pocket mode, the mode-aware processor already handles fallback
+        // Just re-throw the error for general error handling
         throw error;
       }
     } finally {
