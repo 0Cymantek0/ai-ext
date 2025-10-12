@@ -404,15 +404,17 @@ class UniversalTextEnhancer {
         background: transparent;
       }
 
-      /* Preview Dialog Styles - Dark Glassmorphism */
+      /* Preview Dialog Styles - True Glassmorphism like Chatbox */
       .ai-pocket-enhancement-preview {
         position: fixed;
-        background: rgba(34, 40, 49, 0.95);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+        -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 16px;
-        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+        box-shadow: 
+          0 8px 32px rgba(0, 0, 0, 0.3),
+          inset 0 1px 0 rgba(255, 255, 255, 0.2);
         z-index: 10004;
         max-width: 600px;
         width: 90%;
@@ -421,8 +423,9 @@ class UniversalTextEnhancer {
         flex-direction: column;
         opacity: 0;
         transform: scale(0.95);
-        transition: opacity 0.2s ease, transform 0.2s ease;
+        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         font-family: "Space Grotesk", sans-serif;
+        overflow: hidden;
       }
 
       .ai-pocket-enhancement-preview.visible {
@@ -436,6 +439,7 @@ class UniversalTextEnhancer {
         justify-content: space-between;
         padding: 20px 24px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .ai-pocket-preview-title {
@@ -447,10 +451,10 @@ class UniversalTextEnhancer {
       }
 
       .ai-pocket-preview-close {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        font-size: 18px;
-        color: rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.9);
         cursor: pointer;
         padding: 8px;
         border-radius: 8px;
@@ -463,8 +467,8 @@ class UniversalTextEnhancer {
       }
 
       .ai-pocket-preview-close:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.2);
+        color: rgba(255, 255, 255, 1);
       }
 
       .ai-pocket-preview-close:focus {
@@ -504,18 +508,19 @@ class UniversalTextEnhancer {
         white-space: pre-wrap;
         word-wrap: break-word;
         font-family: "Space Grotesk", sans-serif;
+        transition: all 0.2s ease;
       }
 
       .ai-pocket-preview-original {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.9);
       }
 
       .ai-pocket-preview-enhanced {
-        background: rgba(66, 133, 244, 0.1);
-        border: 1px solid rgba(66, 133, 244, 0.3);
-        color: rgba(255, 255, 255, 0.9);
+        background: rgba(66, 133, 244, 0.15);
+        border: 1px solid rgba(66, 133, 244, 0.4);
+        color: rgba(255, 255, 255, 1);
       }
 
       .ai-pocket-preview-actions {
@@ -524,6 +529,7 @@ class UniversalTextEnhancer {
         padding: 20px 24px;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
         justify-content: flex-end;
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .ai-pocket-preview-btn {
@@ -553,14 +559,14 @@ class UniversalTextEnhancer {
       }
 
       .ai-pocket-preview-btn-secondary {
-        background: rgba(255, 255, 255, 0.05);
-        color: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.9);
         border: 1px solid rgba(255, 255, 255, 0.2);
       }
 
       .ai-pocket-preview-btn-secondary:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 1);
         transform: translateY(-1px);
       }
 
@@ -575,12 +581,10 @@ class UniversalTextEnhancer {
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
+        background: rgba(0, 0, 0, 0.2);
         z-index: 10003;
         opacity: 0;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.3s ease;
       }
 
       .ai-pocket-preview-backdrop.visible {
