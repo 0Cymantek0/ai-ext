@@ -10,6 +10,7 @@ import { CloudAIManager } from "./cloud-ai-manager";
 import { HybridAIEngine, TaskOperation } from "./hybrid-ai-engine";
 import type { Task, Content } from "./hybrid-ai-engine";
 import { logger } from "./monitoring";
+import { conversationContextLoader, type ConversationContext } from "./conversation-context-loader";
 import type {
   AiStreamRequestPayload,
   AiStreamChunkPayload,
@@ -107,14 +108,60 @@ export class StreamingHandler {
     sender: chrome.runtime.MessageSender,
   ): Promise<void> {
     try {
-      // Create task from payload
+      // Load conversation context if conversationId is provided
+      // Requirement 8.1.1, 8.1.2, 8.1.3: Load and format conversation history
+      let conversationContext: ConversationContext | null = null;
+      
+      if (payload.conversationId) {
+        try {
+          logger.info("StreamingHandler", "Loading conversation context", {
+            conversationId: payload.conversationId,
+          });
+
+          conversationContext = await conversationContextLoader.buildConversationContext(
+            payload.conversationId
+          );
+
+          logger.info("StreamingHandler", "Conversation context loaded", {
+            conversationId: payload.conversationId,
+            messageCount: conversationContext.messages.length,
+            totalTokens: conversationContext.totalTokens,
+            truncated: conversationContext.truncated,
+          });
+        } catch (error) {
+          // Log error but continue without context
+          // Requirement 8.1.7: Error handling for context loading
+          logger.error("StreamingHandler", "Failed to load conversation context", {
+            conversationId: payload.conversationId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          
+          // Continue without context rather than failing the entire request
+          conversationContext = null;
+        }
+      }
+
+      // Build context string for AI
+      let contextString = "";
+      if (conversationContext && conversationContext.messages.length > 0) {
+        contextString = conversationContextLoader.formatContextAsString(conversationContext);
+        
+        if (conversationContext.truncated) {
+          logger.info("StreamingHandler", "Context was truncated to fit token budget", {
+            originalMessageCount: conversationContext.messages.length,
+            totalTokens: conversationContext.totalTokens,
+          });
+        }
+      }
+
+      // Create task from payload with conversation context
       const task: Task = {
         content: {
           text: payload.prompt,
         } as Content,
         operation: TaskOperation.GENERAL,
-        ...(payload.conversationId && {
-          context: `Conversation: ${payload.conversationId}`,
+        ...(contextString && {
+          context: contextString,
         }),
       };
 
