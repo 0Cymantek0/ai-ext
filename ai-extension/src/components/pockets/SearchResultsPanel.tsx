@@ -78,8 +78,16 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
       <div
         className={cn(
           "h-full w-full overflow-hidden rounded-2xl",
-          // Liquid Glass: more transparency and deeper blur with subtle border
-          "bg-background/60 backdrop-blur-2xl border border-border/80 shadow-2xl",
+          // Darker, heavier glassmorphism surface
+          "backdrop-blur-2xl backdrop-saturate-200",
+          // Dark translucent background for both themes
+          "bg-black/45 dark:bg-black/55",
+          // Subtle border for the frosted edge
+          "border border-white/10",
+          // Depth
+          "shadow-2xl",
+          // Progressive enhancement where backdrop-filter is supported
+          "supports-[backdrop-filter:blur(0)]:backdrop-blur-2xl supports-[backdrop-filter:blur(0)]:backdrop-saturate-200",
         )}
       >
         {/* Header */}
@@ -134,12 +142,14 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
   const overlay = (
     <div
       className={cn(
-        // Glassmorphic backdrop layer behind the panel
+        // Backdrop layer behind the panel
         "fixed left-0 right-0 bottom-0 top-14 z-[55]",
-        // Semi-transparent with strong blur and saturation for frosted effect
-        "bg-white/15 dark:bg-black/20 backdrop-blur-2xl backdrop-saturate-150",
+        // Dark tint + stronger blur to soften background content
+        "bg-black/40 backdrop-blur-lg",
+        // Progressive enhancement for browsers supporting backdrop-filter
+        "supports-[backdrop-filter:blur(0)]:backdrop-blur-lg",
         // Subtle border line to separate from top bar region
-        "border-t border-white/20 dark:border-white/10",
+        "border-t border-white/10",
       )}
       onClick={onClose}
       aria-hidden
@@ -170,7 +180,7 @@ function PocketResultsList({
           type="button"
           onClick={() => onSelect?.(item)}
           className={cn(
-            "group text-left rounded-xl border border-border bg-card/70 backdrop-blur-sm",
+            "group text-left rounded-xl border border-border bg-card/70",
             "hover:border-accent hover:bg-accent/30 transition-colors",
             "p-3 flex flex-col gap-2",
           )}
@@ -238,7 +248,7 @@ function ContentResultsList({
             type="button"
             onClick={() => onSelect?.(item)}
             className={cn(
-              "group text-left rounded-xl border border-border bg-card/70 backdrop-blur-sm",
+              "group text-left rounded-xl border border-border bg-card/70",
               "hover:border-accent hover:bg-accent/30 transition-colors",
               "p-3 flex flex-col gap-2",
             )}
@@ -292,5 +302,3 @@ function EmptyResults({ message }: { message: string }) {
     </div>
   );
 }
-
-
