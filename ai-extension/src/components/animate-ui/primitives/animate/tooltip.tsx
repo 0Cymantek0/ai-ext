@@ -77,10 +77,10 @@ function getResolvedSide(placement: Side | `${Side}-${Align}`) {
 }
 
 function initialFromSide(side: Side): Partial<Record<'x' | 'y', number>> {
-  if (side === 'top') return { y: 15 };
-  if (side === 'bottom') return { y: -15 };
-  if (side === 'left') return { x: 15 };
-  return { x: -15 };
+  if (side === 'top') return { y: 8 };
+  if (side === 'bottom') return { y: -8 };
+  if (side === 'left') return { x: 8 };
+  return { x: -8 };
 }
 
 type TooltipProviderProps = {
@@ -94,9 +94,9 @@ type TooltipProviderProps = {
 function TooltipProvider({
   children,
   id,
-  openDelay = 700,
-  closeDelay = 300,
-  transition = { type: 'spring', stiffness: 300, damping: 35 },
+  openDelay = 100,
+  closeDelay = 100,
+  transition = { type: 'spring', stiffness: 700, damping: 25 },
 }: TooltipProviderProps) {
   const globalId = React.useId();
   const [currentTooltip, setCurrentTooltip] =
@@ -314,7 +314,7 @@ function TooltipOverlay() {
                   layoutId={`tooltip-content-${globalId}`}
                   initial={{
                     opacity: 0,
-                    scale: 0,
+                    scale: 0.98,
                     ...initialFromSide(rendered.data.side),
                   }}
                   animate={
@@ -322,13 +322,13 @@ function TooltipOverlay() {
                       ? { opacity: 1, scale: 1, x: 0, y: 0 }
                       : {
                           opacity: 0,
-                          scale: 0,
+                          scale: 0.98,
                           ...initialFromSide(rendered.data.side),
                         }
                   }
                   exit={{
                     opacity: 0,
-                    scale: 0,
+                    scale: 0.98,
                     ...initialFromSide(rendered.data.side),
                   }}
                   onAnimationComplete={() => {

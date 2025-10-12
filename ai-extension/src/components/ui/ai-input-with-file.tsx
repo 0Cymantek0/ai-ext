@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/animate-ui/components/animate/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
 import { Toggle } from "@/components/animate-ui/components/radix/toggle";
 
 interface FileDisplayProps {
@@ -377,9 +377,10 @@ export function AIInputWithFile({
             
             {/* Auto-Context Toggle Button */}
             {onAutoContextChange && (
-              <Tooltip sideOffset={6}>
-                <TooltipTrigger asChild>
-                  <button
+              <TooltipProvider openDelay={0} closeDelay={100}>
+                <Tooltip sideOffset={4}>
+                  <TooltipTrigger asChild>
+                    <button
                     type="button"
                     onClick={() => onAutoContextChange(!autoContext)}
                     disabled={disabled}
@@ -390,7 +391,6 @@ export function AIInputWithFile({
                         : "bg-white/10 border-white/10 text-white/60 hover:bg-white/15 hover:text-white/80",
                       disabled && "opacity-50 cursor-not-allowed"
                     )}
-                    title={`Auto context: ${autoContext ? "ON" : "OFF"}`}
                     aria-pressed={autoContext}
                   >
                     {/* Cursor/Pointer Icon */}
@@ -424,14 +424,15 @@ export function AIInputWithFile({
                     >
                       Auto context
                     </span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  {autoContext
-                    ? "Auto context is ON. AI will use page context, tabs, captured content, and conversation history for more relevant responses."
-                    : "Auto context is OFF. AI will only use conversation history. Click to enable contextual awareness."}
-                </TooltipContent>
-              </Tooltip>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[240px] bg-black/80 text-white border border-white/10 shadow-lg backdrop-blur-sm">
+                    {autoContext
+                      ? "Uses page, tabs, pockets, and history."
+                      : "Uses only chat history. Click to enable."}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
         </div>
       </div>
