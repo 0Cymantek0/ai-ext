@@ -799,7 +799,7 @@ class UniversalTextEnhancer {
         button.addEventListener("click", blockClick, true);
       } else {
         // Not dragged, handle as click
-        this.handleButtonClick(textField, button);
+        this.handleButtonClick(textField, button, e);
       }
     };
 
@@ -852,7 +852,7 @@ class UniversalTextEnhancer {
       button.classList.remove("dragging");
 
       if (!hasMoved) {
-        // Handle as click
+        // Handle as click - note: touch events don't have ctrlKey
         this.handleButtonClick(textField, button);
       }
 
@@ -927,10 +927,11 @@ class UniversalTextEnhancer {
   /**
    * Handle button click
    */
-  private handleButtonClick(textField: HTMLElement, button: HTMLElement): void {
+  private handleButtonClick(textField: HTMLElement, button: HTMLElement, event?: MouseEvent): void {
     console.debug("[TextEnhancer] Enhancement button clicked", {
       tag: textField.tagName,
       value: (textField as HTMLInputElement).value,
+      ctrlKey: event?.ctrlKey,
     });
 
     // Check if enhancement is enabled
@@ -952,8 +953,180 @@ class UniversalTextEnhancer {
       return;
     }
 
-    // Show enhancement menu
-    this.showEnhancementMenu(textField, button);
+    // Check if Ctrl+Click for direct enhancement
+    if (event?.ctrlKey) {
+      console.debug("[TextEnhancer] Ctrl+Click detected - auto-enhancing");
+      this.handleDirectEnhancement(textField, currentText);
+    } else {
+      // Show enhancement menu for normal click
+      this.showEnhancementMenu(textField, button);
+    }
+  }
+
+  /**
+   * Handle direct enhancement with auto-detected tone (Ctrl+Click)
+   */
+  private async handleDirectEnhancement(textField: HTMLElement, currentText: string): Promise<void> {
+    console.info("[TextEnhancer] Processing direct enhancement");
+
+    // Auto-detect the best enhancement style
+    const detectedStyle = this.autoDetectEnhancementStyle(currentText);
+    
+    console.debug("[TextEnhancer] Auto-detected style:", detectedStyle);
+
+    // Process enhancement directly without showing menu
+    await this.processDirectEnhancement(textField, currentText, detectedStyle);
+  }
+
+  /**
+   * Auto-detect the best enhancement style based on text content and context
+   */
+  private autoDetectEnhancementStyle(text: string): EnhancementStyle {
+    const lowerText = text.toLowerCase();
+    
+    // Check for grammar/spelling issues first
+    const hasGrammarIssues = this.hasGrammarIssues(text);
+    if (hasGrammarIssues) {
+      return EnhancementStyle.OPTIMIZE;
+    }
+
+    // Check page context for professional environments
+    if (this.pageContext) {
+      const professionalContexts = ['email', 'business', 'linkedin', 'work', 'corporate'];
+      if (professionalContexts.some(ctx => 
+        this.pageContext!.domain.includes(ctx) || 
+        this.pageContext!.type.includes(ctx) ||
+        (this.pageContext!.title && this.pageContext!.title.toLowerCase().includes(ctx))
+      )) {
+        return EnhancementStyle.PROFESSIONAL;
+      }
+    }
+
+    // Check for informal language patterns
+    const informalPatterns = [
+      /\b(hey|hi|yo|sup|lol|omg|btw|tbh|imo|fyi)\b/i,
+      /\b(gonna|wanna|gotta|kinda|sorta)\b/i,
+      /[.]{2,}|[!]{2,}|[?]{2,}/,
+      /\b(awesome|cool|sweet|dope|sick)\b/i
+    ];
+    
+    if (informalPatterns.some(pattern => pattern.test(text))) {
+      // If it's informal, check if it needs to be more professional
+      if (text.length > 50) {
+        return EnhancementStyle.PROFESSIONAL;
+      } else {
+        return EnhancementStyle.CONCISE;
+      }
+    }
+
+    // Check for verbose text that could be shortened
+    if (text.length > 200 || text.split(' ').length > 40) {
+      return EnhancementStyle.CONCISE;
+    }
+
+    // Check for emotional content
+    const emotionalPatterns = [
+      /\b(sorry|apologize|understand|feel|emotion|heart|care|love|hate|angry|sad|happy|excited)\b/i,
+      /\b(please|thank|appreciate|grateful|help|support)\b/i
+    ];
+    
+    if (emotionalPatterns.some(pattern => pattern.test(text))) {
+      return EnhancementStyle.EMPATHETIC;
+    }
+
+    // Check for persuasive intent
+    const persuasivePatterns = [
+      /\b(should|must|need|important|urgent|recommend|suggest|propose|convince|believe)\b/i,
+      /\b(benefits?|advantages?|opportunity|offer|deal|value|worth)\b/i
+    ];
+    
+    if (persuasivePatterns.some(pattern => pattern.test(text))) {
+      return EnhancementStyle.PERSUASIVE;
+    }
+
+    // Default to optimize for general improvement
+    return EnhancementStyle.OPTIMIZE;
+  }
+
+  /**
+   * Check if text has potential grammar or clarity issues
+   */
+  private hasGrammarIssues(text: string): boolean {
+    // Simple heuristics for common issues
+    const issues = [
+      /\b(i)\b/g, // Lowercase 'i'
+      /[a-z]\.[A-Z]/g, // Missing space after period
+      /\s{2,}/g, // Multiple spaces
+      /\b(there|their|they're)\b.*\b(there|their|they're)\b/i, // Common confusion
+      /\b(your|you're)\b.*\b(your|you're)\b/i,
+      /\b(its|it's)\b.*\b(its|it's)\b/i,
+      /[.!?]\s*[a-z]/g, // Lowercase after sentence end
+    ];
+
+    return issues.some(pattern => pattern.test(text));
+  }
+
+  /**
+   * Process direct enhancement without showing preview
+   */
+  private async processDirectEnhancement(
+    textField: HTMLElement,
+    originalText: string,
+    style: EnhancementStyle
+  ): Promise<void> {
+    console.info("[TextEnhancer] Processing direct enhancement", { style, textLength: originalText.length });
+
+    // Verify textField is still valid
+    if (!textField || !document.body.contains(textField)) {
+      console.error("[TextEnhancer] Text field no longer in DOM, cannot process");
+      return;
+    }
+
+    // Show loading indicator
+    const loadingOverlay = this.showLoadingIndicator(textField);
+
+    try {
+      // Send enhancement request to service worker
+      const enhancedText = await this.requestEnhancement(originalText, style, true); // true for direct mode
+
+      // Remove loading indicator
+      if (loadingOverlay && loadingOverlay.parentNode) {
+        loadingOverlay.parentNode.removeChild(loadingOverlay);
+      }
+
+      // Verify textField is still valid before applying
+      if (!textField || !document.body.contains(textField)) {
+        console.error("[TextEnhancer] Text field removed during processing");
+        return;
+      }
+
+      // Apply enhancement directly
+      this.setTextFieldValue(textField, enhancedText);
+
+      // Provide visual feedback
+      const button = this.injectedButtons.get(textField);
+      if (button) {
+        button.style.transform = "scale(1.2)";
+        button.style.background = "#4caf50";
+        setTimeout(() => {
+          button.style.transform = "";
+          button.style.background = "";
+        }, 500);
+      }
+
+      console.info("[TextEnhancer] Direct enhancement applied successfully");
+
+    } catch (error) {
+      console.error("[TextEnhancer] Direct enhancement failed", error);
+
+      // Remove loading indicator
+      if (loadingOverlay && loadingOverlay.parentNode) {
+        loadingOverlay.parentNode.removeChild(loadingOverlay);
+      }
+
+      // Show error message
+      this.showErrorMessage(textField, error instanceof Error ? error.message : 'Enhancement failed');
+    }
   }
 
   /**
@@ -1275,7 +1448,7 @@ class UniversalTextEnhancer {
 
     try {
       // Send enhancement request to service worker
-      const enhancedText = await this.requestEnhancement(originalText, style);
+      const enhancedText = await this.requestEnhancement(originalText, style, false);
 
       // Remove loading indicator
       if (loadingOverlay && loadingOverlay.parentNode) {
@@ -1308,12 +1481,12 @@ class UniversalTextEnhancer {
   /**
    * Request text enhancement from service worker
    */
-  private async requestEnhancement(text: string, style: EnhancementStyle): Promise<string> {
+  private async requestEnhancement(text: string, style: EnhancementStyle, directMode: boolean = false): Promise<string> {
     // Import sendMessage dynamically to avoid circular dependencies
     const { sendMessage } = await import('../shared/message-client.js');
 
     // Create enhancement prompt based on style
-    const prompt = this.createEnhancementPrompt(text, style);
+    const prompt = this.createEnhancementPrompt(text, style, directMode);
 
     // Send request to service worker
     const response = await sendMessage<{ enhancedText: string }>(
@@ -1324,6 +1497,7 @@ class UniversalTextEnhancer {
         preferLocal: true, // Use on-device AI for privacy (Requirement 9.8)
         style,
         originalText: text,
+        directMode,
       },
       { timeout: 30000 }
     );
@@ -1332,14 +1506,67 @@ class UniversalTextEnhancer {
       throw new Error(response.error?.message || 'Enhancement request failed');
     }
 
-    return response.data.enhancedText;
+    // Clean up the response to ensure we only get the enhanced text
+    const cleanedText = this.cleanEnhancedText(response.data.enhancedText);
+    return cleanedText;
+  }
+
+  /**
+   * Clean the enhanced text response to remove any unwanted formatting or explanations
+   */
+  private cleanEnhancedText(rawResponse: string): string {
+    let cleaned = rawResponse.trim();
+
+    // Remove common AI response patterns
+    const unwantedPatterns = [
+      /^(Here are|Here's|Here is).*?:/i,
+      /^(Option \d+|Choice \d+|\*\*Option \d+).*?:/gm,
+      /^\*\*.*?\*\*$/gm, // Bold headers
+      /^>\s*/gm, // Quote markers
+      /^\d+\.\s*/gm, // Numbered lists at start of lines
+      /^-\s*/gm, // Bullet points at start of lines
+      /\*\*(.*?)\*\*/g, // Bold text - keep content, remove formatting
+      /^(Enhanced text|Improved version|Rewritten text):\s*/i,
+      /^(The enhanced text is|The improved version is):\s*/i,
+      /\n\n.*?(explanation|analysis|note|context).*$/is, // Remove explanations at the end
+    ];
+
+    // Apply cleaning patterns
+    unwantedPatterns.forEach(pattern => {
+      if (pattern.source.includes('\\*\\*(.*?)\\*\\*')) {
+        // Special handling for bold text - keep the content
+        cleaned = cleaned.replace(pattern, '$1');
+      } else {
+        cleaned = cleaned.replace(pattern, '');
+      }
+    });
+
+    // If the response contains multiple options, try to extract the first clean option
+    const optionMatch = cleaned.match(/^[^>\n\*\d-].*?(?=\n\n|\n[>\*\d-]|$)/s);
+    if (optionMatch && optionMatch[0].length > 10) {
+      cleaned = optionMatch[0].trim();
+    }
+
+    // Remove any remaining formatting artifacts
+    cleaned = cleaned
+      .replace(/^\s*["'`]|["'`]\s*$/g, '') // Remove quotes at start/end
+      .replace(/\n{3,}/g, '\n\n') // Reduce multiple newlines
+      .replace(/^\s+|\s+$/g, '') // Trim whitespace
+      .replace(/\s{2,}/g, ' '); // Reduce multiple spaces
+
+    // If the cleaned text is too short or seems invalid, return the original trimmed response
+    if (cleaned.length < 3 || cleaned === rawResponse.trim()) {
+      return rawResponse.trim();
+    }
+
+    return cleaned;
   }
 
   /**
    * Create enhancement prompt based on style with context awareness
    * Requirements 9.5, 9.6: Include page context and pocket content
    */
-  private createEnhancementPrompt(text: string, style: EnhancementStyle): string {
+  private createEnhancementPrompt(text: string, style: EnhancementStyle, directMode: boolean = false): string {
     const styleInstructions: Record<EnhancementStyle, string> = {
       [EnhancementStyle.PROFESSIONAL]:
         'Rewrite the following text in a professional, formal, and business-appropriate tone. Maintain the core message but make it suitable for professional communication.',
@@ -1356,6 +1583,9 @@ class UniversalTextEnhancer {
     };
 
     let prompt = styleInstructions[style];
+
+    // Add critical instruction for clean output
+    prompt += `\n\nIMPORTANT: Provide ONLY the enhanced text as your response. Do not include explanations, options, analysis, or any other text. Just return the improved version of the original text.`;
 
     // Add page context if available (Requirement 9.5)
     if (this.pageContext) {
@@ -1386,7 +1616,7 @@ class UniversalTextEnhancer {
       prompt += `\n\nYou may reference or incorporate relevant information from the user's saved content if appropriate.`;
     }
 
-    prompt += `\n\nOriginal text:\n${text}\n\nEnhanced text:`;
+    prompt += `\n\nOriginal text:\n"${text}"\n\nEnhanced text (provide ONLY the enhanced text, no explanations):`;
 
     return prompt;
   }
