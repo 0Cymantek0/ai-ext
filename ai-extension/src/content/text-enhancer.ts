@@ -190,25 +190,31 @@ class UniversalTextEnhancer {
     const style = document.createElement("style");
     style.id = styleId;
     style.textContent = `
+      /* Import Space Grotesk font for consistency */
+      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap");
+
       .ai-pocket-enhance-btn {
         position: absolute;
         width: 28px;
         height: 28px;
-        border: 1px solid #e0e0e0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 6px;
-        background: white;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         cursor: grab;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 16px;
         z-index: 10000;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         transition: all 0.2s ease;
         opacity: 0;
         pointer-events: none;
         user-select: none;
         touch-action: none;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-enhance-btn.visible {
@@ -216,42 +222,58 @@ class UniversalTextEnhancer {
         pointer-events: auto;
       }
 
+      .ai-pocket-enhance-btn.loading {
+        pointer-events: none;
+        cursor: default;
+      }
+
       .ai-pocket-enhance-btn.dragging {
         cursor: grabbing;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
         transform: scale(1.15);
         transition: none;
         z-index: 10001;
       }
 
-      .ai-pocket-enhance-btn:hover:not(.dragging) {
-        background: #f5f5f5;
-        border-color: #d0d0d0;
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+      .ai-pocket-enhance-btn:hover:not(.dragging):not(.loading) {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
         transform: scale(1.05);
       }
 
-      .ai-pocket-enhance-btn:active:not(.dragging) {
+      .ai-pocket-enhance-btn:active:not(.dragging):not(.loading) {
         cursor: grabbing;
       }
 
       .ai-pocket-enhance-btn:focus {
-        outline: 2px solid #4285f4;
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
         outline-offset: 2px;
       }
 
       .ai-pocket-enhance-btn-icon {
         user-select: none;
         pointer-events: none;
+        transition: transform 0.2s ease;
       }
 
-      /* Enhancement Menu Styles */
+      .ai-pocket-enhance-btn.loading .ai-pocket-enhance-btn-icon {
+        animation: ai-pocket-spin 1s linear infinite;
+      }
+
+      @keyframes ai-pocket-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Enhancement Menu Styles - Dark Glassmorphism */
       .ai-pocket-enhancement-menu {
         position: absolute;
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        background: rgba(34, 40, 49, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         z-index: 10002;
         min-width: 280px;
         max-width: 320px;
@@ -260,6 +282,7 @@ class UniversalTextEnhancer {
         transform: scale(0.95);
         transition: opacity 0.15s ease, transform 0.15s ease;
         pointer-events: none;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-enhancement-menu.visible {
@@ -269,59 +292,63 @@ class UniversalTextEnhancer {
       }
 
       .ai-pocket-enhancement-menu-header {
-        padding: 8px 12px;
-        border-bottom: 1px solid #f0f0f0;
-        margin-bottom: 4px;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 8px;
       }
 
       .ai-pocket-enhancement-menu-title {
         font-size: 14px;
         font-weight: 600;
-        color: #202124;
+        color: rgba(255, 255, 255, 0.9);
         margin: 0;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-enhancement-menu-subtitle {
         font-size: 12px;
-        color: #5f6368;
-        margin: 2px 0 0 0;
+        color: rgba(255, 255, 255, 0.6);
+        margin: 4px 0 0 0;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-enhancement-option {
         display: flex;
         align-items: flex-start;
-        padding: 10px 12px;
-        border-radius: 6px;
+        padding: 12px 16px;
+        border-radius: 8px;
         cursor: pointer;
-        transition: background-color 0.1s ease, border 0.1s ease;
-        border: 2px solid transparent;
-        background: none;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        background: transparent;
         width: 100%;
         text-align: left;
         margin: 2px 0;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-enhancement-option:hover:not(.selected) {
-        background-color: #f5f5f5;
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
       }
 
       .ai-pocket-enhancement-option:focus:not(.selected) {
-        outline: 2px solid #4285f4;
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
         outline-offset: -2px;
-        background-color: #f5f5f5;
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .ai-pocket-enhancement-option:active:not(.selected) {
-        background-color: #e8e8e8;
+        background: rgba(255, 255, 255, 0.1);
       }
 
       .ai-pocket-enhancement-option.selected {
-        background-color: #e8f0fe !important;
-        border: 2px solid #4285f4 !important;
+        background: rgba(66, 133, 244, 0.2) !important;
+        border: 1px solid hsl(217.2 91.2% 59.8%) !important;
       }
 
       .ai-pocket-enhancement-option.selected:hover {
-        background-color: #d2e3fc !important;
+        background: rgba(66, 133, 244, 0.3) !important;
       }
 
       .ai-pocket-enhancement-option.selected:focus {
@@ -343,24 +370,27 @@ class UniversalTextEnhancer {
       .ai-pocket-enhancement-option-label {
         font-size: 14px;
         font-weight: 500;
-        color: #202124;
-        margin: 0 0 2px 0;
+        color: rgba(255, 255, 255, 0.9);
+        margin: 0 0 4px 0;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-enhancement-option-description {
         font-size: 12px;
-        color: #5f6368;
+        color: rgba(255, 255, 255, 0.6);
         margin: 0;
         line-height: 1.4;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-enhancement-menu-footer {
-        padding: 8px 12px;
-        border-top: 1px solid #f0f0f0;
-        margin-top: 4px;
+        padding: 8px 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: 8px;
         font-size: 11px;
-        color: #5f6368;
+        color: rgba(255, 255, 255, 0.5);
         text-align: center;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       /* Menu backdrop */
@@ -374,48 +404,17 @@ class UniversalTextEnhancer {
         background: transparent;
       }
 
-      /* Loading Indicator Styles */
-      .ai-pocket-enhancement-loading {
-        position: absolute;
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        padding: 20px;
-        z-index: 10003;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
-
-      .ai-pocket-loading-spinner {
-        width: 32px;
-        height: 32px;
-        border: 3px solid #f0f0f0;
-        border-top-color: #4285f4;
-        border-radius: 50%;
-        animation: ai-pocket-spin 0.8s linear infinite;
-      }
-
-      @keyframes ai-pocket-spin {
-        to { transform: rotate(360deg); }
-      }
-
-      .ai-pocket-loading-message {
-        font-size: 14px;
-        color: #5f6368;
-        font-weight: 500;
-      }
-
-      /* Preview Dialog Styles */
+      /* Preview Dialog Styles - True Glassmorphism like Chatbox */
       .ai-pocket-enhancement-preview {
         position: fixed;
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        background: rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+        -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 16px;
+        box-shadow: 
+          0 8px 32px rgba(0, 0, 0, 0.3),
+          inset 0 1px 0 rgba(255, 255, 255, 0.2);
         z-index: 10004;
         max-width: 600px;
         width: 90%;
@@ -424,7 +423,9 @@ class UniversalTextEnhancer {
         flex-direction: column;
         opacity: 0;
         transform: scale(0.95);
-        transition: opacity 0.2s ease, transform 0.2s ease;
+        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: "Space Grotesk", sans-serif;
+        overflow: hidden;
       }
 
       .ai-pocket-enhancement-preview.visible {
@@ -436,124 +437,141 @@ class UniversalTextEnhancer {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px 20px;
-        border-bottom: 1px solid #e0e0e0;
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .ai-pocket-preview-title {
         font-size: 16px;
         font-weight: 600;
-        color: #202124;
+        color: rgba(255, 255, 255, 0.9);
         margin: 0;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-preview-close {
-        background: none;
-        border: none;
-        font-size: 20px;
-        color: #5f6368;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.9);
         cursor: pointer;
-        padding: 4px 8px;
-        border-radius: 4px;
-        transition: background-color 0.1s ease;
+        padding: 8px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .ai-pocket-preview-close:hover {
-        background-color: #f5f5f5;
+        background: rgba(255, 255, 255, 0.2);
+        color: rgba(255, 255, 255, 1);
       }
 
       .ai-pocket-preview-close:focus {
-        outline: 2px solid #4285f4;
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
         outline-offset: 2px;
       }
 
       .ai-pocket-preview-content {
         flex: 1;
         overflow-y: auto;
-        padding: 20px;
+        padding: 24px;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 24px;
       }
 
       .ai-pocket-preview-section {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 12px;
       }
 
       .ai-pocket-preview-label {
         font-size: 12px;
         font-weight: 600;
-        color: #5f6368;
+        color: rgba(255, 255, 255, 0.6);
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-preview-text {
-        padding: 12px;
-        border-radius: 6px;
+        padding: 16px;
+        border-radius: 12px;
         font-size: 14px;
         line-height: 1.6;
-        color: #202124;
         white-space: pre-wrap;
         word-wrap: break-word;
+        font-family: "Space Grotesk", sans-serif;
+        transition: all 0.2s ease;
       }
 
       .ai-pocket-preview-original {
-        background-color: #f8f9fa;
-        border: 1px solid #e0e0e0;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.9);
       }
 
       .ai-pocket-preview-enhanced {
-        background-color: #e8f0fe;
-        border: 1px solid #4285f4;
+        background: rgba(66, 133, 244, 0.15);
+        border: 1px solid rgba(66, 133, 244, 0.4);
+        color: rgba(255, 255, 255, 1);
       }
 
       .ai-pocket-preview-actions {
         display: flex;
         gap: 12px;
-        padding: 16px 20px;
-        border-top: 1px solid #e0e0e0;
+        padding: 20px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
         justify-content: flex-end;
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .ai-pocket-preview-btn {
-        padding: 10px 24px;
-        border-radius: 6px;
+        padding: 12px 24px;
+        border-radius: 8px;
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.1s ease;
+        transition: all 0.2s ease;
         border: none;
+        font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-preview-btn-primary {
-        background-color: #4285f4;
+        background: hsl(217.2 91.2% 59.8%);
         color: white;
       }
 
       .ai-pocket-preview-btn-primary:hover {
-        background-color: #3367d6;
+        background: hsl(217.2 91.2% 55%);
+        transform: translateY(-1px);
       }
 
       .ai-pocket-preview-btn-primary:focus {
-        outline: 2px solid #4285f4;
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
         outline-offset: 2px;
       }
 
       .ai-pocket-preview-btn-secondary {
-        background-color: white;
-        color: #5f6368;
-        border: 1px solid #dadce0;
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
       }
 
       .ai-pocket-preview-btn-secondary:hover {
-        background-color: #f8f9fa;
+        background: rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 1);
+        transform: translateY(-1px);
       }
 
       .ai-pocket-preview-btn-secondary:focus {
-        outline: 2px solid #4285f4;
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
         outline-offset: 2px;
       }
 
@@ -563,28 +581,32 @@ class UniversalTextEnhancer {
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.2);
         z-index: 10003;
         opacity: 0;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.3s ease;
       }
 
       .ai-pocket-preview-backdrop.visible {
         opacity: 1;
       }
 
-      /* Error Message Styles */
+      /* Error Message Styles - Dark Theme */
       .ai-pocket-enhancement-error {
         position: absolute;
-        background: #fce8e6;
-        color: #c5221f;
+        background: rgba(220, 53, 69, 0.9);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        color: white;
         padding: 12px 16px;
-        border-radius: 6px;
+        border-radius: 8px;
         font-size: 13px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3);
         z-index: 10003;
         max-width: 300px;
         animation: ai-pocket-slide-in 0.2s ease;
+        font-family: "Space Grotesk", sans-serif;
+        border: 1px solid rgba(255, 255, 255, 0.1);
       }
 
       @keyframes ai-pocket-slide-in {
@@ -799,7 +821,7 @@ class UniversalTextEnhancer {
         button.addEventListener("click", blockClick, true);
       } else {
         // Not dragged, handle as click
-        this.handleButtonClick(textField, button);
+        this.handleButtonClick(textField, button, e);
       }
     };
 
@@ -852,7 +874,7 @@ class UniversalTextEnhancer {
       button.classList.remove("dragging");
 
       if (!hasMoved) {
-        // Handle as click
+        // Handle as click - note: touch events don't have ctrlKey
         this.handleButtonClick(textField, button);
       }
 
@@ -927,10 +949,11 @@ class UniversalTextEnhancer {
   /**
    * Handle button click
    */
-  private handleButtonClick(textField: HTMLElement, button: HTMLElement): void {
+  private handleButtonClick(textField: HTMLElement, button: HTMLElement, event?: MouseEvent): void {
     console.debug("[TextEnhancer] Enhancement button clicked", {
       tag: textField.tagName,
       value: (textField as HTMLInputElement).value,
+      ctrlKey: event?.ctrlKey,
     });
 
     // Check if enhancement is enabled
@@ -952,8 +975,176 @@ class UniversalTextEnhancer {
       return;
     }
 
-    // Show enhancement menu
-    this.showEnhancementMenu(textField, button);
+    // Check if Ctrl+Click for direct enhancement
+    if (event?.ctrlKey) {
+      console.debug("[TextEnhancer] Ctrl+Click detected - auto-enhancing");
+      this.handleDirectEnhancement(textField, currentText);
+    } else {
+      // Show enhancement menu for normal click
+      this.showEnhancementMenu(textField, button);
+    }
+  }
+
+  /**
+   * Handle direct enhancement with auto-detected tone (Ctrl+Click)
+   */
+  private async handleDirectEnhancement(textField: HTMLElement, currentText: string): Promise<void> {
+    console.info("[TextEnhancer] Processing direct enhancement");
+
+    // Auto-detect the best enhancement style
+    const detectedStyle = this.autoDetectEnhancementStyle(currentText);
+    
+    console.debug("[TextEnhancer] Auto-detected style:", detectedStyle);
+
+    // Process enhancement directly without showing menu
+    await this.processDirectEnhancement(textField, currentText, detectedStyle);
+  }
+
+  /**
+   * Auto-detect the best enhancement style based on text content and context
+   */
+  private autoDetectEnhancementStyle(text: string): EnhancementStyle {
+    const lowerText = text.toLowerCase();
+    
+    // Check for grammar/spelling issues first
+    const hasGrammarIssues = this.hasGrammarIssues(text);
+    if (hasGrammarIssues) {
+      return EnhancementStyle.OPTIMIZE;
+    }
+
+    // Check page context for professional environments
+    if (this.pageContext) {
+      const professionalContexts = ['email', 'business', 'linkedin', 'work', 'corporate'];
+      if (professionalContexts.some(ctx => 
+        this.pageContext!.domain.includes(ctx) || 
+        this.pageContext!.type.includes(ctx) ||
+        (this.pageContext!.title && this.pageContext!.title.toLowerCase().includes(ctx))
+      )) {
+        return EnhancementStyle.PROFESSIONAL;
+      }
+    }
+
+    // Check for informal language patterns
+    const informalPatterns = [
+      /\b(hey|hi|yo|sup|lol|omg|btw|tbh|imo|fyi)\b/i,
+      /\b(gonna|wanna|gotta|kinda|sorta)\b/i,
+      /[.]{2,}|[!]{2,}|[?]{2,}/,
+      /\b(awesome|cool|sweet|dope|sick)\b/i
+    ];
+    
+    if (informalPatterns.some(pattern => pattern.test(text))) {
+      // If it's informal, check if it needs to be more professional
+      if (text.length > 50) {
+        return EnhancementStyle.PROFESSIONAL;
+      } else {
+        return EnhancementStyle.CONCISE;
+      }
+    }
+
+    // Check for verbose text that could be shortened
+    if (text.length > 200 || text.split(' ').length > 40) {
+      return EnhancementStyle.CONCISE;
+    }
+
+    // Check for emotional content
+    const emotionalPatterns = [
+      /\b(sorry|apologize|understand|feel|emotion|heart|care|love|hate|angry|sad|happy|excited)\b/i,
+      /\b(please|thank|appreciate|grateful|help|support)\b/i
+    ];
+    
+    if (emotionalPatterns.some(pattern => pattern.test(text))) {
+      return EnhancementStyle.EMPATHETIC;
+    }
+
+    // Check for persuasive intent
+    const persuasivePatterns = [
+      /\b(should|must|need|important|urgent|recommend|suggest|propose|convince|believe)\b/i,
+      /\b(benefits?|advantages?|opportunity|offer|deal|value|worth)\b/i
+    ];
+    
+    if (persuasivePatterns.some(pattern => pattern.test(text))) {
+      return EnhancementStyle.PERSUASIVE;
+    }
+
+    // Default to optimize for general improvement
+    return EnhancementStyle.OPTIMIZE;
+  }
+
+  /**
+   * Check if text has potential grammar or clarity issues
+   */
+  private hasGrammarIssues(text: string): boolean {
+    // Simple heuristics for common issues
+    const issues = [
+      /\b(i)\b/g, // Lowercase 'i'
+      /[a-z]\.[A-Z]/g, // Missing space after period
+      /\s{2,}/g, // Multiple spaces
+      /\b(there|their|they're)\b.*\b(there|their|they're)\b/i, // Common confusion
+      /\b(your|you're)\b.*\b(your|you're)\b/i,
+      /\b(its|it's)\b.*\b(its|it's)\b/i,
+      /[.!?]\s*[a-z]/g, // Lowercase after sentence end
+    ];
+
+    return issues.some(pattern => pattern.test(text));
+  }
+
+  /**
+   * Process direct enhancement without showing preview
+   */
+  private async processDirectEnhancement(
+    textField: HTMLElement,
+    originalText: string,
+    style: EnhancementStyle
+  ): Promise<void> {
+    console.info("[TextEnhancer] Processing direct enhancement", { style, textLength: originalText.length });
+
+    // Verify textField is still valid
+    if (!textField || !document.body.contains(textField)) {
+      console.error("[TextEnhancer] Text field no longer in DOM, cannot process");
+      return;
+    }
+
+    // Show loading indicator
+    const loadingOverlay = this.showLoadingIndicator(textField);
+
+    try {
+      // Send enhancement request to service worker
+      const enhancedText = await this.requestEnhancement(originalText, style, true); // true for direct mode
+
+      // Remove loading indicator
+      this.hideLoadingIndicator(textField, loadingOverlay);
+
+      // Verify textField is still valid before applying
+      if (!textField || !document.body.contains(textField)) {
+        console.error("[TextEnhancer] Text field removed during processing");
+        return;
+      }
+
+      // Apply enhancement directly
+      this.setTextFieldValue(textField, enhancedText);
+
+      // Provide visual feedback
+      const button = this.injectedButtons.get(textField);
+      if (button) {
+        button.style.transform = "scale(1.2)";
+        button.style.background = "#4caf50";
+        setTimeout(() => {
+          button.style.transform = "";
+          button.style.background = "";
+        }, 500);
+      }
+
+      console.info("[TextEnhancer] Direct enhancement applied successfully");
+
+    } catch (error) {
+      console.error("[TextEnhancer] Direct enhancement failed", error);
+
+      // Remove loading indicator
+      this.hideLoadingIndicator(textField, loadingOverlay);
+
+      // Show error message
+      this.showErrorMessage(textField, error instanceof Error ? error.message : 'Enhancement failed');
+    }
   }
 
   /**
@@ -1275,12 +1466,10 @@ class UniversalTextEnhancer {
 
     try {
       // Send enhancement request to service worker
-      const enhancedText = await this.requestEnhancement(originalText, style);
+      const enhancedText = await this.requestEnhancement(originalText, style, false);
 
       // Remove loading indicator
-      if (loadingOverlay && loadingOverlay.parentNode) {
-        loadingOverlay.parentNode.removeChild(loadingOverlay);
-      }
+      this.hideLoadingIndicator(textField, loadingOverlay);
 
       // Verify textField is still valid before showing preview
       if (!textField || !document.body.contains(textField)) {
@@ -1296,9 +1485,7 @@ class UniversalTextEnhancer {
       console.error("[TextEnhancer] Enhancement failed", error);
 
       // Remove loading indicator
-      if (loadingOverlay && loadingOverlay.parentNode) {
-        loadingOverlay.parentNode.removeChild(loadingOverlay);
-      }
+      this.hideLoadingIndicator(textField, loadingOverlay);
 
       // Show error message
       this.showErrorMessage(textField, error instanceof Error ? error.message : 'Enhancement failed');
@@ -1308,12 +1495,12 @@ class UniversalTextEnhancer {
   /**
    * Request text enhancement from service worker
    */
-  private async requestEnhancement(text: string, style: EnhancementStyle): Promise<string> {
+  private async requestEnhancement(text: string, style: EnhancementStyle, directMode: boolean = false): Promise<string> {
     // Import sendMessage dynamically to avoid circular dependencies
     const { sendMessage } = await import('../shared/message-client.js');
 
     // Create enhancement prompt based on style
-    const prompt = this.createEnhancementPrompt(text, style);
+    const prompt = this.createEnhancementPrompt(text, style, directMode);
 
     // Send request to service worker
     const response = await sendMessage<{ enhancedText: string }>(
@@ -1324,6 +1511,7 @@ class UniversalTextEnhancer {
         preferLocal: true, // Use on-device AI for privacy (Requirement 9.8)
         style,
         originalText: text,
+        directMode,
       },
       { timeout: 30000 }
     );
@@ -1332,14 +1520,67 @@ class UniversalTextEnhancer {
       throw new Error(response.error?.message || 'Enhancement request failed');
     }
 
-    return response.data.enhancedText;
+    // Clean up the response to ensure we only get the enhanced text
+    const cleanedText = this.cleanEnhancedText(response.data.enhancedText);
+    return cleanedText;
+  }
+
+  /**
+   * Clean the enhanced text response to remove any unwanted formatting or explanations
+   */
+  private cleanEnhancedText(rawResponse: string): string {
+    let cleaned = rawResponse.trim();
+
+    // Remove common AI response patterns
+    const unwantedPatterns = [
+      /^(Here are|Here's|Here is).*?:/i,
+      /^(Option \d+|Choice \d+|\*\*Option \d+).*?:/gm,
+      /^\*\*.*?\*\*$/gm, // Bold headers
+      /^>\s*/gm, // Quote markers
+      /^\d+\.\s*/gm, // Numbered lists at start of lines
+      /^-\s*/gm, // Bullet points at start of lines
+      /\*\*(.*?)\*\*/g, // Bold text - keep content, remove formatting
+      /^(Enhanced text|Improved version|Rewritten text):\s*/i,
+      /^(The enhanced text is|The improved version is):\s*/i,
+      /\n\n.*?(explanation|analysis|note|context).*$/is, // Remove explanations at the end
+    ];
+
+    // Apply cleaning patterns
+    unwantedPatterns.forEach(pattern => {
+      if (pattern.source.includes('\\*\\*(.*?)\\*\\*')) {
+        // Special handling for bold text - keep the content
+        cleaned = cleaned.replace(pattern, '$1');
+      } else {
+        cleaned = cleaned.replace(pattern, '');
+      }
+    });
+
+    // If the response contains multiple options, try to extract the first clean option
+    const optionMatch = cleaned.match(/^[^>\n\*\d-].*?(?=\n\n|\n[>\*\d-]|$)/s);
+    if (optionMatch && optionMatch[0].length > 10) {
+      cleaned = optionMatch[0].trim();
+    }
+
+    // Remove any remaining formatting artifacts
+    cleaned = cleaned
+      .replace(/^\s*["'`]|["'`]\s*$/g, '') // Remove quotes at start/end
+      .replace(/\n{3,}/g, '\n\n') // Reduce multiple newlines
+      .replace(/^\s+|\s+$/g, '') // Trim whitespace
+      .replace(/\s{2,}/g, ' '); // Reduce multiple spaces
+
+    // If the cleaned text is too short or seems invalid, return the original trimmed response
+    if (cleaned.length < 3 || cleaned === rawResponse.trim()) {
+      return rawResponse.trim();
+    }
+
+    return cleaned;
   }
 
   /**
    * Create enhancement prompt based on style with context awareness
    * Requirements 9.5, 9.6: Include page context and pocket content
    */
-  private createEnhancementPrompt(text: string, style: EnhancementStyle): string {
+  private createEnhancementPrompt(text: string, style: EnhancementStyle, directMode: boolean = false): string {
     const styleInstructions: Record<EnhancementStyle, string> = {
       [EnhancementStyle.PROFESSIONAL]:
         'Rewrite the following text in a professional, formal, and business-appropriate tone. Maintain the core message but make it suitable for professional communication.',
@@ -1356,6 +1597,9 @@ class UniversalTextEnhancer {
     };
 
     let prompt = styleInstructions[style];
+
+    // Add critical instruction for clean output
+    prompt += `\n\nIMPORTANT: Provide ONLY the enhanced text as your response. Do not include explanations, options, analysis, or any other text. Just return the improved version of the original text.`;
 
     // Add page context if available (Requirement 9.5)
     if (this.pageContext) {
@@ -1386,13 +1630,13 @@ class UniversalTextEnhancer {
       prompt += `\n\nYou may reference or incorporate relevant information from the user's saved content if appropriate.`;
     }
 
-    prompt += `\n\nOriginal text:\n${text}\n\nEnhanced text:`;
+    prompt += `\n\nOriginal text:\n"${text}"\n\nEnhanced text (provide ONLY the enhanced text, no explanations):`;
 
     return prompt;
   }
 
   /**
-   * Show loading indicator while processing
+   * Show loading indicator on the enhancement button
    */
   private showLoadingIndicator(textField: HTMLElement): HTMLElement | null {
     // Check if textField is valid
@@ -1401,32 +1645,41 @@ class UniversalTextEnhancer {
       return null;
     }
 
-    const overlay = document.createElement('div');
-    overlay.className = 'ai-pocket-enhancement-loading';
-    overlay.setAttribute('role', 'status');
-    overlay.setAttribute('aria-live', 'polite');
-    overlay.setAttribute('aria-label', 'Enhancing text');
+    // Get the enhancement button for this text field
+    const button = this.injectedButtons.get(textField);
+    if (!button) {
+      console.warn("[TextEnhancer] No button found for text field");
+      return null;
+    }
 
-    const spinner = document.createElement('div');
-    spinner.className = 'ai-pocket-loading-spinner';
+    // Add loading state to button
+    button.classList.add('loading');
+    button.setAttribute('aria-label', 'Enhancing text...');
+    
+    // Change icon to indicate loading (the CSS animation will handle the spinning)
+    const icon = button.querySelector('.ai-pocket-enhance-btn-icon');
+    if (icon) {
+      icon.textContent = '⟳'; // Rotating arrow icon
+    }
 
-    const message = document.createElement('div');
-    message.className = 'ai-pocket-loading-message';
-    message.textContent = 'Enhancing text...';
+    return button;
+  }
 
-    overlay.appendChild(spinner);
-    overlay.appendChild(message);
+  /**
+   * Hide loading indicator and restore button state
+   */
+  private hideLoadingIndicator(textField: HTMLElement, loadingButton: HTMLElement | null): void {
+    if (!loadingButton) return;
 
-    // Position overlay near text field
-    const rect = textField.getBoundingClientRect();
-    overlay.style.position = 'absolute';
-    overlay.style.top = `${rect.top + window.scrollY}px`;
-    overlay.style.left = `${rect.left + window.scrollX}px`;
-    overlay.style.width = `${rect.width}px`;
-    overlay.style.height = `${rect.height}px`;
-
-    document.body.appendChild(overlay);
-    return overlay;
+    // Remove loading state from button
+    loadingButton.classList.remove('loading');
+    loadingButton.setAttribute('aria-label', 'Enhance text with AI (drag to move)');
+    
+    // Restore original icon
+    const icon = loadingButton.querySelector('.ai-pocket-enhance-btn-icon');
+    if (icon) {
+      icon.textContent = '✨'; // Original sparkle icon
+    }
   }
 
   /**
