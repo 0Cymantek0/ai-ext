@@ -1,11 +1,19 @@
 "use client";
 
-import { CornerRightUp, FileUp, Paperclip, X } from "lucide-react";
+import { Cloud, CornerRightUp, Cpu, FileUp, Paperclip, Sparkles, X, Zap } from "lucide-react";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useFileInput } from "@/components/hooks/use-file-input";
 import { useAutoResizeTextarea } from "@/components/hooks/use-auto-resize-textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface FileDisplayProps {
   fileName: string;
@@ -56,6 +64,8 @@ interface AIInputWithFileProps {
   onSubmit?: (message: string, files?: File[]) => void;
   className?: string;
   disabled?: boolean;
+  model?: "auto" | "nano" | "flash-lite" | "flash" | "pro";
+  onModelChange?: (model: "auto" | "nano" | "flash-lite" | "flash" | "pro") => void;
 }
 
 export function AIInputWithFile({
@@ -69,6 +79,8 @@ export function AIInputWithFile({
   onSubmit,
   className,
   disabled = false,
+  model = "auto",
+  onModelChange,
 }: AIInputWithFileProps) {
   const [inputValue, setInputValue] = useState<string>("");
   const {
@@ -93,6 +105,50 @@ export function AIInputWithFile({
     minHeight,
     maxHeight,
   });
+
+  const getModelLabel = (m: AIInputWithFileProps["model"]) => {
+    switch (m) {
+      case "nano":
+        return "Gemini Nano";
+      case "flash-lite":
+        return "Gemini 2.5 Flash Lite";
+      case "flash":
+        return "Gemini 2.5 Flash";
+      case "pro":
+        return "Gemini 2.5 Pro";
+      default:
+        return "Auto";
+    }
+  };
+
+  const getModelIcon = (m: AIInputWithFileProps["model"]) => {
+    switch (m) {
+      case "nano":
+        return <Cpu className="size-3.5" />;
+      case "flash-lite":
+      case "flash":
+        return <Zap className="size-3.5" />;
+      case "pro":
+        return <Cloud className="size-3.5" />;
+      default:
+        return <Sparkles className="size-3.5" />;
+    }
+  };
+
+  const getModelTooltip = (m: AIInputWithFileProps["model"]) => {
+    switch (m) {
+      case "nano":
+        return "On-device, fastest and private. Limited context and reasoning.";
+      case "flash-lite":
+        return "Cloud, lowest cost. Best for short and simple prompts.";
+      case "flash":
+        return "Cloud, balanced speed/cost. Good for larger inputs.";
+      case "pro":
+        return "Cloud, most capable reasoning and coding. Highest cost.";
+      default:
+        return "Automatically choose the best model based on task and device.";
+    }
+  };
 
   const handleSubmit = () => {
     if (disabled) return;
@@ -174,6 +230,8 @@ export function AIInputWithFile({
               <Paperclip className="w-3.5 sm:w-4 h-3.5 sm:h-4 transition-opacity transform scale-x-[-1] rotate-45 dark:text-white" />
             </div>
 
+            {/* Model Selector moved below input */}
+
             {/* Drag and Drop Overlay */}
             {isDragging && (
               <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 rounded-2xl border-2 border-dashed border-blue-500 z-10">
@@ -196,7 +254,7 @@ export function AIInputWithFile({
                 "ring-0",
                 "text-white text-wrap py-3.5 sm:py-4 leading-[1.4]",
                 "text-sm sm:text-base",
-                "max-h-[200px] overflow-y-auto resize-none leading-[1.2]",
+                "max-h-[200px] sm:max-h-[220px] md:max-h-[260px] lg:max-h-[300px] overflow-y-auto resize-none leading-[1.2] scrollbar-custom",
                 `min-h-[${minHeight}px]`,
                 disabled && "opacity-50 cursor-not-allowed",
                 isDragging && "opacity-50",
@@ -253,6 +311,64 @@ export function AIInputWithFile({
               />
             </button>
           </div>          
+
+          {/* Model Selector row below input */}
+          <div className={cn("mt-2 flex justify-start", disabled && "opacity-60 pointer-events-none")}> 
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Select
+                  value={model}
+                  onValueChange={(val) => onModelChange?.(val as any)}
+                  disabled={disabled}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="h-7 sm:h-8 px-2 rounded-2xl bg-white/10 dark:bg-white/10 backdrop-blur-md border border-white/10 text-xs text-white shadow-md hover:bg-white/20 transition-colors focus-visible:ring-2 focus-visible:ring-white/30"
+                  >
+                    <SelectValue>
+                      <span className="inline-flex items-center gap-1.5">
+                        {getModelIcon(model)}
+                        <span>{getModelLabel(model)}</span>
+                      </span>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent
+                    align="start"
+                    className="backdrop-blur-md bg-white/10 dark:bg-white/10 border border-white/10 shadow-lg"
+                  >
+                    <SelectItem value="auto">
+                      <span className="inline-flex items-center gap-2">
+                        <Sparkles className="size-4" /> Auto
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="nano">
+                      <span className="inline-flex items-center gap-2">
+                        <Cpu className="size-4" /> Gemini Nano
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="flash-lite">
+                      <span className="inline-flex items-center gap-2">
+                        <Zap className="size-4" /> Gemini 2.5 Flash Lite
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="flash">
+                      <span className="inline-flex items-center gap-2">
+                        <Zap className="size-4" /> Gemini 2.5 Flash
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="pro">
+                      <span className="inline-flex items-center gap-2">
+                        <Cloud className="size-4" /> Gemini 2.5 Pro
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </TooltipTrigger>
+              <TooltipContent sideOffset={6}>
+                {getModelTooltip(model)}
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </div>
     </div>

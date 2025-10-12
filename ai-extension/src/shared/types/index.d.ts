@@ -12,6 +12,12 @@ export type MessageKind =
   | "POCKET_CREATE"
   | "POCKET_UPDATE"
   | "POCKET_LIST"
+  | "POCKET_DELETE"
+  | "POCKET_SEARCH"
+  | "CONTENT_LIST"
+  | "CONTENT_GET"
+  | "CONTENT_DELETE"
+  | "CONTENT_SEARCH"
   | "CONVERSATION_LIST"
   | "CONVERSATION_GET"
   | "CONVERSATION_CREATE"
@@ -71,6 +77,35 @@ export interface AiStreamErrorPayload {
 
 export interface AiCancelRequestPayload {
   requestId: string;
+}
+
+export interface ContentListPayload {
+  pocketId: string;
+}
+
+export interface ContentGetPayload {
+  contentId: string;
+}
+
+export interface ContentDeletePayload {
+  contentId: string;
+}
+
+export interface PocketSearchPayload {
+  query: string;
+  limit?: number;
+}
+
+export interface ContentSearchPayload {
+  query: string;
+  pocketId?: string;
+  limit?: number;
+}
+
+export interface SearchResult<T> {
+  item: T;
+  relevanceScore: number;
+  matchedFields?: string[];
 }
 
 // User Preferences
