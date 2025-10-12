@@ -5,6 +5,7 @@ import { ContentCard } from "./ContentCard";
 import { ContentPreview } from "./ContentPreview";
 import { SearchBar } from "@/components/SearchBar";
 import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
+import { AnimatePresence, motion } from "framer-motion";
 import { GlassSelector, GlassSort, FloatingPanel } from "@/components/FloatingControls";
 import type { CapturedContent } from "@/background/indexeddb-manager";
 import type { PocketData } from "./PocketCard";
@@ -25,6 +26,7 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
+  const [isResultsOpen, setIsResultsOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const [previewContent, setPreviewContent] = React.useState<CapturedContent | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
@@ -106,11 +108,13 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
     if (!query.trim()) {
       setSearchQuery("");
       setSearchResults([]);
+      setIsResultsOpen(false);
       return;
     }
 
     setIsSearching(true);
     setSearchQuery(query);
+    setIsResultsOpen(true);
 
     try {
       // Use vector-based semantic search within the pocket
@@ -191,6 +195,21 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
     }
   };
 
+  // Close results on Escape
+  React.useEffect(() => {
+    if (!isResultsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSearchQuery("");
+        setSearchResults([]);
+        setIsResultsOpen(false);
+        filterAndSortContents();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isResultsOpen]);
+
   const handleDeleteContent = async (contentId: string) => {
     try {
       const response = await chrome.runtime.sendMessage({
@@ -258,13 +277,25 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
             </div>
           </div>
 
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            onSearch={handleSearch}
-            isSearching={isSearching}
-            placeholder="Search within this pocket..."
-          />
+          <AnimatePresence initial={false}>
+            {!isResultsOpen && (
+              <motion.div
+                key="searchbar"
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  onSearch={handleSearch}
+                  isSearching={isSearching}
+                  placeholder="Search within this pocket..."
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className="flex items-center gap-2">
             <GlassSelector
               label="View"
@@ -411,23 +442,36 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
       />
     </div>
 
-    {/* Search Results Overlay */}
-    <SearchResultsPanel
-      kind="content"
-      open={Boolean(searchQuery) || isSearching}
-      query={searchQuery}
-      loading={isSearching}
-      results={searchResults}
-      onSelectContent={(content) => {
-        setPreviewContent(content);
-        setIsPreviewOpen(true);
-      }}
-      onClose={() => {
-        setSearchQuery("");
-        setSearchResults([]);
-        filterAndSortContents();
-      }}
-    />
+    {/* Search Results Overlay with animation */}
+    <AnimatePresence>
+      {isResultsOpen && (
+        <motion.div
+          key="results"
+          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -8, scale: 0.98 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <SearchResultsPanel
+            kind="content"
+            open
+            query={searchQuery}
+            loading={isSearching}
+            results={searchResults}
+            onSelectContent={(content) => {
+              setPreviewContent(content);
+              setIsPreviewOpen(true);
+            }}
+            onClose={() => {
+              setSearchQuery("");
+              setSearchResults([]);
+              setIsResultsOpen(false);
+              filterAndSortContents();
+            }}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
   </>
   );
 }

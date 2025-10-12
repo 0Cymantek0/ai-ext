@@ -6,6 +6,7 @@ import { PocketDialog } from "./PocketDialog";
 import { ContentList } from "./ContentList";
 import { SearchBar } from "@/components/SearchBar";
 import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
+import { AnimatePresence, motion } from "framer-motion";
 import { GlassSelector, GlassSort, FloatingPanel } from "@/components/FloatingControls";
 
 type ViewMode = "list" | "grid";
@@ -29,6 +30,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
+  const [isResultsOpen, setIsResultsOpen] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingPocket, setEditingPocket] = React.useState<PocketData | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -101,11 +103,13 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
     if (!query.trim()) {
       setSearchQuery("");
       setSearchResults([]);
+      setIsResultsOpen(false);
       return;
     }
 
     setIsSearching(true);
     setSearchQuery(query);
+    setIsResultsOpen(true);
 
     try {
       // Use vector-based semantic search
@@ -173,6 +177,21 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
       setIsSearching(false);
     }
   };
+
+  // Close results on Escape
+  React.useEffect(() => {
+    if (!isResultsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSearchQuery("");
+        setSearchResults([]);
+        setIsResultsOpen(false);
+        filterAndSortPockets();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isResultsOpen]);
 
   const handleCreatePocket = async (
     pocketData: Omit<PocketData, "id" | "createdAt" | "updatedAt" | "contentIds">
@@ -295,13 +314,25 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
       {/* Floating Controls */}
       <FloatingPanel className="top-16">
         <div className="flex flex-col items-stretch gap-2">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            onSearch={handleSearch}
-            isSearching={isSearching}
-            placeholder="Search pockets..."
-          />
+          <AnimatePresence initial={false}>
+            {!isResultsOpen && (
+              <motion.div
+                key="searchbar"
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  onSearch={handleSearch}
+                  isSearching={isSearching}
+                  placeholder="Search pockets..."
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className="flex items-center gap-2">
             <GlassSelector
               label="View"
@@ -457,25 +488,36 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
         )}
       </div>
 
-      {/* Search Results Overlay */}
-      <SearchResultsPanel
-        kind="pockets"
-        open={Boolean(searchQuery) || isSearching}
-        query={searchQuery}
-        loading={isSearching}
-        results={searchResults}
-        onSelectPocket={(pocket) => {
-          // When selecting from results, open the pocket
-          setSelectedPocket(pocket);
-          if (onSelectPocket) onSelectPocket(pocket);
-        }}
-        onClose={() => {
-          setSearchQuery("");
-          setSearchResults([]);
-          // Recompute default view
-          filterAndSortPockets();
-        }}
-      />
+      {/* Search Results Overlay with animation */}
+      <AnimatePresence>
+        {isResultsOpen && (
+          <motion.div
+            key="results"
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <SearchResultsPanel
+              kind="pockets"
+              open
+              query={searchQuery}
+              loading={isSearching}
+              results={searchResults}
+              onSelectPocket={(pocket) => {
+                setSelectedPocket(pocket);
+                if (onSelectPocket) onSelectPocket(pocket);
+              }}
+              onClose={() => {
+                setSearchQuery("");
+                setSearchResults([]);
+                setIsResultsOpen(false);
+                filterAndSortPockets();
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Dialog */}
       <PocketDialog
