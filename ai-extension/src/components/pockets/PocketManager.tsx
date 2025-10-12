@@ -104,22 +104,27 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
     setIsSearching(true);
     setSearchQuery(query);
 
-    // TODO: Implement vector-based semantic search
-    // For now, we're using basic text filtering in filterAndSortPockets
-    // Future enhancement: Generate embedding for query and perform cosine similarity search
-    
     try {
-      // Placeholder for vector search implementation
-      // This would involve:
-      // 1. Generate embedding for the search query
-      // 2. Retrieve all pocket embeddings from IndexedDB
-      // 3. Calculate cosine similarity between query and pocket embeddings
-      // 4. Rank and filter results by similarity score
-      // 5. Update filteredPockets with semantic search results
-      
-      console.log("Vector search not yet implemented, using text search");
+      // Use vector-based semantic search
+      const response = await chrome.runtime.sendMessage({
+        kind: "POCKET_SEARCH",
+        requestId: crypto.randomUUID(),
+        payload: { query, limit: 50 },
+      });
+
+      if (response.success && response.data.results) {
+        // Extract pockets from search results
+        const searchResults = response.data.results.map((result: any) => result.item);
+        setFilteredPockets(searchResults);
+      } else {
+        console.error("Search failed:", response.error);
+        // Fallback to text-based filtering
+        filterAndSortPockets();
+      }
     } catch (error) {
       console.error("Search error:", error);
+      // Fallback to text-based filtering
+      filterAndSortPockets();
     } finally {
       setIsSearching(false);
     }
@@ -251,6 +256,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
             onChange={setSearchQuery}
             onSearch={handleSearch}
             isSearching={isSearching}
+            placeholder="Search pockets..."
           />
           <div className="flex items-center gap-2">
             <GlassSelector

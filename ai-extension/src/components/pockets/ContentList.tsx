@@ -109,14 +109,27 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
     setIsSearching(true);
     setSearchQuery(query);
 
-    // TODO: Implement vector-based semantic search
-    // For now, we're using basic text filtering in filterAndSortContents
-    
     try {
-      // Placeholder for vector search implementation
-      console.log("Vector search not yet implemented, using text search");
+      // Use vector-based semantic search within the pocket
+      const response = await chrome.runtime.sendMessage({
+        kind: "CONTENT_SEARCH",
+        requestId: crypto.randomUUID(),
+        payload: { query, pocketId: pocket.id, limit: 50 },
+      });
+
+      if (response.success && response.data.results) {
+        // Extract contents from search results
+        const searchResults = response.data.results.map((result: any) => result.item);
+        setFilteredContents(searchResults);
+      } else {
+        console.error("Search failed:", response.error);
+        // Fallback to text-based filtering
+        filterAndSortContents();
+      }
     } catch (error) {
       console.error("Search error:", error);
+      // Fallback to text-based filtering
+      filterAndSortContents();
     } finally {
       setIsSearching(false);
     }
@@ -193,6 +206,7 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
             onChange={setSearchQuery}
             onSearch={handleSearch}
             isSearching={isSearching}
+            placeholder="Search within this pocket..."
           />
           <div className="flex items-center gap-2">
             <GlassSelector

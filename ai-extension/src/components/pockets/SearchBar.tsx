@@ -32,7 +32,7 @@ export function SearchBar({
   };
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <div
         className={cn(
           "relative flex items-center",
@@ -87,7 +87,7 @@ export function SearchBar({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
-          className="pl-10 pr-10"
+          className="pl-10 pr-10 w-full"
         />
 
         {/* Clear Button */}

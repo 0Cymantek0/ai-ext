@@ -41,7 +41,7 @@ export function SearchBar({
       onSubmit={handleSubmit}
       className={cn(
         // Glassmorphism container
-        "inline-flex items-center gap-2 rounded-full p-1 pl-2",
+        "flex w-full items-center gap-2 rounded-full p-1 pl-2",
         "bg-background/95 backdrop-blur-sm border border-border shadow-lg",
         "ring-0 focus-within:ring-2 focus-within:ring-ring",
         className,
@@ -55,12 +55,12 @@ export function SearchBar({
         </svg>
       </span>
       <input
-        type="search"
+        type="text"
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "bg-transparent outline-none",
+          "bg-transparent outline-none flex-1 min-w-0",
           "placeholder:text-muted-foreground/70",
           "text-sm px-1",
           "min-w-[180px]",

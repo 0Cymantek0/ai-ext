@@ -748,6 +748,47 @@ messageRouter.registerHandler("CONTENT_GET", async (payload: any) => {
   }
 });
 
+// Register search handlers (Requirement 7.2, 7.3)
+messageRouter.registerHandler("POCKET_SEARCH", async (payload: any) => {
+  logger.info("Handler", "POCKET_SEARCH", payload);
+  try {
+    const { vectorSearchService } = await import("./vector-search-service.js");
+    const results = await vectorSearchService.searchPockets(
+      payload.query,
+      payload.limit || 10
+    );
+    logger.info("Handler", "POCKET_SEARCH result", {
+      query: payload.query,
+      count: results.length,
+    });
+    return { results };
+  } catch (error) {
+    logger.error("Handler", "POCKET_SEARCH error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
+  logger.info("Handler", "CONTENT_SEARCH", payload);
+  try {
+    const { vectorSearchService } = await import("./vector-search-service.js");
+    const results = await vectorSearchService.searchContent(
+      payload.query,
+      payload.pocketId,
+      payload.limit || 20
+    );
+    logger.info("Handler", "CONTENT_SEARCH result", {
+      query: payload.query,
+      pocketId: payload.pocketId,
+      count: results.length,
+    });
+    return { results };
+  } catch (error) {
+    logger.error("Handler", "CONTENT_SEARCH error", error);
+    throw error;
+  }
+});
+
 messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
   logger.info("Handler", "CONTENT_DELETE", payload);
   try {

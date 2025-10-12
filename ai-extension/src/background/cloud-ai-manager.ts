@@ -558,6 +558,47 @@ export class CloudAIManager {
       1000,
     );
   }
+
+  /**
+   * Generate embedding for text using Gemini embedding model
+   * Requirement 7.2: Generate embeddings for semantic search
+   *
+   * @param text Text to generate embedding for
+   * @returns Embedding vector
+   */
+  async generateEmbedding(text: string): Promise<number[]> {
+    if (!this.isAvailable()) {
+      throw new Error(
+        "Cloud AI not available. Please check API key configuration.",
+      );
+    }
+
+    try {
+      // Sanitize content before sending
+      const sanitizedText = this.sanitizeContent(text);
+
+      // Truncate text if too long (embedding models have token limits)
+      const truncatedText = sanitizedText.slice(0, 10000);
+
+      // Get embedding model
+      const model = this.genAI!.getGenerativeModel({
+        model: "text-embedding-004",
+      });
+
+      // Generate embedding
+      const result = await model.embedContent(truncatedText);
+      const embedding = result.embedding;
+
+      if (!embedding || !embedding.values) {
+        throw new Error("Failed to generate embedding: no values returned");
+      }
+
+      return embedding.values;
+    } catch (error) {
+      console.error("Error generating embedding:", error);
+      throw new Error(`Embedding generation failed: ${error}`);
+    }
+  }
 }
 
 // Export singleton instance
