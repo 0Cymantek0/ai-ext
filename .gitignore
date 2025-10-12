@@ -63,3 +63,5 @@ firebase-debug.log
 /.claude/
 ai-extension/.cursor/
 ai-extension/.cursor/mcp.json
+.claude
+.vsclaude
