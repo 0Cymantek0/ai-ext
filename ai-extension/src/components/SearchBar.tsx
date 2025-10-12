@@ -1,4 +1,5 @@
 import * as React from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface FloatingSearchBarProps {
@@ -37,17 +38,20 @@ export function SearchBar({
   };
 
   return (
-    <form
+    <motion.form
+      layoutId="pocket-search-shared"
       onSubmit={handleSubmit}
       className={cn(
         // Glassmorphism container
         "flex w-full items-center gap-2 rounded-full p-1 pl-2",
-        "bg-background/95 backdrop-blur-sm border border-border shadow-lg",
+        // Liquid Glass: more translucency and stronger blur
+        "bg-background/70 backdrop-blur-xl border border-border shadow-xl",
         "ring-0 focus-within:ring-2 focus-within:ring-ring",
         className,
       )}
       role="search"
       aria-label="Search pockets"
+      style={{ willChange: "transform, filter" }}
     >
       <span aria-hidden="true" className="text-muted-foreground">
         <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,6 +87,6 @@ export function SearchBar({
         </button>
       )}
       {/* Submit button removed; use Enter to search */}
-    </form>
+    </motion.form>
   );
 }

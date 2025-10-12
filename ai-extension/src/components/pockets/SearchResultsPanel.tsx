@@ -1,5 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { createPortal } from "react-dom";
 import type { PocketData } from "./PocketCard";
 import type { CapturedContent } from "@/background/indexeddb-manager";
 
@@ -60,21 +62,24 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
 
   const isPockets = props.kind === "pockets";
 
-  return (
-    <div
+  const panel = (
+    <motion.div
+      layoutId="pocket-search-shared"
       className={cn(
-        // Place the panel just below the fixed TopBar (h-14)
-        "absolute left-0 right-0 bottom-0 top-14 z-40",
+        // Place the panel just below the fixed TopBar (h-14) and above floating controls
+        "fixed left-0 right-0 bottom-0 top-14 z-[60]",
         "p-4",
         className,
       )}
       role="region"
       aria-label="Search results"
+      style={{ willChange: "transform, filter" }}
     >
       <div
         className={cn(
           "h-full w-full overflow-hidden rounded-2xl",
-          "bg-background/80 backdrop-blur-md border border-border shadow-xl",
+          // Liquid Glass: more transparency and deeper blur with subtle border
+          "bg-background/60 backdrop-blur-2xl border border-border/80 shadow-2xl",
         )}
       >
         {/* Header */}
@@ -124,8 +129,24 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
+  const overlay = (
+    <div
+      className={cn(
+        // Glassmorphic backdrop layer behind the panel
+        "fixed left-0 right-0 bottom-0 top-14 z-[55]",
+        // Semi-transparent with strong blur and saturation for frosted effect
+        "bg-white/15 dark:bg-black/20 backdrop-blur-2xl backdrop-saturate-150",
+        // Subtle border line to separate from top bar region
+        "border-t border-white/20 dark:border-white/10",
+      )}
+      onClick={onClose}
+      aria-hidden
+    />
+  );
+
+  return createPortal(<>{overlay}{panel}</>, document.body);
 }
 
 function PocketResultsList({
