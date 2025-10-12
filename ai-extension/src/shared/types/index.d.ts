@@ -23,6 +23,12 @@ export type MessageKind =
   | "CONVERSATION_CREATE"
   | "CONVERSATION_UPDATE"
   | "CONVERSATION_DELETE"
+  | "ABBREVIATION_CREATE"
+  | "ABBREVIATION_GET"
+  | "ABBREVIATION_UPDATE"
+  | "ABBREVIATION_DELETE"
+  | "ABBREVIATION_LIST"
+  | "ABBREVIATION_EXPAND"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -150,10 +156,50 @@ export interface SidePanelState {
   };
 }
 
+// Abbreviation Types
+export interface Abbreviation {
+  shortcut: string;
+  expansion: string;
+  category?: string;
+  usageCount: number;
+  createdAt: number;
+  lastUsed: number;
+}
+
+export interface AbbreviationCreatePayload {
+  shortcut: string;
+  expansion: string;
+  category?: string;
+}
+
+export interface AbbreviationUpdatePayload {
+  shortcut: string;
+  expansion?: string;
+  category?: string;
+}
+
+export interface AbbreviationGetPayload {
+  shortcut: string;
+}
+
+export interface AbbreviationDeletePayload {
+  shortcut: string;
+}
+
+export interface AbbreviationExpandPayload {
+  shortcut: string;
+}
+
+export interface AbbreviationExpandResult {
+  expansion: string;
+  abbreviation: Abbreviation;
+}
+
 // Storage Keys
 export const STORAGE_KEYS = {
   USER_PREFERENCES: "userPreferences",
   SIDE_PANEL_STATE: "sidePanelState",
   CONVERSATIONS: "conversations",
   POCKETS: "pockets",
+  ABBREVIATIONS: "abbreviations",
 } as const;
