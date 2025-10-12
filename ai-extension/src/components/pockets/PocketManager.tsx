@@ -5,6 +5,7 @@ import { PocketCard, type PocketData } from "./PocketCard";
 import { PocketDialog } from "./PocketDialog";
 import { ContentList } from "./ContentList";
 import { SearchBar } from "@/components/SearchBar";
+import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
 import { GlassSelector, GlassSort, FloatingPanel } from "@/components/FloatingControls";
 
 type ViewMode = "list" | "grid";
@@ -27,6 +28,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   const [sortBy, setSortBy] = React.useState<SortBy>("date");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
+  const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingPocket, setEditingPocket] = React.useState<PocketData | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -98,6 +100,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
       setSearchQuery("");
+      setSearchResults([]);
       return;
     }
 
@@ -113,18 +116,59 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
       });
 
       if (response.success && response.data.results) {
-        // Extract pockets from search results
-        const searchResults = response.data.results.map((result: any) => result.item);
-        setFilteredPockets(searchResults);
+        // Keep full result objects for the panel; also project items to list
+        const results = response.data.results as any[];
+        setSearchResults(results);
+        const items = results.map((r: any) => r.item);
+        setFilteredPockets(items);
       } else {
         console.error("Search failed:", response.error);
-        // Fallback to text-based filtering
-        filterAndSortPockets();
+        // Fallback: compute deterministic local results based on current state
+        const q = query.toLowerCase();
+        let fallback = pockets.filter(
+          (p) =>
+            p.name.toLowerCase().includes(q) ||
+            p.description.toLowerCase().includes(q) ||
+            p.tags.some((t) => t.toLowerCase().includes(q))
+        );
+        // Sort like current sortBy
+        fallback = [...fallback].sort((a, b) => {
+          switch (sortBy) {
+            case "name":
+              return a.name.localeCompare(b.name);
+            case "size":
+              return b.contentIds.length - a.contentIds.length;
+            case "date":
+            default:
+              return b.updatedAt - a.updatedAt;
+          }
+        });
+        setFilteredPockets(fallback);
+        setSearchResults(fallback.map((p) => ({ item: p })));
       }
     } catch (error) {
       console.error("Search error:", error);
-      // Fallback to text-based filtering
-      filterAndSortPockets();
+      // Fallback: compute deterministic local results based on current state
+      const q = query.toLowerCase();
+      let fallback = pockets.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          p.tags.some((t) => t.toLowerCase().includes(q))
+      );
+      fallback = [...fallback].sort((a, b) => {
+        switch (sortBy) {
+          case "name":
+            return a.name.localeCompare(b.name);
+          case "size":
+            return b.contentIds.length - a.contentIds.length;
+          case "date":
+          default:
+            return b.updatedAt - a.updatedAt;
+        }
+      });
+      setFilteredPockets(fallback);
+      setSearchResults(fallback.map((p) => ({ item: p })));
     } finally {
       setIsSearching(false);
     }
@@ -412,6 +456,26 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
           </div>
         )}
       </div>
+
+      {/* Search Results Overlay */}
+      <SearchResultsPanel
+        kind="pockets"
+        open={Boolean(searchQuery) || isSearching}
+        query={searchQuery}
+        loading={isSearching}
+        results={searchResults}
+        onSelectPocket={(pocket) => {
+          // When selecting from results, open the pocket
+          setSelectedPocket(pocket);
+          if (onSelectPocket) onSelectPocket(pocket);
+        }}
+        onClose={() => {
+          setSearchQuery("");
+          setSearchResults([]);
+          // Recompute default view
+          filterAndSortPockets();
+        }}
+      />
 
       {/* Dialog */}
       <PocketDialog

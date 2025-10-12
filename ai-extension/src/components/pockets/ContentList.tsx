@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ContentCard } from "./ContentCard";
 import { ContentPreview } from "./ContentPreview";
 import { SearchBar } from "@/components/SearchBar";
+import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
 import { GlassSelector, GlassSort, FloatingPanel } from "@/components/FloatingControls";
 import type { CapturedContent } from "@/background/indexeddb-manager";
 import type { PocketData } from "./PocketCard";
@@ -23,6 +24,7 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
   const [sortBy, setSortBy] = React.useState<SortBy>("date");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
+  const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [previewContent, setPreviewContent] = React.useState<CapturedContent | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
@@ -103,6 +105,7 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
       setSearchQuery("");
+      setSearchResults([]);
       return;
     }
 
@@ -118,18 +121,71 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
       });
 
       if (response.success && response.data.results) {
-        // Extract contents from search results
-        const searchResults = response.data.results.map((result: any) => result.item);
-        setFilteredContents(searchResults);
+        const results = response.data.results as any[];
+        setSearchResults(results);
+        const items = results.map((r: any) => r.item);
+        setFilteredContents(items);
       } else {
         console.error("Search failed:", response.error);
-        // Fallback to text-based filtering
-        filterAndSortContents();
+        // Fallback: compute deterministic local results based on current state
+        const q = query.toLowerCase();
+        let fallback = contents.filter((content) => {
+          const title = content.metadata.title?.toLowerCase() || "";
+          const domain = content.metadata.domain?.toLowerCase() || "";
+          const contentText = typeof content.content === "string" ? content.content.toLowerCase() : "";
+          return (
+            title.includes(q) ||
+            domain.includes(q) ||
+            contentText.includes(q) ||
+            content.type.toLowerCase().includes(q)
+          );
+        });
+        fallback = [...fallback].sort((a, b) => {
+          switch (sortBy) {
+            case "title":
+              const titleA = a.metadata.title || a.metadata.domain || "";
+              const titleB = b.metadata.title || b.metadata.domain || "";
+              return titleA.localeCompare(titleB);
+            case "type":
+              return a.type.localeCompare(b.type);
+            case "date":
+            default:
+              return b.capturedAt - a.capturedAt;
+          }
+        });
+        setFilteredContents(fallback);
+        setSearchResults(fallback.map((c) => ({ item: c })));
       }
     } catch (error) {
       console.error("Search error:", error);
-      // Fallback to text-based filtering
-      filterAndSortContents();
+      // Fallback: compute deterministic local results based on current state
+      const q = query.toLowerCase();
+      let fallback = contents.filter((content) => {
+        const title = content.metadata.title?.toLowerCase() || "";
+        const domain = content.metadata.domain?.toLowerCase() || "";
+        const contentText = typeof content.content === "string" ? content.content.toLowerCase() : "";
+        return (
+          title.includes(q) ||
+          domain.includes(q) ||
+          contentText.includes(q) ||
+          content.type.toLowerCase().includes(q)
+        );
+      });
+      fallback = [...fallback].sort((a, b) => {
+        switch (sortBy) {
+          case "title":
+            const titleA = a.metadata.title || a.metadata.domain || "";
+            const titleB = b.metadata.title || b.metadata.domain || "";
+            return titleA.localeCompare(titleB);
+          case "type":
+            return a.type.localeCompare(b.type);
+          case "date":
+          default:
+            return b.capturedAt - a.capturedAt;
+        }
+      });
+      setFilteredContents(fallback);
+      setSearchResults(fallback.map((c) => ({ item: c })));
     } finally {
       setIsSearching(false);
     }
@@ -166,6 +222,7 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
   };
 
   return (
+    <>
     <div className="flex flex-col h-full overflow-hidden">
       {/* Floating Controls */}
       <FloatingPanel className="top-16">
@@ -353,5 +410,24 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
         onClose={handleClosePreview}
       />
     </div>
+
+    {/* Search Results Overlay */}
+    <SearchResultsPanel
+      kind="content"
+      open={Boolean(searchQuery) || isSearching}
+      query={searchQuery}
+      loading={isSearching}
+      results={searchResults}
+      onSelectContent={(content) => {
+        setPreviewContent(content);
+        setIsPreviewOpen(true);
+      }}
+      onClose={() => {
+        setSearchQuery("");
+        setSearchResults([]);
+        filterAndSortContents();
+      }}
+    />
+  </>
   );
 }
