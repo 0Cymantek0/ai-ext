@@ -16,9 +16,9 @@ import { Actions, ActionButton } from "@/components/ai/actions";
 import { TopBar } from "@/components/TopBar";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { HistoryPanel } from "@/components/HistoryPanel";
-import { ModeSwitcher } from "@/components/ModeSwitcher";
 import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
+import { PocketManager, type PocketManagerRef } from "@/components/pockets";
 
 interface ChatMessage {
   id: string;
@@ -50,15 +50,11 @@ export function ChatApp() {
   >(null);
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
   const [currentMode, setCurrentMode] = React.useState<Mode>("ask");
-  const modeSwitcherWrapperRef = React.useRef<HTMLDivElement>(null);
   const conversationContentRef = React.useRef<HTMLDivElement>(null);
-  const lastScrollTopRef = React.useRef<number>(0);
-  const [modeSwitcherHeight, setModeSwitcherHeight] = React.useState<number>(0);
-  const [isNearTop, setIsNearTop] = React.useState<boolean>(true);
-  const [isModeSwitcherHidden, setIsModeSwitcherHidden] =
-    React.useState<boolean>(false);
-  const scrollDebounceRef = React.useRef<number | null>(null);
-  const lastHideTopRef = React.useRef<number>(0);
+  // Floating mode switcher removed; drop scroll bookkeeping
+  const pocketManagerRef = React.useRef<PocketManagerRef>(null);
+  // Track if the conversation scroll is at the very top
+  const [isAtTop, setIsAtTop] = React.useState(true);
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<
@@ -422,6 +418,12 @@ export function ChatApp() {
     setCurrentConversationId(null);
   };
 
+  const handleNewPocket = () => {
+    if (pocketManagerRef.current) {
+      pocketManagerRef.current.handleNewPocket();
+    }
+  };
+
   const handleSelectConversation = async (id: string) => {
     try {
       // Load full conversation with messages from IndexedDB
@@ -586,54 +588,13 @@ export function ChatApp() {
     }
   }, []);
 
-  // Measure mode switcher height for initial spacer to avoid overlap
-  React.useLayoutEffect(() => {
-    const el = modeSwitcherWrapperRef.current;
-    if (!el) return;
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      setModeSwitcherHeight(rect.height);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
+  // Floating mode switcher removed; add top buffer behavior
   const handleScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
-    const node = e.currentTarget;
-    const currentTop = node.scrollTop;
-
-    if (scrollDebounceRef.current !== null) {
-      window.clearTimeout(scrollDebounceRef.current);
+    // Toggle top buffer based on scroll position
+    const atTop = e.currentTarget.scrollTop <= 0;
+    if (atTop !== isAtTop) {
+      setIsAtTop(atTop);
     }
-
-    scrollDebounceRef.current = window.setTimeout(() => {
-      // Only consider we are "at top" within a very tight tolerance to stop early flips
-      const atTop = currentTop <= 0.5;
-      if (atTop !== isNearTop) setIsNearTop(atTop);
-
-      const lastTop = lastScrollTopRef.current;
-      const delta = currentTop - lastTop;
-      const threshold = 4; // px, to avoid jitter from tiny movements
-
-      if (delta > threshold) {
-        // Scrolling down -> hide immediately
-        if (!isModeSwitcherHidden) {
-          setIsModeSwitcherHidden(true);
-          lastHideTopRef.current = currentTop;
-        }
-      } else if (delta < -threshold) {
-        // Scrolling up -> reveal when at top OR after sufficient upward travel since last hide
-        const REVEAL_DISTANCE = 120;
-        const traveledUp = lastHideTopRef.current - currentTop;
-        if (isModeSwitcherHidden && (atTop || traveledUp >= REVEAL_DISTANCE)) {
-          setIsModeSwitcherHidden(false);
-        }
-      }
-
-      lastScrollTopRef.current = currentTop < 0 ? 0 : currentTop;
-    }, 60);
   };
 
   return (
@@ -641,6 +602,9 @@ export function ChatApp() {
       <TopBar
         onOpenHistory={() => setIsHistoryOpen(true)}
         onNewChat={handleNewChat}
+        onNewPocket={handleNewPocket}
+        currentMode={currentMode}
+        onModeChange={handleModeChange}
       />
 
       <HistoryPanel
@@ -654,37 +618,19 @@ export function ChatApp() {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden relative bg-transparent">
-        {/* Floating Mode Switcher */}
-        <div
-          ref={modeSwitcherWrapperRef}
-          className={cn(
-            "absolute top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-auto bg-transparent",
-            "transition-transform duration-300 ease-in-out will-change-transform",
-            isModeSwitcherHidden && "-translate-y-32",
-          )}
-        >
-          <ModeSwitcher
-            currentMode={currentMode}
-            onModeChange={handleModeChange}
-          />
-        </div>
-
         {/* Content Area */}
         <div className="flex flex-1 flex-col overflow-hidden bg-transparent">
-          {messages.length === 0 ? (
+          {currentMode === "ai-pocket" ? (
+            <PocketManager ref={pocketManagerRef} />
+          ) : messages.length === 0 ? (
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
           ) : (
-            <Conversation className="overflow-hidden">
+              <Conversation className="overflow-hidden">
               <ConversationContent
                 ref={conversationContentRef}
                 onScroll={handleScroll}
+                className={cn(isAtTop ? "pt-16" : undefined)}
               >
-                {/* Dynamic spacer so first message starts below the floating switcher */}
-                <div
-                  aria-hidden
-                  className="shrink-0"
-                  style={{ height: isNearTop ? modeSwitcherHeight + 32 : 0 }}
-                />
                 {messages.map((message) => (
                   <Message key={message.id} from={message.role}>
                     <MessageAvatar
@@ -753,14 +699,15 @@ export function ChatApp() {
                       )}
                       <div
                         className={cn(
-                          "inline-block",
+                          "inline-block max-w-[85%] break-words",
                           message.role === "user" &&
-                            "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 max-w-[85%] ml-auto text-right dark:bg-gray-700 dark:text-gray-100",
+                            "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 ml-auto text-right dark:bg-gray-700 dark:text-gray-100",
                         )}
+                        style={{ overflowWrap: "anywhere" }}
                       >
                         <Response
                           className={cn(
-                            "prose prose-sm dark:prose-invert max-w-none",
+                            "prose prose-sm dark:prose-invert max-w-full",
                             "prose-p:leading-relaxed prose-pre:p-0",
                             message.role === "user" &&
                               "prose-p:text-gray-900 prose-p:m-0 prose-p:text-right prose-headings:text-gray-900 prose-code:text-gray-900 prose-pre:text-gray-900 dark:prose-p:text-gray-100 dark:prose-headings:text-gray-100 dark:prose-code:text-gray-100 dark:prose-pre:text-gray-100",
@@ -825,9 +772,10 @@ export function ChatApp() {
         </div>
       </div>
 
-      {/* Fixed Bottom Input Bar (floating, no background) */}
-      <div className="fixed bottom-4 left-0 right-0 z-50 bg-transparent pointer-events-none">
-        {currentRequestId ? (
+      {/* Fixed Bottom Input Bar (floating, no background) - Only show in ask mode */}
+      {currentMode === "ask" && (
+        <div className="fixed bottom-4 left-0 right-0 z-50 bg-transparent pointer-events-none">
+          {currentRequestId ? (
           <div className="max-w-xl mx-auto pointer-events-auto">
             <Button
               type="button"
@@ -870,7 +818,8 @@ export function ChatApp() {
             />
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

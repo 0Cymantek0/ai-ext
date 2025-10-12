@@ -58,7 +58,7 @@ export function ModeSwitcher({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-full bg-background/95 backdrop-blur-sm p-0.5",
+        "mode-switcher inline-flex h-8 items-stretch gap-0.5 rounded-full bg-background/95 backdrop-blur-sm p-0.5",
         "border border-border shadow-lg",
         "transition-all duration-200",
         className,
@@ -75,7 +75,7 @@ export function ModeSwitcher({
           aria-controls={`${mode.id}-panel`}
           onClick={() => onModeChange(mode.id)}
           className={cn(
-            "relative flex items-center gap-1.5 rounded-full px-3 py-1.5",
+            "relative flex h-full items-center gap-1.5 rounded-full px-3",
             "text-xs font-medium transition-all duration-200",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
             currentMode === mode.id
@@ -86,7 +86,7 @@ export function ModeSwitcher({
           <span aria-hidden="true" className="scale-75">
             {mode.icon}
           </span>
-          <span className="leading-none">{mode.label}</span>
+          <span className="mode-label leading-none">{mode.label}</span>
         </button>
       ))}
     </div>
