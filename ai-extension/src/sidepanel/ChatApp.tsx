@@ -18,6 +18,7 @@ import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
+import { TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
 import { PocketManager, type PocketManagerRef } from "@/components/pockets";
 
 interface ChatMessage {
@@ -55,6 +56,8 @@ export function ChatApp() {
   const pocketManagerRef = React.useRef<PocketManagerRef>(null);
   // Track if the conversation scroll is at the very top
   const [isAtTop, setIsAtTop] = React.useState(true);
+  // Auto context toggle - enabled by default
+  const [autoContext, setAutoContext] = React.useState(true);
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<
@@ -360,7 +363,7 @@ export function ChatApp() {
           preferLocal: mapSelectedToPreferLocal(selectedModel),
           model: mapSelectedToPayloadModel(selectedModel),
           mode: currentMode, // Include current mode
-          autoContext: true, // Enable automatic context inclusion
+          autoContext, // Use state variable for automatic context inclusion
         },
       });
 
@@ -582,13 +585,23 @@ export function ChatApp() {
     localStorage.setItem("ai-pocket-mode", mode);
   };
 
-  // Load mode preference on mount
+  // Load mode and autoContext preferences on mount
   React.useEffect(() => {
     const savedMode = localStorage.getItem("ai-pocket-mode") as Mode;
     if (savedMode && (savedMode === "ask" || savedMode === "ai-pocket")) {
       setCurrentMode(savedMode);
     }
+    
+    const savedAutoContext = localStorage.getItem("ai-pocket-auto-context");
+    if (savedAutoContext !== null) {
+      setAutoContext(savedAutoContext === "true");
+    }
   }, []);
+
+  // Save autoContext preference when it changes
+  React.useEffect(() => {
+    localStorage.setItem("ai-pocket-auto-context", String(autoContext));
+  }, [autoContext]);
 
   // Floating mode switcher removed; add top buffer behavior
   const handleScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
@@ -600,6 +613,7 @@ export function ChatApp() {
   };
 
   return (
+    <TooltipProvider>
     <div className="flex h-screen flex-col overflow-hidden">
       <TopBar
         onOpenHistory={() => setIsHistoryOpen(true)}
@@ -817,11 +831,14 @@ export function ChatApp() {
               className="mx-auto p-0 sm:p-0 py-0 px-0 max-w-[92vw] sm:max-w-xl md:max-w-2xl lg:max-w-3xl"
               model={selectedModel}
               onModelChange={setSelectedModel}
+              autoContext={autoContext}
+              onAutoContextChange={setAutoContext}
             />
           </div>
         )}
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 }

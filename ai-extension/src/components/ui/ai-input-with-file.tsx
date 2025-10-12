@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/animate-ui/components/animate/tooltip";
+import { Toggle } from "@/components/animate-ui/components/radix/toggle";
 
 interface FileDisplayProps {
   fileName: string;
@@ -66,6 +67,8 @@ interface AIInputWithFileProps {
   disabled?: boolean;
   model?: "auto" | "nano" | "flash-lite" | "flash" | "pro";
   onModelChange?: (model: "auto" | "nano" | "flash-lite" | "flash" | "pro") => void;
+  autoContext?: boolean;
+  onAutoContextChange?: (enabled: boolean) => void;
 }
 
 export function AIInputWithFile({
@@ -81,6 +84,8 @@ export function AIInputWithFile({
   disabled = false,
   model = "auto",
   onModelChange,
+  autoContext = true,
+  onAutoContextChange,
 }: AIInputWithFileProps) {
   const [inputValue, setInputValue] = useState<string>("");
   const {
@@ -312,9 +317,9 @@ export function AIInputWithFile({
             </button>
           </div>          
 
-          {/* Model Selector row below input */}
-          <div className={cn("mt-2 flex justify-start", disabled && "opacity-60 pointer-events-none")}> 
-            <Tooltip>
+          {/* Model Selector and Auto-Context Toggle row below input */}
+          <div className={cn("mt-2 flex items-center gap-2", disabled && "opacity-60 pointer-events-none")}> 
+            <Tooltip sideOffset={6}>
               <TooltipTrigger asChild>
                 <Select
                   value={model}
@@ -364,13 +369,76 @@ export function AIInputWithFile({
                   </SelectContent>
                 </Select>
               </TooltipTrigger>
-              <TooltipContent sideOffset={6}>
+              <TooltipContent>
                 {getModelTooltip(model)}
               </TooltipContent>
             </Tooltip>
-          </div>
+
+            
+            {/* Auto-Context Toggle Button */}
+            {onAutoContextChange && (
+              <Tooltip sideOffset={6}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => onAutoContextChange(!autoContext)}
+                    disabled={disabled}
+                    className={cn(
+                      "relative h-7 sm:h-8 min-h-[28px] sm:min-h-[32px] px-2 py-0 leading-none rounded-2xl backdrop-blur-md border text-xs shadow-md inline-flex items-center gap-1.5 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none",
+                      autoContext
+                        ? "bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/70"
+                        : "bg-white/10 border-white/10 text-white/60 hover:bg-white/15 hover:text-white/80",
+                      disabled && "opacity-50 cursor-not-allowed"
+                    )}
+                    title={`Auto context: ${autoContext ? "ON" : "OFF"}`}
+                    aria-pressed={autoContext}
+                  >
+                    {/* Cursor/Pointer Icon */}
+                    <svg
+                      className={cn(
+                        "w-3.5 h-3.5 transition-colors",
+                        autoContext ? "text-cyan-400/90" : "text-white/60"
+                      )}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                      />
+                    </svg>
+                    {/* Label with chromatic aberration effect */}
+                    <span 
+                      className={cn(
+                        "font-medium relative",
+                        autoContext && "chromatic-text"
+                      )}
+                      style={autoContext ? {
+                        color: '#e0f2fe',
+                        textShadow: '0.5px 0 0 rgba(255, 0, 255, 0.3), -0.5px 0 0 rgba(0, 255, 255, 0.3)'
+                      } : undefined}
+                    >
+                      Auto context
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  {autoContext
+                    ? "Auto context is ON. AI will use page context, tabs, captured content, and conversation history for more relevant responses."
+                    : "Auto context is OFF. AI will only use conversation history. Click to enable contextual awareness."}
+                </TooltipContent>
+              </Tooltip>
+            )}
         </div>
       </div>
     </div>
+    </div>
   );
 }
+
+
+

@@ -13,7 +13,14 @@ interface TopBarProps {
   className?: string;
 }
 
-export function TopBar({ onOpenHistory, onNewChat, onNewPocket, currentMode = "ask", onModeChange, className }: TopBarProps) {
+export function TopBar({ 
+  onOpenHistory, 
+  onNewChat, 
+  onNewPocket, 
+  currentMode = "ask", 
+  onModeChange, 
+  className 
+}: TopBarProps) {
   const [theme, setTheme] = React.useState<"light" | "dark" | "auto">("auto");
 
   React.useEffect(() => {

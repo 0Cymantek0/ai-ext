@@ -51,6 +51,44 @@ export class StreamingHandler {
   }
 
   /**
+   * Validate and detect mode from payload
+   * 
+   * Requirement 8.2.6: Mode validation and error handling
+   * Requirement 8.2.7: Fallback to Ask mode on detection failure
+   * 
+   * @param payload Stream request payload
+   * @returns Validated mode
+   */
+  private validateAndDetectMode(payload: AiStreamRequestPayload): "ask" | "ai-pocket" {
+    // Check if mode is explicitly provided
+    if (payload.mode) {
+      // Validate mode value
+      if (payload.mode !== "ask" && payload.mode !== "ai-pocket") {
+        logger.warn("StreamingHandler", "Invalid mode provided, defaulting to 'ask'", {
+          providedMode: payload.mode,
+        });
+        return "ask";
+      }
+      
+      // Validate AI Pocket mode requirements
+      if (payload.mode === "ai-pocket") {
+        // AI Pocket mode should ideally have a pocketId, but it's optional
+        // The mode-aware processor will handle missing pocketId gracefully
+        if (!payload.pocketId) {
+          logger.info("StreamingHandler", "AI Pocket mode without pocketId - will search all pockets");
+        }
+      }
+      
+      return payload.mode;
+    }
+    
+    // Default to "ask" mode if not specified
+    // Requirement 8.2.7: Fallback to Ask mode on detection failure
+    logger.info("StreamingHandler", "Mode not specified, defaulting to 'ask'");
+    return "ask";
+  }
+
+  /**
    * Start streaming AI response
    * Requirement 8.3: Stream responses in real-time for immediate feedback
    * Requirement 8.9: Display typing indicator during processing
@@ -115,7 +153,7 @@ export class StreamingHandler {
     try {
       // Detect mode from payload
       // Requirement 8.2.1: Create mode detection logic according to UI
-      const mode = payload.mode || "ask"; // Default to "ask" mode
+      const mode = this.validateAndDetectMode(payload);
       
       logger.info("StreamingHandler", "Processing with mode-aware routing", {
         mode,
@@ -207,6 +245,8 @@ export class StreamingHandler {
         totalTokens,
         processingTime,
         source,
+        mode,
+        contextUsed,
       );
 
       // Persist final assistant message to conversation history if available
@@ -246,10 +286,22 @@ export class StreamingHandler {
         });
       } else {
         // Requirement 8.2.7: Add fallback to "Ask" mode on mode detection failure
+        const mode = this.validateAndDetectMode(payload);
         logger.error("StreamingHandler", "Stream processing failed", {
           error: error instanceof Error ? error.message : String(error),
-          mode: payload.mode,
+          mode,
+          conversationId: payload.conversationId,
+          pocketId: payload.pocketId,
         });
+        
+        // Provide mode-specific error messages
+        let errorMessage = error instanceof Error ? error.message : String(error);
+        if (mode === "ai-pocket") {
+          errorMessage = `AI Pocket mode error: ${errorMessage}. The mode-aware processor will attempt fallback to Ask mode.`;
+        }
+        
+        // Send error to UI
+        this.sendStreamError(session.requestId, errorMessage, payload.conversationId);
         
         // If we were in AI Pocket mode, the mode-aware processor already handles fallback
         // Just re-throw the error for general error handling
@@ -321,6 +373,8 @@ export class StreamingHandler {
     totalTokens: number,
     processingTime: number,
     source: "gemini-nano" | "gemini-flash" | "gemini-pro",
+    mode?: "ask" | "ai-pocket",
+    contextUsed?: string[],
   ): void {
     const payload: AiStreamEndPayload = {
       requestId,
@@ -328,6 +382,8 @@ export class StreamingHandler {
       processingTime,
       source,
       ...(conversationId && { conversationId }),
+      ...(mode && { mode }),
+      ...(contextUsed && { contextUsed }),
     };
 
     this.sendToSidePanel({

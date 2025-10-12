@@ -10,12 +10,12 @@ import { AIManager } from "./ai-manager.js";
 import { CloudAIManager } from "./cloud-ai-manager.js";
 import { getStreamingHandler } from "./streaming-handler.js";
 
-interface ServiceWorkerState {
+type ServiceWorkerState = {
   initialized: boolean;
   lastActive: number;
   activeRequests: Map<string, any>;
   sessionData: Record<string, any>;
-}
+};
 
 class ServiceWorkerLifecycle {
   private state: ServiceWorkerState = {
@@ -362,11 +362,12 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 import type { MessageKind, BaseMessage } from "../shared/types/index.d.ts";
 
-interface MessageHandler<T = any, R = any> {
-  (payload: T, sender: chrome.runtime.MessageSender): Promise<R>;
-}
+type MessageHandler<T = any, R = any> = (
+  payload: T,
+  sender: chrome.runtime.MessageSender,
+) => Promise<R>;
 
-interface MessageResponse<T = any> {
+type MessageResponse<T = any> = {
   success: boolean;
   data?: T;
   error?: {
@@ -374,7 +375,7 @@ interface MessageResponse<T = any> {
     message: string;
     details?: any;
   };
-}
+};
 
 class MessageRouter {
   private handlers: Map<MessageKind, MessageHandler> = new Map();

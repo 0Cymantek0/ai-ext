@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "mcp__chrome-devtools__list_pages",
-      "Bash(pnpm build)"
+      "Bash(pnpm build)",
+      "Bash(pnpm run dev)",
+      "Bash(pnpm run build)"
     ],
     "deny": [],
     "ask": []

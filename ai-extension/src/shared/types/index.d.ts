@@ -35,6 +35,7 @@ export interface BaseMessage<K extends MessageKind, T> {
   kind: K;
   requestId?: string;
   payload: T;
+  mode?: "ask" | "ai-pocket"; // Optional mode for mode-aware processing
 }
 
 export interface CaptureRequestPayload {
@@ -70,6 +71,8 @@ export interface AiStreamEndPayload {
   totalTokens: number;
   processingTime: number;
   source: "gemini-nano" | "gemini-flash" | "gemini-pro";
+  mode?: "ask" | "ai-pocket"; // Mode used for processing
+  contextUsed?: string[]; // Context signals used during processing
 }
 
 export interface AiStreamErrorPayload {
