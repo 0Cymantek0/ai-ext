@@ -34,6 +34,7 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
   const [previewContent, setPreviewContent] = React.useState<CapturedContent | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [showAddMenu, setShowAddMenu] = React.useState(false);
+  const [showNoteTemplates, setShowNoteTemplates] = React.useState(false);
 
   // Load contents on mount
   React.useEffect(() => {
@@ -247,6 +248,8 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
   const handleAddNote = () => {
     setShowAddMenu(false);
     setContentView("notes");
+    // Signal to NoteManager to show template selection
+    setShowNoteTemplates(true);
   };
 
   const handleCaptureContent = async () => {
@@ -411,7 +414,15 @@ export function ContentList({ pocket, onBack }: ContentListProps) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 pt-52 sm:pt-56 md:pt-60">
         {contentView === "notes" ? (
-          <NoteManager pocketId={pocket.id} onBack={() => setContentView("files")} />
+          <NoteManager 
+            pocketId={pocket.id} 
+            onBack={() => {
+              setContentView("files");
+              setShowNoteTemplates(false);
+            }}
+            initialShowTemplates={showNoteTemplates}
+            onTemplateSelectionComplete={() => setShowNoteTemplates(false)}
+          />
         ) : isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

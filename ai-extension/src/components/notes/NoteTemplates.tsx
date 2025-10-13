@@ -303,7 +303,7 @@ export function NoteTemplates({ onSelectTemplate, onClose, className }: NoteTemp
     <div className={cn("flex flex-col h-full", className)}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="text-lg font-semibold">Choose a Template</h2>
+        <h2 className="text-lg font-semibold">Create Note</h2>
         <Button variant="ghost" size="sm" onClick={onClose}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

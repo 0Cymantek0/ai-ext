@@ -15,10 +15,18 @@ interface NoteManagerProps {
   pocketId?: string;
   onBack?: () => void;
   className?: string;
+  initialShowTemplates?: boolean;
+  onTemplateSelectionComplete?: () => void;
 }
 
-export function NoteManager({ pocketId, onBack, className }: NoteManagerProps) {
-  const [viewMode, setViewMode] = React.useState<ViewMode>("list");
+export function NoteManager({ 
+  pocketId, 
+  onBack, 
+  className,
+  initialShowTemplates = false,
+  onTemplateSelectionComplete
+}: NoteManagerProps) {
+  const [viewMode, setViewMode] = React.useState<ViewMode>(initialShowTemplates ? "templates" : "list");
   const [notes, setNotes] = React.useState<NoteData[]>([]);
   const [filteredNotes, setFilteredNotes] = React.useState<NoteData[]>([]);
   const [editingNote, setEditingNote] = React.useState<NoteData | null>(null);
@@ -261,6 +269,7 @@ export function NoteManager({ pocketId, onBack, className }: NoteManagerProps) {
 
   const handleSelectTemplate = (template: NoteTemplate) => {
     handleCreateNote(template);
+    onTemplateSelectionComplete?.();
   };
 
   const handleCancel = () => {
@@ -289,7 +298,10 @@ export function NoteManager({ pocketId, onBack, className }: NoteManagerProps) {
     return (
       <NoteTemplates
         onSelectTemplate={handleSelectTemplate}
-        onClose={() => setViewMode("list")}
+        onClose={() => {
+          setViewMode("list");
+          onTemplateSelectionComplete?.();
+        }}
         {...(className && { className })}
       />
     );
