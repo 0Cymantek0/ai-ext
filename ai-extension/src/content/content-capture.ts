@@ -8,8 +8,9 @@ import { domAnalyzer, type ExtractedText, type PageMetadata } from "./dom-analyz
 import { contentSanitizer } from "./content-sanitizer.js";
 import { elementSelector, type SelectedElement } from "./element-selector.js";
 import { reliableSelectionCapture } from "./selection-reliability.js";
+import { mediaCapture, type MediaCaptureResult, type MediaCaptureOptions } from "./media-capture.js";
 
-export type CaptureMode = "full-page" | "selection" | "element" | "note";
+export type CaptureMode = "full-page" | "selection" | "element" | "note" | "media";
 
 export interface CaptureResult {
   mode: CaptureMode;
@@ -100,6 +101,11 @@ export class ContentCapture {
       case "note":
         content = await this.captureNote();
         preview = this.generatePreview(content.text);
+        break;
+
+      case "media":
+        content = await this.captureMedia(sanitize);
+        preview = this.generateMediaPreview(content);
         break;
 
       default:
@@ -452,6 +458,63 @@ export class ContentCapture {
   }
 
   /**
+   * Capture all media on the page
+   * Requirements: 2.1, 3.6, 3.7
+   */
+  private async captureMedia(sanitize: boolean): Promise<MediaCaptureResult> {
+    console.info("[ContentCapture] Starting media capture");
+
+    const options: MediaCaptureOptions = {
+      compressImages: true,
+      generateThumbnails: true,
+      transcribeAudio: false, // Transcription would be done separately via AI
+      compressionOptions: {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 0.85,
+        format: "jpeg",
+      },
+      thumbnailSize: 200,
+    };
+
+    const result = await mediaCapture.captureAllMedia(options);
+
+    console.info("[ContentCapture] Media capture completed", {
+      images: result.images.length,
+      audios: result.audios.length,
+      videos: result.videos.length,
+      totalSize: result.totalSize,
+    });
+
+    return result;
+  }
+
+  /**
+   * Generate preview for media capture
+   * Requirements: 2.1
+   */
+  private generateMediaPreview(mediaResult: MediaCaptureResult): string {
+    const parts: string[] = [];
+
+    if (mediaResult.images.length > 0) {
+      parts.push(`${mediaResult.images.length} image(s)`);
+    }
+
+    if (mediaResult.audios.length > 0) {
+      parts.push(`${mediaResult.audios.length} audio file(s)`);
+    }
+
+    if (mediaResult.videos.length > 0) {
+      parts.push(`${mediaResult.videos.length} video(s)`);
+    }
+
+    const sizeInKB = Math.round(mediaResult.totalSize / 1024);
+    parts.push(`Total: ${sizeInKB} KB`);
+
+    return parts.join(", ");
+  }
+
+  /**
    * Capture screenshot of the viewport
    * Requirements: 2.1, 2.5
    */
@@ -627,7 +690,8 @@ export class ContentCapture {
   }
 
   /**
-   * Extract media content
+   * Extract media content with full metadata and processing
+   * Requirements: 2.1, 3.6, 3.7
    */
   async extractMedia(element: HTMLElement): Promise<any> {
     const mediaType = this.detectMediaType(element);
@@ -649,47 +713,60 @@ export class ContentCapture {
   }
 
   /**
-   * Extract image data
+   * Extract image data with full metadata and compression
+   * Requirements: 2.1, 3.6
    */
   private async extractImage(element: HTMLElement): Promise<any> {
     const img = element as HTMLImageElement;
 
+    // Use the new media capture system for comprehensive extraction
+    const captured = await mediaCapture.captureImage(img, {
+      compressImages: true,
+      generateThumbnails: true,
+      compressionOptions: {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 0.85,
+        format: "jpeg",
+      },
+      thumbnailSize: 200,
+    });
+
     return {
       type: "image",
-      src: img.src,
-      alt: img.alt || "",
-      width: img.naturalWidth,
-      height: img.naturalHeight,
-      title: img.title,
+      ...captured,
     };
   }
 
   /**
-   * Extract video data
+   * Extract video data with thumbnail and metadata
+   * Requirements: 2.1, 3.7
    */
   private async extractVideo(element: HTMLElement): Promise<any> {
     const video = element as HTMLVideoElement;
 
+    // Use the new media capture system for comprehensive extraction
+    const captured = await mediaCapture.captureVideo(video, true, 200);
+
     return {
       type: "video",
-      src: video.src || video.currentSrc,
-      poster: video.poster,
-      duration: video.duration,
-      width: video.videoWidth,
-      height: video.videoHeight,
+      ...captured,
     };
   }
 
   /**
-   * Extract audio data
+   * Extract audio data with metadata
+   * Requirements: 2.1, 3.7
    */
   private async extractAudio(element: HTMLElement): Promise<any> {
     const audio = element as HTMLAudioElement;
 
+    // Use the new media capture system for comprehensive extraction
+    const captured = await mediaCapture.captureAudio(audio, false);
+
     return {
       type: "audio",
-      src: audio.src || audio.currentSrc,
-      duration: audio.duration,
+      ...captured,
     };
   }
 }

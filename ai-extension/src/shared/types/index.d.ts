@@ -3,6 +3,8 @@ export type MessageKind =
   | "CAPTURE_RESULT"
   | "CAPTURE_SCREENSHOT"
   | "CAPTURE_MULTI_SELECTION"
+  | "CAPTURE_MEDIA"
+  | "CAPTURE_MEDIA_ELEMENT"
   | "AI_PROCESS_REQUEST"
   | "AI_PROCESS_UPDATE"
   | "AI_PROCESS_RESULT"
@@ -49,6 +51,21 @@ export interface CaptureRequestPayload {
 export interface CaptureMultiSelectionPayload {
   pocketId: string;
   sanitize?: boolean;
+}
+
+export interface CaptureMediaPayload {
+  pocketId: string;
+  compressImages?: boolean;
+  generateThumbnails?: boolean;
+  transcribeAudio?: boolean;
+}
+
+export interface CaptureMediaElementPayload {
+  elementSelector: string;
+  mediaType: "image" | "video" | "audio";
+  pocketId: string;
+  compress?: boolean;
+  generateThumbnail?: boolean;
 }
 
 export interface AiProcessRequestPayload {
