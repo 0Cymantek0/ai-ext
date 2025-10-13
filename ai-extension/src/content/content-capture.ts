@@ -7,6 +7,7 @@
 import { domAnalyzer, type ExtractedText, type PageMetadata } from "./dom-analyzer.js";
 import { contentSanitizer } from "./content-sanitizer.js";
 import { elementSelector, type SelectedElement } from "./element-selector.js";
+import { reliableSelectionCapture } from "./selection-reliability.js";
 
 export type CaptureMode = "full-page" | "selection" | "element" | "note";
 
@@ -220,46 +221,56 @@ export class ContentCapture {
 
   /**
    * Capture selected text with context
-   * Requirements: 2.1, 2.2, 2.3
+   * Requirements: 2.1, 2.2, 2.3, 15.1, 17.1, 17.2
    */
   private async captureSelection(sanitize: boolean): Promise<any> {
-    // Try to get detailed selection first (with context)
-    const detailedSelection = domAnalyzer.extractDetailedSelection(200);
-    
-    if (detailedSelection) {
-      return this.processDetailedSelection(detailedSelection, sanitize);
-    }
+    // Use reliable capture with DOM stability checks and retry logic
+    return await reliableSelectionCapture.captureWithReliability(
+      async () => {
+        // Try to get detailed selection first (with context)
+        const detailedSelection = domAnalyzer.extractDetailedSelection(200);
+        
+        if (detailedSelection) {
+          return this.processDetailedSelection(detailedSelection, sanitize);
+        }
 
-    // Fallback to basic selection extraction
-    const selection = domAnalyzer.extractSelection();
+        // Fallback to basic selection extraction
+        const selection = domAnalyzer.extractSelection();
 
-    if (!selection) {
-      throw new Error("No text selected");
-    }
+        if (!selection) {
+          throw new Error("No text selected");
+        }
 
-    let processedContent = selection.content;
-    let sanitizationInfo: any = null;
+        let processedContent = selection.content;
+        let sanitizationInfo: any = null;
 
-    if (sanitize) {
-      const sanitized = contentSanitizer.sanitize(selection.content);
-      processedContent = sanitized.sanitizedContent;
-      sanitizationInfo = {
-        detectedPII: sanitized.detectedPII.length,
-        redactionCount: sanitized.redactionCount,
-        piiTypes: sanitized.detectedPII.map((pii) => pii.type),
-      };
-    }
+        if (sanitize) {
+          const sanitized = contentSanitizer.sanitize(selection.content);
+          processedContent = sanitized.sanitizedContent;
+          sanitizationInfo = {
+            detectedPII: sanitized.detectedPII.length,
+            redactionCount: sanitized.redactionCount,
+            piiTypes: sanitized.detectedPII.map((pii) => pii.type),
+          };
+        }
 
-    const context = domAnalyzer.getSelectionContext(200, 200);
+        const context = domAnalyzer.getSelectionContext(200, 200);
 
-    return {
-      text: {
-        ...selection,
-        content: processedContent,
+        return {
+          text: {
+            ...selection,
+            content: processedContent,
+          },
+          context,
+          sanitization: sanitizationInfo,
+        };
       },
-      context,
-      sanitization: sanitizationInfo,
-    };
+      {
+        checkStability: true,
+        enableRetry: true,
+        monitorPerformance: true,
+      }
+    );
   }
 
   /**
@@ -318,34 +329,44 @@ export class ContentCapture {
 
   /**
    * Capture multiple selections with batch processing
-   * Requirements: 2.1, 2.2, 2.3
+   * Requirements: 2.1, 2.2, 2.3, 15.1, 17.1, 17.2
    */
   async captureMultipleSelections(
     sanitize: boolean = true
   ): Promise<any> {
-    const selections = domAnalyzer.extractMultipleSelections(200);
+    return await reliableSelectionCapture.captureWithReliability(
+      async () => {
+        const selections = domAnalyzer.extractMultipleSelections(200);
 
-    if (selections.length === 0) {
-      throw new Error("No text selected");
-    }
+        if (selections.length === 0) {
+          throw new Error("No text selected");
+        }
 
-    console.info("[ContentCapture] Processing multiple selections", {
-      count: selections.length,
-    });
+        console.info("[ContentCapture] Processing multiple selections", {
+          count: selections.length,
+        });
 
-    const processedSelections = await Promise.all(
-      selections.map((selection) => this.processDetailedSelection(selection, sanitize))
+        const processedSelections = await Promise.all(
+          selections.map((selection) => this.processDetailedSelection(selection, sanitize))
+        );
+
+        return {
+          selections: processedSelections,
+          count: processedSelections.length,
+          batchTimestamp: Date.now(),
+        };
+      },
+      {
+        checkStability: true,
+        enableRetry: true,
+        monitorPerformance: true,
+      }
     );
-
-    return {
-      selections: processedSelections,
-      count: processedSelections.length,
-      batchTimestamp: Date.now(),
-    };
   }
 
   /**
    * Capture specific elements
+   * Requirements: 2.2, 2.3, 2.4, 15.1, 17.1, 17.2
    */
   private async captureElements(sanitize: boolean): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -355,28 +376,38 @@ export class ContentCapture {
           try {
             const processedElements = await Promise.all(
               elements.map(async (el) => {
-                let textContent = el.info.textContent;
-                let sanitizationInfo: any = null;
+                // Use reliable capture for each element
+                return await reliableSelectionCapture.captureElementWithReliability(
+                  el.element,
+                  async () => {
+                    let textContent = el.info.textContent;
+                    let sanitizationInfo: any = null;
 
-                if (sanitize && textContent) {
-                  const sanitized = contentSanitizer.sanitize(textContent);
-                  textContent = sanitized.sanitizedContent;
-                  sanitizationInfo = {
-                    detectedPII: sanitized.detectedPII.length,
-                    redactionCount: sanitized.redactionCount,
-                    piiTypes: sanitized.detectedPII.map((pii) => pii.type),
-                  };
-                }
+                    if (sanitize && textContent) {
+                      const sanitized = contentSanitizer.sanitize(textContent);
+                      textContent = sanitized.sanitizedContent;
+                      sanitizationInfo = {
+                        detectedPII: sanitized.detectedPII.length,
+                        redactionCount: sanitized.redactionCount,
+                        piiTypes: sanitized.detectedPII.map((pii) => pii.type),
+                      };
+                    }
 
-                // Capture element screenshot
-                const screenshot = await this.captureElementScreenshot(el.element);
+                    // Capture element screenshot
+                    const screenshot = await this.captureElementScreenshot(el.element);
 
-                return {
-                  ...el.info,
-                  textContent,
-                  sanitization: sanitizationInfo,
-                  screenshot,
-                };
+                    return {
+                      ...el.info,
+                      textContent,
+                      sanitization: sanitizationInfo,
+                      screenshot,
+                    };
+                  },
+                  {
+                    checkStability: true,
+                    enableRetry: true,
+                  }
+                );
               })
             );
 
