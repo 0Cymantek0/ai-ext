@@ -8,20 +8,28 @@ interface TopBarProps {
   onOpenHistory: () => void;
   onNewChat: () => void;
   onNewPocket?: () => void;
+  onAddNote?: () => void;
+  onAddFile?: () => void;
   currentMode?: Mode;
   onModeChange?: (mode: Mode) => void;
   className?: string;
+  isInsidePocket?: boolean;
 }
 
 export function TopBar({ 
   onOpenHistory, 
   onNewChat, 
-  onNewPocket, 
+  onNewPocket,
+  onAddNote,
+  onAddFile,
   currentMode = "ask", 
   onModeChange, 
-  className 
+  className,
+  isInsidePocket = false
 }: TopBarProps) {
   const [theme, setTheme] = React.useState<"light" | "dark" | "auto">("auto");
+  const [showAddMenu, setShowAddMenu] = React.useState(false);
+  const addMenuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     // Load theme preference
@@ -30,6 +38,18 @@ export function TopBar({
     setTheme(savedTheme);
     applyTheme(savedTheme);
   }, []);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    if (!showAddMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+        setShowAddMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAddMenu]);
 
   const applyTheme = (newTheme: "light" | "dark" | "auto") => {
     const html = document.documentElement;
@@ -177,32 +197,85 @@ export function TopBar({
           {getThemeIcon()}
         </Button>
 
-        {/* New Chat/Pocket Button */}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={currentMode === "ai-pocket" ? onNewPocket : onNewChat}
-          aria-label={
-            currentMode === "ai-pocket"
-              ? "Create new pocket"
-              : "Start new conversation"
-          }
-          title={currentMode === "ai-pocket" ? "New Pocket" : "New Chat"}
-        >
-          <svg
-            className="size-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {/* New Chat/Pocket Button with dropdown */}
+        <div className="relative" ref={addMenuRef}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => {
+              if (currentMode === "ai-pocket" && isInsidePocket) {
+                setShowAddMenu(!showAddMenu);
+              } else if (currentMode === "ai-pocket") {
+                onNewPocket?.();
+              } else {
+                onNewChat();
+              }
+            }}
+            aria-label={
+              currentMode === "ai-pocket" && isInsidePocket
+                ? "Add content"
+                : currentMode === "ai-pocket"
+                ? "Create new pocket"
+                : "Start new conversation"
+            }
+            title={
+              currentMode === "ai-pocket" && isInsidePocket
+                ? "Add Content"
+                : currentMode === "ai-pocket"
+                ? "New Pocket"
+                : "New Chat"
+            }
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-        </Button>
+            <svg
+              className="size-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </Button>
+          
+          {/* Dropdown menu for add options */}
+          {showAddMenu && currentMode === "ai-pocket" && isInsidePocket && (
+            <div 
+              className="absolute top-full right-0 mt-2 bg-background border border-border rounded-lg shadow-lg overflow-hidden min-w-[180px] z-50"
+              style={{ pointerEvents: "auto" }}
+            >
+              <Button
+                variant="ghost"
+                className="w-full justify-start px-4 py-3 h-auto hover:bg-accent rounded-none"
+                onClick={() => {
+                  setShowAddMenu(false);
+                  onAddFile?.();
+                }}
+              >
+                <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Add file
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start px-4 py-3 h-auto hover:bg-accent rounded-none"
+                onClick={() => {
+                  setShowAddMenu(false);
+                  onAddNote?.();
+                }}
+              >
+                <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Add note
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

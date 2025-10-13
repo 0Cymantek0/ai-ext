@@ -15,6 +15,9 @@ type SortBy = "date" | "name" | "size";
 interface PocketManagerProps {
   onSelectPocket?: (pocket: PocketData) => void;
   onNewPocket?: () => void;
+  onInsidePocketChange?: (isInside: boolean) => void;
+  onAddNote?: () => void;
+  onAddFile?: () => void;
 }
 
 export interface PocketManagerRef {
@@ -22,7 +25,7 @@ export interface PocketManagerRef {
 }
 
 export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerProps>(
-  ({ onSelectPocket, onNewPocket }, ref) => {
+  ({ onSelectPocket, onNewPocket, onInsidePocketChange, onAddNote, onAddFile }, ref) => {
   const [pockets, setPockets] = React.useState<PocketData[]>([]);
   const [filteredPockets, setFilteredPockets] = React.useState<PocketData[]>([]);
   const [viewMode, setViewMode] = React.useState<ViewMode>("grid");
@@ -293,10 +296,16 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
     if (onSelectPocket) {
       onSelectPocket(pocket);
     }
+    if (onInsidePocketChange) {
+      onInsidePocketChange(true);
+    }
   };
 
   const handleBackToPockets = () => {
     setSelectedPocket(null);
+    if (onInsidePocketChange) {
+      onInsidePocketChange(false);
+    }
   };
 
   // Expose handleNewPocket method via ref
@@ -306,7 +315,14 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
 
   // If a pocket is selected, show the content list
   if (selectedPocket) {
-    return <ContentList pocket={selectedPocket} onBack={handleBackToPockets} />;
+    return (
+      <ContentList 
+        pocket={selectedPocket} 
+        onBack={handleBackToPockets}
+        onAddNote={onAddNote}
+        onAddFile={onAddFile}
+      />
+    );
   }
 
   return (
