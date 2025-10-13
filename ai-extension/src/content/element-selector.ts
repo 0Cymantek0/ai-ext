@@ -5,17 +5,39 @@
  */
 
 import { domAnalyzer, type ElementInfo } from "./dom-analyzer.js";
+import {
+  elementExtractor,
+  type EnhancedElementInfo,
+} from "./element-extractor.js";
+import {
+  elementPreviewGenerator,
+  type ElementPreview,
+} from "./element-preview.js";
+import {
+  codeSnippetGenerator,
+  type CodeSnippet,
+  type SnippetFormat,
+} from "./code-snippet-generator.js";
+import { contentSanitizer } from "./content-sanitizer.js";
 
 export interface SelectedElement {
   element: HTMLElement;
   info: ElementInfo;
+  enhancedInfo: EnhancedElementInfo;
+  preview?: ElementPreview;
+  snippets?: CodeSnippet[];
   screenshot?: string;
+  sanitized?: boolean;
 }
 
 export interface ElementSelectorOptions {
   multiSelect?: boolean;
   onSelect?: (elements: SelectedElement[]) => void;
   onCancel?: () => void;
+  generatePreview?: boolean;
+  generateSnippets?: boolean;
+  snippetFormats?: SnippetFormat[];
+  sanitizeContent?: boolean;
 }
 
 export class ElementSelector {
@@ -82,13 +104,75 @@ export class ElementSelector {
   }
 
   /**
-   * Get currently selected elements
+   * Get currently selected elements with enhanced information
+   * Requirements: 2.2, 2.3, 2.4, 39
    */
-  getSelectedElements(): SelectedElement[] {
-    return Array.from(this.selectedElements).map((element) => ({
-      element,
-      info: domAnalyzer.extractElement(element),
-    }));
+  async getSelectedElements(): Promise<SelectedElement[]> {
+    const elements = Array.from(this.selectedElements);
+    const results: SelectedElement[] = [];
+
+    for (const element of elements) {
+      const basicInfo = domAnalyzer.extractElement(element);
+      const enhancedInfo = elementExtractor.extractEnhanced(element);
+
+      const selectedElement: SelectedElement = {
+        element,
+        info: basicInfo,
+        enhancedInfo,
+      };
+
+      // Generate preview if requested
+      if (this.options.generatePreview) {
+        try {
+          selectedElement.preview = await elementPreviewGenerator.generatePreview(
+            element,
+            enhancedInfo
+          );
+        } catch (error) {
+          console.warn("[ElementSelector] Failed to generate preview", error);
+        }
+      }
+
+      // Generate code snippets if requested
+      if (this.options.generateSnippets) {
+        try {
+          const formats = this.options.snippetFormats || [
+            "html",
+            "css",
+            "react",
+          ];
+          selectedElement.snippets = formats.map((format) =>
+            codeSnippetGenerator.generateSnippet(
+              element,
+              enhancedInfo,
+              format
+            )
+          );
+        } catch (error) {
+          console.warn("[ElementSelector] Failed to generate snippets", error);
+        }
+      }
+
+      // Sanitize content if requested
+      if (this.options.sanitizeContent) {
+        try {
+          const textContent = element.textContent || "";
+          const sanitized = contentSanitizer.sanitize(textContent);
+          selectedElement.sanitized = sanitized.redactionCount > 0;
+
+          // Update text content in enhanced info if sanitized
+          if (selectedElement.sanitized) {
+            enhancedInfo.textContent = sanitized.sanitizedContent;
+          }
+        } catch (error) {
+          console.warn("[ElementSelector] Failed to sanitize content", error);
+        }
+      }
+
+      results.push(selectedElement);
+    }
+
+    return results;
   }
 
   /**
@@ -380,18 +464,32 @@ export class ElementSelector {
   /**
    * Handle confirm action
    */
-  private handleConfirm(): void {
-    const selected = this.getSelectedElements();
+  private async handleConfirm(): Promise<void> {
+    console.info("[ElementSelector] Processing selected elements...");
 
-    console.info("[ElementSelector] Selection confirmed", {
-      count: selected.length,
-    });
+    // Show loading indicator
+    this.showLoadingIndicator();
 
-    if (this.options.onSelect) {
-      this.options.onSelect(selected);
+    try {
+      const selected = await this.getSelectedElements();
+
+      console.info("[ElementSelector] Selection confirmed", {
+        count: selected.length,
+        hasPreview: selected.some((s) => s.preview),
+        hasSnippets: selected.some((s) => s.snippets),
+        sanitized: selected.some((s) => s.sanitized),
+      });
+
+      if (this.options.onSelect) {
+        this.options.onSelect(selected);
+      }
+    } catch (error) {
+      console.error("[ElementSelector] Failed to process selection", error);
+      this.showError("Failed to process selected elements");
+    } finally {
+      this.hideLoadingIndicator();
+      this.disable();
     }
-
-    this.disable();
   }
 
   /**
@@ -435,6 +533,101 @@ export class ElementSelector {
     document.removeEventListener("mouseover", this.handleMouseOver, true);
     document.removeEventListener("click", this.handleClick, true);
     document.removeEventListener("keydown", this.handleKeyDown, true);
+  }
+
+  /**
+   * Show loading indicator
+   */
+  private showLoadingIndicator(): void {
+    if (!this.overlay) return;
+
+    const loading = document.createElement("div");
+    loading.id = "ai-pocket-element-selector-loading";
+    loading.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 24px 32px;
+      border-radius: 8px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 2147483647;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    `;
+
+    // Add spinner
+    const spinner = document.createElement("div");
+    spinner.style.cssText = `
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    `;
+
+    // Add animation
+    const style = document.createElement("style");
+    style.textContent = `
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    loading.appendChild(spinner);
+    loading.appendChild(document.createTextNode("Processing elements..."));
+
+    this.overlay.appendChild(loading);
+  }
+
+  /**
+   * Hide loading indicator
+   */
+  private hideLoadingIndicator(): void {
+    const loading = document.getElementById(
+      "ai-pocket-element-selector-loading"
+    );
+    if (loading) {
+      loading.remove();
+    }
+  }
+
+  /**
+   * Show error message
+   */
+  private showError(message: string): void {
+    if (!this.overlay) return;
+
+    const error = document.createElement("div");
+    error.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ef4444;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 2147483647;
+    `;
+
+    error.textContent = message;
+    this.overlay.appendChild(error);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+      error.remove();
+    }, 3000);
   }
 }
 

@@ -365,13 +365,17 @@ export class ContentCapture {
   }
 
   /**
-   * Capture specific elements
-   * Requirements: 2.2, 2.3, 2.4, 15.1, 17.1, 17.2
+   * Capture specific elements with enhanced extraction
+   * Requirements: 2.2, 2.3, 2.4, 39, 15.1, 17.1, 17.2
    */
   private async captureElements(sanitize: boolean): Promise<any> {
     return new Promise((resolve, reject) => {
       elementSelector.enable({
         multiSelect: true,
+        generatePreview: true,
+        generateSnippets: true,
+        snippetFormats: ["html", "css", "react"],
+        sanitizeContent: sanitize,
         onSelect: async (elements: SelectedElement[]) => {
           try {
             const processedElements = await Promise.all(
@@ -380,7 +384,7 @@ export class ContentCapture {
                 return await reliableSelectionCapture.captureElementWithReliability(
                   el.element,
                   async () => {
-                    let textContent = el.info.textContent;
+                    let textContent = el.enhancedInfo.textContent;
                     let sanitizationInfo: any = null;
 
                     if (sanitize && textContent) {
@@ -398,9 +402,17 @@ export class ContentCapture {
 
                     return {
                       ...el.info,
+                      enhancedInfo: el.enhancedInfo,
                       textContent,
                       sanitization: sanitizationInfo,
                       screenshot,
+                      preview: el.preview,
+                      snippets: el.snippets,
+                      computedStyles: el.enhancedInfo.computedStyles,
+                      cssRules: el.enhancedInfo.cssRules,
+                      dimensions: el.enhancedInfo.dimensions,
+                      position: el.enhancedInfo.position,
+                      accessibility: el.enhancedInfo.accessibility,
                     };
                   },
                   {
