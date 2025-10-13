@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ContentCard } from "./ContentCard";
 import { ContentPreview } from "./ContentPreview";
+import { NoteManager } from "@/components/notes";
 import { SearchBar } from "@/components/SearchBar";
 import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
 import { AnimatePresence, motion } from "framer-motion";
@@ -34,6 +35,7 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [showAddMenu, setShowAddMenu] = React.useState(false);
   const [showNoteTemplates, setShowNoteTemplates] = React.useState(false);
+  const [contentView, setContentView] = React.useState<"files" | "notes">("files");
 
   // Load contents on mount
   React.useEffect(() => {
