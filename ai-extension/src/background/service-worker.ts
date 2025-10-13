@@ -573,11 +573,63 @@ class MessageRouter {
 // Create singleton instance
 const messageRouter = new MessageRouter();
 
-// Register default handlers
-messageRouter.registerHandler("CAPTURE_REQUEST", async (payload) => {
+// Register content capture handler
+messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
   logger.info("Handler", "CAPTURE_REQUEST", payload);
-  // Placeholder - will be implemented in content capture tasks
-  return { status: "queued", contentId: crypto.randomUUID() };
+  
+  try {
+    const { mode, pocketId } = payload as { mode: string; pocketId: string };
+    
+    // Validate payload
+    if (!mode || !pocketId) {
+      throw new Error("Missing required fields: mode and pocketId");
+    }
+    
+    // Get the active tab
+    const tabId = sender.tab?.id;
+    if (!tabId) {
+      throw new Error("No active tab found");
+    }
+    
+    // Send capture request to content script
+    const response = await messageRouter.sendToContentScript<any>(tabId, {
+      kind: "CAPTURE_REQUEST",
+      payload: { mode, pocketId },
+    });
+    
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || "Content capture failed");
+    }
+    
+    const captureResult = (response.data as any).result;
+    
+    // Process and store the captured content
+    const { contentProcessor } = await import("./content-processor.js");
+    const processed = await contentProcessor.processContent({
+      pocketId,
+      mode: captureResult.mode,
+      content: captureResult.content,
+      metadata: captureResult.metadata,
+      sourceUrl: sender.tab?.url || "",
+      sanitize: true,
+    });
+    
+    logger.info("Handler", "CAPTURE_REQUEST completed", {
+      contentId: processed.contentId,
+      type: processed.type,
+      status: processed.status,
+    });
+    
+    return {
+      status: "success",
+      contentId: processed.contentId,
+      type: processed.type,
+      preview: processed.preview,
+    };
+  } catch (error) {
+    logger.error("Handler", "CAPTURE_REQUEST error", error);
+    throw error;
+  }
 });
 
 messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {

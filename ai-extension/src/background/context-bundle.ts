@@ -10,6 +10,7 @@
 import { logger } from "./monitoring.js";
 import { vectorSearchService, type SearchResult } from "./vector-search-service.js";
 import type { CapturedContent } from "./indexeddb-manager.js";
+import { conversationContextLoader } from "./conversation-context-loader.js";
 
 /**
  * Context signal types
@@ -49,7 +50,7 @@ export interface PocketContext {
 }
 
 export interface HistoryContext {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: number;
 }
@@ -268,6 +269,7 @@ export class ContextBundleBuilder {
 
   /**
    * Add conversation history context
+   * Requirement 36.5, 36.7, 36.11: Load actual conversation history
    */
   private async addHistoryContext(
     bundle: ContextBundle,
@@ -279,19 +281,68 @@ export class ContextBundleBuilder {
     }
 
     try {
-      // Load recent conversation history (handled by conversation-context-loader)
-      // For now, we'll just reserve space and mark the signal as included
-      // The actual history loading is done separately in streaming-handler
-      bundle.signals.push("history");
-      
-      // Reserve ~2000 tokens for history
-      const historyTokens = Math.min(2000, remainingTokens * 0.3);
-      remainingTokens -= historyTokens;
-      bundle.totalTokens += historyTokens;
+      // Load actual conversation history using ConversationContextLoader
+      const conversationContext = await conversationContextLoader.buildConversationContext(
+        options.conversationId
+      );
 
-      logger.info("ContextBundleBuilder", "Reserved history context", {
-        tokensReserved: historyTokens,
-      });
+      if (conversationContext.messages.length === 0) {
+        logger.info("ContextBundleBuilder", "No conversation history available", {
+          conversationId: options.conversationId,
+        });
+        return remainingTokens;
+      }
+
+      // Convert formatted messages to HistoryContext
+      const historyContexts: HistoryContext[] = conversationContext.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: Date.now(), // Actual timestamp would come from Message object
+      }));
+
+      // Calculate actual token usage
+      const historyTokens = conversationContext.totalTokens;
+
+      // Check if we have enough budget
+      if (historyTokens > remainingTokens) {
+        // Try to fit what we can by limiting message count
+        const maxMessages = Math.floor(remainingTokens / (historyTokens / historyContexts.length));
+        
+        if (maxMessages > 0) {
+          // Take the most recent messages that fit
+          bundle.history = historyContexts.slice(-maxMessages);
+          const actualTokens = Math.ceil(historyTokens * (maxMessages / historyContexts.length));
+          
+          bundle.signals.push("history");
+          bundle.totalTokens += actualTokens;
+          bundle.truncated = true;
+          remainingTokens -= actualTokens;
+
+          logger.info("ContextBundleBuilder", "Added truncated history context", {
+            totalMessages: historyContexts.length,
+            includedMessages: maxMessages,
+            tokensUsed: actualTokens,
+            truncated: true,
+          });
+        } else {
+          logger.warn("ContextBundleBuilder", "Insufficient tokens for history context", {
+            required: historyTokens,
+            available: remainingTokens,
+          });
+        }
+      } else {
+        // We have enough budget for all history
+        bundle.history = historyContexts;
+        bundle.signals.push("history");
+        bundle.totalTokens += historyTokens;
+        remainingTokens -= historyTokens;
+
+        logger.info("ContextBundleBuilder", "Added full history context", {
+          messageCount: historyContexts.length,
+          tokensUsed: historyTokens,
+          truncated: conversationContext.truncated,
+        });
+      }
     } catch (error) {
       logger.error("ContextBundleBuilder", "Failed to add history context", error);
     }
@@ -410,6 +461,7 @@ export class ContextBundleBuilder {
 
   /**
    * Generate cache key for bundle options
+   * Note: Cache includes conversation ID to ensure history changes invalidate cache
    */
   private getCacheKey(options: ContextBundleOptions): string {
     return `${options.mode}-${options.query || ""}-${options.pocketId || ""}-${options.conversationId || ""}`;
@@ -449,6 +501,7 @@ export class ContextBundleBuilder {
 
 /**
  * Serialize ContextBundle into compact system preamble for chat
+ * Requirement 38.1, 38.2: Include history context in serialization
  */
 export function serializeContextBundle(
   bundle: ContextBundle,
@@ -463,6 +516,21 @@ export function serializeContextBundle(
   } else {
     parts.push("# Ask Mode - General Assistant");
     parts.push("You are a helpful AI assistant providing general conversational support.");
+  }
+
+  // Add conversation history context
+  if (bundle.history && bundle.history.length > 0) {
+    parts.push(`\n## Conversation History`);
+    parts.push(`Recent conversation context (${bundle.history.length} messages):`);
+    
+    for (const msg of bundle.history) {
+      const roleLabel = msg.role === "user" ? "User" : msg.role === "assistant" ? "Assistant" : "System";
+      // Truncate long messages for context preamble
+      const content = msg.content.length > 200 
+        ? msg.content.slice(0, 200) + "..." 
+        : msg.content;
+      parts.push(`- ${roleLabel}: ${content}`);
+    }
   }
 
   // Add page context

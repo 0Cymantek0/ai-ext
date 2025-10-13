@@ -1,0 +1,419 @@
+/**
+ * Content Processor
+ * Validates, sanitizes, and prepares content for storage
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
+ */
+
+import { logger } from "./monitoring.js";
+import {
+  indexedDBManager,
+  ContentType,
+  ProcessingStatus,
+  type CapturedContent,
+  type ContentMetadata,
+} from "./indexeddb-manager.js";
+
+export interface ProcessContentOptions {
+  pocketId: string;
+  mode: "full-page" | "selection" | "element" | "note";
+  content: any;
+  metadata: any;
+  sourceUrl: string;
+  sanitize?: boolean;
+}
+
+export interface ProcessedContent {
+  contentId: string;
+  type: ContentType;
+  preview: string;
+  status: ProcessingStatus;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export class ContentProcessor {
+  /**
+   * Process and store captured content
+   */
+  async processContent(options: ProcessContentOptions): Promise<ProcessedContent> {
+    const { pocketId, mode, content, metadata, sourceUrl, sanitize = true } = options;
+
+    logger.info("ContentProcessor", "Processing content", {
+      pocketId,
+      mode,
+      sourceUrl,
+    });
+
+    try {
+      // Validate content
+      const validation = this.validateContent(content, mode);
+      if (!validation.valid) {
+        throw new Error(`Content validation failed: ${validation.errors.join(", ")}`);
+      }
+
+      // Log warnings if any
+      if (validation.warnings.length > 0) {
+        logger.warn("ContentProcessor", "Validation warnings", {
+          warnings: validation.warnings,
+        });
+      }
+
+      // Detect content type
+      const contentType = this.detectContentType(content, mode);
+
+      // Prepare content for storage
+      const preparedContent = this.prepareContent(content, contentType, mode);
+
+      // Create content metadata
+      const contentMetadata = this.createContentMetadata(metadata, content, mode);
+
+      // Save to IndexedDB
+      await indexedDBManager.init();
+      const contentId = await indexedDBManager.saveContent({
+        pocketId,
+        type: contentType,
+        content: preparedContent,
+        metadata: contentMetadata,
+        sourceUrl,
+        processingStatus: ProcessingStatus.COMPLETED,
+      });
+
+      // Generate preview
+      const preview = this.generatePreview(content, contentType, mode);
+
+      logger.info("ContentProcessor", "Content processed successfully", {
+        contentId,
+        type: contentType,
+        previewLength: preview.length,
+      });
+
+      return {
+        contentId,
+        type: contentType,
+        preview,
+        status: ProcessingStatus.COMPLETED,
+      };
+    } catch (error) {
+      logger.error("ContentProcessor", "Content processing failed", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate content before processing
+   */
+  private validateContent(content: any, mode: string): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Check if content exists
+    if (!content) {
+      errors.push("Content is null or undefined");
+      return { valid: false, errors, warnings };
+    }
+
+    // Mode-specific validation
+    switch (mode) {
+      case "full-page":
+        if (!content.text || !content.text.content) {
+          errors.push("Full page capture missing text content");
+        }
+        if (content.text && content.text.content.length === 0) {
+          warnings.push("Full page capture has empty text content");
+        }
+        if (content.text && content.text.wordCount < 10) {
+          warnings.push("Full page capture has very little text content");
+        }
+        break;
+
+      case "selection":
+        if (!content.text || !content.text.content) {
+          errors.push("Selection capture missing text content");
+        }
+        if (content.text && content.text.content.length === 0) {
+          errors.push("Selection capture has empty text content");
+        }
+        break;
+
+      case "element":
+        if (!content.elements || !Array.isArray(content.elements)) {
+          errors.push("Element capture missing elements array");
+        }
+        if (content.elements && content.elements.length === 0) {
+          errors.push("Element capture has no elements");
+        }
+        break;
+
+      case "note":
+        if (!content.text && content.text !== "") {
+          errors.push("Note capture missing text content");
+        }
+        break;
+
+      default:
+        errors.push(`Unknown capture mode: ${mode}`);
+    }
+
+    // Check for sanitization info if present
+    if (content.sanitization) {
+      if (content.sanitization.detectedPII > 0) {
+        warnings.push(
+          `Detected ${content.sanitization.detectedPII} PII instances (${content.sanitization.piiTypes?.join(", ")})`
+        );
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    };
+  }
+
+  /**
+   * Detect content type from captured content
+   */
+  private detectContentType(content: any, mode: string): ContentType {
+    // Check for explicit media types
+    if (content.type) {
+      switch (content.type) {
+        case "image":
+          return ContentType.IMAGE;
+        case "video":
+          return ContentType.VIDEO;
+        case "audio":
+          return ContentType.AUDIO;
+        case "note":
+          return ContentType.NOTE;
+      }
+    }
+
+    // Detect based on mode
+    switch (mode) {
+      case "full-page":
+        return ContentType.PAGE;
+
+      case "selection":
+        return ContentType.TEXT;
+
+      case "element":
+        // Check if elements contain media
+        if (content.elements && content.elements.length > 0) {
+          const firstElement = content.elements[0];
+          if (firstElement.tagName === "IMG") return ContentType.IMAGE;
+          if (firstElement.tagName === "VIDEO") return ContentType.VIDEO;
+          if (firstElement.tagName === "AUDIO") return ContentType.AUDIO;
+        }
+        return ContentType.ELEMENT;
+
+      case "note":
+        return ContentType.NOTE;
+
+      default:
+        return ContentType.TEXT;
+    }
+  }
+
+  /**
+   * Prepare content for storage
+   */
+  private prepareContent(content: any, type: ContentType, mode: string): string {
+    switch (type) {
+      case ContentType.PAGE:
+      case ContentType.TEXT:
+        return JSON.stringify({
+          text: content.text?.content || "",
+          wordCount: content.text?.wordCount || 0,
+          characterCount: content.text?.characterCount || 0,
+          headings: content.text?.headings || [],
+          links: content.text?.links || [],
+          images: content.text?.images || [],
+          context: content.context,
+          sanitization: content.sanitization,
+          readability: content.readability,
+          structuredData: content.structuredData,
+        });
+
+      case ContentType.ELEMENT:
+        return JSON.stringify({
+          elements: content.elements || [],
+          count: content.count || 0,
+        });
+
+      case ContentType.NOTE:
+        return content.text || "";
+
+      case ContentType.IMAGE:
+      case ContentType.VIDEO:
+      case ContentType.AUDIO:
+        return JSON.stringify(content);
+
+      default:
+        return JSON.stringify(content);
+    }
+  }
+
+  /**
+   * Create content metadata
+   */
+  private createContentMetadata(
+    pageMetadata: any,
+    content: any,
+    mode: string
+  ): ContentMetadata {
+    const metadata: ContentMetadata = {
+      title: pageMetadata.title,
+      author: pageMetadata.author,
+      publishedDate: pageMetadata.publishedDate,
+      domain: pageMetadata.domain,
+    };
+
+    // Add mode-specific metadata
+    if (mode === "selection" && content.context) {
+      metadata.selectionContext = content.context;
+    }
+
+    if (mode === "element" && content.elements && content.elements.length > 0) {
+      metadata.elementSelector = content.elements[0].selector;
+    }
+
+    // Add dimensions for media content
+    if (content.width && content.height) {
+      metadata.dimensions = {
+        width: content.width,
+        height: content.height,
+      };
+    }
+
+    return metadata;
+  }
+
+  /**
+   * Generate content preview
+   */
+  private generatePreview(content: any, type: ContentType, mode: string): string {
+    const maxLength = 200;
+
+    switch (type) {
+      case ContentType.PAGE:
+      case ContentType.TEXT:
+        const text = content.text?.content || "";
+        return this.truncateText(text, maxLength);
+
+      case ContentType.ELEMENT:
+        if (content.elements && content.elements.length > 0) {
+          const summaries = content.elements.map((el: any) => {
+            const tag = el.tagName?.toLowerCase() || "element";
+            const text = this.truncateText(el.textContent || "", 50);
+            return `<${tag}>: ${text}`;
+          });
+          return summaries.join(" | ");
+        }
+        return "Element capture";
+
+      case ContentType.NOTE:
+        return this.truncateText(content.text || "", maxLength);
+
+      case ContentType.IMAGE:
+        return `Image: ${content.alt || content.src || "Untitled"}`;
+
+      case ContentType.VIDEO:
+        return `Video: ${content.src || "Untitled"} (${this.formatDuration(content.duration)})`;
+
+      case ContentType.AUDIO:
+        return `Audio: ${content.src || "Untitled"} (${this.formatDuration(content.duration)})`;
+
+      default:
+        return "Captured content";
+    }
+  }
+
+  /**
+   * Truncate text to max length
+   */
+  private truncateText(text: string, maxLength: number): string {
+    if (!text) return "";
+
+    const cleaned = text.trim().replace(/\s+/g, " ");
+
+    if (cleaned.length <= maxLength) {
+      return cleaned;
+    }
+
+    return cleaned.substring(0, maxLength) + "...";
+  }
+
+  /**
+   * Format duration in seconds to readable string
+   */
+  private formatDuration(seconds: number | undefined): string {
+    if (!seconds || isNaN(seconds)) return "Unknown duration";
+
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+
+    return `${secs}s`;
+  }
+
+  /**
+   * Get content by ID
+   */
+  async getContent(contentId: string): Promise<CapturedContent | null> {
+    try {
+      await indexedDBManager.init();
+      return await indexedDBManager.getContent(contentId);
+    } catch (error) {
+      logger.error("ContentProcessor", "Failed to get content", error);
+      return null;
+    }
+  }
+
+  /**
+   * Update content processing status
+   */
+  async updateProcessingStatus(
+    contentId: string,
+    status: ProcessingStatus
+  ): Promise<void> {
+    try {
+      await indexedDBManager.init();
+      await indexedDBManager.updateContent(contentId, {
+        processingStatus: status,
+      });
+
+      logger.info("ContentProcessor", "Processing status updated", {
+        contentId,
+        status,
+      });
+    } catch (error) {
+      logger.error("ContentProcessor", "Failed to update processing status", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete content
+   */
+  async deleteContent(contentId: string): Promise<void> {
+    try {
+      await indexedDBManager.init();
+      await indexedDBManager.deleteContent(contentId);
+
+      logger.info("ContentProcessor", "Content deleted", { contentId });
+    } catch (error) {
+      logger.error("ContentProcessor", "Failed to delete content", error);
+      throw error;
+    }
+  }
+}
+
+// Export singleton instance
+export const contentProcessor = new ContentProcessor();
