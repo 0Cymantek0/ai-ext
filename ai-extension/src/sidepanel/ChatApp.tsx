@@ -20,6 +20,7 @@ import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
 import { PocketManager, type PocketManagerRef } from "@/components/pockets";
+import { NoteEditor } from "@/components/notes/NoteEditor";
 
 interface ChatMessage {
   id: string;
@@ -58,6 +59,13 @@ export function ChatApp() {
   const [isAtTop, setIsAtTop] = React.useState(true);
   // Auto context toggle - enabled by default
   const [autoContext, setAutoContext] = React.useState(true);
+  // Track if user is inside a pocket
+  const [isInsidePocket, setIsInsidePocket] = React.useState(false);
+  // Store current pocket ID for add actions
+  const [currentPocketId, setCurrentPocketId] = React.useState<string | null>(null);
+  // Note editor state
+  const [showNoteEditor, setShowNoteEditor] = React.useState(false);
+  const [isSavingNote, setIsSavingNote] = React.useState(false);
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<
@@ -429,6 +437,70 @@ export function ChatApp() {
     }
   };
 
+  const handleInsidePocketChange = (isInside: boolean) => {
+    setIsInsidePocket(isInside);
+  };
+
+  const handleAddNote = async () => {
+    setShowNoteEditor(true);
+  };
+
+  const handleSaveNote = async (noteData: any) => {
+    if (!currentPocketId) {
+      alert("No pocket selected");
+      return;
+    }
+
+    setIsSavingNote(true);
+    try {
+      const response = await chrome.runtime.sendMessage({
+        kind: "CAPTURE_REQUEST",
+        requestId: crypto.randomUUID(),
+        payload: {
+          mode: "note",
+          pocketId: currentPocketId,
+          content: noteData.content,
+          metadata: {
+            title: noteData.title,
+            tags: noteData.tags || [],
+            category: noteData.category,
+          },
+        },
+      });
+
+      if (response.success) {
+        console.log("Note saved successfully");
+        setShowNoteEditor(false);
+        // Optionally reload content list
+      } else {
+        console.error("Failed to save note:", response.error);
+        alert("Failed to save note. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error saving note:", error);
+      alert("Error saving note. Please try again.");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleAddFile = async () => {
+    try {
+      // Trigger content capture with selection mode
+      await chrome.runtime.sendMessage({
+        kind: "CAPTURE_REQUEST",
+        requestId: crypto.randomUUID(),
+        payload: {
+          mode: "selection",
+          pocketId: currentPocketId,
+        },
+      });
+      console.log("Capture request sent for pocket:", currentPocketId);
+    } catch (error) {
+      console.error("Error capturing content:", error);
+    }
+  };
+
 
 
   const handleSelectConversation = async (id: string) => {
@@ -621,8 +693,11 @@ export function ChatApp() {
         onOpenHistory={() => setIsHistoryOpen(true)}
         onNewChat={handleNewChat}
         onNewPocket={handleNewPocket}
+        onAddNote={handleAddNote}
+        onAddFile={handleAddFile}
         currentMode={currentMode}
         onModeChange={handleModeChange}
+        isInsidePocket={isInsidePocket}
       />
 
       <HistoryPanel
@@ -640,7 +715,13 @@ export function ChatApp() {
         <div className="flex flex-1 flex-col overflow-hidden bg-transparent">
           {currentMode === "ai-pocket" ? (
             <div className="flex flex-1 flex-col overflow-hidden">
-              <PocketManager ref={pocketManagerRef} />
+              <PocketManager 
+                ref={pocketManagerRef}
+                onInsidePocketChange={handleInsidePocketChange}
+                onAddNote={handleAddNote}
+                onAddFile={handleAddFile}
+                onSelectPocket={(pocket) => setCurrentPocketId(pocket.id)}
+              />
             </div>
           ) : messages.length === 0 ? (
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
@@ -840,6 +921,20 @@ export function ChatApp() {
             />
           </div>
         )}
+        </div>
+      )}
+
+      {/* Note Editor Modal */}
+      {showNoteEditor && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-4xl h-[90vh] bg-background rounded-lg shadow-2xl overflow-hidden">
+            <NoteEditor
+              {...(currentPocketId ? { note: { pocketId: currentPocketId, title: "", content: "", tags: [] } } : {})}
+              onSave={handleSaveNote}
+              onCancel={() => setShowNoteEditor(false)}
+              isLoading={isSavingNote}
+            />
+          </div>
         </div>
       )}
     </div>
