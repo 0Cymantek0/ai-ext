@@ -20,6 +20,7 @@ interface PocketCardProps {
   onEdit: (pocket: PocketData) => void;
   onDelete: (id: string) => void;
   onClick: (pocket: PocketData) => void;
+  onShare?: (pocket: PocketData) => void;
 }
 
 export function PocketCard({
@@ -28,6 +29,7 @@ export function PocketCard({
   onEdit,
   onDelete,
   onClick,
+  onShare,
 }: PocketCardProps) {
   const [showActions, setShowActions] = React.useState(false);
 
@@ -52,6 +54,13 @@ export function PocketCard({
     e.stopPropagation();
     if (confirm(`Delete pocket "${pocket.name}"? This will also delete all content inside.`)) {
       onDelete(pocket.id);
+    }
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onShare) {
+      onShare(pocket);
     }
   };
 
@@ -85,6 +94,14 @@ export function PocketCard({
             <span>{pocket.contentIds.length} items</span>
             <span>•</span>
             <span>{formatDate(pocket.updatedAt)}</span>
+            {(pocket as any).category && (
+              <>
+                <span>•</span>
+                <span className="px-2 py-0.5 rounded-full bg-primary/20 text-xs">
+                  {(pocket as any).category}
+                </span>
+              </>
+            )}
             {pocket.tags.length > 0 && (
               <>
                 <span>•</span>
@@ -115,6 +132,28 @@ export function PocketCard({
             showActions ? "opacity-100" : "opacity-0"
           )}
         >
+          {onShare && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShare}
+              title="Share pocket"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                />
+              </svg>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -211,6 +250,29 @@ export function PocketCard({
           showActions ? "opacity-100" : "opacity-0"
         )}
       >
+        {onShare && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleShare}
+            title="Share pocket"
+            className="h-7 w-7 p-0"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
+            </svg>
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
