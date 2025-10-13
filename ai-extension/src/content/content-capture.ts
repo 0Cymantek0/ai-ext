@@ -24,6 +24,45 @@ export interface CaptureOptions {
   sanitize?: boolean;
 }
 
+/**
+ * Editable preview for captured content
+ * Requirements: 2.1, 2.2, 2.3
+ */
+export interface EditablePreview {
+  id: string;
+  text: string;
+  htmlContent: string;
+  context: {
+    before: string;
+    after: string;
+    full: string;
+  };
+  sourceLocation: {
+    url: string;
+    elementPath: string;
+    containerTag: string;
+    position: {
+      top: number;
+      left: number;
+      width: number;
+      height: number;
+    };
+  };
+  timestamp: number;
+  editable: boolean;
+  preview: string;
+}
+
+/**
+ * Validation result for captured content
+ * Requirements: 2.1, 2.2
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
 export class ContentCapture {
   /**
    * Capture content based on mode
@@ -47,7 +86,9 @@ export class ContentCapture {
 
       case "selection":
         content = await this.captureSelection(sanitize);
-        preview = this.generatePreview(content.text.content);
+        preview = content.text 
+          ? this.generatePreview(content.text.content || content.text)
+          : this.generateSelectionPreview(content);
         break;
 
       case "element":
@@ -79,6 +120,37 @@ export class ContentCapture {
     });
 
     return result;
+  }
+
+  /**
+   * Capture with preview and editing support
+   * Requirements: 2.1, 2.2, 2.3
+   */
+  async captureWithPreview(options: CaptureOptions): Promise<{
+    result: CaptureResult;
+    editablePreview: EditablePreview | null;
+    validation: ValidationResult;
+  }> {
+    const result = await this.capture(options);
+    
+    let editablePreview: EditablePreview | null = null;
+    let validation: ValidationResult = {
+      isValid: true,
+      errors: [],
+      warnings: [],
+    };
+
+    // Create editable preview for selection mode
+    if (options.mode === "selection" && result.content) {
+      editablePreview = this.createEditablePreview(result.content);
+      validation = this.validateSelection(result.content);
+    }
+
+    return {
+      result,
+      editablePreview,
+      validation,
+    };
   }
 
   /**
@@ -147,9 +219,18 @@ export class ContentCapture {
   }
 
   /**
-   * Capture selected text
+   * Capture selected text with context
+   * Requirements: 2.1, 2.2, 2.3
    */
   private async captureSelection(sanitize: boolean): Promise<any> {
+    // Try to get detailed selection first (with context)
+    const detailedSelection = domAnalyzer.extractDetailedSelection(200);
+    
+    if (detailedSelection) {
+      return this.processDetailedSelection(detailedSelection, sanitize);
+    }
+
+    // Fallback to basic selection extraction
     const selection = domAnalyzer.extractSelection();
 
     if (!selection) {
@@ -169,7 +250,7 @@ export class ContentCapture {
       };
     }
 
-    const context = domAnalyzer.getSelectionContext();
+    const context = domAnalyzer.getSelectionContext(200, 200);
 
     return {
       text: {
@@ -178,6 +259,88 @@ export class ContentCapture {
       },
       context,
       sanitization: sanitizationInfo,
+    };
+  }
+
+  /**
+   * Process detailed selection with context
+   * Requirements: 2.1, 2.2, 2.3
+   */
+  private async processDetailedSelection(
+    selection: any,
+    sanitize: boolean
+  ): Promise<any> {
+    let processedText = selection.text;
+    let processedHtml = selection.htmlContent;
+    let processedBeforeContext = selection.beforeContext;
+    let processedAfterContext = selection.afterContext;
+    let sanitizationInfo: any = null;
+
+    if (sanitize) {
+      const sanitizedText = contentSanitizer.sanitize(selection.text);
+      processedText = sanitizedText.sanitizedContent;
+
+      const sanitizedBefore = contentSanitizer.sanitize(selection.beforeContext);
+      processedBeforeContext = sanitizedBefore.sanitizedContent;
+
+      const sanitizedAfter = contentSanitizer.sanitize(selection.afterContext);
+      processedAfterContext = sanitizedAfter.sanitizedContent;
+
+      sanitizationInfo = {
+        detectedPII: sanitizedText.detectedPII.length,
+        redactionCount: sanitizedText.redactionCount,
+        piiTypes: sanitizedText.detectedPII.map((pii: any) => pii.type),
+      };
+    }
+
+    return {
+      text: processedText,
+      htmlContent: processedHtml,
+      context: {
+        before: processedBeforeContext,
+        after: processedAfterContext,
+        full: `${processedBeforeContext} [${processedText}] ${processedAfterContext}`,
+      },
+      sourceLocation: {
+        url: selection.url,
+        elementPath: selection.elementPath,
+        containerTag: selection.containerTag,
+        position: selection.position,
+      },
+      timestamp: selection.timestamp,
+      sanitization: sanitizationInfo,
+      formatting: {
+        preservedHtml: processedHtml,
+        hasFormatting: processedHtml !== processedText,
+      },
+    };
+  }
+
+  /**
+   * Capture multiple selections with batch processing
+   * Requirements: 2.1, 2.2, 2.3
+   */
+  async captureMultipleSelections(
+    sanitize: boolean = true
+  ): Promise<any> {
+    const selections = domAnalyzer.extractMultipleSelections(200);
+
+    if (selections.length === 0) {
+      throw new Error("No text selected");
+    }
+
+    console.info("[ContentCapture] Processing multiple selections", {
+      count: selections.length,
+    });
+
+    const processedSelections = await Promise.all(
+      selections.map((selection) => this.processDetailedSelection(selection, sanitize))
+    );
+
+    return {
+      selections: processedSelections,
+      count: processedSelections.length,
+      batchTimestamp: Date.now(),
     };
   }
 
@@ -307,6 +470,83 @@ export class ContentCapture {
     }
 
     return cleaned.substring(0, maxLength) + "...";
+  }
+
+  /**
+   * Generate preview for selection with context
+   * Requirements: 2.1, 2.2
+   */
+  generateSelectionPreview(selection: any): string {
+    if (!selection) return "";
+
+    const parts: string[] = [];
+
+    // Add context indicator
+    if (selection.context?.before) {
+      parts.push(`...${this.generatePreview(selection.context.before, 50)}`);
+    }
+
+    // Add main selection (highlighted)
+    parts.push(`**${this.generatePreview(selection.text, 100)}**`);
+
+    // Add after context
+    if (selection.context?.after) {
+      parts.push(`${this.generatePreview(selection.context.after, 50)}...`);
+    }
+
+    return parts.join(" ");
+  }
+
+  /**
+   * Create editable preview for selection before saving
+   * Requirements: 2.1, 2.2, 2.3
+   */
+  createEditablePreview(selection: any): EditablePreview {
+    return {
+      id: `preview-${Date.now()}`,
+      text: selection.text,
+      htmlContent: selection.htmlContent,
+      context: selection.context,
+      sourceLocation: selection.sourceLocation,
+      timestamp: selection.timestamp,
+      editable: true,
+      preview: this.generateSelectionPreview(selection),
+    };
+  }
+
+  /**
+   * Validate and prepare selection for saving
+   * Requirements: 2.1, 2.2, 2.3
+   */
+  validateSelection(selection: any): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Check if text is empty
+    if (!selection.text || selection.text.trim().length === 0) {
+      errors.push("Selection text is empty");
+    }
+
+    // Check text length
+    if (selection.text && selection.text.length > 50000) {
+      warnings.push("Selection is very large (>50,000 characters)");
+    }
+
+    // Check if source location is available
+    if (!selection.sourceLocation?.url) {
+      warnings.push("Source URL is missing");
+    }
+
+    // Check if context is available
+    if (!selection.context?.before && !selection.context?.after) {
+      warnings.push("No surrounding context available");
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    };
   }
 
   /**

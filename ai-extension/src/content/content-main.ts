@@ -12,6 +12,7 @@ import {
 import { domAnalyzer } from "./dom-analyzer.js";
 import { contentSanitizer } from "./content-sanitizer.js";
 import { contentCapture } from "./content-capture.js";
+import { selectionPreviewUI } from "./selection-preview-ui.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -73,6 +74,11 @@ class ContentScriptManager {
       console.debug("[ContentScript] Received CAPTURE_REQUEST", payload);
 
       try {
+        // For selection mode, show preview UI if requested
+        if (payload.mode === "selection" && payload.showPreview !== false) {
+          return await this.handleSelectionCaptureWithPreview(payload);
+        }
+
         // Use content capture coordinator to handle all capture modes
         const result = await contentCapture.capture({
           mode: payload.mode,
@@ -94,6 +100,27 @@ class ContentScriptManager {
       }
     });
 
+    // Handler for multi-selection capture
+    messageHandler.on("CAPTURE_MULTI_SELECTION", async (payload) => {
+      console.debug("[ContentScript] Received CAPTURE_MULTI_SELECTION", payload);
+
+      try {
+        const result = await contentCapture.captureMultipleSelections(true);
+
+        return {
+          status: "success",
+          result,
+          timestamp: Date.now(),
+        };
+      } catch (error) {
+        console.error("[ContentScript] Multi-selection capture failed", error);
+        return {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    });
+
     // Handler for AI processing updates
     messageHandler.on("AI_PROCESS_UPDATE", async (payload) => {
       console.debug("[ContentScript] Received AI_PROCESS_UPDATE", payload);
@@ -102,6 +129,57 @@ class ContentScriptManager {
     });
 
     console.debug("[ContentScript] Message handlers registered");
+  }
+
+  /**
+   * Handle selection capture with preview UI
+   * Requirements: 2.1, 2.2, 2.3
+   */
+  private async handleSelectionCaptureWithPreview(payload: any): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Capture selection with preview
+        const { result, editablePreview, validation } = 
+          await contentCapture.captureWithPreview({
+            mode: "selection",
+            pocketId: payload.pocketId,
+            sanitize: true,
+          });
+
+        if (!editablePreview) {
+          // No preview available, return result directly
+          resolve({
+            status: "success",
+            result,
+            timestamp: Date.now(),
+          });
+          return;
+        }
+
+        // Show preview UI
+        selectionPreviewUI.show(editablePreview, validation, {
+          onSave: (editedText: string) => {
+            // Update result with edited text
+            result.content.text = editedText;
+            
+            resolve({
+              status: "success",
+              result,
+              edited: true,
+              timestamp: Date.now(),
+            });
+          },
+          onCancel: () => {
+            reject(new Error("Capture cancelled by user"));
+          },
+          onEdit: (text: string) => {
+            console.debug("[ContentScript] Text edited", { length: text.length });
+          },
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   /**

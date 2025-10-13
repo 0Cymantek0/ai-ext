@@ -2,6 +2,7 @@ export type MessageKind =
   | "CAPTURE_REQUEST"
   | "CAPTURE_RESULT"
   | "CAPTURE_SCREENSHOT"
+  | "CAPTURE_MULTI_SELECTION"
   | "AI_PROCESS_REQUEST"
   | "AI_PROCESS_UPDATE"
   | "AI_PROCESS_RESULT"
@@ -42,6 +43,12 @@ export interface BaseMessage<K extends MessageKind, T> {
 export interface CaptureRequestPayload {
   mode: "full-page" | "selection" | "element" | "note";
   pocketId: string;
+  showPreview?: boolean; // Whether to show preview UI for selection mode
+}
+
+export interface CaptureMultiSelectionPayload {
+  pocketId: string;
+  sanitize?: boolean;
 }
 
 export interface AiProcessRequestPayload {

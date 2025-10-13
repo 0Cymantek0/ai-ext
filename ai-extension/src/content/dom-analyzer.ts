@@ -50,6 +50,27 @@ export interface ElementInfo {
 }
 
 /**
+ * Detailed selection information with context
+ * Requirements: 2.1, 2.2, 2.3
+ */
+export interface DetailedSelection {
+  text: string;
+  htmlContent: string;
+  beforeContext: string;
+  afterContext: string;
+  elementPath: string;
+  containerTag: string;
+  position: {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  };
+  url: string;
+  timestamp: number;
+}
+
+/**
  * DOM traversal options
  */
 export interface TraversalOptions {
@@ -596,11 +617,11 @@ export class DOMAnalyzer {
 
   /**
    * Get selection context (surrounding text)
-   * Requirements: 2.2
+   * Requirements: 2.2, 2.3
    */
   getSelectionContext(
-    beforeChars: number = 100,
-    afterChars: number = 100,
+    beforeChars: number = 200,
+    afterChars: number = 200,
   ): string | null {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
@@ -631,6 +652,189 @@ export class DOMAnalyzer {
     );
 
     return `${before}[${selectedText}]${after}`;
+  }
+
+  /**
+   * Extract detailed selection information with context
+   * Requirements: 2.1, 2.2, 2.3
+   */
+  extractDetailedSelection(
+    contextChars: number = 200
+  ): DetailedSelection | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.toString().trim() === "") {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    const selectedText = selection.toString();
+    
+    // Get the container element
+    let containerElement = range.commonAncestorContainer;
+    if (containerElement.nodeType === Node.TEXT_NODE) {
+      containerElement = containerElement.parentElement || containerElement;
+    }
+
+    // Extract surrounding context
+    const fullText = (containerElement as Element).textContent || "";
+    const startIndex = fullText.indexOf(selectedText);
+    
+    let beforeContext = "";
+    let afterContext = "";
+    
+    if (startIndex !== -1) {
+      beforeContext = fullText.substring(
+        Math.max(0, startIndex - contextChars),
+        startIndex
+      ).trim();
+      
+      afterContext = fullText.substring(
+        startIndex + selectedText.length,
+        Math.min(fullText.length, startIndex + selectedText.length + contextChars)
+      ).trim();
+    }
+
+    // Get HTML content to preserve formatting
+    const tempDiv = document.createElement("div");
+    tempDiv.appendChild(range.cloneContents());
+    const htmlContent = tempDiv.innerHTML;
+
+    // Get element path for source location
+    const elementPath = this.generateSelector(containerElement as Element);
+
+    // Get bounding rect for position information
+    const rect = range.getBoundingClientRect();
+
+    return {
+      text: selectedText,
+      htmlContent,
+      beforeContext,
+      afterContext,
+      elementPath,
+      containerTag: (containerElement as Element).tagName,
+      position: {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      },
+      url: window.location.href,
+      timestamp: Date.now(),
+    };
+  }
+
+  /**
+   * Extract multiple selections with batch processing
+   * Requirements: 2.1, 2.2, 2.3
+   */
+  extractMultipleSelections(
+    contextChars: number = 200
+  ): DetailedSelection[] {
+    const selections: DetailedSelection[] = [];
+    const selection = window.getSelection();
+    
+    if (!selection) {
+      return selections;
+    }
+
+    // Process all ranges in the selection
+    for (let i = 0; i < selection.rangeCount; i++) {
+      const range = selection.getRangeAt(i);
+      const selectedText = range.toString().trim();
+      
+      if (!selectedText) {
+        continue;
+      }
+
+      // Get the container element
+      let containerElement = range.commonAncestorContainer;
+      if (containerElement.nodeType === Node.TEXT_NODE) {
+        containerElement = containerElement.parentElement || containerElement;
+      }
+
+      // Extract surrounding context
+      const fullText = (containerElement as Element).textContent || "";
+      const startIndex = fullText.indexOf(selectedText);
+      
+      let beforeContext = "";
+      let afterContext = "";
+      
+      if (startIndex !== -1) {
+        beforeContext = fullText.substring(
+          Math.max(0, startIndex - contextChars),
+          startIndex
+        ).trim();
+        
+        afterContext = fullText.substring(
+          startIndex + selectedText.length,
+          Math.min(fullText.length, startIndex + selectedText.length + contextChars)
+        ).trim();
+      }
+
+      // Get HTML content to preserve formatting
+      const tempDiv = document.createElement("div");
+      tempDiv.appendChild(range.cloneContents());
+      const htmlContent = tempDiv.innerHTML;
+
+      // Get element path for source location
+      const elementPath = this.generateSelector(containerElement as Element);
+
+      // Get bounding rect for position information
+      const rect = range.getBoundingClientRect();
+
+      selections.push({
+        text: selectedText,
+        htmlContent,
+        beforeContext,
+        afterContext,
+        elementPath,
+        containerTag: (containerElement as Element).tagName,
+        position: {
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+        },
+        url: window.location.href,
+        timestamp: Date.now(),
+      });
+    }
+
+    return selections;
+  }
+
+  /**
+   * Get element path as array of selectors
+   * Requirements: 2.3
+   */
+  getElementPath(element: Element): string[] {
+    const path: string[] = [];
+    let current: Element | null = element;
+
+    while (current && current !== document.body) {
+      let selector = current.tagName.toLowerCase();
+
+      if (current.id) {
+        selector += `#${current.id}`;
+        path.unshift(selector);
+        break; // ID is unique, no need to go further
+      }
+
+      if (current.className && typeof current.className === "string") {
+        const classes = current.className
+          .trim()
+          .split(/\s+/)
+          .filter((c) => c.length > 0);
+        if (classes.length > 0) {
+          selector += `.${classes[0]}`; // Use first class for brevity
+        }
+      }
+
+      path.unshift(selector);
+      current = current.parentElement;
+    }
+
+    return path;
   }
 
   /**
