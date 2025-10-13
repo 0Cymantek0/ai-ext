@@ -33,6 +33,8 @@ export interface ExtractedText {
   headings: Array<{ level: number; text: string }>;
   links: Array<{ text: string; href: string }>;
   images: Array<{ alt: string; src: string }>;
+  lists: Array<{ type: 'ordered' | 'unordered'; items: string[] }>;
+  tables: Array<{ headers: string[]; rows: string[][] }>;
 }
 
 /**
@@ -169,6 +171,8 @@ export class DOMAnalyzer {
       headings: [],
       links: [],
       images: [],
+      lists: [],
+      tables: [],
     };
 
     // Extract main content
@@ -232,6 +236,69 @@ export class DOMAnalyzer {
             result.images.push({ alt, src });
           }
         }
+
+        // Extract lists
+        if (element.tagName === "UL" || element.tagName === "OL") {
+          const listType = element.tagName === "OL" ? "ordered" : "unordered";
+          const items: string[] = [];
+          const listItems = element.querySelectorAll(":scope > li");
+          listItems.forEach((li) => {
+            const text = li.textContent?.trim();
+            if (text) items.push(text);
+          });
+          if (items.length > 0) {
+            result.lists.push({ type: listType, items });
+          }
+        }
+
+        // Extract tables
+        if (element.tagName === "TABLE") {
+          const headers: string[] = [];
+          const rows: string[][] = [];
+
+          // Extract headers
+          const headerCells = element.querySelectorAll("thead th, thead td");
+          headerCells.forEach((cell) => {
+            const text = cell.textContent?.trim();
+            if (text) headers.push(text);
+          });
+
+          // If no thead, try first row
+          if (headers.length === 0) {
+            const firstRow = element.querySelector("tr");
+            if (firstRow) {
+              const cells = firstRow.querySelectorAll("th, td");
+              cells.forEach((cell) => {
+                const text = cell.textContent?.trim();
+                if (text) headers.push(text);
+              });
+            }
+          }
+
+          // Extract rows
+          const bodyRows = element.querySelectorAll("tbody tr, tr");
+          bodyRows.forEach((row, index) => {
+            // Skip first row if it was used as headers
+            if (index === 0 && headers.length > 0 && !element.querySelector("thead")) {
+              return;
+            }
+
+            const rowData: string[] = [];
+            const cells = row.querySelectorAll("td, th");
+            cells.forEach((cell) => {
+              const text = cell.textContent?.trim();
+              rowData.push(text || "");
+            });
+
+            if (rowData.length > 0) {
+              rows.push(rowData);
+            }
+          });
+
+          if (headers.length > 0 || rows.length > 0) {
+            result.tables.push({ headers, rows });
+          }
+        }
       }
 
       return true;
@@ -270,6 +337,8 @@ export class DOMAnalyzer {
       headings: [],
       links: [],
       images: [],
+      lists: [],
+      tables: [],
     };
 
     // Extract structured content from selection
@@ -298,6 +367,67 @@ export class DOMAnalyzer {
       const src = img.getAttribute("src");
       const alt = img.getAttribute("alt") || "";
       if (src) result.images.push({ alt, src });
+    });
+
+    // Extract lists from selection
+    const lists = tempDiv.querySelectorAll("ul, ol");
+    lists.forEach((list) => {
+      const listType = list.tagName === "OL" ? "ordered" : "unordered";
+      const items: string[] = [];
+      const listItems = list.querySelectorAll(":scope > li");
+      listItems.forEach((li) => {
+        const text = li.textContent?.trim();
+        if (text) items.push(text);
+      });
+      if (items.length > 0) {
+        result.lists.push({ type: listType, items });
+      }
+    });
+
+    // Extract tables from selection
+    const tables = tempDiv.querySelectorAll("table");
+    tables.forEach((table) => {
+      const headers: string[] = [];
+      const rows: string[][] = [];
+
+      const headerCells = table.querySelectorAll("thead th, thead td");
+      headerCells.forEach((cell) => {
+        const text = cell.textContent?.trim();
+        if (text) headers.push(text);
+      });
+
+      if (headers.length === 0) {
+        const firstRow = table.querySelector("tr");
+        if (firstRow) {
+          const cells = firstRow.querySelectorAll("th, td");
+          cells.forEach((cell) => {
+            const text = cell.textContent?.trim();
+            if (text) headers.push(text);
+          });
+        }
+      }
+
+      const bodyRows = table.querySelectorAll("tbody tr, tr");
+      bodyRows.forEach((row, index) => {
+        if (index === 0 && headers.length > 0 && !table.querySelector("thead")) {
+          return;
+        }
+
+        const rowData: string[] = [];
+        const cells = row.querySelectorAll("td, th");
+        cells.forEach((cell) => {
+          const text = cell.textContent?.trim();
+          rowData.push(text || "");
+        });
+
+        if (rowData.length > 0) {
+          rows.push(rowData);
+        }
+      });
+
+      if (headers.length > 0 || rows.length > 0) {
+        result.tables.push({ headers, rows });
+      }
     });
 
     result.characterCount = result.content.length;
@@ -524,6 +654,79 @@ export class DOMAnalyzer {
     });
 
     return structuredData;
+  }
+
+  /**
+   * Format extracted text with proper structure
+   * Requirements: 2.2, 2.5
+   */
+  formatExtractedContent(extracted: ExtractedText): string {
+    const parts: string[] = [];
+
+    // Add headings with hierarchy
+    if (extracted.headings.length > 0) {
+      parts.push("=== HEADINGS ===");
+      extracted.headings.forEach((heading) => {
+        const indent = "  ".repeat(heading.level - 1);
+        parts.push(`${indent}${heading.text}`);
+      });
+      parts.push("");
+    }
+
+    // Add main content
+    if (extracted.content) {
+      parts.push("=== CONTENT ===");
+      parts.push(extracted.content);
+      parts.push("");
+    }
+
+    // Add lists
+    if (extracted.lists.length > 0) {
+      parts.push("=== LISTS ===");
+      extracted.lists.forEach((list, index) => {
+        parts.push(`List ${index + 1} (${list.type}):`);
+        list.items.forEach((item, itemIndex) => {
+          const prefix = list.type === "ordered" ? `${itemIndex + 1}.` : "•";
+          parts.push(`  ${prefix} ${item}`);
+        });
+        parts.push("");
+      });
+    }
+
+    // Add tables
+    if (extracted.tables.length > 0) {
+      parts.push("=== TABLES ===");
+      extracted.tables.forEach((table, index) => {
+        parts.push(`Table ${index + 1}:`);
+        if (table.headers.length > 0) {
+          parts.push(`Headers: ${table.headers.join(" | ")}`);
+        }
+        table.rows.forEach((row, rowIndex) => {
+          parts.push(`Row ${rowIndex + 1}: ${row.join(" | ")}`);
+        });
+        parts.push("");
+      });
+    }
+
+    // Add links
+    if (extracted.links.length > 0) {
+      parts.push("=== LINKS ===");
+      extracted.links.forEach((link) => {
+        parts.push(`${link.text}: ${link.href}`);
+      });
+      parts.push("");
+    }
+
+    // Add images
+    if (extracted.images.length > 0) {
+      parts.push("=== IMAGES ===");
+      extracted.images.forEach((image) => {
+        parts.push(`${image.alt || "Image"}: ${image.src}`);
+      });
+      parts.push("");
+    }
+
+    return parts.join("\n");
   }
 
   /**

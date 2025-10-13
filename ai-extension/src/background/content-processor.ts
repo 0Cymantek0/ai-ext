@@ -220,6 +220,7 @@ export class ContentProcessor {
 
   /**
    * Prepare content for storage
+   * Requirements: 2.1, 2.2, 2.5
    */
   private prepareContent(content: any, type: ContentType, mode: string): string {
     switch (type) {
@@ -227,15 +228,19 @@ export class ContentProcessor {
       case ContentType.TEXT:
         return JSON.stringify({
           text: content.text?.content || "",
+          formattedContent: content.text?.formattedContent || "",
           wordCount: content.text?.wordCount || 0,
           characterCount: content.text?.characterCount || 0,
           headings: content.text?.headings || [],
           links: content.text?.links || [],
           images: content.text?.images || [],
+          lists: content.text?.lists || content.lists || [],
+          tables: content.text?.tables || content.tables || [],
           context: content.context,
           sanitization: content.sanitization,
           readability: content.readability,
           structuredData: content.structuredData,
+          screenshot: content.screenshot,
         });
 
       case ContentType.ELEMENT:
@@ -412,6 +417,116 @@ export class ContentProcessor {
       logger.error("ContentProcessor", "Failed to delete content", error);
       throw error;
     }
+  }
+
+  /**
+   * Generate AI summary for captured content
+   * Requirements: 2.5, 3.4
+   */
+  async generateSummary(
+    contentId: string,
+    options: { preferLocal?: boolean; maxLength?: number } = {}
+  ): Promise<string> {
+    const { preferLocal = true, maxLength = 500 } = options;
+
+    try {
+      logger.info("ContentProcessor", "Generating summary", {
+        contentId,
+        preferLocal,
+        maxLength,
+      });
+
+      // Get content from storage
+      await indexedDBManager.init();
+      const content = await indexedDBManager.getContent(contentId);
+
+      if (!content) {
+        throw new Error(`Content ${contentId} not found`);
+      }
+
+      // Extract text content
+      let textContent = "";
+      try {
+        const parsedContent = JSON.parse(content.content as string);
+        textContent = parsedContent.text || parsedContent.content || "";
+      } catch {
+        textContent = content.content as string;
+      }
+
+      if (!textContent || textContent.length === 0) {
+        throw new Error("No text content to summarize");
+      }
+
+      // Truncate if too long (to fit in context window)
+      const maxInputLength = 10000;
+      if (textContent.length > maxInputLength) {
+        textContent = textContent.substring(0, maxInputLength) + "...";
+        logger.info("ContentProcessor", "Text truncated for summarization", {
+          originalLength: textContent.length,
+          truncatedLength: maxInputLength,
+        });
+      }
+
+      // Create summarization prompt
+      const prompt = `Please provide a concise summary of the following content in approximately ${maxLength} characters. Focus on the main points and key information:\n\n${textContent}`;
+
+      // Import AI manager dynamically to avoid circular dependencies
+      const { AIManager } = await import("./ai-manager.js");
+      const aiManager = new AIManager();
+
+      // Create a session for summarization
+      const sessionId = await aiManager.createSession({
+        temperature: 0.7,
+        topK: 40,
+      });
+
+      try {
+        // Generate summary using AI
+        const response = await aiManager.processPrompt(sessionId, prompt);
+
+        logger.info("ContentProcessor", "Summary generated successfully", {
+          contentId,
+          summaryLength: response.length,
+        });
+
+        return response;
+      } finally {
+        // Clean up session
+        await aiManager.destroySession(sessionId);
+      }
+    } catch (error) {
+      logger.error("ContentProcessor", "Failed to generate summary", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process full page capture with AI enhancements
+   * Requirements: 2.1, 2.2, 2.5, 3.4
+   */
+  async processFullPageCapture(options: ProcessContentOptions): Promise<ProcessedContent> {
+    logger.info("ContentProcessor", "Processing full page capture with AI enhancements");
+
+    // First, process and store the content normally
+    const result = await this.processContent(options);
+
+    // Generate summary in the background (don't wait for it)
+    this.generateSummary(result.contentId, { preferLocal: true, maxLength: 500 })
+      .then((summary) => {
+        logger.info("ContentProcessor", "Summary generated for full page", {
+          contentId: result.contentId,
+          summaryLength: summary.length,
+        });
+
+        // Store summary in content metadata or as a separate field
+        // For now, we'll log it. In production, you might want to store it
+        // in a separate field or in the content metadata
+      })
+      .catch((error) => {
+        logger.warn("ContentProcessor", "Failed to generate summary (non-critical)", error);
+      });
+
+    return result;
   }
 }
 

@@ -83,18 +83,31 @@ export class ContentCapture {
 
   /**
    * Capture full page content
+   * Requirements: 2.1, 2.2, 2.5, 3.4
    */
   private async captureFullPage(sanitize: boolean): Promise<any> {
+    console.info("[ContentCapture] Starting full page capture");
+
+    // Extract all content
     const extractedText = domAnalyzer.extractText();
     const structuredData = domAnalyzer.extractStructuredData();
     const readability = domAnalyzer.analyzeReadability();
 
+    // Format content with structure
+    const formattedContent = domAnalyzer.formatExtractedContent(extractedText);
+
     let processedContent = extractedText.content;
+    let formattedProcessedContent = formattedContent;
     let sanitizationInfo: any = null;
 
     if (sanitize) {
       const sanitized = contentSanitizer.sanitize(extractedText.content);
       processedContent = sanitized.sanitizedContent;
+
+      // Also sanitize formatted content
+      const sanitizedFormatted = contentSanitizer.sanitize(formattedContent);
+      formattedProcessedContent = sanitizedFormatted.sanitizedContent;
+
       sanitizationInfo = {
         detectedPII: sanitized.detectedPII.length,
         redactionCount: sanitized.redactionCount,
@@ -105,10 +118,21 @@ export class ContentCapture {
     // Capture screenshot
     const screenshot = await this.captureScreenshot();
 
+    console.info("[ContentCapture] Full page capture completed", {
+      textLength: processedContent.length,
+      headings: extractedText.headings.length,
+      lists: extractedText.lists.length,
+      tables: extractedText.tables.length,
+      images: extractedText.images.length,
+      links: extractedText.links.length,
+      hasScreenshot: !!screenshot,
+    });
+
     return {
       text: {
         ...extractedText,
         content: processedContent,
+        formattedContent: formattedProcessedContent,
       },
       structuredData,
       readability,
@@ -117,6 +141,8 @@ export class ContentCapture {
       images: extractedText.images,
       links: extractedText.links,
       headings: extractedText.headings,
+      lists: extractedText.lists,
+      tables: extractedText.tables,
     };
   }
 
@@ -221,28 +247,24 @@ export class ContentCapture {
 
   /**
    * Capture screenshot of the viewport
+   * Requirements: 2.1, 2.5
    */
   private async captureScreenshot(): Promise<string | null> {
     try {
-      // Use chrome.tabs.captureVisibleTab if available
-      if (chrome?.tabs?.captureVisibleTab) {
-        return new Promise((resolve) => {
-          chrome.tabs.captureVisibleTab(
-            { format: "png" },
-            (dataUrl) => {
-              if (chrome.runtime.lastError) {
-                console.warn("[ContentCapture] Screenshot failed", chrome.runtime.lastError);
-                resolve(null);
-              } else {
-                resolve(dataUrl);
-              }
-            }
-          );
-        });
+      // Request screenshot from background script
+      // Content scripts cannot directly call chrome.tabs.captureVisibleTab
+      const response = await chrome.runtime.sendMessage({
+        kind: "CAPTURE_SCREENSHOT",
+        payload: {},
+      });
+
+      if (response && response.screenshot) {
+        return response.screenshot;
       }
+
       return null;
     } catch (error) {
-      console.warn("[ContentCapture] Screenshot not available", error);
+      console.warn("[ContentCapture] Screenshot capture failed", error);
       return null;
     }
   }

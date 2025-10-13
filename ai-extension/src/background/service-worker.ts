@@ -605,14 +605,25 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
     
     // Process and store the captured content
     const { contentProcessor } = await import("./content-processor.js");
-    const processed = await contentProcessor.processContent({
-      pocketId,
-      mode: captureResult.mode,
-      content: captureResult.content,
-      metadata: captureResult.metadata,
-      sourceUrl: sender.tab?.url || "",
-      sanitize: true,
-    });
+    
+    // Use enhanced processing for full-page captures
+    const processed = captureResult.mode === "full-page"
+      ? await contentProcessor.processFullPageCapture({
+          pocketId,
+          mode: captureResult.mode,
+          content: captureResult.content,
+          metadata: captureResult.metadata,
+          sourceUrl: sender.tab?.url || "",
+          sanitize: true,
+        })
+      : await contentProcessor.processContent({
+          pocketId,
+          mode: captureResult.mode,
+          content: captureResult.content,
+          metadata: captureResult.metadata,
+          sourceUrl: sender.tab?.url || "",
+          sanitize: true,
+        });
     
     logger.info("Handler", "CAPTURE_REQUEST completed", {
       contentId: processed.contentId,
@@ -629,6 +640,34 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
   } catch (error) {
     logger.error("Handler", "CAPTURE_REQUEST error", error);
     throw error;
+  }
+});
+
+// Register screenshot capture handler
+messageRouter.registerHandler("CAPTURE_SCREENSHOT", async (payload, sender) => {
+  logger.info("Handler", "CAPTURE_SCREENSHOT", { sender: sender?.tab?.id });
+
+  try {
+    // Get the active tab
+    const tab = sender?.tab;
+    if (!tab || !tab.id) {
+      throw new Error("No active tab found");
+    }
+
+    // Capture visible tab
+    const screenshot = await chrome.tabs.captureVisibleTab(tab.windowId, {
+      format: "png",
+    });
+
+    logger.info("Handler", "Screenshot captured successfully", {
+      tabId: tab.id,
+      dataLength: screenshot.length,
+    });
+
+    return { success: true, screenshot };
+  } catch (error) {
+    logger.error("Handler", "CAPTURE_SCREENSHOT error", error);
+    return { success: false, screenshot: null, error: String(error) };
   }
 });
 
