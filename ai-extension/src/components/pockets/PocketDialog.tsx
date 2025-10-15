@@ -26,6 +26,18 @@ const PRESET_COLORS = [
 
 const PRESET_ICONS = ["📁", "📚", "💼", "🎨", "🔬", "💡", "🎯", "🌟", "🚀", "📊"];
 
+const PRESET_CATEGORIES = [
+  "Work",
+  "Personal",
+  "Research",
+  "Learning",
+  "Projects",
+  "Ideas",
+  "Reference",
+  "Archive",
+  "Other",
+];
+
 export function PocketDialog({
   isOpen,
   onClose,
@@ -36,6 +48,7 @@ export function PocketDialog({
   const [description, setDescription] = React.useState("");
   const [color, setColor] = React.useState<string>(PRESET_COLORS[0]!);
   const [icon, setIcon] = React.useState<string>(PRESET_ICONS[0]!);
+  const [category, setCategory] = React.useState<string>("Other");
   const [tags, setTags] = React.useState<string[]>([]);
   const [tagInput, setTagInput] = React.useState("");
 
@@ -45,12 +58,14 @@ export function PocketDialog({
       setDescription(editingPocket.description);
       setColor(editingPocket.color);
       setIcon(editingPocket.icon || PRESET_ICONS[0]!);
+      setCategory((editingPocket as any).category || "Other");
       setTags(editingPocket.tags);
     } else {
       setName("");
       setDescription("");
       setColor(PRESET_COLORS[0]!);
       setIcon(PRESET_ICONS[0]!);
+      setCategory("Other");
       setTags([]);
     }
     setTagInput("");
@@ -67,8 +82,9 @@ export function PocketDialog({
       description: description.trim(),
       color,
       icon,
+      category,
       tags,
-    });
+    } as any);
 
     onClose();
   };
@@ -186,6 +202,25 @@ export function PocketDialog({
                 />
               ))}
             </div>
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className={cn(
+                "w-full px-3 py-2 rounded-md border bg-white/10 border-white/10 text-white",
+                "focus:outline-none focus:ring-2 focus:ring-white/30"
+              )}
+            >
+              {PRESET_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat} className="bg-[rgba(17,25,40,0.95)]">
+                  {cat}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Tags */}

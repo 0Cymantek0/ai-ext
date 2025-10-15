@@ -6,6 +6,8 @@ import { PocketDialog } from "./PocketDialog";
 import { ContentList } from "./ContentList";
 import { SearchBar } from "@/components/SearchBar";
 import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
+import { PocketAnalytics } from "@/components/pockets/PocketAnalytics";
+import { PocketExportImport } from "@/components/pockets/PocketExportImport";
 import { AnimatePresence, motion } from "framer-motion";
 import { GlassSelector, GlassSort, FloatingPanel } from "@/components/FloatingControls";
 
@@ -38,6 +40,9 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   const [editingPocket, setEditingPocket] = React.useState<PocketData | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedPocket, setSelectedPocket] = React.useState<PocketData | null>(null);
+  const [showAnalytics, setShowAnalytics] = React.useState(false);
+  const [showExportImport, setShowExportImport] = React.useState(false);
+  const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
 
   // Load pockets on mount
   React.useEffect(() => {
@@ -47,7 +52,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   // Filter and sort pockets when dependencies change
   React.useEffect(() => {
     filterAndSortPockets();
-  }, [pockets, searchQuery, sortBy]);
+  }, [pockets, searchQuery, sortBy, categoryFilter]);
 
   const loadPockets = async () => {
     setIsLoading(true);
@@ -74,6 +79,11 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
 
   const filterAndSortPockets = () => {
     let filtered = [...pockets];
+
+    // Apply category filter
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter((pocket) => (pocket as any).category === categoryFilter);
+    }
 
     // Apply text-based filtering (basic search)
     if (searchQuery.trim()) {
@@ -308,6 +318,64 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
     }
   };
 
+  const handleSharePocket = (pocket: PocketData) => {
+    const shareData = {
+      version: "1.0",
+      exportDate: new Date().toISOString(),
+      pockets: [pocket],
+      metadata: {
+        totalPockets: 1,
+        totalContent: pocket.contentIds.length,
+      },
+    };
+
+    const shareText = JSON.stringify(shareData, null, 2);
+
+    navigator.clipboard.writeText(shareText).then(
+      () => {
+        alert(`"${pocket.name}" copied to clipboard! You can share this with others.`);
+      },
+      (err) => {
+        console.error("Failed to copy:", err);
+        alert("Failed to copy to clipboard");
+      }
+    );
+  };
+
+  const handleImportPockets = async (importedPockets: PocketData[]) => {
+    try {
+      // Import each pocket
+      for (const pocket of importedPockets) {
+        await chrome.runtime.sendMessage({
+          kind: "POCKET_CREATE",
+          requestId: crypto.randomUUID(),
+          payload: {
+            name: pocket.name,
+            description: pocket.description,
+            color: pocket.color,
+            icon: pocket.icon,
+            category: (pocket as any).category,
+            tags: pocket.tags,
+          },
+        });
+      }
+      await loadPockets();
+    } catch (error) {
+      console.error("Error importing pockets:", error);
+      throw error;
+    }
+  };
+
+  // Get unique categories for filter
+  const categories = React.useMemo(() => {
+    const cats = new Set<string>();
+    pockets.forEach((pocket) => {
+      const cat = (pocket as any).category || "Other";
+      cats.add(cat);
+    });
+    return Array.from(cats).sort();
+  }, [pockets]);
+
   // Expose handleNewPocket method via ref
   React.useImperativeHandle(ref, () => ({
     handleNewPocket,
@@ -388,6 +456,54 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
                 ]}
               />
             </div>
+          </div>
+          {/* Category Filter */}
+          {categories.length > 0 && (
+            <div className="flex items-center gap-2">
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className={cn(
+                  "flex-1 px-3 py-2 rounded-lg border text-sm",
+                  "bg-white/10 border-white/10 text-white backdrop-blur-xl",
+                  "focus:outline-none focus:ring-2 focus:ring-white/30"
+                )}
+              >
+                <option value="all" className="bg-[rgba(17,25,40,0.95)]">All Categories</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat} className="bg-[rgba(17,25,40,0.95)]">
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAnalytics(true)}
+              className="flex-1"
+              title="View Analytics"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Analytics
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExportImport(true)}
+              className="flex-1"
+              title="Export/Import"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              Export/Import
+            </Button>
           </div>
         </div>
       </FloatingPanel>
@@ -500,6 +616,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
                 onEdit={handleEditPocket}
                 onDelete={handleDeletePocket}
                 onClick={handlePocketClick}
+                onShare={handleSharePocket}
               />
             ))}
           </div>
@@ -546,6 +663,23 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
         onSave={handleSavePocket}
         editingPocket={editingPocket}
       />
+
+      {/* Analytics Dialog */}
+      {showAnalytics && (
+        <PocketAnalytics
+          pockets={pockets}
+          onClose={() => setShowAnalytics(false)}
+        />
+      )}
+
+      {/* Export/Import Dialog */}
+      {showExportImport && (
+        <PocketExportImport
+          pockets={pockets}
+          onImport={handleImportPockets}
+          onClose={() => setShowExportImport(false)}
+        />
+      )}
     </div>
   );
   }

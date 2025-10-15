@@ -1,119 +1,291 @@
 /**
  * Media Processor
- * 
- * Handles media capture, processing, and analysis including:
- * - Enhanced audio waveform extraction with stereo support
- * - Multiple zoom levels for detailed inspection
- * - Peak detection and amplitude analysis
- * - Waveform thumbnail generation
- * - Audio segment selection capabilities
+ *
+ * Combines image/video compression utilities with enhanced audio waveform
+ * extraction, analysis, and thumbnail/segment generation.
+ * Requirements: 2.1, 3.6, 3.7
  */
 
 // ============================================================================
-// Type Definitions
+// Image/Video Processing Types
+// ============================================================================
+
+export interface CompressionOptions {
+  maxWidth?: number;
+  maxHeight?: number;
+  quality?: number; // 0-1 for JPEG/WebP
+  format?: "jpeg" | "png" | "webp";
+  maintainAspectRatio?: boolean;
+}
+
+export interface AudioCompressionOptions {
+  bitrate?: number;
+  sampleRate?: number;
+  channels?: 1 | 2;
+  format?: "mp3" | "ogg" | "webm";
+}
+
+export interface VideoCompressionOptions {
+  maxWidth?: number;
+  maxHeight?: number;
+  bitrate?: number;
+  frameRate?: number;
+  format?: "mp4" | "webm";
+}
+
+export interface ProcessingResult {
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: number;
+  dataUrl: string;
+  blob: Blob;
+  format: string;
+}
+
+// ============================================================================
+// Audio Waveform Types
 // ============================================================================
 
 export type WaveformZoomLevel = 'overview' | 'medium' | 'detailed';
 
+export interface AudioPeak {
+  index: number;
+  time: number;
+  amplitude: number;
+  isMaximum: boolean;
+}
+
 export interface WaveformChannel {
-  /** Waveform data points (normalized -1 to 1) */
   data: number[];
-  /** RMS (Root Mean Square) amplitude */
   rms: number;
-  /** Peak amplitude (absolute max value) */
   peakAmplitude: number;
-  /** Detected peaks in the waveform */
   peaks: AudioPeak[];
 }
 
 export interface StereoWaveformData {
-  /** Left channel waveform */
   left: WaveformChannel;
-  /** Right channel waveform (null for mono audio) */
   right: WaveformChannel | null;
-  /** Whether the audio is stereo */
   isStereo: boolean;
-  /** Zoom level of this waveform data */
   zoomLevel: WaveformZoomLevel;
-  /** Number of samples in original audio */
   totalSamples: number;
-  /** Duration in seconds */
   duration: number;
-  /** Sample rate of the audio */
   sampleRate: number;
 }
 
-export interface AudioPeak {
-  /** Sample index of the peak */
-  index: number;
-  /** Time position in seconds */
-  time: number;
-  /** Amplitude value */
-  amplitude: number;
-  /** Whether this is a maximum (true) or minimum (false) */
-  isMaximum: boolean;
-}
-
 export interface AmplitudeAnalysis {
-  /** Root Mean Square amplitude */
   rms: number;
-  /** Peak amplitude (absolute maximum) */
   peakAmplitude: number;
-  /** Dynamic range in dB */
   dynamicRange: number;
-  /** Average amplitude */
   averageAmplitude: number;
-  /** Crest factor (peak to RMS ratio) */
   crestFactor: number;
 }
 
 export interface WaveformThumbnail {
-  /** Thumbnail waveform data (100 samples) */
   data: number[];
-  /** Width in pixels for rendering */
   width: number;
-  /** Height in pixels for rendering */
   height: number;
-  /** Data URL for thumbnail image (optional) */
   imageDataUrl?: string;
 }
 
 export interface AudioSegment {
-  /** Start time in seconds */
   startTime: number;
-  /** End time in seconds */
   endTime: number;
-  /** Duration in seconds */
   duration: number;
-  /** Waveform data for this segment */
   waveform: StereoWaveformData;
-  /** Amplitude analysis for this segment */
   analysis: AmplitudeAnalysis;
 }
 
 export interface AudioWaveformExtractionOptions {
-  /** Zoom level for waveform extraction */
   zoomLevel?: WaveformZoomLevel;
-  /** Whether to detect peaks */
   detectPeaks?: boolean;
-  /** Minimum peak threshold (0-1) */
   peakThreshold?: number;
-  /** Whether to generate thumbnail */
   generateThumbnail?: boolean;
-  /** Thumbnail dimensions */
   thumbnailSize?: { width: number; height: number };
 }
 
 // ============================================================================
-// Media Processor Class
+// Media Processor Class (merged)
 // ============================================================================
 
 export class MediaProcessor {
   private audioContext: AudioContext | null = null;
 
-  /**
-   * Get or create AudioContext instance
-   */
+  // -------- Image/Video Processing --------
+
+  async compressImage(
+    img: HTMLImageElement,
+    options: CompressionOptions = {}
+  ): Promise<ProcessingResult> {
+    const {
+      maxWidth = 1920,
+      maxHeight = 1080,
+      quality = 0.85,
+      format = "jpeg",
+      maintainAspectRatio = true,
+    } = options;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Could not get canvas context");
+    }
+
+    let width = img.naturalWidth;
+    let height = img.naturalHeight;
+
+    if (maintainAspectRatio) {
+      const aspectRatio = width / height;
+      if (width > maxWidth) {
+        width = maxWidth;
+        height = width / aspectRatio;
+      }
+      if (height > maxHeight) {
+        height = maxHeight;
+        width = height * aspectRatio;
+      }
+    } else {
+      width = Math.min(width, maxWidth);
+      height = Math.min(height, maxHeight);
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const mimeType = this.getMimeType(format);
+    const blob = await this.canvasToBlob(canvas, mimeType, quality);
+    const dataUrl = await this.blobToDataUrl(blob);
+    const originalSize = await this.estimateImageSize(img.src);
+
+    return {
+      originalSize,
+      compressedSize: blob.size,
+      compressionRatio: originalSize > 0 ? blob.size / originalSize : 1,
+      dataUrl,
+      blob,
+      format,
+    };
+  }
+
+  async compressImageFromData(
+    dataUrl: string,
+    options: CompressionOptions = {}
+  ): Promise<ProcessingResult> {
+    const img = await this.loadImageFromDataUrl(dataUrl);
+    return this.compressImage(img, options);
+  }
+
+  async generateImageThumbnail(
+    img: HTMLImageElement,
+    size: number = 200
+  ): Promise<ProcessingResult> {
+    return this.compressImage(img, {
+      maxWidth: size,
+      maxHeight: size,
+      quality: 0.8,
+      format: "jpeg",
+      maintainAspectRatio: true,
+    });
+  }
+
+  async generateVideoThumbnail(
+    video: HTMLVideoElement,
+    timeInSeconds: number = 0,
+    options: CompressionOptions = {}
+  ): Promise<ProcessingResult> {
+    const { maxWidth = 640, maxHeight = 360, quality = 0.85, format = "jpeg" } = options;
+
+    video.currentTime = timeInSeconds;
+    await new Promise<void>((resolve) => {
+      video.addEventListener("seeked", () => resolve(), { once: true });
+    });
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Could not get canvas context");
+    }
+
+    const aspectRatio = video.videoWidth / video.videoHeight;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    if (width > maxWidth) {
+      width = maxWidth;
+      height = width / aspectRatio;
+    }
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * aspectRatio;
+    }
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(video, 0, 0, width, height);
+
+    const mimeType = this.getMimeType(format);
+    const blob = await this.canvasToBlob(canvas, mimeType, quality);
+    const dataUrl = await this.blobToDataUrl(blob);
+
+    return {
+      originalSize: 0,
+      compressedSize: blob.size,
+      compressionRatio: 1,
+      dataUrl,
+      blob,
+      format,
+    };
+  }
+
+  async optimizeForStorage(img: HTMLImageElement): Promise<ProcessingResult> {
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+    const pixels = width * height;
+
+    let maxWidth = 1920;
+    let maxHeight = 1080;
+    let quality = 0.85;
+
+    if (pixels > 4000000) {
+      maxWidth = 1600;
+      maxHeight = 900;
+      quality = 0.8;
+    }
+
+    const format = this.isWebPSupported() ? "webp" : "jpeg";
+    return this.compressImage(img, { maxWidth, maxHeight, quality, format, maintainAspectRatio: true });
+  }
+
+  private isWebPSupported(): boolean {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    return canvas.toDataURL("image/webp").indexOf("data:image/webp") === 0;
+  }
+
+  async batchProcessImages(
+    images: HTMLImageElement[],
+    options: CompressionOptions = {}
+  ): Promise<ProcessingResult[]> {
+    const results: ProcessingResult[] = [];
+    for (const img of images) {
+      try {
+        const result = await this.compressImage(img, options);
+        results.push(result);
+      } catch (error) {
+        console.error("[MediaProcessor] Failed to process image", error);
+      }
+    }
+    return results;
+  }
+
+  async convertImageFormat(
+    img: HTMLImageElement,
+    targetFormat: "jpeg" | "png" | "webp"
+  ): Promise<ProcessingResult> {
+    return this.compressImage(img, { format: targetFormat, quality: 0.95, maintainAspectRatio: true });
+  }
+
+  // -------- Audio Waveform Processing --------
+
   private getAudioContext(): AudioContext {
     if (!this.audioContext) {
       this.audioContext = new AudioContext();
@@ -121,212 +293,117 @@ export class MediaProcessor {
     return this.audioContext;
   }
 
-  /**
-   * Extract enhanced audio waveform with stereo support, zoom levels, and analysis
-   */
   async extractAudioWaveform(
     audio: HTMLAudioElement,
     options: AudioWaveformExtractionOptions = {}
   ): Promise<StereoWaveformData> {
-    const {
-      zoomLevel = 'overview',
-      detectPeaks = true,
-      peakThreshold = 0.5,
-    } = options;
+    const { zoomLevel = 'overview', detectPeaks = true, peakThreshold = 0.5 } = options;
 
-    try {
-      const audioContext = this.getAudioContext();
-      
-      // Fetch and decode audio data
-      const response = await fetch(audio.src);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const audioContext = this.getAudioContext();
+    const response = await fetch(audio.src);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-      // Determine sample count based on zoom level
-      const sampleCount = this.getSampleCountForZoomLevel(zoomLevel);
-      
-      // Extract left channel
-      const leftChannelData = audioBuffer.getChannelData(0);
-      const leftWaveform = this.downsampleChannel(leftChannelData, sampleCount);
-      const leftAnalysis = this.analyzeAmplitude(leftWaveform);
-      const leftPeaks = detectPeaks 
-        ? this.detectPeaks(leftWaveform, peakThreshold, audioBuffer.duration)
-        : [];
+    const sampleCount = this.getSampleCountForZoomLevel(zoomLevel);
 
-      const leftChannel: WaveformChannel = {
-        data: leftWaveform,
-        rms: leftAnalysis.rms,
-        peakAmplitude: leftAnalysis.peakAmplitude,
-        peaks: leftPeaks,
-      };
+    const leftChannelData = audioBuffer.getChannelData(0);
+    const leftWaveform = this.downsampleChannel(leftChannelData, sampleCount);
+    const leftAnalysis = this.analyzeAmplitude(leftWaveform);
+    const leftPeaks = detectPeaks ? this.detectPeaks(leftWaveform, peakThreshold, audioBuffer.duration) : [];
+    const left: WaveformChannel = { data: leftWaveform, rms: leftAnalysis.rms, peakAmplitude: leftAnalysis.peakAmplitude, peaks: leftPeaks };
 
-      // Extract right channel if stereo
-      let rightChannel: WaveformChannel | null = null;
-      const isStereo = audioBuffer.numberOfChannels > 1;
-
-      if (isStereo) {
-        const rightChannelData = audioBuffer.getChannelData(1);
-        const rightWaveform = this.downsampleChannel(rightChannelData, sampleCount);
-        const rightAnalysis = this.analyzeAmplitude(rightWaveform);
-        const rightPeaks = detectPeaks
-          ? this.detectPeaks(rightWaveform, peakThreshold, audioBuffer.duration)
-          : [];
-
-        rightChannel = {
-          data: rightWaveform,
-          rms: rightAnalysis.rms,
-          peakAmplitude: rightAnalysis.peakAmplitude,
-          peaks: rightPeaks,
-        };
-      }
-
-      return {
-        left: leftChannel,
-        right: rightChannel,
-        isStereo,
-        zoomLevel,
-        totalSamples: audioBuffer.length,
-        duration: audioBuffer.duration,
-        sampleRate: audioBuffer.sampleRate,
-      };
-    } catch (error) {
-      console.error('[MediaProcessor] Failed to extract audio waveform:', error);
-      throw new Error(`Audio waveform extraction failed: ${error.message}`);
+    let right: WaveformChannel | null = null;
+    const isStereo = audioBuffer.numberOfChannels > 1;
+    if (isStereo) {
+      const rightChannelData = audioBuffer.getChannelData(1);
+      const rightWaveform = this.downsampleChannel(rightChannelData, sampleCount);
+      const rightAnalysis = this.analyzeAmplitude(rightWaveform);
+      const rightPeaks = detectPeaks ? this.detectPeaks(rightWaveform, peakThreshold, audioBuffer.duration) : [];
+      right = { data: rightWaveform, rms: rightAnalysis.rms, peakAmplitude: rightAnalysis.peakAmplitude, peaks: rightPeaks };
     }
+
+    return {
+      left,
+      right,
+      isStereo,
+      zoomLevel,
+      totalSamples: audioBuffer.length,
+      duration: audioBuffer.duration,
+      sampleRate: audioBuffer.sampleRate,
+    };
   }
 
-  /**
-   * Generate waveform thumbnail for listings
-   */
   async generateWaveformThumbnail(
     audio: HTMLAudioElement,
     options: { width?: number; height?: number } = {}
   ): Promise<WaveformThumbnail> {
     const { width = 200, height = 60 } = options;
 
-    try {
-      const audioContext = this.getAudioContext();
-      
-      // Fetch and decode audio data
-      const response = await fetch(audio.src);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const audioContext = this.getAudioContext();
+    const response = await fetch(audio.src);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-      // Extract mono waveform with 100 samples for thumbnail
-      const channelData = audioBuffer.getChannelData(0);
-      const thumbnailData = this.downsampleChannel(channelData, 100);
-
-      return {
-        data: thumbnailData,
-        width,
-        height,
-      };
-    } catch (error) {
-      console.error('[MediaProcessor] Failed to generate waveform thumbnail:', error);
-      throw new Error(`Waveform thumbnail generation failed: ${error.message}`);
-    }
+    const channelData = audioBuffer.getChannelData(0);
+    const thumbnailData = this.downsampleChannel(channelData, 100);
+    return { data: thumbnailData, width, height };
   }
 
-  /**
-   * Extract audio segment with waveform and analysis
-   */
   async extractAudioSegment(
     audio: HTMLAudioElement,
     startTime: number,
     endTime: number,
     options: AudioWaveformExtractionOptions = {}
   ): Promise<AudioSegment> {
-    try {
-      const audioContext = this.getAudioContext();
-      
-      // Fetch and decode audio data
-      const response = await fetch(audio.src);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const audioContext = this.getAudioContext();
+    const response = await fetch(audio.src);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-      // Validate time range
-      const duration = Math.min(endTime, audioBuffer.duration) - Math.max(startTime, 0);
-      if (duration <= 0) {
-        throw new Error('Invalid time range for audio segment');
-      }
-
-      // Calculate sample indices
-      const startSample = Math.floor(startTime * audioBuffer.sampleRate);
-      const endSample = Math.floor(endTime * audioBuffer.sampleRate);
-      
-      // Extract segment from left channel
-      const leftChannelData = audioBuffer.getChannelData(0);
-      const leftSegmentData = leftChannelData.slice(startSample, endSample);
-      
-      // Downsample segment
-      const sampleCount = this.getSampleCountForZoomLevel(options.zoomLevel || 'overview');
-      const leftWaveform = this.downsampleChannel(leftSegmentData, sampleCount);
-      const leftAnalysis = this.analyzeAmplitude(leftWaveform);
-      const leftPeaks = options.detectPeaks
-        ? this.detectPeaks(leftWaveform, options.peakThreshold || 0.5, duration)
-        : [];
-
-      const leftChannel: WaveformChannel = {
-        data: leftWaveform,
-        rms: leftAnalysis.rms,
-        peakAmplitude: leftAnalysis.peakAmplitude,
-        peaks: leftPeaks,
-      };
-
-      // Extract right channel if stereo
-      let rightChannel: WaveformChannel | null = null;
-      const isStereo = audioBuffer.numberOfChannels > 1;
-
-      if (isStereo) {
-        const rightChannelData = audioBuffer.getChannelData(1);
-        const rightSegmentData = rightChannelData.slice(startSample, endSample);
-        const rightWaveform = this.downsampleChannel(rightSegmentData, sampleCount);
-        const rightAnalysis = this.analyzeAmplitude(rightWaveform);
-        const rightPeaks = options.detectPeaks
-          ? this.detectPeaks(rightWaveform, options.peakThreshold || 0.5, duration)
-          : [];
-
-        rightChannel = {
-          data: rightWaveform,
-          rms: rightAnalysis.rms,
-          peakAmplitude: rightAnalysis.peakAmplitude,
-          peaks: rightPeaks,
-        };
-      }
-
-      const waveform: StereoWaveformData = {
-        left: leftChannel,
-        right: rightChannel,
-        isStereo,
-        zoomLevel: options.zoomLevel || 'overview',
-        totalSamples: endSample - startSample,
-        duration,
-        sampleRate: audioBuffer.sampleRate,
-      };
-
-      // Calculate overall analysis (average of channels)
-      const analysis = this.calculateSegmentAnalysis(leftAnalysis, isStereo ? this.analyzeAmplitude(rightChannel!.data) : null);
-
-      return {
-        startTime,
-        endTime,
-        duration,
-        waveform,
-        analysis,
-      };
-    } catch (error) {
-      console.error('[MediaProcessor] Failed to extract audio segment:', error);
-      throw new Error(`Audio segment extraction failed: ${error.message}`);
+    const duration = Math.min(endTime, audioBuffer.duration) - Math.max(startTime, 0);
+    if (duration <= 0) {
+      throw new Error('Invalid time range for audio segment');
     }
+
+    const startSample = Math.floor(startTime * audioBuffer.sampleRate);
+    const endSample = Math.floor(endTime * audioBuffer.sampleRate);
+
+    const leftChannelData = audioBuffer.getChannelData(0);
+    const leftSegmentData = leftChannelData.slice(startSample, endSample);
+    const sampleCount = this.getSampleCountForZoomLevel(options.zoomLevel || 'overview');
+    const leftWaveform = this.downsampleChannel(leftSegmentData, sampleCount);
+    const leftAnalysis = this.analyzeAmplitude(leftWaveform);
+    const leftPeaks = options.detectPeaks ? this.detectPeaks(leftWaveform, options.peakThreshold || 0.5, duration) : [];
+    const left: WaveformChannel = { data: leftWaveform, rms: leftAnalysis.rms, peakAmplitude: leftAnalysis.peakAmplitude, peaks: leftPeaks };
+
+    let right: WaveformChannel | null = null;
+    const isStereo = audioBuffer.numberOfChannels > 1;
+    if (isStereo) {
+      const rightChannelData = audioBuffer.getChannelData(1);
+      const rightSegmentData = rightChannelData.slice(startSample, endSample);
+      const rightWaveform = this.downsampleChannel(rightSegmentData, sampleCount);
+      const rightAnalysis = this.analyzeAmplitude(rightWaveform);
+      const rightPeaks = options.detectPeaks ? this.detectPeaks(rightWaveform, options.peakThreshold || 0.5, duration) : [];
+      right = { data: rightWaveform, rms: rightAnalysis.rms, peakAmplitude: rightAnalysis.peakAmplitude, peaks: rightPeaks };
+    }
+
+    const waveform: StereoWaveformData = {
+      left,
+      right,
+      isStereo,
+      zoomLevel: options.zoomLevel || 'overview',
+      totalSamples: endSample - startSample,
+      duration,
+      sampleRate: audioBuffer.sampleRate,
+    };
+
+    const analysis = this.calculateSegmentAnalysis(leftAnalysis, isStereo ? this.analyzeAmplitude(right!.data) : null);
+
+    return { startTime, endTime, duration, waveform, analysis };
   }
 
-  // ============================================================================
-  // Private Helper Methods
-  // ============================================================================
+  // -------- Private Helpers (Audio) --------
 
-  /**
-   * Get sample count based on zoom level
-   */
   private getSampleCountForZoomLevel(zoomLevel: WaveformZoomLevel): number {
     switch (zoomLevel) {
       case 'overview':
@@ -340,55 +417,40 @@ export class MediaProcessor {
     }
   }
 
-  /**
-   * Downsample audio channel data to target sample count
-   */
   private downsampleChannel(channelData: Float32Array, targetSamples: number): number[] {
     const blockSize = Math.floor(channelData.length / targetSamples);
     const waveform: number[] = [];
-
     for (let i = 0; i < targetSamples; i++) {
       const start = i * blockSize;
       const end = Math.min(start + blockSize, channelData.length);
       let sum = 0;
-
-      // Calculate average absolute amplitude for this block
       for (let j = start; j < end; j++) {
         const sample = channelData[j];
         if (sample !== undefined) {
           sum += Math.abs(sample);
         }
       }
-
-      waveform.push(sum / (end - start));
+      waveform.push(sum / (end - start || 1));
     }
-
     return waveform;
   }
 
-  /**
-   * Analyze amplitude characteristics of waveform
-   */
   private analyzeAmplitude(waveform: number[]): AmplitudeAnalysis {
     let sumSquares = 0;
     let sumAbsolute = 0;
     let peakAmplitude = 0;
-
     for (const sample of waveform) {
       const absSample = Math.abs(sample);
       sumSquares += sample * sample;
       sumAbsolute += absSample;
       peakAmplitude = Math.max(peakAmplitude, absSample);
     }
-
-    const rms = Math.sqrt(sumSquares / waveform.length);
-    const averageAmplitude = sumAbsolute / waveform.length;
-    const crestFactor = peakAmplitude / (rms || 0.0001); // Avoid division by zero
-    
-    // Calculate dynamic range in dB
-    const minAmplitude = Math.min(...waveform.map(Math.abs).filter(v => v > 0)) || 0.0001;
+    const rms = Math.sqrt(sumSquares / (waveform.length || 1));
+    const averageAmplitude = sumAbsolute / (waveform.length || 1);
+    const crestFactor = peakAmplitude / (rms || 0.0001);
+    const nonZero = waveform.map((v) => Math.abs(v)).filter((v) => v > 0);
+    const minAmplitude = nonZero.length ? Math.min(...nonZero) : 0.0001;
     const dynamicRange = 20 * Math.log10(peakAmplitude / minAmplitude);
-
     return {
       rms,
       peakAmplitude,
@@ -398,65 +460,34 @@ export class MediaProcessor {
     };
   }
 
-  /**
-   * Detect peaks in waveform data
-   */
-  private detectPeaks(
-    waveform: number[],
-    threshold: number,
-    duration: number
-  ): AudioPeak[] {
+  private detectPeaks(waveform: number[], threshold: number, duration: number): AudioPeak[] {
     const peaks: AudioPeak[] = [];
-    const windowSize = 5; // Look at 5 samples around each point
-
+    const windowSize = 5;
     for (let i = windowSize; i < waveform.length - windowSize; i++) {
       const current = waveform[i];
       if (current === undefined) continue;
-      
       const absCurrent = Math.abs(current);
-
-      // Check if this is above threshold
       if (absCurrent < threshold) continue;
-
-      // Check if this is a local maximum
       let isLocalMax = true;
       let isLocalMin = true;
-
       for (let j = i - windowSize; j <= i + windowSize; j++) {
         if (j === i) continue;
-        
         const sample = waveform[j];
         if (sample === undefined) continue;
-        
         if (current < sample) isLocalMax = false;
         if (current > sample) isLocalMin = false;
       }
-
       if (isLocalMax || isLocalMin) {
-        peaks.push({
-          index: i,
-          time: (i / waveform.length) * duration,
-          amplitude: current,
-          isMaximum: isLocalMax,
-        });
+        peaks.push({ index: i, time: (i / waveform.length) * duration, amplitude: current, isMaximum: isLocalMax });
       }
     }
-
     return peaks;
   }
 
-  /**
-   * Calculate overall segment analysis from channel analyses
-   */
-  private calculateSegmentAnalysis(
-    leftAnalysis: AmplitudeAnalysis,
-    rightAnalysis: AmplitudeAnalysis | null
-  ): AmplitudeAnalysis {
+  private calculateSegmentAnalysis(leftAnalysis: AmplitudeAnalysis, rightAnalysis: AmplitudeAnalysis | null): AmplitudeAnalysis {
     if (!rightAnalysis) {
       return leftAnalysis;
     }
-
-    // Average the analyses for stereo
     return {
       rms: (leftAnalysis.rms + rightAnalysis.rms) / 2,
       peakAmplitude: Math.max(leftAnalysis.peakAmplitude, rightAnalysis.peakAmplitude),
@@ -466,14 +497,81 @@ export class MediaProcessor {
     };
   }
 
-  /**
-   * Cleanup resources
-   */
   dispose(): void {
     if (this.audioContext) {
       this.audioContext.close();
       this.audioContext = null;
     }
+  }
+
+  // -------- Private Helpers (Canvas/Image) --------
+
+  private canvasToBlob(
+    canvas: HTMLCanvasElement,
+    mimeType: string,
+    quality: number
+  ): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error("Failed to convert canvas to blob"));
+          }
+        },
+        mimeType,
+        quality
+      );
+    });
+  }
+
+  private blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Failed to convert blob to data URL"));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  private loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+  }
+
+  private getMimeType(format: string): string {
+    const mimeTypes: Record<string, string> = {
+      jpeg: "image/jpeg",
+      jpg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      gif: "image/gif",
+    };
+    return mimeTypes[format] || "image/jpeg";
+  }
+
+  private async estimateImageSize(url: string): Promise<number> {
+    try {
+      const response = await fetch(url, { method: "HEAD" });
+      const contentLength = response.headers.get("content-length");
+      if (contentLength) {
+        return parseInt(contentLength, 10);
+      }
+    } catch (error) {
+      // ignore
+    }
+    return 0;
   }
 }
 
