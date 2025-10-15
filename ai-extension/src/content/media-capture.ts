@@ -15,6 +15,7 @@ import {
   mediaProcessor,
   type CompressionOptions,
   type ProcessingResult,
+  type StereoWaveformData,
 } from "./media-processor.js";
 
 export interface CapturedImage {
@@ -29,7 +30,7 @@ export interface CapturedAudio {
   metadata: AudioMetadata;
   dataUrl?: string;
   transcription?: string;
-  waveform?: number[];
+  waveform?: StereoWaveformData;
   capturedAt: number;
 }
 
