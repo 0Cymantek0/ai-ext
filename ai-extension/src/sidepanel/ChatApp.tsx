@@ -22,7 +22,14 @@ import { TooltipProvider } from "@/components/animate-ui/components/animate/tool
 import { PocketManager, type PocketManagerRef } from "@/components/pockets";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { ShareModal } from "@/components/ShareModal";
-import { exportToMarkdown, exportToJSON, exportToPDF } from "@/lib/export-utils";
+import { 
+  exportToMarkdown, 
+  exportToJSON, 
+  exportToPDF,
+  exportMessageToMarkdown,
+  exportMessageToJSON,
+  exportMessageToPDF
+} from "@/lib/export-utils";
 
 interface ChatMessage {
   id: string;
@@ -70,6 +77,8 @@ export function ChatApp() {
   const [isSavingNote, setIsSavingNote] = React.useState(false);
   // Share modal state
   const [showShareModal, setShowShareModal] = React.useState(false);
+  // Export menu state - track which message's export menu is open
+  const [exportMenuOpenForMessage, setExportMenuOpenForMessage] = React.useState<string | null>(null);
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<
@@ -438,7 +447,11 @@ export function ChatApp() {
     setShowShareModal(true);
   };
 
-  const handleExport = (format: "markdown" | "json" | "pdf") => {
+  const handleExportAll = (format: "markdown" | "json" | "pdf") => {
+    if (messages.length === 0) {
+      alert("No messages to export");
+      return;
+    }
     try {
       switch (format) {
         case "markdown":
@@ -454,6 +467,25 @@ export function ChatApp() {
     } catch (error) {
       console.error("Export failed:", error);
       alert("Failed to export conversation. Please try again.");
+    }
+  };
+
+  const handleExportMessage = (message: ChatMessage, format: "markdown" | "json" | "pdf") => {
+    try {
+      switch (format) {
+        case "markdown":
+          exportMessageToMarkdown(message);
+          break;
+        case "json":
+          exportMessageToJSON(message);
+          break;
+        case "pdf":
+          exportMessageToPDF(message);
+          break;
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Failed to export message. Please try again.");
     }
   };
 
@@ -738,9 +770,11 @@ export function ChatApp() {
         onNewPocket={handleNewPocket}
         onAddNote={handleAddNote}
         onAddFile={handleAddFile}
+        onExportChat={handleExportAll}
         currentMode={currentMode}
         onModeChange={handleModeChange}
         isInsidePocket={isInsidePocket}
+        hasMessages={messages.length > 0}
       />
 
       <HistoryPanel
@@ -900,25 +934,71 @@ export function ChatApp() {
                             </svg>
                             Regenerate
                           </ActionButton>
-                          <ActionButton
-                            onClick={handleShare}
-                            title="Share conversation"
-                          >
-                            <svg
-                              className="size-3"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                          <div className="relative">
+                            <ActionButton
+                              onClick={() => setExportMenuOpenForMessage(
+                                exportMenuOpenForMessage === message.id ? null : message.id
+                              )}
+                              title="Export this response"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                              />
-                            </svg>
-                            Share
-                          </ActionButton>
+                              <svg
+                                className="size-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                />
+                              </svg>
+                              Export
+                            </ActionButton>
+                            {exportMenuOpenForMessage === message.id && (
+                              <div 
+                                className="absolute bottom-full left-0 mb-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
+                              >
+                                <button
+                                  className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                  onClick={() => {
+                                    handleExportMessage(message, "markdown");
+                                    setExportMenuOpenForMessage(null);
+                                  }}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                  </svg>
+                                  Markdown
+                                </button>
+                                <button
+                                  className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                  onClick={() => {
+                                    handleExportMessage(message, "json");
+                                    setExportMenuOpenForMessage(null);
+                                  }}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                  </svg>
+                                  JSON
+                                </button>
+                                <button
+                                  className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                  onClick={() => {
+                                    handleExportMessage(message, "pdf");
+                                    setExportMenuOpenForMessage(null);
+                                  }}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                  </svg>
+                                  PDF
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </Actions>
                       )}
                       {message.isStreaming && (
@@ -1004,7 +1084,7 @@ export function ChatApp() {
       <ShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
-        onExport={handleExport}
+        onExport={handleExportAll}
       />
     </div>
     </TooltipProvider>
