@@ -21,6 +21,15 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
 import { PocketManager, type PocketManagerRef } from "@/components/pockets";
 import { NoteEditor } from "@/components/notes/NoteEditor";
+import { ShareModal } from "@/components/ShareModal";
+import { 
+  exportToMarkdown, 
+  exportToJSON, 
+  exportToPDF,
+  exportMessageToMarkdown,
+  exportMessageToJSON,
+  exportMessageToPDF
+} from "@/lib/export-utils";
 
 interface ChatMessage {
   id: string;
@@ -66,6 +75,10 @@ export function ChatApp() {
   // Note editor state
   const [showNoteEditor, setShowNoteEditor] = React.useState(false);
   const [isSavingNote, setIsSavingNote] = React.useState(false);
+  // Share modal state
+  const [showShareModal, setShowShareModal] = React.useState(false);
+  // Export menu state - track which message's export menu is open
+  const [exportMenuOpenForMessage, setExportMenuOpenForMessage] = React.useState<string | null>(null);
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<
@@ -96,34 +109,6 @@ export function ChatApp() {
     if (model === "flash" || model === "flash-lite") return "flash";
     return undefined;
   };
-
-  React.useEffect(() => {
-    // Load conversations from storage
-    loadConversations();
-
-    // Set up message listener for streaming responses
-    const messageListener = (message: any) => {
-      switch (message.kind) {
-        case "AI_PROCESS_STREAM_START":
-          handleStreamStart(message.payload);
-          break;
-        case "AI_PROCESS_STREAM_CHUNK":
-          handleStreamChunk(message.payload);
-          break;
-        case "AI_PROCESS_STREAM_END":
-          handleStreamEnd(message.payload);
-          break;
-        case "AI_PROCESS_STREAM_ERROR":
-          handleStreamError(message.payload);
-          break;
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(messageListener);
-    return () => {
-      chrome.runtime.onMessage.removeListener(messageListener);
-    };
-  }, []);
 
   const loadConversations = async () => {
     console.log("📋 Loading conversations from IndexedDB...");
@@ -185,7 +170,8 @@ export function ChatApp() {
     }
   };
 
-  const handleStreamStart = (payload: any) => {
+  // Streaming handlers with useCallback to prevent stale closures
+  const handleStreamStart = React.useCallback((payload: any) => {
     const newMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "assistant",
@@ -195,9 +181,9 @@ export function ChatApp() {
     };
     setMessages((prev) => [...prev, newMessage]);
     setIsLoading(false);
-  };
+  }, []);
 
-  const handleStreamChunk = (payload: { chunk: string }) => {
+  const handleStreamChunk = React.useCallback((payload: { chunk: string }) => {
     setMessages((prev) => {
       const lastMessage = prev[prev.length - 1];
       if (lastMessage && lastMessage.isStreaming) {
@@ -211,9 +197,11 @@ export function ChatApp() {
       }
       return prev;
     });
-  };
+  }, []);
 
-  const handleStreamEnd = async (payload: any) => {
+  const saveConversationRef = React.useRef<(() => Promise<void>) | null>(null);
+
+  const handleStreamEnd = React.useCallback(async (payload: any) => {
     // Update the streaming status first
     setMessages((prev) => {
       const lastMessage = prev[prev.length - 1];
@@ -233,15 +221,17 @@ export function ChatApp() {
     // Save conversation - wait for state to settle
     setTimeout(async () => {
       try {
-        await saveConversation();
-        console.log("✅ Conversation saved successfully");
+        if (saveConversationRef.current) {
+          await saveConversationRef.current();
+          console.log("✅ Conversation saved successfully");
+        }
       } catch (error) {
         console.error("❌ Failed to save conversation:", error);
       }
     }, 100);
-  };
+  }, []);
 
-  const handleStreamError = (payload: { error: string }) => {
+  const handleStreamError = React.useCallback((payload: { error: string }) => {
     setMessages((prev) => [
       ...prev,
       {
@@ -253,7 +243,37 @@ export function ChatApp() {
     ]);
     setIsLoading(false);
     setCurrentRequestId(null);
-  };
+  }, []);
+
+  // Set up message listener for streaming responses
+  React.useEffect(() => {
+    const messageListener = (message: any) => {
+      switch (message.kind) {
+        case "AI_PROCESS_STREAM_START":
+          handleStreamStart(message.payload);
+          break;
+        case "AI_PROCESS_STREAM_CHUNK":
+          handleStreamChunk(message.payload);
+          break;
+        case "AI_PROCESS_STREAM_END":
+          handleStreamEnd(message.payload);
+          break;
+        case "AI_PROCESS_STREAM_ERROR":
+          handleStreamError(message.payload);
+          break;
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+    };
+  }, [handleStreamStart, handleStreamChunk, handleStreamEnd, handleStreamError]);
+
+  // Load conversations on mount
+  React.useEffect(() => {
+    loadConversations();
+  }, []);
 
   const handleSubmit = async (text: string, files?: File[]) => {
     // Consent check for cloud models
@@ -419,6 +439,56 @@ export function ChatApp() {
     }
   };
 
+  const handleShare = () => {
+    if (messages.length === 0) {
+      alert("No messages to share");
+      return;
+    }
+    setShowShareModal(true);
+  };
+
+  const handleExportAll = (format: "markdown" | "json" | "pdf") => {
+    if (messages.length === 0) {
+      alert("No messages to export");
+      return;
+    }
+    try {
+      switch (format) {
+        case "markdown":
+          exportToMarkdown(messages);
+          break;
+        case "json":
+          exportToJSON(messages);
+          break;
+        case "pdf":
+          exportToPDF(messages);
+          break;
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Failed to export conversation. Please try again.");
+    }
+  };
+
+  const handleExportMessage = (message: ChatMessage, format: "markdown" | "json" | "pdf") => {
+    try {
+      switch (format) {
+        case "markdown":
+          exportMessageToMarkdown(message);
+          break;
+        case "json":
+          exportMessageToJSON(message);
+          break;
+        case "pdf":
+          exportMessageToPDF(message);
+          break;
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Failed to export message. Please try again.");
+    }
+  };
+
   const handleNewChat = () => {
     if (messages.length > 0) {
       const confirmNew = confirm(
@@ -566,7 +636,7 @@ export function ChatApp() {
     }
   };
 
-  const saveConversation = async () => {
+  const saveConversation = React.useCallback(async () => {
     if (!currentConversationId || messages.length === 0) {
       console.log("⚠️ Skipping save - no conversation ID or messages");
       return;
@@ -640,7 +710,12 @@ export function ChatApp() {
     } catch (error) {
       console.error("❌ Failed to save conversation:", error);
     }
-  };
+  }, [currentConversationId, messages]);
+
+  // Keep the ref updated with the latest saveConversation function
+  React.useEffect(() => {
+    saveConversationRef.current = saveConversation;
+  }, [saveConversation]);
 
   const handleSuggestionClick = (suggestion: string) => {
     // Submit the suggestion directly
@@ -695,9 +770,11 @@ export function ChatApp() {
         onNewPocket={handleNewPocket}
         onAddNote={handleAddNote}
         onAddFile={handleAddFile}
+        onExportChat={handleExportAll}
         currentMode={currentMode}
         onModeChange={handleModeChange}
         isInsidePocket={isInsidePocket}
+        hasMessages={messages.length > 0}
       />
 
       <HistoryPanel
@@ -857,6 +934,71 @@ export function ChatApp() {
                             </svg>
                             Regenerate
                           </ActionButton>
+                          <div className="relative">
+                            <ActionButton
+                              onClick={() => setExportMenuOpenForMessage(
+                                exportMenuOpenForMessage === message.id ? null : message.id
+                              )}
+                              title="Export this response"
+                            >
+                              <svg
+                                className="size-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                />
+                              </svg>
+                              Export
+                            </ActionButton>
+                            {exportMenuOpenForMessage === message.id && (
+                              <div 
+                                className="absolute bottom-full left-0 mb-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
+                              >
+                                <button
+                                  className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                  onClick={() => {
+                                    handleExportMessage(message, "markdown");
+                                    setExportMenuOpenForMessage(null);
+                                  }}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                  </svg>
+                                  Markdown
+                                </button>
+                                <button
+                                  className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                  onClick={() => {
+                                    handleExportMessage(message, "json");
+                                    setExportMenuOpenForMessage(null);
+                                  }}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                  </svg>
+                                  JSON
+                                </button>
+                                <button
+                                  className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                  onClick={() => {
+                                    handleExportMessage(message, "pdf");
+                                    setExportMenuOpenForMessage(null);
+                                  }}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                  </svg>
+                                  PDF
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </Actions>
                       )}
                       {message.isStreaming && (
@@ -937,6 +1079,13 @@ export function ChatApp() {
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        onExport={handleExportAll}
+      />
     </div>
     </TooltipProvider>
   );

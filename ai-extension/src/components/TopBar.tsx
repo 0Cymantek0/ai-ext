@@ -10,10 +10,12 @@ interface TopBarProps {
   onNewPocket?: () => void;
   onAddNote?: () => void;
   onAddFile?: () => void;
+  onExportChat?: (format: "markdown" | "json" | "pdf") => void;
   currentMode?: Mode;
   onModeChange?: (mode: Mode) => void;
   className?: string;
   isInsidePocket?: boolean;
+  hasMessages?: boolean;
 }
 
 export function TopBar({ 
@@ -22,24 +24,19 @@ export function TopBar({
   onNewPocket,
   onAddNote,
   onAddFile,
+  onExportChat,
   currentMode = "ask", 
   onModeChange, 
   className,
-  isInsidePocket = false
+  isInsidePocket = false,
+  hasMessages = false
 }: TopBarProps) {
-  const [theme, setTheme] = React.useState<"light" | "dark" | "auto">("auto");
   const [showAddMenu, setShowAddMenu] = React.useState(false);
+  const [showExportMenu, setShowExportMenu] = React.useState(false);
   const addMenuRef = React.useRef<HTMLDivElement>(null);
+  const exportMenuRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    // Load theme preference
-    const savedTheme =
-      (localStorage.getItem("theme") as "light" | "dark" | "auto") || "auto";
-    setTheme(savedTheme);
-    applyTheme(savedTheme);
-  }, []);
-
-  // Close dropdown when clicking outside
+  // Close add menu dropdown when clicking outside
   React.useEffect(() => {
     if (!showAddMenu) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -51,81 +48,21 @@ export function TopBar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showAddMenu]);
 
-  const applyTheme = (newTheme: "light" | "dark" | "auto") => {
-    const html = document.documentElement;
+  // Close export menu dropdown when clicking outside
+  React.useEffect(() => {
+    if (!showExportMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportMenu]);
 
-    if (newTheme === "auto") {
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
-      html.classList.toggle("dark", prefersDark);
-    } else {
-      html.classList.toggle("dark", newTheme === "dark");
-    }
-  };
-
-  const toggleTheme = () => {
-    const themes: Array<"light" | "dark" | "auto"> = ["light", "dark", "auto"];
-    const currentIndex = themes.indexOf(theme);
-    const nextIndex = (currentIndex + 1) % themes.length;
-    const nextTheme = themes[nextIndex] as "light" | "dark" | "auto";
-
-    setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    applyTheme(nextTheme);
-  };
-
-  const getThemeIcon = () => {
-    switch (theme) {
-      case "light":
-        return (
-          <svg
-            className="size-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-            />
-          </svg>
-        );
-      case "dark":
-        return (
-          <svg
-            className="size-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-            />
-          </svg>
-        );
-      default:
-        return (
-          <svg
-            className="size-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-            />
-          </svg>
-        );
-    }
+  const handleExport = (format: "markdown" | "json" | "pdf") => {
+    setShowExportMenu(false);
+    onExportChat?.(format);
   };
 
   return (
@@ -177,7 +114,7 @@ export function TopBar({
         <ModeSwitcher currentMode={currentMode} onModeChange={onModeChange ?? (() => {})} />
       </div>
 
-      {/* Right pill: theme + new */}
+      {/* Right pill: export + new */}
       <div
         className={cn(
           "flex h-8 items-center gap-2 rounded-full px-3",
@@ -186,16 +123,71 @@ export function TopBar({
         )}
         style={{ pointerEvents: "auto" }}
       >
-        {/* Theme Toggle */}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={toggleTheme}
-          aria-label={`Current theme: ${theme}`}
-          title={`Theme: ${theme}`}
-        >
-          {getThemeIcon()}
-        </Button>
+        {/* Export Chat Button with dropdown - only show when there are messages */}
+        {hasMessages && (
+          <div className="relative" ref={exportMenuRef}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              aria-label="Export conversation"
+              title="Export Chat"
+            >
+              <svg
+                className="size-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+            </Button>
+            
+            {/* Export format dropdown menu */}
+            {showExportMenu && (
+              <div 
+                className="absolute top-full right-0 mt-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
+                style={{ pointerEvents: "auto" }}
+              >
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start px-4 py-3 h-auto text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 rounded-none"
+                  onClick={() => handleExport("markdown")}
+                >
+                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Export as Markdown
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start px-4 py-3 h-auto text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 rounded-none"
+                  onClick={() => handleExport("json")}
+                >
+                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  </svg>
+                  Export as JSON
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start px-4 py-3 h-auto text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 rounded-none"
+                  onClick={() => handleExport("pdf")}
+                >
+                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Export as PDF
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* New Chat/Pocket Button with dropdown */}
         <div className="relative" ref={addMenuRef}>
@@ -244,12 +236,12 @@ export function TopBar({
           {/* Dropdown menu for add options */}
           {showAddMenu && currentMode === "ai-pocket" && isInsidePocket && (
             <div 
-              className="absolute top-full right-0 mt-2 bg-background border border-border rounded-lg shadow-lg overflow-hidden min-w-[180px] z-50"
+              className="absolute top-full right-0 mt-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
               style={{ pointerEvents: "auto" }}
             >
               <Button
                 variant="ghost"
-                className="w-full justify-start px-4 py-3 h-auto hover:bg-accent rounded-none"
+                className="w-full justify-start px-4 py-3 h-auto text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 rounded-none"
                 onClick={() => {
                   setShowAddMenu(false);
                   onAddFile?.();
@@ -262,7 +254,7 @@ export function TopBar({
               </Button>
               <Button
                 variant="ghost"
-                className="w-full justify-start px-4 py-3 h-auto hover:bg-accent rounded-none"
+                className="w-full justify-start px-4 py-3 h-auto text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 rounded-none"
                 onClick={() => {
                   setShowAddMenu(false);
                   onAddNote?.();

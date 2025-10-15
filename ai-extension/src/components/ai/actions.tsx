@@ -16,11 +16,11 @@ Actions.displayName = "Actions";
 const ActionButton = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
   <button
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center rounded-md px-2.5 py-1",
+      "inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-1",
       "text-xs font-medium transition-colors",
       "hover:bg-accent hover:text-accent-foreground",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -28,7 +28,9 @@ const ActionButton = React.forwardRef<
       className,
     )}
     {...props}
-  />
+  >
+    {children}
+  </button>
 ));
 ActionButton.displayName = "ActionButton";
 
