@@ -7,6 +7,7 @@ interface Conversation {
   title: string;
   timestamp: number;
   messageCount: number;
+  messages?: Array<{ role: string; content: string }>;
 }
 
 interface HistoryPanelProps {
@@ -30,6 +31,89 @@ export function HistoryPanel({
   onNewConversation,
   className,
 }: HistoryPanelProps) {
+  const [searchQuery, setSearchQuery] = React.useState("");
+
+  // Calculate similarity between two strings (0-1, higher is more similar)
+  const calculateSimilarity = (str1: string, str2: string): number => {
+    const s1 = str1.toLowerCase();
+    const s2 = str2.toLowerCase();
+    
+    // Exact match
+    if (s1 === s2) return 1;
+    
+    // Contains match
+    if (s2.includes(s1) || s1.includes(s2)) {
+      return 0.8;
+    }
+    
+    // Simple character overlap similarity (faster than Levenshtein)
+    const set1 = new Set(s1.split(''));
+    const set2 = new Set(s2.split(''));
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+    
+    return union.size === 0 ? 0 : intersection.size / union.size;
+  };
+
+  // Score a conversation based on search query
+  const scoreConversation = (conv: Conversation, query: string): number => {
+    const queryWords = query.toLowerCase().trim().split(/\s+/);
+    let totalScore = 0;
+
+    queryWords.forEach((word) => {
+      if (word.length === 0) return;
+
+      const titleLower = conv.title.toLowerCase();
+      const titleWords = titleLower.split(/\s+/);
+
+      // Title exact word match
+      if (titleWords.some((tw) => tw === word)) {
+        totalScore += 100;
+      }
+      // Title contains query word
+      else if (titleLower.includes(word)) {
+        totalScore += 50;
+      }
+      // Title fuzzy match
+      else {
+        const maxTitleSimilarity = Math.max(
+          ...titleWords.map((tw) => calculateSimilarity(word, tw))
+        );
+        if (maxTitleSimilarity > 0.7) {
+          totalScore += maxTitleSimilarity * 30;
+        }
+      }
+
+      // Search in messages
+      if (conv.messages) {
+        conv.messages.forEach((msg) => {
+          const contentLower = msg.content.toLowerCase();
+          const contentWords = contentLower.split(/\s+/);
+
+          // Message exact word match
+          if (contentWords.some((cw) => cw === word)) {
+            totalScore += 30;
+          }
+          // Message contains query word
+          else if (contentLower.includes(word)) {
+            totalScore += 15;
+          }
+          // Message fuzzy match
+          else {
+            const maxContentSimilarity = Math.max(
+              ...contentWords.slice(0, 50).map((cw) => calculateSimilarity(word, cw))
+            );
+            if (maxContentSimilarity > 0.7) {
+              totalScore += maxContentSimilarity * 10;
+            }
+          }
+        });
+      }
+    });
+
+    return totalScore;
+  };
+
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -43,10 +127,27 @@ export function HistoryPanel({
     return date.toLocaleDateString();
   };
 
-  const groupConversationsByDate = () => {
+  const filterConversations = (convs: Conversation[]) => {
+    if (!searchQuery.trim()) {
+      return convs;
+    }
+
+    // Score all conversations
+    const scoredConversations = convs
+      .map((conv) => ({
+        conversation: conv,
+        score: scoreConversation(conv, searchQuery),
+      }))
+      .filter((item) => item.score > 0) // Only include conversations with matches
+      .sort((a, b) => b.score - a.score); // Sort by relevance (highest score first)
+
+    return scoredConversations.map((item) => item.conversation);
+  };
+
+  const groupConversationsByDate = (convs: Conversation[]) => {
     const groups: Record<string, Conversation[]> = {};
 
-    conversations.forEach((conv) => {
+    convs.forEach((conv) => {
       const label = formatDate(conv.timestamp);
       if (!groups[label]) {
         groups[label] = [];
@@ -57,7 +158,8 @@ export function HistoryPanel({
     return groups;
   };
 
-  const grouped = groupConversationsByDate();
+  const filteredConversations = filterConversations(conversations);
+  const grouped = groupConversationsByDate(filteredConversations);
 
   return (
     <>
@@ -81,40 +183,58 @@ export function HistoryPanel({
         {/* Header */}
         <div className="flex h-14 items-center justify-between border-b px-4">
           <h2 className="text-sm font-semibold">Conversation History</h2>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onClose}
-            aria-label="Close history"
-          >
-            <svg
-              className="size-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => {
+                onNewConversation();
+                onClose();
+              }}
+              aria-label="New conversation"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </Button>
+              <svg
+                className="size-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClose}
+              aria-label="Close history"
+            >
+              <svg
+                className="size-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </Button>
+          </div>
         </div>
 
-        {/* New Chat Button */}
+        {/* Search Input */}
         <div className="p-4 border-b">
-          <Button
-            className="w-full justify-start gap-2"
-            variant="outline"
-            onClick={() => {
-              onNewConversation();
-              onClose();
-            }}
-          >
+          <div className="relative">
             <svg
-              className="size-4"
+              className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -123,11 +243,57 @@ export function HistoryPanel({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M12 4v16m8-8H4"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            New Conversation
-          </Button>
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-9 pl-9 pr-9 rounded-md border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              aria-label="Search conversations"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <svg
+                  className="size-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+          {searchQuery && filteredConversations.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+              <svg
+                className="size-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                />
+              </svg>
+              Sorted by relevance
+            </p>
+          )}
         </div>
 
         {/* Conversation List */}
@@ -152,6 +318,28 @@ export function HistoryPanel({
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Start chatting to create history
+              </p>
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <svg
+                className="size-12 text-muted-foreground/50 mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <p className="text-sm text-muted-foreground">
+                No results found
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try a different search term
               </p>
             </div>
           ) : (
@@ -250,8 +438,12 @@ export function HistoryPanel({
               />
             </svg>
             <span>
-              {conversations.length} conversation
-              {conversations.length !== 1 ? "s" : ""} saved
+              {searchQuery
+                ? `${filteredConversations.length} of ${conversations.length}`
+                : conversations.length}{" "}
+              conversation
+              {(searchQuery ? filteredConversations.length : conversations.length) !== 1 ? "s" : ""}
+              {searchQuery ? " found" : " saved"}
             </span>
           </div>
         </div>

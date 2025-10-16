@@ -30,6 +30,7 @@ import {
   exportMessageToJSON,
   exportMessageToPDF
 } from "@/lib/export-utils";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface ChatMessage {
   id: string;
@@ -45,6 +46,7 @@ interface ConversationData {
   title: string;
   timestamp: number;
   messageCount: number;
+  messages?: Array<{ role: string; content: string }>;
 }
 
 export function ChatApp() {
@@ -79,6 +81,14 @@ export function ChatApp() {
   const [showShareModal, setShowShareModal] = React.useState(false);
   // Export menu state - track which message's export menu is open
   const [exportMenuOpenForMessage, setExportMenuOpenForMessage] = React.useState<string | null>(null);
+  // Virtual scroll activation threshold and setup
+  const useVirtualizedMessages = messages.length > 50;
+  const rowVirtualizer = useVirtualizer({
+    count: useVirtualizedMessages ? messages.length : 0,
+    getScrollElement: () => conversationContentRef.current,
+    estimateSize: () => 96,
+    overscan: 8,
+  });
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<
@@ -151,6 +161,10 @@ export function ChatApp() {
               title,
               timestamp: conv.updatedAt || conv.createdAt,
               messageCount: conv.messages?.length || 0,
+              messages: conv.messages?.map((m: any) => ({
+                role: m.role,
+                content: m.content,
+              })) || [],
             };
           });
 
@@ -490,13 +504,6 @@ export function ChatApp() {
   };
 
   const handleNewChat = () => {
-    if (messages.length > 0) {
-      const confirmNew = confirm(
-        "Start a new conversation? Current chat will be saved.",
-      );
-      if (!confirmNew) return;
-    }
-
     setMessages([]);
     setCurrentConversationId(null);
   };
@@ -809,7 +816,220 @@ export function ChatApp() {
                 onScroll={handleScroll}
                 className={cn(isAtTop ? "pt-16" : undefined)}
               >
-                {messages.map((message) => (
+                {useVirtualizedMessages ? (
+                  <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
+                    {rowVirtualizer.getVirtualItems().map((vi) => {
+                      const message = messages[vi.index];
+                      if (!message) return null;
+                      return (
+                        <div
+                          key={message.id}
+                          data-index={vi.index}
+                          ref={(el) => {
+                            if (el) rowVirtualizer.measureElement(el);
+                          }}
+                          className="pb-4"
+                          style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vi.start}px)` }}
+                        >
+                          <Message key={message.id} from={message.role}>
+                            <MessageAvatar
+                              src={message.role === "user" ? "" : ""}
+                              name={
+                                message.role === "user"
+                                  ? "You"
+                                  : message.role === "assistant"
+                                    ? "AI"
+                                    : "System"
+                              }
+                            />
+                            <MessageContent>
+                              {/* Display file attachments if present */}
+                              {message.files && message.files.length > 0 && (
+                                <div
+                                  className={cn(
+                                    "mb-2 flex flex-wrap gap-2",
+                                    message.role === "user" && "justify-end",
+                                  )}
+                                >
+                                  {message.files.map((file, idx) => (
+                                    <div
+                                      key={idx}
+                                      className={cn(
+                                        "flex items-center gap-2 rounded-md border bg-muted px-3 py-2 text-sm",
+                                        message.role === "user" &&
+                                          "bg-gray-100 border-gray-300 dark:bg-gray-800 dark:border-gray-600",
+                                      )}
+                                    >
+                                      {file.type?.startsWith("image/") ? (
+                                        <svg
+                                          className="h-4 w-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                          />
+                                        </svg>
+                                      ) : (
+                                        <svg
+                                          className="h-4 w-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                          />
+                                        </svg>
+                                      )}
+                                      <span className="truncate max-w-[150px]">
+                                        {file.name || "File"}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <div
+                                className={cn(
+                                  "inline-block max-w-[85%] break-words",
+                                  message.role === "user" &&
+                                    "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 ml-auto text-right dark:bg-gray-700 dark:text-gray-100",
+                                )}
+                                style={{ overflowWrap: "anywhere" }}
+                              >
+                                <Response
+                                  className={cn(
+                                    "prose prose-sm dark:prose-invert max-w-full",
+                                    "prose-p:leading-relaxed prose-pre:p-0",
+                                    message.role === "user" &&
+                                      "prose-p:text-gray-900 prose-p:m-0 prose-p:text-right prose-headings:text-gray-900 prose-code:text-gray-900 prose-pre:text-gray-900 dark:prose-p:text-gray-100 dark:prose-headings:text-gray-100 dark:prose-code:text-gray-100 dark:prose-pre:text-gray-100",
+                                  )}
+                                >
+                                  {message.content}
+                                </Response>
+                              </div>
+                              {message.role === "assistant" && !message.isStreaming && (
+                                <Actions>
+                                 
+                                  <ActionButton onClick={() => handleCopy(message.content)} title="Copy to clipboard">
+                                    <svg
+                                      className="size-3"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2M8 16h8a2 2 0 002-2V8m-6 8h2m-2 0V6"
+                                      />
+                                    </svg>
+                                    Copy
+                                  </ActionButton>
+                                  <ActionButton onClick={() => handleRegenerate(message.id)} title="Regenerate this response">
+                                    <svg
+                                      className="size-3"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                      />
+                                    </svg>
+                                    Regenerate
+                                  </ActionButton>
+                                  <div className="relative">
+                                    <ActionButton
+                                      onClick={() => setExportMenuOpenForMessage(
+                                        exportMenuOpenForMessage === message.id ? null : message.id
+                                      )}
+                                      title="Export this response"
+                                    >
+                                      <svg
+                                        className="size-3"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                        />
+                                      </svg>
+                                      Export
+                                    </ActionButton>
+                                    {exportMenuOpenForMessage === message.id && (
+                                      <div 
+                                        className="absolute bottom-full left-0 mb-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
+                                      >
+                                        <button
+                                          className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                          onClick={() => {
+                                            handleExportMessage(message, "markdown");
+                                            setExportMenuOpenForMessage(null);
+                                          }}
+                                        >
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                          </svg>
+                                          Markdown
+                                        </button>
+                                        <button
+                                          className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                          onClick={() => {
+                                            handleExportMessage(message, "json");
+                                            setExportMenuOpenForMessage(null);
+                                          }}
+                                        >
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                          </svg>
+                                          JSON
+                                        </button>
+                                        <button
+                                          className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                          onClick={() => {
+                                            handleExportMessage(message, "pdf");
+                                            setExportMenuOpenForMessage(null);
+                                          }}
+                                        >
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                          </svg>
+                                          PDF
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </Actions>
+                              )}
+                              {message.isStreaming && (
+                                <div className="mt-2">
+                                  <Loader />
+                                </div>
+                              )}
+                            </MessageContent>
+                          </Message>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                messages.map((message) => (
                   <Message key={message.id} from={message.role}>
                     <MessageAvatar
                       src={message.role === "user" ? "" : ""}
@@ -1008,7 +1228,8 @@ export function ChatApp() {
                       )}
                     </MessageContent>
                   </Message>
-                ))}
+                ))
+                )}
               </ConversationContent>
             </Conversation>
           )}
