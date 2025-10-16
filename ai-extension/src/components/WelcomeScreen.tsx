@@ -178,7 +178,7 @@ export function WelcomeScreen({
                 "group flex items-center gap-2 rounded-full border bg-card/80 backdrop-blur-sm px-3 py-2",
                 "hover:bg-accent/90 hover:border-primary/50 hover:shadow-md",
                 "transition-all duration-200 ease-out",
-                "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                "focus:outline-none",
                 "active:scale-95",
               )}
             >

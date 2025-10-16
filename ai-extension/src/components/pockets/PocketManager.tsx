@@ -470,7 +470,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
                 className={cn(
                   "flex-1 px-3 py-2 rounded-lg border text-sm",
                   "bg-white/10 border-white/10 text-white backdrop-blur-xl",
-                  "focus:outline-none focus:ring-2 focus:ring-white/30"
+                  "focus:outline-none"
                 )}
               >
                 <option value="all" className="bg-[rgba(17,25,40,0.95)]">All Categories</option>

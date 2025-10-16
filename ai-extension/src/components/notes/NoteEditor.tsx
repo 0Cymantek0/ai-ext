@@ -167,7 +167,7 @@ export function NoteEditor({
             placeholder="Note title..."
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="text-lg font-semibold"
+            className="text-lg font-semibold border-none outline-none focus-visible:ring-0 focus-visible:border-transparent"
           />
           
           <div className="flex gap-4">
@@ -175,14 +175,14 @@ export function NoteEditor({
               placeholder="Category (optional)"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="flex-1"
+              className="flex-1 border-none outline-none focus-visible:ring-0 focus-visible:border-transparent"
             />
             <Input
               placeholder="Add tags (press Enter)"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleAddTag}
-              className="flex-1"
+              className="flex-1 border-none outline-none focus-visible:ring-0 focus-visible:border-transparent"
             />
           </div>
 
@@ -283,7 +283,7 @@ export function NoteEditor({
                   placeholder="Start writing your note... You can use Markdown formatting."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-full resize-none border-none focus:ring-0 font-mono text-sm"
+                  className="w-full h-full resize-none border-none focus:ring-0 focus-visible:ring-0 focus-visible:border-transparent font-mono text-sm"
                   style={{ minHeight: "300px" }}
                 />
               </div>

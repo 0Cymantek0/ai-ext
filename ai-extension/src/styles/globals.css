@@ -166,6 +166,35 @@ body {
   outline: none;
 }
 
+/* Global focus ring removal */
+/* Suppress Tailwind/shadcn ring box-shadows across the app */
+:focus-visible,
+:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Stronger overrides for common interactive controls */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+button:focus,
+button:focus-visible,
+select:focus,
+select:focus-visible,
+[data-slot="input"]:focus,
+[data-slot="input"]:focus-visible,
+[data-slot="textarea"]:focus,
+[data-slot="textarea"]:focus-visible,
+[data-slot="select"]:focus,
+[data-slot="select"]:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   *,

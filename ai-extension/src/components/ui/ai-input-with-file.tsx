@@ -328,7 +328,7 @@ export function AIInputWithFile({
                 >
                   <SelectTrigger
                     size="sm"
-                    className="h-7 sm:h-8 px-2 rounded-2xl bg-white/10 dark:bg-white/10 backdrop-blur-md border border-white/10 text-xs text-white shadow-md hover:bg-white/20 transition-colors focus-visible:ring-2 focus-visible:ring-white/30"
+                    className="h-7 sm:h-8 px-2 rounded-2xl bg-white/10 dark:bg-white/10 backdrop-blur-md border border-white/10 text-xs text-white shadow-md hover:bg-white/20 transition-colors"
                   >
                     <SelectValue>
                       <span className="inline-flex items-center gap-1.5">
@@ -385,7 +385,7 @@ export function AIInputWithFile({
                     onClick={() => onAutoContextChange(!autoContext)}
                     disabled={disabled}
                     className={cn(
-                      "relative h-7 sm:h-8 min-h-[28px] sm:min-h-[32px] px-2 py-0 leading-none rounded-2xl backdrop-blur-md border text-xs shadow-md inline-flex items-center gap-1.5 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none",
+                      "relative h-7 sm:h-8 min-h-[28px] sm:min-h-[32px] px-2 py-0 leading-none rounded-2xl backdrop-blur-md border text-xs shadow-md inline-flex items-center gap-1.5 transition-all duration-200 focus-visible:outline-none",
                       autoContext
                         ? "bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/70"
                         : "bg-white/10 border-white/10 text-white/60 hover:bg-white/15 hover:text-white/80",

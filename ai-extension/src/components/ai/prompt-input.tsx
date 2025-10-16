@@ -63,7 +63,7 @@ const PromptInputTextarea = React.forwardRef<
         className={cn(
           "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md",
           "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "focus-visible:outline-none",
           "transition-colors",
         )}
         title="Attach file"
@@ -113,7 +113,7 @@ const PromptInputTextarea = React.forwardRef<
         className={cn(
           "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md",
           "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "focus-visible:outline-none",
           "transition-colors",
         )}
         title="Voice input (coming soon)"
@@ -149,7 +149,7 @@ const PromptInputSubmit = React.forwardRef<
     className={cn(
       "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md",
       "bg-primary text-primary-foreground hover:bg-primary/90",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      "focus-visible:outline-none",
       "disabled:pointer-events-none disabled:opacity-50",
       "transition-colors",
       className,

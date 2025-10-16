@@ -23,7 +23,7 @@ const ActionButton = React.forwardRef<
       "inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-1",
       "text-xs font-medium transition-colors",
       "hover:bg-accent hover:text-accent-foreground",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      "focus-visible:outline-none",
       "disabled:pointer-events-none disabled:opacity-50",
       className,
     )}

@@ -77,7 +77,7 @@ export function ModeSwitcher({
           className={cn(
             "relative flex h-full items-center gap-1.5 rounded-full px-3",
             "text-xs font-medium transition-all duration-200",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+            "focus:outline-none",
             currentMode === mode.id
               ? "bg-slate-100 text-slate-900 shadow-md dark:bg-slate-800 dark:text-slate-100"
               : "text-muted-foreground hover:text-foreground hover:bg-accent/50",

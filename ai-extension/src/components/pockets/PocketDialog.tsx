@@ -136,7 +136,7 @@ export function PocketDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter pocket name"
-              className="bg-white/10 border-white/10 text-white placeholder-white/60 focus:ring-white/30"
+              className="bg-white/10 border-white/10 text-white placeholder-white/60"
               autoFocus
             />
           </div>
@@ -152,7 +152,7 @@ export function PocketDialog({
               placeholder="Enter description (optional)"
               className={cn(
                 "w-full px-3 py-2 rounded-md border bg-white/10 border-white/10 text-white placeholder-white/60",
-                "focus:outline-none focus:ring-2 focus:ring-white/30",
+                "focus:outline-none",
                 "resize-none text-base"
               )}
               rows={3}
@@ -212,7 +212,7 @@ export function PocketDialog({
               onChange={(e) => setCategory(e.target.value)}
               className={cn(
                 "w-full px-3 py-2 rounded-md border bg-white/10 border-white/10 text-white",
-                "focus:outline-none focus:ring-2 focus:ring-white/30"
+                "focus:outline-none"
               )}
             >
               {PRESET_CATEGORIES.map((cat) => (
@@ -233,7 +233,7 @@ export function PocketDialog({
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Add tag and press Enter"
-                className="bg-white/10 border-white/10 text-white placeholder-white/60 focus:ring-white/30"
+                className="bg-white/10 border-white/10 text-white placeholder-white/60"
               />
               <Button type="button" onClick={handleAddTag} size="sm">
                 Add
