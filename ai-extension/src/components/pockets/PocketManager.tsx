@@ -24,6 +24,8 @@ interface PocketManagerProps {
 
 export interface PocketManagerRef {
   handleNewPocket: () => void;
+  openAnalytics: () => void;
+  openExportImport: (mode?: "export" | "import") => void;
 }
 
 export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerProps>(
@@ -376,9 +378,11 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
     return Array.from(cats).sort();
   }, [pockets]);
 
-  // Expose handleNewPocket method via ref
+  // Expose imperative methods via ref
   React.useImperativeHandle(ref, () => ({
     handleNewPocket,
+    openAnalytics: () => setShowAnalytics(true),
+    openExportImport: (_mode?: "export" | "import") => setShowExportImport(true),
   }));
 
   // If a pocket is selected, show the content list
@@ -478,33 +482,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
               </select>
             </div>
           )}
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAnalytics(true)}
-              className="flex-1"
-              title="View Analytics"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              Analytics
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowExportImport(true)}
-              className="flex-1"
-              title="Export/Import"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-              Export/Import
-            </Button>
-          </div>
+          {/* Action Buttons removed per request */}
         </div>
       </FloatingPanel>
 

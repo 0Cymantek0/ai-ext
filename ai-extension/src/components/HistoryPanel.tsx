@@ -73,7 +73,7 @@ export function HistoryPanel({
       {/* Panel */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-[70] w-80 transform border-r border-border/50 bg-background shadow-xl transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-[70] w-80 transform border-r border-border/50 bg-background shadow-xl transition-transform duration-300 ease-in-out flex flex-col",
           isOpen ? "translate-x-0" : "-translate-x-full",
           className,
         )}
@@ -131,7 +131,7 @@ export function HistoryPanel({
         </div>
 
         {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto scrollbar-pill p-4 space-y-6">
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <svg

@@ -11,6 +11,7 @@ interface TopBarProps {
   onAddNote?: () => void;
   onAddFile?: () => void;
   onExportChat?: (format: "markdown" | "json" | "pdf") => void;
+  // Pocket-specific menu removed from main page
   currentMode?: Mode;
   onModeChange?: (mode: Mode) => void;
   className?: string;
@@ -25,6 +26,7 @@ export function TopBar({
   onAddNote,
   onAddFile,
   onExportChat,
+  
   currentMode = "ask", 
   onModeChange, 
   className,
@@ -59,6 +61,7 @@ export function TopBar({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showExportMenu]);
+
 
   const handleExport = (format: "markdown" | "json" | "pdf") => {
     setShowExportMenu(false);
@@ -123,8 +126,8 @@ export function TopBar({
         )}
         style={{ pointerEvents: "auto" }}
       >
-        {/* Export Chat Button with dropdown - only show when there are messages */}
-        {hasMessages && (
+        {/* In chat mode: Export Chat Button with dropdown - only show when there are messages */}
+        {currentMode !== "ai-pocket" && hasMessages && (
           <div className="relative" ref={exportMenuRef}>
             <Button
               variant="ghost"
@@ -188,6 +191,7 @@ export function TopBar({
             )}
           </div>
         )}
+
 
         {/* New Chat/Pocket Button with dropdown */}
         <div className="relative" ref={addMenuRef}>

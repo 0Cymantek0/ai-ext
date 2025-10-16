@@ -63,6 +63,64 @@ body {
   transition-duration: 150ms;
 }
 
+/* Global scrollbar: thin default, expands on hover/drag; transparent track; no arrows */
+:root {
+  --scrollbar-thin-width: 4px;
+  --scrollbar-expanded-width: 8px;
+  --scrollbar-thumb-color: hsl(var(--foreground) / 0.35);
+}
+
+/* Firefox global scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color) transparent;
+}
+
+*:hover,
+*:active {
+  /* Expand when element is hovered or actively interacted */
+  scrollbar-width: auto;
+}
+
+/* WebKit-based browsers (Chrome, Edge, Safari) */
+*::-webkit-scrollbar {
+  width: var(--scrollbar-thin-width);
+  height: var(--scrollbar-thin-width);
+  background: transparent;
+  transition: width 150ms ease, height 150ms ease;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-color);
+  border-radius: 9999px;
+  border: none;
+  transition: background-color 150ms ease;
+}
+
+/* Expand and slightly emphasize thumb on hover or drag */
+*:hover::-webkit-scrollbar,
+*:active::-webkit-scrollbar,
+*::-webkit-scrollbar-thumb:active {
+  width: var(--scrollbar-expanded-width);
+  height: var(--scrollbar-expanded-width);
+}
+
+*:hover::-webkit-scrollbar-thumb,
+*:active::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb:active {
+  background-color: hsl(var(--foreground) / 0.5);
+}
+
 /* Extension-specific styles */
 html,
 body {
@@ -129,27 +187,25 @@ body {
   background-color: hsl(var(--card)) !important;
 }
 
-/* Custom scrollbar - hidden by default, shows thin on hover (less intrusive) */
+/* Element-scoped helper: aligns with global thin/expand behavior */
 .scrollbar-custom {
-  /* Firefox: hide by default */
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color) transparent;
 }
 
 .scrollbar-custom:hover {
-  /* Firefox: reveal thin scrollbar on hover */
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--foreground) / 0.35) transparent; /* thumb track */
+  scrollbar-width: auto;
 }
 
-/* WebKit-based browsers */
 .scrollbar-custom::-webkit-scrollbar {
-  width: 0; /* hidden by default */
-  height: 0;
+  width: var(--scrollbar-thin-width);
+  height: var(--scrollbar-thin-width);
 }
 
-.scrollbar-custom:hover::-webkit-scrollbar {
-  width: 2px; /* very thin when hovered */
-  height: 2px;
+.scrollbar-custom:hover::-webkit-scrollbar,
+.scrollbar-custom:active::-webkit-scrollbar {
+  width: var(--scrollbar-expanded-width);
+  height: var(--scrollbar-expanded-width);
 }
 
 .scrollbar-custom::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
@@ -157,44 +213,47 @@ body {
 .scrollbar-custom::-webkit-scrollbar-track { background: transparent; }
 
 .scrollbar-custom::-webkit-scrollbar-thumb {
-  background-color: transparent; /* invisible until hover */
-  border-radius: 9999px; /* pill */
+  background-color: var(--scrollbar-thumb-color);
+  border-radius: 9999px;
 }
 
-.scrollbar-custom:hover::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--foreground) / 0.3);
+.scrollbar-custom:hover::-webkit-scrollbar-thumb,
+.scrollbar-custom:active::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--foreground) / 0.5);
 }
 
 /* Stronger, element-specific rules for the chat textarea to defeat overrides */
 #ai-input-with-file.scrollbar-custom {
-  /* Firefox */
-  scrollbar-width: none !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--scrollbar-thumb-color) transparent !important;
 }
 
-#ai-input-with-file.scrollbar-custom:hover {
-  scrollbar-width: thin !important;
-  scrollbar-color: hsl(var(--foreground) / 0.3) transparent !important;
+#ai-input-with-file.scrollbar-custom:hover,
+#ai-input-with-file.scrollbar-custom:active {
+  scrollbar-width: auto !important;
 }
 
 #ai-input-with-file.scrollbar-custom::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
+  width: var(--scrollbar-thin-width) !important;
+  height: var(--scrollbar-thin-width) !important;
 }
 
-#ai-input-with-file.scrollbar-custom:hover::-webkit-scrollbar {
-  width: 2px !important;
-  height: 2px !important;
+#ai-input-with-file.scrollbar-custom:hover::-webkit-scrollbar,
+#ai-input-with-file.scrollbar-custom:active::-webkit-scrollbar {
+  width: var(--scrollbar-expanded-width) !important;
+  height: var(--scrollbar-expanded-width) !important;
 }
 
 #ai-input-with-file.scrollbar-custom::-webkit-scrollbar-track { background: transparent !important; }
 
 #ai-input-with-file.scrollbar-custom::-webkit-scrollbar-thumb {
-  background-color: transparent !important;
+  background-color: var(--scrollbar-thumb-color) !important;
   border-radius: 9999px !important;
 }
 
-#ai-input-with-file.scrollbar-custom:hover::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--foreground) / 0.3) !important;
+#ai-input-with-file.scrollbar-custom:hover::-webkit-scrollbar-thumb,
+#ai-input-with-file.scrollbar-custom:active::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--foreground) / 0.5) !important;
 }
 
 /* Kbd styling */
@@ -313,6 +372,52 @@ kbd {
 .prose th {
   background-color: hsl(var(--muted));
   font-weight: 600;
+}
+
+/* Custom pill scrollbar for history panel */
+.scrollbar-pill {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color) transparent;
+}
+
+/* WebKit-based browsers */
+.scrollbar-pill::-webkit-scrollbar {
+  width: var(--scrollbar-thin-width);
+  height: var(--scrollbar-thin-width);
+  transition: width 150ms ease, height 150ms ease;
+}
+
+.scrollbar-pill::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.scrollbar-pill::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-pill::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-color);
+  border-radius: 9999px; /* pill shape */
+  border: none;
+}
+
+.scrollbar-pill:hover::-webkit-scrollbar,
+.scrollbar-pill:active::-webkit-scrollbar,
+.scrollbar-pill::-webkit-scrollbar-thumb:active {
+  width: var(--scrollbar-expanded-width);
+  height: var(--scrollbar-expanded-width);
+}
+
+.scrollbar-pill:hover::-webkit-scrollbar-thumb,
+.scrollbar-pill:active::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--foreground) / 0.5);
+}
+
+.scrollbar-pill::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Responsive: hide mode labels only on very narrow widths */
