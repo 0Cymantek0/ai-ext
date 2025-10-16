@@ -2,12 +2,22 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+interface ConversationMetadata {
+  summary: string;
+  keywords: string[];
+  topics: string[];
+  entities: string[];
+  mainQuestions: string[];
+  generatedAt: number;
+}
+
 interface Conversation {
   id: string;
   title: string;
   timestamp: number;
   messageCount: number;
   messages?: Array<{ role: string; content: string }>;
+  metadata?: ConversationMetadata;
 }
 
 interface HistoryPanelProps {
@@ -32,87 +42,7 @@ export function HistoryPanel({
   className,
 }: HistoryPanelProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
-
-  // Calculate similarity between two strings (0-1, higher is more similar)
-  const calculateSimilarity = (str1: string, str2: string): number => {
-    const s1 = str1.toLowerCase();
-    const s2 = str2.toLowerCase();
-    
-    // Exact match
-    if (s1 === s2) return 1;
-    
-    // Contains match
-    if (s2.includes(s1) || s1.includes(s2)) {
-      return 0.8;
-    }
-    
-    // Simple character overlap similarity (faster than Levenshtein)
-    const set1 = new Set(s1.split(''));
-    const set2 = new Set(s2.split(''));
-    const intersection = new Set([...set1].filter(x => set2.has(x)));
-    const union = new Set([...set1, ...set2]);
-    
-    return union.size === 0 ? 0 : intersection.size / union.size;
-  };
-
-  // Score a conversation based on search query
-  const scoreConversation = (conv: Conversation, query: string): number => {
-    const queryWords = query.toLowerCase().trim().split(/\s+/);
-    let totalScore = 0;
-
-    queryWords.forEach((word) => {
-      if (word.length === 0) return;
-
-      const titleLower = conv.title.toLowerCase();
-      const titleWords = titleLower.split(/\s+/);
-
-      // Title exact word match
-      if (titleWords.some((tw) => tw === word)) {
-        totalScore += 100;
-      }
-      // Title contains query word
-      else if (titleLower.includes(word)) {
-        totalScore += 50;
-      }
-      // Title fuzzy match
-      else {
-        const maxTitleSimilarity = Math.max(
-          ...titleWords.map((tw) => calculateSimilarity(word, tw))
-        );
-        if (maxTitleSimilarity > 0.7) {
-          totalScore += maxTitleSimilarity * 30;
-        }
-      }
-
-      // Search in messages
-      if (conv.messages) {
-        conv.messages.forEach((msg) => {
-          const contentLower = msg.content.toLowerCase();
-          const contentWords = contentLower.split(/\s+/);
-
-          // Message exact word match
-          if (contentWords.some((cw) => cw === word)) {
-            totalScore += 30;
-          }
-          // Message contains query word
-          else if (contentLower.includes(word)) {
-            totalScore += 15;
-          }
-          // Message fuzzy match
-          else {
-            const maxContentSimilarity = Math.max(
-              ...contentWords.slice(0, 50).map((cw) => calculateSimilarity(word, cw))
-            );
-            if (maxContentSimilarity > 0.7) {
-              totalScore += maxContentSimilarity * 10;
-            }
-          }
-        });
-      }
-    });
-
-    return totalScore;
-  };
+  const [isSearching, setIsSearching] = React.useState(false);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -127,21 +57,80 @@ export function HistoryPanel({
     return date.toLocaleDateString();
   };
 
+  const [filteredResults, setFilteredResults] = React.useState<Conversation[]>([]);
+
+  // Debounced semantic search
+  React.useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        // Use semantic search via service worker
+        const response = await chrome.runtime.sendMessage({
+          kind: "CONVERSATION_SEMANTIC_SEARCH",
+          requestId: crypto.randomUUID(),
+          payload: {
+            query: searchQuery,
+            conversations: conversations,
+          },
+        });
+
+        if (response.success && response.data.results) {
+          // Extract conversations from search results
+          const results = response.data.results.map((r: any) => r.conversation);
+          setFilteredResults(results);
+        } else {
+          // Fallback to basic filtering
+          setFilteredResults(basicFilter(searchQuery, conversations));
+        }
+      } catch (error) {
+        console.error("Semantic search failed:", error);
+        // Fallback to basic filtering
+        setFilteredResults(basicFilter(searchQuery, conversations));
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // Debounce 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, conversations]);
+
+  // Basic fallback filter
+  const basicFilter = (query: string, convs: Conversation[]): Conversation[] => {
+    const queryLower = query.toLowerCase();
+    return convs.filter((conv) => {
+      // Search in title
+      if (conv.title.toLowerCase().includes(queryLower)) {
+        return true;
+      }
+      // Search in metadata
+      if (conv.metadata) {
+        if (
+          conv.metadata.summary.toLowerCase().includes(queryLower) ||
+          conv.metadata.keywords.some((k) => k.includes(queryLower)) ||
+          conv.metadata.topics.some((t) => t.toLowerCase().includes(queryLower))
+        ) {
+          return true;
+        }
+      }
+      // Search in messages
+      if (conv.messages) {
+        return conv.messages.some((m) => m.content.toLowerCase().includes(queryLower));
+      }
+      return false;
+    });
+  };
+
   const filterConversations = (convs: Conversation[]) => {
     if (!searchQuery.trim()) {
       return convs;
     }
-
-    // Score all conversations
-    const scoredConversations = convs
-      .map((conv) => ({
-        conversation: conv,
-        score: scoreConversation(conv, searchQuery),
-      }))
-      .filter((item) => item.score > 0) // Only include conversations with matches
-      .sort((a, b) => b.score - a.score); // Sort by relevance (highest score first)
-
-    return scoredConversations.map((item) => item.conversation);
+    return filteredResults;
   };
 
   const groupConversationsByDate = (convs: Conversation[]) => {
@@ -276,22 +265,43 @@ export function HistoryPanel({
               </button>
             )}
           </div>
-          {searchQuery && filteredConversations.length > 0 && (
+          {searchQuery && (
             <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-              <svg
-                className="size-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                />
-              </svg>
-              Sorted by relevance
+              {isSearching ? (
+                <>
+                  <svg
+                    className="size-3 animate-spin"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  Searching with AI...
+                </>
+              ) : filteredConversations.length > 0 ? (
+                <>
+                  <svg
+                    className="size-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                    />
+                  </svg>
+                  Sorted by AI relevance
+                </>
+              ) : null}
             </p>
           )}
         </div>

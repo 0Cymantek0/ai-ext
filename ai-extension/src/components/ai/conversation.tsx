@@ -17,8 +17,9 @@ const ConversationContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
     bottomInsetRef?: React.RefObject<HTMLFormElement | null>;
+    forceAutoScroll?: boolean;
   }
->(({ className, children, bottomInsetRef, ...props }, ref) => {
+>(({ className, children, bottomInsetRef, forceAutoScroll, ...props }, ref) => {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [bottomInset, setBottomInset] = React.useState<number>(128); // fallback padding
 
@@ -31,10 +32,11 @@ const ConversationContent = React.forwardRef<
     const distanceFromBottom =
       element.scrollHeight - element.scrollTop - element.clientHeight;
     const threshold = 12; // px tolerance for fractional scroll values
-    if (distanceFromBottom <= threshold) {
-      element.scrollTop = element.scrollHeight;
+    const shouldAutoScroll = forceAutoScroll || distanceFromBottom <= threshold;
+    if (shouldAutoScroll) {
+      element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
     }
-  }, [children]);
+  }, [children, forceAutoScroll]);
 
   // Dynamically measure the bottom input's height so content never overlaps
   React.useEffect(() => {

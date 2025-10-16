@@ -41,12 +41,22 @@ interface ChatMessage {
   files?: File[] | undefined;
 }
 
+interface ConversationMetadata {
+  summary: string;
+  keywords: string[];
+  topics: string[];
+  entities: string[];
+  mainQuestions: string[];
+  generatedAt: number;
+}
+
 interface ConversationData {
   id: string;
   title: string;
   timestamp: number;
   messageCount: number;
   messages?: Array<{ role: string; content: string }>;
+  metadata?: ConversationMetadata;
 }
 
 export function ChatApp() {
@@ -165,6 +175,7 @@ export function ChatApp() {
                 role: m.role,
                 content: m.content,
               })) || [],
+              metadata: conv.metadata,
             };
           });
 
@@ -815,6 +826,7 @@ export function ChatApp() {
                 ref={conversationContentRef}
                 onScroll={handleScroll}
                 className={cn(isAtTop ? "pt-16" : undefined)}
+                forceAutoScroll={messages[messages.length - 1]?.isStreaming ?? false}
               >
                 {useVirtualizedMessages ? (
                   <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>

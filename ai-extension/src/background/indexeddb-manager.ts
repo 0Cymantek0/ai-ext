@@ -84,6 +84,15 @@ export interface Message {
   };
 }
 
+export interface ConversationMetadata {
+  summary: string;
+  keywords: string[];
+  topics: string[];
+  entities: string[];
+  mainQuestions: string[];
+  generatedAt: number;
+}
+
 export interface Conversation {
   id: string;
   pocketId?: string;
@@ -92,6 +101,7 @@ export interface Conversation {
   updatedAt: number;
   model: string;
   tokensUsed: number;
+  metadata?: ConversationMetadata;
 }
 
 export interface AIResponse {
@@ -589,6 +599,55 @@ export class IndexedDBManager {
       },
     );
     logger.info("IndexedDBManager", "Conversation updated", { id });
+    
+    // Trigger metadata regeneration in background
+    // This ensures search stays accurate as conversations evolve
+    this.triggerMetadataRegeneration(id);
+  }
+
+  /**
+   * Trigger metadata regeneration for a conversation (non-blocking)
+   */
+  private triggerMetadataRegeneration(conversationId: string): void {
+    // Use setTimeout to make this non-blocking
+    setTimeout(async () => {
+      try {
+        // Import dynamically to avoid circular dependencies
+        const { metadataQueueManager } = await import("./service-worker.js");
+        if (metadataQueueManager) {
+          await metadataQueueManager.enqueueConversation(conversationId, "normal");
+          logger.debug("IndexedDBManager", "Queued metadata regeneration", { conversationId });
+        }
+      } catch (error) {
+        logger.warn("IndexedDBManager", "Failed to queue metadata regeneration", { 
+          conversationId, 
+          error 
+        });
+      }
+    }, 0);
+  }
+
+  async updateConversationMetadata(id: string, metadata: ConversationMetadata): Promise<void> {
+    await this.executeTransaction(
+      StoreName.CONVERSATIONS,
+      "readwrite",
+      async (tx) => {
+        const store = tx.objectStore(StoreName.CONVERSATIONS);
+        const existing = await this.promisifyRequest(store.get(id));
+        if (!existing)
+          throw new IndexedDBError(
+            IndexedDBErrorType.NOT_FOUND,
+            `Conversation ${id} not found`,
+          );
+        const updated: Conversation = {
+          ...existing,
+          metadata,
+          updatedAt: Date.now(),
+        };
+        await this.promisifyRequest(store.put(updated));
+      },
+    );
+    logger.info("IndexedDBManager", "Conversation metadata updated", { id });
   }
 
   async deleteConversation(id: string): Promise<void> {

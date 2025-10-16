@@ -906,6 +906,24 @@ const aiManager = new AIManager();
 const cloudAIManager = new CloudAIManager();
 const streamingHandler = getStreamingHandler(aiManager, cloudAIManager);
 
+// Initialize metadata queue manager for background metadata generation
+let metadataQueueManager: import("./metadata-queue-manager.js").MetadataQueueManager | null = null;
+
+// Initialize metadata queue manager after a short delay to avoid blocking startup
+setTimeout(async () => {
+  try {
+    const { MetadataQueueManager } = await import("./metadata-queue-manager.js");
+    metadataQueueManager = new MetadataQueueManager(aiManager);
+    metadataQueueManager.start();
+    logger.info("ServiceWorker", "Metadata queue manager started");
+  } catch (error) {
+    logger.error("ServiceWorker", "Failed to start metadata queue manager", { error });
+  }
+}, 2000); // 2 second delay
+
+// Export for use in other modules
+export { metadataQueueManager };
+
 // Register streaming handlers
 messageRouter.registerHandler(
   "AI_PROCESS_STREAM_START",
@@ -976,6 +994,15 @@ messageRouter.registerHandler("CONVERSATION_CREATE", async (payload: any) => {
     logger.info("Handler", "CONVERSATION_CREATE result", {
       id: conversationId,
     });
+
+    // Trigger background metadata generation
+    if (metadataQueueManager && conversation && conversation.messages.length > 0) {
+      metadataQueueManager.enqueueConversation(conversationId, "normal");
+      logger.info("Handler", "Queued metadata generation for new conversation", {
+        conversationId,
+      });
+    }
+
     return { conversation };
   } catch (error) {
     logger.error("Handler", "CONVERSATION_CREATE error", error);
@@ -996,6 +1023,39 @@ messageRouter.registerHandler("CONVERSATION_UPDATE", async (payload: any) => {
     return { success: true };
   } catch (error) {
     logger.error("Handler", "CONVERSATION_UPDATE error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("CONVERSATION_GENERATE_METADATA", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_GENERATE_METADATA", payload);
+  try {
+    const { ConversationMetadataGenerator } = await import("./conversation-metadata-generator.js");
+    const generator = new ConversationMetadataGenerator(aiManager);
+    const metadata = await generator.generateMetadata(payload.messages);
+    logger.info("Handler", "CONVERSATION_GENERATE_METADATA success");
+    return { metadata };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_GENERATE_METADATA error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("CONVERSATION_SEMANTIC_SEARCH", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH", payload);
+  try {
+    const { SemanticSearchService } = await import("./semantic-search-service.js");
+    const searchService = new SemanticSearchService(aiManager);
+    const results = await searchService.searchConversations(
+      payload.query,
+      payload.conversations
+    );
+    logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH success", {
+      resultsCount: results.length,
+    });
+    return { results };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_SEMANTIC_SEARCH error", error);
     throw error;
   }
 });
