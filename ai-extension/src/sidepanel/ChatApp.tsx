@@ -825,7 +825,7 @@ export function ChatApp() {
               <ConversationContent
                 ref={conversationContentRef}
                 onScroll={handleScroll}
-                className={cn(isAtTop ? "pt-16" : undefined)}
+                className={cn("pt-16")}
                 forceAutoScroll={messages[messages.length - 1]?.isStreaming ?? false}
               >
                 {useVirtualizedMessages ? (
