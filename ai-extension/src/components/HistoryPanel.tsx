@@ -43,6 +43,8 @@ export function HistoryPanel({
 }: HistoryPanelProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
+  const [isIndexing, setIsIndexing] = React.useState(false);
+  const [indexingCount, setIndexingCount] = React.useState(0);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -99,6 +101,35 @@ export function HistoryPanel({
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, conversations]);
+
+  // Poll for metadata indexing status
+  React.useEffect(() => {
+    const checkIndexingStatus = async () => {
+      try {
+        const response = await chrome.runtime.sendMessage({
+          kind: "METADATA_QUEUE_STATUS",
+          requestId: crypto.randomUUID(),
+          payload: {},
+        });
+
+        if (response) {
+          const isCurrentlyIndexing = response.queueLength > 0 || response.isProcessing;
+          setIsIndexing(isCurrentlyIndexing);
+          setIndexingCount(response.conversationsWithoutMetadata || 0);
+        }
+      } catch (error) {
+        console.error("Failed to get indexing status:", error);
+      }
+    };
+
+    // Check immediately
+    checkIndexingStatus();
+
+    // Poll every 3 seconds
+    const intervalId = setInterval(checkIndexingStatus, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [conversations.length]);
 
   // Basic fallback filter
   const basicFilter = (query: string, convs: Conversation[]): Conversation[] => {
@@ -447,13 +478,42 @@ export function HistoryPanel({
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span>
-              {searchQuery
-                ? `${filteredConversations.length} of ${conversations.length}`
-                : conversations.length}{" "}
-              conversation
-              {(searchQuery ? filteredConversations.length : conversations.length) !== 1 ? "s" : ""}
-              {searchQuery ? " found" : " saved"}
+            <span className="flex items-center gap-2">
+              <span>
+                {searchQuery
+                  ? `${filteredConversations.length} of ${conversations.length}`
+                  : conversations.length}{" "}
+                conversation
+                {(searchQuery ? filteredConversations.length : conversations.length) !== 1 ? "s" : ""}
+                {searchQuery ? " found" : isIndexing ? " saved" : " saved and indexed"}
+              </span>
+              {isIndexing && (
+                <div className="relative group">
+                  <svg
+                    className="animate-spin h-3.5 w-3.5 text-muted-foreground"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                    Indexing {indexingCount} conversation{indexingCount !== 1 ? "s" : ""}
+                  </div>
+                </div>
+              )}
             </span>
           </div>
         </div>

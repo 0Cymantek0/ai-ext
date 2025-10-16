@@ -1060,6 +1060,40 @@ messageRouter.registerHandler("CONVERSATION_SEMANTIC_SEARCH", async (payload: an
   }
 });
 
+messageRouter.registerHandler("METADATA_QUEUE_STATUS", async (payload: any) => {
+  logger.info("Handler", "METADATA_QUEUE_STATUS", payload);
+  try {
+    if (!metadataQueueManager) {
+      return { 
+        queueLength: 0, 
+        isProcessing: false,
+        conversationsWithoutMetadata: 0,
+      };
+    }
+    
+    const status = metadataQueueManager.getStatus();
+    
+    // Count conversations without metadata
+    const { indexedDBManager } = await import("./indexeddb-manager.js");
+    await indexedDBManager.init();
+    const conversations = await indexedDBManager.listConversations();
+    const conversationsWithoutMetadata = conversations.filter(c => !c.metadata).length;
+    
+    logger.info("Handler", "METADATA_QUEUE_STATUS success", status);
+    return { 
+      ...status,
+      conversationsWithoutMetadata,
+    };
+  } catch (error) {
+    logger.error("Handler", "METADATA_QUEUE_STATUS error", error);
+    return { 
+      queueLength: 0, 
+      isProcessing: false,
+      conversationsWithoutMetadata: 0,
+    };
+  }
+});
+
 messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_DELETE", payload);
   try {
