@@ -50,9 +50,11 @@ export function AIInputWithFile({
 }: AIInputWithFileProps) {
   const [inputValue, setInputValue] = useState<string>("");
   const [isListening, setIsListening] = useState(false);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
   const recognitionRef = useRef<any | null>(null);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const {
     error,
     files,
@@ -75,6 +77,47 @@ export function AIInputWithFile({
     minHeight,
     maxHeight,
   });
+
+  // Process transcript with Gemini Nano for grammar/spelling correction and filler removal
+  const processTranscriptWithNano = useCallback(async (transcript: string): Promise<string> => {
+    try {
+      // Check if window.ai is available
+      if (!window.ai?.languageModel) {
+        console.log("Gemini Nano not available, using raw transcript");
+        return transcript;
+      }
+
+      // Check availability
+      const availability = await window.ai.languageModel.availability();
+      if (availability.available === "no") {
+        console.log("Gemini Nano not available, using raw transcript");
+        return transcript;
+      }
+
+      // Create a session with system prompt for text correction
+      const session = await window.ai.languageModel.create({
+        temperature: 0.3, // Lower temperature for more consistent corrections
+        initialPrompts: [
+          {
+            role: "system",
+            content: "You are a text correction assistant. Fix grammar, spelling, remove filler words (um, uh, like, you know, etc.), and slightly improve clarity while preserving the original meaning and intent. Return only the corrected text without explanations or quotes."
+          }
+        ]
+      });
+
+      // Process the transcript
+      const correctedText = await session.prompt(transcript);
+
+      // Clean up session
+      session.destroy();
+
+      return correctedText.trim();
+    } catch (error) {
+      console.error("Error processing transcript with Nano:", error);
+      // Fall back to raw transcript on error
+      return transcript;
+    }
+  }, []);
 
   // Initialize Web Speech API recognition
   useEffect(() => {
@@ -103,24 +146,47 @@ export function AIInputWithFile({
       };
       const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const rec: any = new SR();
-      // Auto stop on silence: use non-continuous mode so recognition ends when speaking stops
-      rec.continuous = false;
+      // Use continuous mode with manual timeout for better control
+      rec.continuous = true;
       rec.interimResults = true;
       rec.lang = resolveRecognitionLang();
 
       rec.onstart = () => {
         setIsListening(true);
         setVoiceError(null);
+        // Clear any existing timeout
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+          silenceTimeoutRef.current = null;
+        }
       };
-      // Auto-stop on detected speech end
+      // Don't auto-stop on speech end, let timeout handle it
       rec.onspeechend = () => {
-        try { rec.stop(); } catch { }
-        setIsListening(false);
+        // Start a 2-second timeout after speech ends
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+        }
+        silenceTimeoutRef.current = setTimeout(() => {
+          try {
+            rec.stop();
+          } catch { }
+          setIsListening(false);
+        }, 2000); // 2 seconds of silence before stopping
       };
       rec.onend = () => {
         setIsListening(false);
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+          silenceTimeoutRef.current = null;
+        }
       };
       rec.onresult = (event: any) => {
+        // Reset silence timeout on new speech
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+          silenceTimeoutRef.current = null;
+        }
+
         let finalTranscript = "";
         for (let i = 0; i < event.results.length; i++) {
           const result = event.results[i];
@@ -130,12 +196,29 @@ export function AIInputWithFile({
           }
         }
         if (finalTranscript) {
-          setInputValue((prev) => {
-            const next = (prev ? prev + " " : "") + finalTranscript.trim();
-            // Ensure textarea grows as text is added
-            setTimeout(() => adjustHeight(), 0);
-            return next;
-          });
+          // Process transcript with Gemini Nano
+          setIsProcessingVoice(true);
+          processTranscriptWithNano(finalTranscript)
+            .then((processedText) => {
+              setInputValue((prev) => {
+                const next = (prev ? prev + " " : "") + processedText.trim();
+                // Ensure textarea grows as text is added
+                setTimeout(() => adjustHeight(), 0);
+                return next;
+              });
+            })
+            .catch((error) => {
+              console.error("Error processing transcript:", error);
+              // Fall back to raw transcript
+              setInputValue((prev) => {
+                const next = (prev ? prev + " " : "") + finalTranscript.trim();
+                setTimeout(() => adjustHeight(), 0);
+                return next;
+              });
+            })
+            .finally(() => {
+              setIsProcessingVoice(false);
+            });
         }
       };
       rec.onerror = (event: any) => {
@@ -157,12 +240,16 @@ export function AIInputWithFile({
         try {
           rec.stop();
         } catch { }
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+          silenceTimeoutRef.current = null;
+        }
         recognitionRef.current = null;
       };
     } catch (e) {
       setIsSpeechSupported(false);
     }
-  }, [adjustHeight]);
+  }, [adjustHeight, processTranscriptWithNano]);
 
   const toggleListening = useCallback(() => {
     if (disabled) return;
@@ -175,6 +262,10 @@ export function AIInputWithFile({
         rec?.stop();
       } catch (e) {
         console.error('Error stopping recognition:', e);
+      }
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
       }
       setIsListening(false);
     } else {
@@ -394,16 +485,19 @@ export function AIInputWithFile({
               className={cn(
                 "absolute right-10 sm:right-12 top-1/2 -translate-y-1/2 z-20 rounded-xl bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 py-1 px-1",
                 disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-black/40 dark:hover:bg-white/15",
-                isListening && "ring-1 ring-red-400/60"
+                isListening && "ring-1 ring-red-400/60",
+                isProcessingVoice && "ring-1 ring-cyan-400/60"
               )}
               type="button"
-              disabled={disabled}
+              disabled={disabled || isProcessingVoice}
               title={
-                !isSpeechSupported
-                  ? "Voice dictation unavailable; click to grant mic permission."
-                  : isListening
-                    ? "Stop voice input"
-                    : "Start voice input"
+                isProcessingVoice
+                  ? "Processing voice input..."
+                  : !isSpeechSupported
+                    ? "Voice dictation unavailable; click to grant mic permission."
+                    : isListening
+                      ? "Stop voice input"
+                      : "Start voice input"
               }
               aria-pressed={isListening}
               aria-label="Voice input"
@@ -416,10 +510,20 @@ export function AIInputWithFile({
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                   </span>
                 )}
+                {/* Processing indicator - shimmer effect */}
+                {isProcessingVoice && (
+                  <span className="absolute -top-1 -right-1 inline-flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400/70 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500 animate-pulse"></span>
+                  </span>
+                )}
                 {isListening ? (
                   <MicOff className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-red-400" />
                 ) : (
-                  <Mic className="w-3.5 sm:w-4 h-3.5 sm:h-4 dark:text-white" />
+                  <Mic className={cn(
+                    "w-3.5 sm:w-4 h-3.5 sm:h-4 dark:text-white",
+                    isProcessingVoice && "text-cyan-400 animate-pulse"
+                  )} />
                 )}
               </span>
             </button>
