@@ -1,7 +1,7 @@
 "use client";
 
-import { Cloud, CornerRightUp, Cpu, FileUp, Paperclip, Sparkles, X, Zap } from "lucide-react";
-import { useState } from "react";
+import { Cloud, CornerRightUp, Cpu, FileUp, Paperclip, Sparkles, X, Zap, Mic, MicOff } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useFileInput } from "@/components/hooks/use-file-input";
@@ -88,6 +88,10 @@ export function AIInputWithFile({
   onAutoContextChange,
 }: AIInputWithFileProps) {
   const [inputValue, setInputValue] = useState<string>("");
+  const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+  const recognitionRef = useRef<any | null>(null);
   const {
     error,
     files,
@@ -110,6 +114,193 @@ export function AIInputWithFile({
     minHeight,
     maxHeight,
   });
+
+  // Initialize Web Speech API recognition
+  useEffect(() => {
+    const hasSpeech =
+      typeof window !== "undefined" &&
+      (((window as any).SpeechRecognition) || ((window as any).webkitSpeechRecognition));
+    setIsSpeechSupported(Boolean(hasSpeech));
+
+    if (!hasSpeech) return;
+
+    try {
+      const resolveRecognitionLang = (): string => {
+        try {
+          const uiLang = (window as any)?.chrome?.i18n?.getUILanguage?.();
+          const browserLangs: readonly string[] = Array.isArray(navigator.languages) && navigator.languages.length > 0
+            ? navigator.languages
+            : [navigator.language].filter(Boolean) as string[];
+          const candidate = (uiLang || browserLangs[0] || "en-US") as string;
+          if (!candidate) return "en-US";
+          // Map generic English to US default for better accuracy
+          if (candidate.toLowerCase() === "en") return "en-US";
+          return candidate;
+        } catch {
+          return "en-US";
+        }
+      };
+      const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const rec: any = new SR();
+      // Auto stop on silence: use non-continuous mode so recognition ends when speaking stops
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = resolveRecognitionLang();
+
+      rec.onstart = () => {
+        setIsListening(true);
+        setVoiceError(null);
+      };
+      // Auto-stop on detected speech end
+      rec.onspeechend = () => {
+        try { rec.stop(); } catch {}
+        setIsListening(false);
+      };
+      rec.onend = () => {
+        setIsListening(false);
+      };
+      rec.onresult = (event: any) => {
+        let finalTranscript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result && result.isFinal) {
+            const alt = result[0];
+            if (alt && alt.transcript) finalTranscript += alt.transcript;
+          }
+        }
+        if (finalTranscript) {
+          setInputValue((prev) => {
+            const next = (prev ? prev + " " : "") + finalTranscript.trim();
+            // Ensure textarea grows as text is added
+            setTimeout(() => adjustHeight(), 0);
+            return next;
+          });
+        }
+      };
+      rec.onerror = (event: any) => {
+        const err: string = event?.error || "unknown";
+        let message = "Speech recognition error";
+        if (err === "not-allowed" || err === "service-not-allowed") {
+          message = "Microphone permission denied. Enable mic access to use voice.";
+        } else if (err === "no-speech") {
+          message = "No speech detected. Please try again.";
+        } else if (err === "aborted") {
+          message = "Voice input stopped.";
+        }
+        setVoiceError(message);
+        setIsListening(false);
+      };
+
+      recognitionRef.current = rec;
+      return () => {
+        try {
+          rec.stop();
+        } catch {}
+        recognitionRef.current = null;
+      };
+    } catch (e) {
+      setIsSpeechSupported(false);
+    }
+  }, [adjustHeight]);
+
+  const toggleListening = useCallback(() => {
+    if (disabled) return;
+
+    const startWithPermission = async () => {
+      // Proactively request mic permission so the browser prompts immediately.
+      // Keep within the click handler stack to preserve user gesture semantics.
+      const startRecognition = () => {
+        setVoiceError(null);
+        const recNow = recognitionRef.current;
+        if (recNow && isSpeechSupported) {
+          try { recNow.start(); } catch { /* noop */ }
+        } else if (!isSpeechSupported) {
+          setVoiceError("Speech recognition not supported in this browser.");
+        }
+      };
+
+      // If running as a Chrome extension and microphone is optional, request it first
+      try {
+        const hasChrome = typeof window !== "undefined" && typeof (window as any).chrome !== "undefined";
+        const perms = hasChrome ? (window as any).chrome?.permissions : undefined;
+        if (perms) {
+          const alreadyGranted = await new Promise<boolean>((resolve) => {
+            try { perms.contains({ permissions: ["microphone"] }, (granted: boolean) => resolve(granted)); }
+            catch { resolve(false); }
+          });
+          if (!alreadyGranted) {
+            const granted = await new Promise<boolean>((resolve) => {
+              try { perms.request({ permissions: ["microphone"] }, (ok: boolean) => resolve(ok)); }
+              catch { resolve(false); }
+            });
+            if (!granted) {
+              setVoiceError("Microphone permission denied. Enable mic access to use voice.");
+              return;
+            }
+          }
+        }
+      } catch { /* ignore */ }
+
+      if (navigator?.mediaDevices?.getUserMedia) {
+        navigator.mediaDevices
+          .getUserMedia({ audio: true })
+          .then((stream) => {
+            try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+            startRecognition();
+          })
+          .catch(async (permErr: any) => {
+            const name = permErr?.name || "PermissionError";
+
+            // Try requesting Chrome extension optional permission at runtime so the browser shows the prompt.
+            // This only applies when the extension lists 'microphone' under optional_permissions.
+            try {
+              const hasChrome = typeof window !== "undefined" && typeof (window as any).chrome !== "undefined";
+              const perms = hasChrome ? (window as any).chrome?.permissions : undefined;
+              if (perms) {
+                const contains = await new Promise<boolean>((resolve) => {
+                  try { perms.contains({ permissions: ["microphone"] }, (granted: boolean) => resolve(granted)); }
+                  catch { resolve(false); }
+                });
+                if (!contains) {
+                  const requested = await new Promise<boolean>((resolve) => {
+                    try { perms.request({ permissions: ["microphone"] }, (granted: boolean) => resolve(granted)); }
+                    catch { resolve(false); }
+                  });
+                  if (requested) {
+                    // Retry getUserMedia to trigger prompt/stream now that permission is granted
+                    try {
+                      const retryStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                      try { retryStream.getTracks().forEach((t) => t.stop()); } catch {}
+                      startRecognition();
+                      return; // stop further error handling
+                    } catch (retryErr: any) {
+                      // fall through to error message below
+                    }
+                  }
+                }
+              }
+            } catch {
+              // ignore
+            }
+
+            setVoiceError(
+              name === "NotAllowedError" || name === "SecurityError"
+                ? "Microphone permission denied. Enable mic access to use voice."
+                : "Unable to access microphone."
+            );
+          });
+      } else {
+        startRecognition();
+      }
+    };
+
+    const rec = recognitionRef.current;
+    if (isListening) {
+      try { rec?.stop(); } catch {}
+    } else {
+      void startWithPermission();
+    }
+  }, [isSpeechSupported, isListening, disabled]);
 
   const getModelLabel = (m: AIInputWithFileProps["model"]) => {
     switch (m) {
@@ -169,9 +360,9 @@ export function AIInputWithFile({
     <div className={cn("w-full py-2 sm:py-4 px-2 sm:px-0", className)}>
       <div className="relative max-w-lg w-full mx-auto flex flex-col gap-2">
         {/* Error Display */}
-        {error && (
+        {(error || voiceError) && (
           <div className="text-red-500 text-sm px-3 py-1 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            {error}
+            {error || voiceError}
           </div>
         )}
 
@@ -296,6 +487,42 @@ export function AIInputWithFile({
                 }
               }}
             />
+
+            {/* Voice Input Button */}
+            <button
+              onClick={toggleListening}
+              className={cn(
+                "absolute right-10 sm:right-12 top-1/2 -translate-y-1/2 z-20 rounded-xl bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 py-1 px-1",
+                disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-black/40 dark:hover:bg-white/15",
+                isListening && "ring-1 ring-red-400/60"
+              )}
+              type="button"
+              disabled={disabled}
+              title={
+                !isSpeechSupported
+                  ? "Voice dictation unavailable; click to grant mic permission."
+                  : isListening
+                    ? "Stop voice input"
+                    : "Start voice input"
+              }
+              aria-pressed={isListening}
+              aria-label="Voice input"
+            >
+              <span className="relative inline-flex items-center justify-center w-7 sm:w-8 h-7 sm:h-8">
+                {/* Recording indicator dot */}
+                {isListening && (
+                  <span className="absolute -top-1 -right-1 inline-flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400/70 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                  </span>
+                )}
+                {isListening ? (
+                  <MicOff className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-red-400" />
+                ) : (
+                  <Mic className="w-3.5 sm:w-4 h-3.5 sm:h-4 dark:text-white" />
+                )}
+              </span>
+            </button>
 
             {/* Submit Button */}
             <button
