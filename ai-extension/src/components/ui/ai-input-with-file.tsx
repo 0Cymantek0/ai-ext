@@ -14,45 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
-import { Toggle } from "@/components/animate-ui/components/radix/toggle";
-
-interface FileDisplayProps {
-  fileName: string;
-  fileSize?: number;
-  onClear: () => void;
-}
-
-function FileDisplay({ fileName, fileSize, onClear }: FileDisplayProps) {
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  return (
-    <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 w-fit px-3 py-1 rounded-lg group border dark:border-white/10">
-      <FileUp className="w-4 h-4 dark:text-white" />
-      <div className="flex flex-col">
-        <span className="text-sm dark:text-white font-medium">{fileName}</span>
-        {fileSize && (
-          <span className="text-xs text-muted-foreground dark:text-white/70">
-            {formatFileSize(fileSize)}
-          </span>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={onClear}
-        className="ml-1 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-        title="Remove file"
-      >
-        <X className="w-3 h-3 dark:text-white" />
-      </button>
-    </div>
-  );
-}
 
 interface AIInputWithFileProps {
   id?: string;
@@ -153,7 +114,7 @@ export function AIInputWithFile({
       };
       // Auto-stop on detected speech end
       rec.onspeechend = () => {
-        try { rec.stop(); } catch {}
+        try { rec.stop(); } catch { }
         setIsListening(false);
       };
       rec.onend = () => {
@@ -195,7 +156,7 @@ export function AIInputWithFile({
       return () => {
         try {
           rec.stop();
-        } catch {}
+        } catch { }
         recognitionRef.current = null;
       };
     } catch (e) {
@@ -206,99 +167,38 @@ export function AIInputWithFile({
   const toggleListening = useCallback(() => {
     if (disabled) return;
 
-    const startWithPermission = async () => {
-      // Proactively request mic permission so the browser prompts immediately.
-      // Keep within the click handler stack to preserve user gesture semantics.
-      const startRecognition = () => {
-        setVoiceError(null);
-        const recNow = recognitionRef.current;
-        if (recNow && isSpeechSupported) {
-          try { recNow.start(); } catch { /* noop */ }
-        } else if (!isSpeechSupported) {
-          setVoiceError("Speech recognition not supported in this browser.");
-        }
-      };
-
-      // If running as a Chrome extension and microphone is optional, request it first
-      try {
-        const hasChrome = typeof window !== "undefined" && typeof (window as any).chrome !== "undefined";
-        const perms = hasChrome ? (window as any).chrome?.permissions : undefined;
-        if (perms) {
-          const alreadyGranted = await new Promise<boolean>((resolve) => {
-            try { perms.contains({ permissions: ["microphone"] }, (granted: boolean) => resolve(granted)); }
-            catch { resolve(false); }
-          });
-          if (!alreadyGranted) {
-            const granted = await new Promise<boolean>((resolve) => {
-              try { perms.request({ permissions: ["microphone"] }, (ok: boolean) => resolve(ok)); }
-              catch { resolve(false); }
-            });
-            if (!granted) {
-              setVoiceError("Microphone permission denied. Enable mic access to use voice.");
-              return;
-            }
-          }
-        }
-      } catch { /* ignore */ }
-
-      if (navigator?.mediaDevices?.getUserMedia) {
-        navigator.mediaDevices
-          .getUserMedia({ audio: true })
-          .then((stream) => {
-            try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-            startRecognition();
-          })
-          .catch(async (permErr: any) => {
-            const name = permErr?.name || "PermissionError";
-
-            // Try requesting Chrome extension optional permission at runtime so the browser shows the prompt.
-            // This only applies when the extension lists 'microphone' under optional_permissions.
-            try {
-              const hasChrome = typeof window !== "undefined" && typeof (window as any).chrome !== "undefined";
-              const perms = hasChrome ? (window as any).chrome?.permissions : undefined;
-              if (perms) {
-                const contains = await new Promise<boolean>((resolve) => {
-                  try { perms.contains({ permissions: ["microphone"] }, (granted: boolean) => resolve(granted)); }
-                  catch { resolve(false); }
-                });
-                if (!contains) {
-                  const requested = await new Promise<boolean>((resolve) => {
-                    try { perms.request({ permissions: ["microphone"] }, (granted: boolean) => resolve(granted)); }
-                    catch { resolve(false); }
-                  });
-                  if (requested) {
-                    // Retry getUserMedia to trigger prompt/stream now that permission is granted
-                    try {
-                      const retryStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                      try { retryStream.getTracks().forEach((t) => t.stop()); } catch {}
-                      startRecognition();
-                      return; // stop further error handling
-                    } catch (retryErr: any) {
-                      // fall through to error message below
-                    }
-                  }
-                }
-              }
-            } catch {
-              // ignore
-            }
-
-            setVoiceError(
-              name === "NotAllowedError" || name === "SecurityError"
-                ? "Microphone permission denied. Enable mic access to use voice."
-                : "Unable to access microphone."
-            );
-          });
-      } else {
-        startRecognition();
-      }
-    };
-
     const rec = recognitionRef.current;
+
     if (isListening) {
-      try { rec?.stop(); } catch {}
+      // Stop listening
+      try {
+        rec?.stop();
+      } catch (e) {
+        console.error('Error stopping recognition:', e);
+      }
+      setIsListening(false);
     } else {
-      void startWithPermission();
+      // Start listening - the browser will automatically prompt for microphone permission
+      if (!isSpeechSupported) {
+        setVoiceError("Speech recognition not supported in this browser.");
+        return;
+      }
+
+      setVoiceError(null);
+
+      try {
+        // Simply start the recognition - this will trigger the browser's native permission dialog
+        rec?.start();
+      } catch (e: any) {
+        console.error('Error starting recognition:', e);
+        const errMsg = e?.message || '';
+        if (errMsg.includes('already started')) {
+          // Recognition is already running, stop it first
+          try { rec?.stop(); } catch { }
+        } else {
+          setVoiceError("Unable to start voice input. Please try again.");
+        }
+      }
     }
   }, [isSpeechSupported, isListening, disabled]);
 
@@ -404,7 +304,7 @@ export function AIInputWithFile({
           className={cn(
             "relative max-w-lg w-full mx-auto",
             isDragging &&
-              "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-2xl"
+            "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-2xl"
           )}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -542,10 +442,10 @@ export function AIInputWithFile({
                 )}
               />
             </button>
-          </div>          
+          </div>
 
           {/* Model Selector and Auto-Context Toggle row below input */}
-          <div className={cn("mt-2 flex items-center gap-2", disabled && "opacity-60 pointer-events-none")}> 
+          <div className={cn("mt-2 flex items-center gap-2", disabled && "opacity-60 pointer-events-none")}>
             <Tooltip sideOffset={6}>
               <TooltipTrigger asChild>
                 <Select
@@ -601,56 +501,56 @@ export function AIInputWithFile({
               </TooltipContent>
             </Tooltip>
 
-            
+
             {/* Auto-Context Toggle Button */}
             {onAutoContextChange && (
               <TooltipProvider openDelay={0} closeDelay={100}>
                 <Tooltip sideOffset={4}>
                   <TooltipTrigger asChild>
                     <button
-                    type="button"
-                    onClick={() => onAutoContextChange(!autoContext)}
-                    disabled={disabled}
-                    className={cn(
-                      "relative h-7 sm:h-8 min-h-[28px] sm:min-h-[32px] px-2 py-0 leading-none rounded-2xl backdrop-blur-md border text-xs shadow-md inline-flex items-center gap-1.5 transition-all duration-200 focus-visible:outline-none",
-                      autoContext
-                        ? "bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/70"
-                        : "bg-white/10 border-white/10 text-white/60 hover:bg-white/15 hover:text-white/80",
-                      disabled && "opacity-50 cursor-not-allowed"
-                    )}
-                    aria-pressed={autoContext}
-                  >
-                    {/* Cursor/Pointer Icon */}
-                    <svg
+                      type="button"
+                      onClick={() => onAutoContextChange(!autoContext)}
+                      disabled={disabled}
                       className={cn(
-                        "w-3.5 h-3.5 transition-colors",
-                        autoContext ? "text-cyan-400/90" : "text-white/60"
+                        "relative h-7 sm:h-8 min-h-[28px] sm:min-h-[32px] px-2 py-0 leading-none rounded-2xl backdrop-blur-md border text-xs shadow-md inline-flex items-center gap-1.5 transition-all duration-200 focus-visible:outline-none",
+                        autoContext
+                          ? "bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/70"
+                          : "bg-white/10 border-white/10 text-white/60 hover:bg-white/15 hover:text-white/80",
+                        disabled && "opacity-50 cursor-not-allowed"
                       )}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
+                      aria-pressed={autoContext}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
-                      />
-                    </svg>
-                    {/* Label with chromatic aberration effect */}
-                    <span 
-                      className={cn(
-                        "font-medium relative",
-                        autoContext && "chromatic-text"
-                      )}
-                      style={autoContext ? {
-                        color: '#e0f2fe',
-                        textShadow: '0.5px 0 0 rgba(255, 0, 255, 0.3), -0.5px 0 0 rgba(0, 255, 255, 0.3)'
-                      } : undefined}
-                    >
-                      Auto context
-                    </span>
+                      {/* Cursor/Pointer Icon */}
+                      <svg
+                        className={cn(
+                          "w-3.5 h-3.5 transition-colors",
+                          autoContext ? "text-cyan-400/90" : "text-white/60"
+                        )}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                        />
+                      </svg>
+                      {/* Label with chromatic aberration effect */}
+                      <span
+                        className={cn(
+                          "font-medium relative",
+                          autoContext && "chromatic-text"
+                        )}
+                        style={autoContext ? {
+                          color: '#e0f2fe',
+                          textShadow: '0.5px 0 0 rgba(255, 0, 255, 0.3), -0.5px 0 0 rgba(0, 255, 255, 0.3)'
+                        } : undefined}
+                      >
+                        Auto context
+                      </span>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-[240px] bg-black/80 text-white border border-white/10 shadow-lg backdrop-blur-sm">
@@ -661,9 +561,9 @@ export function AIInputWithFile({
                 </Tooltip>
               </TooltipProvider>
             )}
+          </div>
         </div>
       </div>
-    </div>
     </div>
   );
 }
