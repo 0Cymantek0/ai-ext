@@ -80,40 +80,35 @@ export function AIInputWithFile({
 
   // Process transcript with Gemini Nano for grammar/spelling correction and filler removal
   const processTranscriptWithNano = useCallback(async (transcript: string): Promise<string> => {
+    console.log("🎤 [Voice Processing] Starting Nano processing for:", transcript);
+
     try {
-      // Check if window.ai is available
-      if (!window.ai?.languageModel) {
-        console.log("Gemini Nano not available, using raw transcript");
-        return transcript;
-      }
+      // Send to background worker for processing (window.ai not available in sidepanel)
+      console.log("� [Voiice Processing] Sending to background worker...");
 
-      // Check availability
-      const availability = await window.ai.languageModel.availability();
-      if (availability.available === "no") {
-        console.log("Gemini Nano not available, using raw transcript");
-        return transcript;
-      }
-
-      // Create a session with system prompt for text correction
-      const session = await window.ai.languageModel.create({
-        temperature: 0.3, // Lower temperature for more consistent corrections
-        initialPrompts: [
-          {
-            role: "system",
-            content: "You are a text correction assistant. Fix grammar, spelling, remove filler words (um, uh, like, you know, etc.), and slightly improve clarity while preserving the original meaning and intent. Return only the corrected text without explanations or quotes."
-          }
-        ]
+      const response = await chrome.runtime.sendMessage({
+        kind: "AI_PROCESS_TEXT_CORRECTION",
+        requestId: crypto.randomUUID(),
+        payload: {
+          text: transcript
+        }
       });
 
-      // Process the transcript
-      const correctedText = await session.prompt(transcript);
+      console.log("📥 [Voice Processing] Response from background:", response);
 
-      // Clean up session
-      session.destroy();
-
-      return correctedText.trim();
+      if (response.success && response.data?.correctedText) {
+        const correctedText = response.data.correctedText;
+        console.log("✨ [Voice Processing] Nano processing complete:", {
+          original: transcript,
+          corrected: correctedText
+        });
+        return correctedText.trim();
+      } else {
+        console.warn("⚠️ [Voice Processing] No corrected text in response, using original");
+        return transcript;
+      }
     } catch (error) {
-      console.error("Error processing transcript with Nano:", error);
+      console.error("❌ [Voice Processing] Error processing transcript with Nano:", error);
       // Fall back to raw transcript on error
       return transcript;
     }
@@ -196,10 +191,15 @@ export function AIInputWithFile({
           }
         }
         if (finalTranscript) {
+          console.log("🎙️ [Voice Input] Final transcript received:", finalTranscript);
+
           // Process transcript with Gemini Nano
           setIsProcessingVoice(true);
+          console.log("⏳ [Voice Input] Processing state set to true");
+
           processTranscriptWithNano(finalTranscript)
             .then((processedText) => {
+              console.log("✅ [Voice Input] Processing complete, updating input value");
               setInputValue((prev) => {
                 const next = (prev ? prev + " " : "") + processedText.trim();
                 // Ensure textarea grows as text is added
@@ -208,7 +208,7 @@ export function AIInputWithFile({
               });
             })
             .catch((error) => {
-              console.error("Error processing transcript:", error);
+              console.error("❌ [Voice Input] Error processing transcript:", error);
               // Fall back to raw transcript
               setInputValue((prev) => {
                 const next = (prev ? prev + " " : "") + finalTranscript.trim();
@@ -217,6 +217,7 @@ export function AIInputWithFile({
               });
             })
             .finally(() => {
+              console.log("🏁 [Voice Input] Processing complete, setting state to false");
               setIsProcessingVoice(false);
             });
         }

@@ -13,6 +13,7 @@ export type MessageKind =
   | "AI_PROCESS_STREAM_END"
   | "AI_PROCESS_STREAM_ERROR"
   | "AI_PROCESS_CANCEL"
+  | "AI_PROCESS_TEXT_CORRECTION"
   | "POCKET_CREATE"
   | "POCKET_UPDATE"
   | "POCKET_LIST"
@@ -111,6 +112,10 @@ export interface AiStreamErrorPayload {
 
 export interface AiCancelRequestPayload {
   requestId: string;
+}
+
+export interface AiTextCorrectionPayload {
+  text: string;
 }
 
 export interface ContentListPayload {

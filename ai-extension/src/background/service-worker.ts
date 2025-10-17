@@ -938,6 +938,53 @@ messageRouter.registerHandler("AI_PROCESS_CANCEL", async (payload) => {
   return await streamingHandler.cancelStreaming(payload as any);
 });
 
+// Register text correction handler for voice input post-processing
+messageRouter.registerHandler("AI_PROCESS_TEXT_CORRECTION", async (payload: any) => {
+  logger.info("Handler", "AI_PROCESS_TEXT_CORRECTION", payload);
+  try {
+    const { text } = payload;
+    
+    if (!text || typeof text !== 'string') {
+      throw new Error("Invalid text provided for correction");
+    }
+
+    // Check if Nano is available
+    const availability = await aiManager.checkModelAvailability();
+    if (availability === "no") {
+      logger.warn("Handler", "Nano not available, returning original text");
+      return { correctedText: text };
+    }
+
+    // Create a session for text correction
+    const sessionId = await aiManager.initializeGeminiNano({
+      temperature: 0.3,
+      initialPrompts: [
+        {
+          role: "system",
+          content: "You are a text correction assistant. Fix grammar, spelling, remove filler words (um, uh, like, you know, etc.), and slightly improve clarity while preserving the original meaning and intent. Return only the corrected text without explanations or quotes."
+        }
+      ]
+    });
+
+    // Process the text
+    const correctedText = await aiManager.processPrompt(sessionId, text);
+
+    // Clean up session
+    aiManager.destroySession(sessionId);
+
+    logger.info("Handler", "Text correction complete", {
+      original: text,
+      corrected: correctedText
+    });
+
+    return { correctedText };
+  } catch (error) {
+    logger.error("Handler", "AI_PROCESS_TEXT_CORRECTION error", error);
+    // Return original text on error
+    return { correctedText: payload.text };
+  }
+});
+
 // Register conversation handlers (Requirement 8.8, 7.6)
 messageRouter.registerHandler("CONVERSATION_LIST", async (payload) => {
   logger.info("Handler", "CONVERSATION_LIST", payload);
