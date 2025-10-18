@@ -1,6 +1,6 @@
 "use client";
 
-import { Cloud, CornerRightUp, Cpu, FileUp, Paperclip, Sparkles, X, Zap, Mic, MicOff } from "lucide-react";
+import { Cloud, CornerRightUp, Cpu, FileUp, Plus, Sparkles, X, Zap, Mic, MicOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -396,7 +396,7 @@ export function AIInputWithFile({
           className={cn(
             "relative max-w-lg w-full mx-auto",
             isDragging &&
-            "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-2xl"
+            "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-full"
           )}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -407,7 +407,7 @@ export function AIInputWithFile({
             {/* Attachment Button */}
             <div
               className={cn(
-                "absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center h-7 sm:h-8 w-7 sm:w-8 rounded-lg bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10",
+                "absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 p-0 flex items-center justify-center",
                 disabled
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:cursor-pointer hover:bg-black/40 dark:hover:bg-white/15",
@@ -415,14 +415,14 @@ export function AIInputWithFile({
               onClick={() => !disabled && openFilePicker()}
               title={`Attach file (${accept || 'any type'})`}
             >
-              <Paperclip className="w-3.5 sm:w-4 h-3.5 sm:h-4 transition-opacity transform scale-x-[-1] rotate-45 dark:text-white" />
+              <Plus className="w-3.5 sm:w-4 h-3.5 sm:h-4 dark:text-white" />
             </div>
 
             {/* Model Selector moved below input */}
 
             {/* Drag and Drop Overlay */}
             {isDragging && (
-              <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 rounded-2xl border-2 border-dashed border-blue-500 z-10">
+              <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 rounded-full border-2 border-dashed border-blue-500 z-10">
                 <div className="text-center">
                   <FileUp className="w-8 h-8 mx-auto mb-2 text-blue-500" />
                   <p className="text-sm text-blue-600 dark:text-blue-400">
@@ -437,7 +437,7 @@ export function AIInputWithFile({
               placeholder={isDragging ? "Drop file here..." : placeholder}
               disabled={disabled}
               className={cn(
-                "max-w-lg bg-black/30 dark:bg-white/10 backdrop-blur-sm w-full rounded-2xl sm:rounded-3xl pl-14 sm:pl-16 pr-12 sm:pr-16 border border-white/10 shadow-lg",
+                "max-w-lg bg-black/30 dark:bg-white/10 backdrop-blur-sm w-full rounded-full pl-14 sm:pl-16 pr-12 sm:pr-16 border border-white/10 shadow-lg",
                 "placeholder:text-white/40",
                 "ring-0",
                 "text-white text-wrap py-3.5 sm:py-4 leading-[1.4]",
@@ -484,7 +484,7 @@ export function AIInputWithFile({
             <button
               onClick={toggleListening}
               className={cn(
-                "absolute right-10 sm:right-12 top-1/2 -translate-y-1/2 z-20 rounded-xl bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 py-1 px-1",
+                "absolute right-10 sm:right-12 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 p-0 flex items-center justify-center",
                 disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-black/40 dark:hover:bg-white/15",
                 isListening && "ring-1 ring-red-400/60",
                 isProcessingVoice && "ring-1 ring-cyan-400/60"
@@ -504,14 +504,12 @@ export function AIInputWithFile({
               aria-label="Voice input"
             >
               <span className="relative inline-flex items-center justify-center w-7 sm:w-8 h-7 sm:h-8">
-                {/* Recording indicator dot */}
                 {isListening && (
                   <span className="absolute -top-1 -right-1 inline-flex h-2.5 w-2.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400/70 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                   </span>
                 )}
-                {/* Processing indicator - shimmer effect */}
                 {isProcessingVoice && (
                   <span className="absolute -top-1 -right-1 inline-flex h-2.5 w-2.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400/70 opacity-75"></span>
@@ -533,7 +531,7 @@ export function AIInputWithFile({
             <button
               onClick={handleSubmit}
               className={cn(
-                "absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 rounded-xl bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 py-1 px-1",
+                "absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 p-0 flex items-center justify-center",
                 disabled ? "opacity-50 cursor-not-allowed" : "",
               )}
               type="button"
