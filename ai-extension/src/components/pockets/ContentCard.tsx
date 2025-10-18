@@ -24,10 +24,16 @@ export function ContentCard({
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString();
+    const timeStr = date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+
+    if (diffDays === 0) return `Today, ${timeStr}`;
+    if (diffDays === 1) return `Yesterday, ${timeStr}`;
+    if (diffDays < 7) return `${diffDays} days ago, ${timeStr}`;
+    return `${date.toLocaleDateString()}, ${timeStr}`;
   };
 
   const getContentIcon = (type: string) => {
@@ -191,7 +197,7 @@ export function ContentCard({
       className={cn(
         "group relative flex flex-col p-3 rounded-lg border",
         "hover:bg-accent/50 cursor-pointer transition-colors",
-        "bg-card h-full",
+        "bg-card",
         isNote && "border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20"
       )}
       onClick={() => onPreview(content)}
@@ -208,43 +214,31 @@ export function ContentCard({
         </div>
       )}
 
-      {/* Icon/Preview */}
-      <div className={cn(
-        "w-full h-24 rounded-md flex items-center justify-center mb-2",
-        isNote 
-          ? "bg-amber-100/50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500" 
-          : "bg-accent/30 text-muted-foreground"
-      )}>
-        {getContentIcon(content.type)}
-      </div>
-
       {/* Content */}
-      <div className="flex-1">
-        <h3 className="font-semibold text-xs truncate mb-1">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="font-semibold text-base line-clamp-2 pr-16">
           {getContentTitle(content)}
         </h3>
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+        <p className="text-xs text-muted-foreground/70 line-clamp-3">
           {getContentPreview(content)}
         </p>
-        <div className="text-xs text-muted-foreground">
-          <div className="capitalize">{content.type}</div>
-          <div>{formatDate(content.capturedAt)}</div>
-        </div>
       </div>
 
-      {/* Actions */}
-      <div
-        className={cn(
-          "mt-2 flex gap-1 justify-end transition-opacity",
-          showActions ? "opacity-100" : "opacity-0"
-        )}
-      >
+      {/* Bottom Row: Date and Delete Button */}
+      <div className="flex items-center justify-between mt-2">
+        <div className="text-xs text-muted-foreground/50">
+          {formatDate(content.capturedAt)}
+        </div>
+
         <Button
           variant="ghost"
           size="sm"
           onClick={handleDelete}
           title="Delete content"
-          className="h-7 w-7 p-0"
+          className={cn(
+            "h-7 w-7 p-0 transition-opacity",
+            showActions ? "opacity-100" : "opacity-0"
+          )}
         >
           <svg
             className="w-4 h-4"

@@ -162,7 +162,7 @@ export function NoteList({
     <div
       key={note.id}
       className={cn(
-        "group relative flex flex-col p-3 rounded-lg border h-[140px]",
+        "group relative flex flex-col p-3 rounded-lg border",
         "hover:bg-accent/50 cursor-pointer transition-colors",
         "bg-card border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20",
         selectedNotes.includes(note.id!) && "ring-2 ring-amber-500"
@@ -180,50 +180,51 @@ export function NoteList({
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 flex flex-col">
-        <h3 className="font-semibold text-base mb-2 line-clamp-2 pr-16">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="font-semibold text-base line-clamp-2 pr-16">
           {note.title || "Untitled Note"}
         </h3>
 
         {/* Preview */}
-        <p className="text-xs text-muted-foreground/70 line-clamp-3 flex-1">
+        <p className="text-xs text-muted-foreground/70 line-clamp-3">
           {getPreview(note.content, 100)}
         </p>
-
-        {/* Date - Bottom */}
-        <div className="text-xs text-muted-foreground/60 mt-auto pt-1">
-          {formatDate(note.updatedAt || note.createdAt || Date.now())}
-        </div>
       </div>
 
-      {/* Delete Button - Bottom Right */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className={cn(
-          "absolute bottom-2 right-2 h-7 w-7 p-0 transition-opacity",
-          showActions === note.id ? "opacity-100" : "opacity-0"
-        )}
-        onClick={(e) => {
-          e.stopPropagation();
-          onDeleteNote(note.id!);
-        }}
-        title="Delete note"
-      >
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      {/* Bottom Row: Date and Delete Button */}
+      <div className="flex items-center justify-between mt-2">
+        <div className="text-xs text-muted-foreground/50">
+          {formatDate(note.updatedAt || note.createdAt || Date.now())}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "h-7 w-7 p-0 transition-opacity",
+            showActions === note.id ? "opacity-100" : "opacity-0"
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteNote(note.id!);
+          }}
+          title="Delete note"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-          />
-        </svg>
-      </Button>
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+        </Button>
+      </div>
     </div>
   );
 
