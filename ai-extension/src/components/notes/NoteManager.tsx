@@ -47,6 +47,53 @@ export function NoteManager({
     filterNotes();
   }, [notes, searchQuery, selectedCategory]);
 
+  // Listen for background content update events to keep the list fresh
+  React.useEffect(() => {
+    const onMessage = (message: any) => {
+      try {
+        if (!message || !message.kind) return;
+        if (message.kind === "CONTENT_CREATED" && message.payload?.content) {
+          const created = message.payload.content as any;
+          if (created.type === "note" && (!pocketId || created.pocketId === pocketId)) {
+            const newNote: NoteData = {
+              id: created.id,
+              title: created.metadata?.title || "Untitled Note",
+              content: created.content || "",
+              tags: created.metadata?.tags || [],
+              category: created.metadata?.category,
+              createdAt: created.capturedAt,
+              updatedAt: created.metadata?.updatedAt || created.capturedAt,
+              pocketId: created.pocketId,
+            };
+            setNotes((prev) => [newNote, ...prev.filter((n) => n.id !== newNote.id)]);
+          }
+        } else if (message.kind === "CONTENT_UPDATED" && message.payload?.content) {
+          const updated = message.payload.content as any;
+          if (updated.type === "note" && (!pocketId || updated.pocketId === pocketId)) {
+            const updatedNote: NoteData = {
+              id: updated.id,
+              title: updated.metadata?.title || "Untitled Note",
+              content: updated.content || "",
+              tags: updated.metadata?.tags || [],
+              category: updated.metadata?.category,
+              createdAt: updated.capturedAt,
+              updatedAt: updated.metadata?.updatedAt || updated.capturedAt,
+              pocketId: updated.pocketId,
+            };
+            setNotes((prev) => prev.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
+          }
+        } else if (message.kind === "CONTENT_DELETED" && message.payload?.contentId) {
+          const deletedId = message.payload.contentId as string;
+          setNotes((prev) => prev.filter((n) => n.id !== deletedId));
+        }
+      } catch (err) {
+        console.error("Failed to handle note update message", err);
+      }
+    };
+    chrome.runtime.onMessage.addListener(onMessage);
+    return () => chrome.runtime.onMessage.removeListener(onMessage);
+  }, [pocketId]);
+
   const loadNotes = async () => {
     setIsLoading(true);
     try {

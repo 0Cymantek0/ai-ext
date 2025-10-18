@@ -47,6 +47,33 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
     filterAndSortContents();
   }, [contents, searchQuery, sortBy]);
 
+  // Listen for background content updates (create/update/delete)
+  React.useEffect(() => {
+    const onMessage = (message: any) => {
+      try {
+        if (!message || !message.kind) return;
+        if (message.kind === "CONTENT_CREATED" && message.payload?.content) {
+          const created = message.payload.content as CapturedContent;
+          if (created.pocketId === pocket.id) {
+            setContents((prev) => [created, ...prev.filter((c) => c.id !== created.id)]);
+          }
+        } else if (message.kind === "CONTENT_UPDATED" && message.payload?.content) {
+          const updated = message.payload.content as CapturedContent;
+          if (updated.pocketId === pocket.id) {
+            setContents((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+          }
+        } else if (message.kind === "CONTENT_DELETED" && message.payload?.contentId) {
+          const deletedId = message.payload.contentId as string;
+          setContents((prev) => prev.filter((c) => c.id !== deletedId));
+        }
+      } catch (err) {
+        console.error("Failed to handle content update message", err);
+      }
+    };
+    chrome.runtime.onMessage.addListener(onMessage);
+    return () => chrome.runtime.onMessage.removeListener(onMessage);
+  }, [pocket.id]);
+
   const loadContents = async () => {
     setIsLoading(true);
     try {
@@ -56,10 +83,12 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
         payload: { pocketId: pocket.id },
       });
 
-      if (response.success && response.data.contents) {
-        setContents(response.data.contents);
+      // Service worker returns { content: CapturedContent[] }
+      const items = response?.data?.content || response?.data?.contents;
+      if (response.success && Array.isArray(items)) {
+        setContents(items);
       } else {
-        console.error("Failed to load contents:", response.error);
+        console.error("Failed to load contents:", response?.error);
         setContents([]);
       }
     } catch (error) {

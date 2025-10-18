@@ -664,13 +664,24 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           },
         });
         
+        // Fetch updated record for ACK/broadcast
+        const updatedRecord = await indexedDBManager.getContent(metadata.contentId);
+        if (updatedRecord) {
+          // Broadcast update event so UI refreshes instantly
+          await messageRouter.sendToSidePanel({
+            kind: "CONTENT_UPDATED",
+            payload: { content: updatedRecord },
+          } as any);
+        }
+        
         logger.info("Handler", "Note updated successfully", { contentId: metadata.contentId });
         
         return {
           status: "success",
           contentId: metadata.contentId,
           type: "note",
-          preview: content.substring(0, 100),
+          content: updatedRecord,
+          preview: (content || "").substring(0, 100),
         };
       } else {
         // Create new note
@@ -690,6 +701,15 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           sanitize: false,
         });
         
+        // Fetch created record for ACK/broadcast
+        const createdRecord = await indexedDBManager.getContent(processed.contentId);
+        if (createdRecord) {
+          await messageRouter.sendToSidePanel({
+            kind: "CONTENT_CREATED",
+            payload: { content: createdRecord },
+          } as any);
+        }
+        
         logger.info("Handler", "Note created successfully", {
           contentId: processed.contentId,
           type: processed.type,
@@ -700,6 +720,7 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           status: "success",
           contentId: processed.contentId,
           type: processed.type,
+          content: createdRecord,
           preview: processed.preview,
         };
       }
@@ -743,6 +764,19 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           sourceUrl: sender.tab?.url || "",
           sanitize: true,
         });
+    
+    // Fetch created record and broadcast event for UI live updates
+    try {
+      const createdRecord = await indexedDBManager.getContent(processed.contentId);
+      if (createdRecord) {
+        await messageRouter.sendToSidePanel({
+          kind: "CONTENT_CREATED",
+          payload: { content: createdRecord },
+        } as any);
+      }
+    } catch (e) {
+      logger.warn("Handler", "Failed to broadcast content created event", e);
+    }
     
     logger.info("Handler", "CAPTURE_REQUEST completed", {
       contentId: processed.contentId,
@@ -999,6 +1033,17 @@ messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
   try {
     await indexedDBManager.init();
     await indexedDBManager.deleteContent(payload.contentId);
+
+    // Broadcast deletion so UI can update instantly
+    try {
+      await messageRouter.sendToSidePanel({
+        kind: "CONTENT_DELETED",
+        payload: { contentId: payload.contentId },
+      } as any);
+    } catch (e) {
+      logger.warn("Handler", "Failed to broadcast content deleted event", e);
+    }
+
     logger.info("Handler", "CONTENT_DELETE success", { contentId: payload.contentId });
     return { success: true };
   } catch (error) {
