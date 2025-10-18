@@ -221,27 +221,28 @@ export class ContentCapture {
       editablePreview = {
         id: `preview-${Date.now()}`,
         text,
-        htmlContent: undefined,
-        context: undefined,
         sourceLocation: { url: result.metadata.url },
         timestamp: result.timestamp,
         editable: true,
         preview: this.truncate(text),
       };
+
     } else if (options.mode === "element") {
       const first = result.content?.elements?.[0];
       if (first) {
         const text = first.textContent || "";
-        editablePreview = {
+        const previewObj: EditablePreview = {
           id: `preview-${Date.now()}`,
           text,
-          htmlContent: first.innerHTML || undefined,
-          context: undefined,
           sourceLocation: { url: result.metadata.url, elementPath: first.selector },
           timestamp: result.timestamp,
           editable: true,
           preview: this.truncate(text),
         };
+        if (first.innerHTML) {
+          previewObj.htmlContent = first.innerHTML;
+        }
+        editablePreview = previewObj;
       }
     }
 
