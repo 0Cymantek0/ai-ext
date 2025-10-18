@@ -27,6 +27,13 @@ export default defineConfig({
         sidepanel: "src/sidepanel/sidepanel.html",
         offscreen: "src/offscreen/offscreen.html",
       },
+      output: {
+        manualChunks: undefined,
+      },
+    },
+    modulePreload: {
+      polyfill: false,
+      resolveDependencies: () => [],
     },
   },
 });

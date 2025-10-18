@@ -50,12 +50,15 @@ export function NoteManager({
   const loadNotes = async () => {
     setIsLoading(true);
     try {
+      console.log("Loading notes for pocketId:", pocketId || "(all)");
       // Load notes from the specified pocket or all pockets
       const response = await chrome.runtime.sendMessage({
         kind: "CONTENT_LIST",
         requestId: crypto.randomUUID(),
         payload: { pocketId: pocketId || "" },
       });
+
+      console.log("CONTENT_LIST response:", response);
 
       if (response.success && response.data.content) {
         // Filter only note-type content
@@ -72,6 +75,7 @@ export function NoteManager({
             pocketId: item.pocketId,
           }));
 
+        console.log("Loaded notes:", noteContent.length, "notes", noteContent);
         setNotes(noteContent);
       } else {
         console.error("Failed to load notes:", response.error);
@@ -187,6 +191,14 @@ export function NoteManager({
   const handleSaveNote = async (noteData: Omit<NoteData, "id" | "createdAt" | "updatedAt">) => {
     setIsLoading(true);
     try {
+      const targetPocketId = noteData.pocketId || pocketId || "";
+      console.log("Saving note:", { 
+        isUpdate: !!editingNote?.id, 
+        noteData,
+        pocketId: targetPocketId,
+        propPocketId: pocketId
+      });
+
       if (editingNote?.id) {
         // Update existing note
         const response = await chrome.runtime.sendMessage({
@@ -194,7 +206,7 @@ export function NoteManager({
           requestId: crypto.randomUUID(),
           payload: {
             mode: "note",
-            pocketId: noteData.pocketId || pocketId || "",
+            pocketId: targetPocketId,
             content: noteData.content,
             metadata: {
               title: noteData.title,
@@ -206,8 +218,11 @@ export function NoteManager({
           },
         });
 
+        console.log("Update response:", response);
+
         if (!response.success) {
-          throw new Error(response.error || "Failed to update note");
+          const errorMsg = response.error?.message || response.error || "Failed to update note";
+          throw new Error(errorMsg);
         }
       } else {
         // Create new note
@@ -216,7 +231,7 @@ export function NoteManager({
           requestId: crypto.randomUUID(),
           payload: {
             mode: "note",
-            pocketId: noteData.pocketId || pocketId || "",
+            pocketId: targetPocketId,
             content: noteData.content,
             metadata: {
               title: noteData.title,
@@ -227,8 +242,11 @@ export function NoteManager({
           },
         });
 
+        console.log("Create response:", response, "pocketId used:", targetPocketId);
+
         if (!response.success) {
-          throw new Error(response.error || "Failed to create note");
+          const errorMsg = response.error?.message || response.error || "Failed to create note";
+          throw new Error(errorMsg);
         }
       }
 
@@ -238,7 +256,8 @@ export function NoteManager({
       setEditingNote(null);
     } catch (error) {
       console.error("Error saving note:", error);
-      alert("Failed to save note. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to save note. Please try again.";
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }

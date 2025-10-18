@@ -102,25 +102,41 @@ export function ContentCard({
   };
 
   if (viewMode === "list") {
+    const isNote = content.type === "note";
+    
     return (
       <div
         className={cn(
           "group relative flex items-start gap-4 p-4 rounded-lg border",
           "hover:bg-accent/50 cursor-pointer transition-colors",
-          "bg-card"
+          "bg-card",
+          isNote && "border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20"
         )}
         onClick={() => onPreview(content)}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
       >
+        {/* Note Badge */}
+        {isNote && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-medium text-amber-700 dark:text-amber-400">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Note
+          </div>
+        )}
+
         {/* Icon */}
-        <div className="shrink-0 mt-1 text-muted-foreground">
+        <div className={cn(
+          "shrink-0 mt-1",
+          isNote ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"
+        )}>
           {getContentIcon(content.type)}
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm truncate mb-1">
+          <h3 className="font-semibold text-sm truncate mb-1 pr-16">
             {getContentTitle(content)}
           </h3>
           <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
@@ -168,19 +184,37 @@ export function ContentCard({
   }
 
   // Grid view
+  const isNote = content.type === "note";
+  
   return (
     <div
       className={cn(
         "group relative flex flex-col p-3 rounded-lg border",
         "hover:bg-accent/50 cursor-pointer transition-colors",
-        "bg-card h-full"
+        "bg-card h-full",
+        isNote && "border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20"
       )}
       onClick={() => onPreview(content)}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
+      {/* Note Badge */}
+      {isNote && (
+        <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-medium text-amber-700 dark:text-amber-400 z-10">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Note
+        </div>
+      )}
+
       {/* Icon/Preview */}
-      <div className="w-full h-24 rounded-md flex items-center justify-center bg-accent/30 mb-2 text-muted-foreground">
+      <div className={cn(
+        "w-full h-24 rounded-md flex items-center justify-center mb-2",
+        isNote 
+          ? "bg-amber-100/50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500" 
+          : "bg-accent/30 text-muted-foreground"
+      )}>
         {getContentIcon(content.type)}
       </div>
 
