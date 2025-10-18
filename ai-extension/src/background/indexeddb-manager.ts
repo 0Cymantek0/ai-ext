@@ -57,6 +57,9 @@ export interface ContentMetadata {
   selectionContext?: string;
   elementSelector?: string;
   dimensions?: { width: number; height: number };
+  tags?: string[];
+  category?: string;
+  updatedAt?: number;
 }
 
 export interface CapturedContent {

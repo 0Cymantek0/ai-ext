@@ -21,5 +21,19 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    rollupOptions: {
+      input: {
+        serviceWorker: "src/background/service-worker.ts",
+        sidepanel: "src/sidepanel/sidepanel.html",
+        offscreen: "src/offscreen/offscreen.html",
+      },
+      output: {
+        manualChunks: undefined,
+      },
+    },
+    modulePreload: {
+      polyfill: false,
+      resolveDependencies: () => [],
+    },
   },
 });

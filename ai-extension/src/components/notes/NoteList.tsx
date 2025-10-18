@@ -183,12 +183,20 @@ export function NoteList({
               className={cn(
                 "group relative flex items-start gap-3 p-4 rounded-lg border",
                 "hover:bg-accent/50 cursor-pointer transition-colors",
-                "bg-card",
-                selectedNotes.includes(note.id!) && "ring-2 ring-primary"
+                "bg-card border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20",
+                selectedNotes.includes(note.id!) && "ring-2 ring-amber-500"
               )}
               onMouseEnter={() => setShowActions(note.id!)}
               onMouseLeave={() => setShowActions(null)}
             >
+              {/* Note Badge */}
+              <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-medium text-amber-700 dark:text-amber-400">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Note
+              </div>
+
               {/* Selection Checkbox */}
               <input
                 type="checkbox"
@@ -198,18 +206,25 @@ export function NoteList({
                 onClick={(e) => e.stopPropagation()}
               />
 
+              {/* Note Icon */}
+              <div className="shrink-0 mt-1 text-amber-600 dark:text-amber-500">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+
               {/* Content */}
               <div 
                 className="flex-1 min-w-0"
                 onClick={() => onEditNote(note)}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-base truncate pr-2">
+                  <h3 className="font-semibold text-base truncate pr-20">
                     {note.title || "Untitled Note"}
                   </h3>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
                     {note.category && (
-                      <span className="px-2 py-1 bg-accent rounded-full">
+                      <span className="px-2 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-amber-700 dark:text-amber-400">
                         {note.category}
                       </span>
                     )}
@@ -228,13 +243,13 @@ export function NoteList({
                     {note.tags.slice(0, 4).map((tag) => (
                       <span
                         key={tag}
-                        className="px-2 py-0.5 bg-accent/70 rounded-full text-xs"
+                        className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs text-amber-700 dark:text-amber-400"
                       >
                         #{tag}
                       </span>
                     ))}
                     {note.tags.length > 4 && (
-                      <span className="px-2 py-0.5 bg-accent/70 rounded-full text-xs">
+                      <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs text-amber-700 dark:text-amber-400">
                         +{note.tags.length - 4}
                       </span>
                     )}

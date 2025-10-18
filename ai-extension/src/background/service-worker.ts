@@ -4,11 +4,28 @@
  * Requirements: 1.7, 15.4
  */
 
+// Polyfill for Vite's preload helper in service worker context
+// Service workers don't have access to document or window, so we provide minimal polyfills
+if (typeof document === 'undefined') {
+  (globalThis as any).document = {
+    createElement: () => ({ rel: '', href: '' }),
+    head: { appendChild: () => {} },
+  };
+}
+
+if (typeof window === 'undefined') {
+  (globalThis as any).window = globalThis;
+}
+
 import { logger, performanceMonitor } from "./monitoring.js";
 import { getQuotaManager } from "./quota-manager.js";
 import { AIManager } from "./ai-manager.js";
 import { CloudAIManager } from "./cloud-ai-manager.js";
 import { getStreamingHandler } from "./streaming-handler.js";
+import { indexedDBManager } from "./indexeddb-manager.js";
+import { contentProcessor } from "./content-processor.js";
+import { vectorSearchService } from "./vector-search-service.js";
+import * as abbreviationStorage from "./abbreviation-storage.js";
 
 type ServiceWorkerState = {
   initialized: boolean;
@@ -578,17 +595,120 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
   logger.info("Handler", "CAPTURE_REQUEST", payload);
   
   try {
-    const { mode, pocketId } = payload as { mode: string; pocketId: string };
+    const { mode, pocketId, content, metadata } = payload as { 
+      mode: string; 
+      pocketId: string;
+      content?: any;
+      metadata?: any;
+    };
     
     // Validate payload
-    if (!mode || !pocketId) {
-      throw new Error("Missing required fields: mode and pocketId");
+    if (!mode) {
+      throw new Error("Missing required field: mode");
     }
     
-    // Get the active tab
+    // For notes, pocketId can be empty string (means no specific pocket)
+    if (mode !== "note" && !pocketId) {
+      throw new Error("Missing required field: pocketId");
+    }
+    
+    // Handle direct note creation (from side panel)
+    if (mode === "note" && content !== undefined) {
+      logger.info("Handler", "Processing direct note creation", { 
+        hasContentId: !!metadata?.contentId,
+        contentLength: content?.length,
+        pocketId: pocketId || "(empty)"
+      });
+      
+      await indexedDBManager.init();
+      
+      // Ensure we have a valid pocketId - create default "Notes" pocket if needed
+      let targetPocketId = pocketId;
+      if (!targetPocketId || targetPocketId === "") {
+        logger.info("Handler", "No pocketId provided, checking for default Notes pocket");
+        
+        // Check if a "Notes" pocket exists
+        const pockets = await indexedDBManager.listPockets();
+        let notesPocket = pockets.find(p => p.name === "Notes" || p.name === "My Notes");
+        
+        if (!notesPocket) {
+          // Create default Notes pocket
+          logger.info("Handler", "Creating default Notes pocket");
+          targetPocketId = await indexedDBManager.createPocket({
+            name: "Notes",
+            description: "Default pocket for notes",
+            tags: ["notes"],
+            color: "#3b82f6",
+            contentIds: [],
+          });
+          logger.info("Handler", "Default Notes pocket created", { pocketId: targetPocketId });
+        } else {
+          targetPocketId = notesPocket.id;
+          logger.info("Handler", "Using existing Notes pocket", { pocketId: targetPocketId });
+        }
+      }
+      
+      // Check if this is an update (contentId in metadata)
+      if (metadata?.contentId) {
+        // Update existing note
+        logger.info("Handler", "Updating existing note", { contentId: metadata.contentId });
+        
+        await indexedDBManager.updateContent(metadata.contentId, {
+          content: content,
+          metadata: {
+            title: metadata.title,
+            tags: metadata.tags,
+            category: metadata.category,
+            domain: "",
+            updatedAt: Date.now(),
+          },
+        });
+        
+        logger.info("Handler", "Note updated successfully", { contentId: metadata.contentId });
+        
+        return {
+          status: "success",
+          contentId: metadata.contentId,
+          type: "note",
+          preview: content.substring(0, 100),
+        };
+      } else {
+        // Create new note
+        logger.info("Handler", "Creating new note", { pocketId: targetPocketId });
+        
+        const processed = await contentProcessor.processContent({
+          pocketId: targetPocketId,
+          mode: "note",
+          content: { text: content, type: "note" },
+          metadata: {
+            title: metadata?.title || "Untitled Note",
+            tags: metadata?.tags,
+            category: metadata?.category,
+            domain: "",
+          },
+          sourceUrl: "",
+          sanitize: false,
+        });
+        
+        logger.info("Handler", "Note created successfully", {
+          contentId: processed.contentId,
+          type: processed.type,
+          pocketId: targetPocketId,
+        });
+        
+        return {
+          status: "success",
+          contentId: processed.contentId,
+          type: processed.type,
+          preview: processed.preview,
+        };
+      }
+    }
+    
+    // Handle content script-based captures (full-page, selection, element)
     const tabId = sender.tab?.id;
     if (!tabId) {
-      throw new Error("No active tab found");
+      throw new Error("No active tab found for content capture");
     }
     
     // Send capture request to content script
@@ -604,7 +724,6 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
     const captureResult = (response.data as any).result;
     
     // Process and store the captured content
-    const { contentProcessor } = await import("./content-processor.js");
     
     // Use enhanced processing for full-page captures
     const processed = captureResult.mode === "full-page"
@@ -750,7 +869,6 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
 messageRouter.registerHandler("POCKET_CREATE", async (payload: any) => {
   logger.info("Handler", "POCKET_CREATE", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     const pocketId = await indexedDBManager.createPocket(payload);
     const pocket = await indexedDBManager.getPocket(pocketId);
@@ -765,7 +883,6 @@ messageRouter.registerHandler("POCKET_CREATE", async (payload: any) => {
 messageRouter.registerHandler("POCKET_UPDATE", async (payload: any) => {
   logger.info("Handler", "POCKET_UPDATE", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     await indexedDBManager.updatePocket(payload.id, payload.updates);
     const pocket = await indexedDBManager.getPocket(payload.id);
@@ -780,7 +897,6 @@ messageRouter.registerHandler("POCKET_UPDATE", async (payload: any) => {
 messageRouter.registerHandler("POCKET_LIST", async (payload) => {
   logger.info("Handler", "POCKET_LIST", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     const pockets = await indexedDBManager.listPockets();
     logger.info("Handler", "POCKET_LIST success", { count: pockets.length });
@@ -794,7 +910,6 @@ messageRouter.registerHandler("POCKET_LIST", async (payload) => {
 messageRouter.registerHandler("POCKET_DELETE", async (payload: any) => {
   logger.info("Handler", "POCKET_DELETE", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     await indexedDBManager.deletePocket(payload.id);
     logger.info("Handler", "POCKET_DELETE success", { id: payload.id });
@@ -809,14 +924,13 @@ messageRouter.registerHandler("POCKET_DELETE", async (payload: any) => {
 messageRouter.registerHandler("CONTENT_LIST", async (payload: any) => {
   logger.info("Handler", "CONTENT_LIST", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
-    const contents = await indexedDBManager.getContentByPocket(payload.pocketId);
+    const content = await indexedDBManager.getContentByPocket(payload.pocketId);
     logger.info("Handler", "CONTENT_LIST result", {
       pocketId: payload.pocketId,
-      count: contents.length,
+      count: content.length,
     });
-    return { contents };
+    return { content };
   } catch (error) {
     logger.error("Handler", "CONTENT_LIST error", error);
     throw error;
@@ -826,7 +940,6 @@ messageRouter.registerHandler("CONTENT_LIST", async (payload: any) => {
 messageRouter.registerHandler("CONTENT_GET", async (payload: any) => {
   logger.info("Handler", "CONTENT_GET", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     const content = await indexedDBManager.getContent(payload.contentId);
     logger.info("Handler", "CONTENT_GET result", {
@@ -844,7 +957,7 @@ messageRouter.registerHandler("CONTENT_GET", async (payload: any) => {
 messageRouter.registerHandler("POCKET_SEARCH", async (payload: any) => {
   logger.info("Handler", "POCKET_SEARCH", payload);
   try {
-    const { vectorSearchService } = await import("./vector-search-service.js");
+    
     const results = await vectorSearchService.searchPockets(
       payload.query,
       payload.limit || 10
@@ -863,7 +976,7 @@ messageRouter.registerHandler("POCKET_SEARCH", async (payload: any) => {
 messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
   logger.info("Handler", "CONTENT_SEARCH", payload);
   try {
-    const { vectorSearchService } = await import("./vector-search-service.js");
+    
     const results = await vectorSearchService.searchContent(
       payload.query,
       payload.pocketId,
@@ -884,7 +997,6 @@ messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
 messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
   logger.info("Handler", "CONTENT_DELETE", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     await indexedDBManager.deleteContent(payload.contentId);
     logger.info("Handler", "CONTENT_DELETE success", { contentId: payload.contentId });
@@ -989,7 +1101,6 @@ messageRouter.registerHandler("AI_PROCESS_TEXT_CORRECTION", async (payload: any)
 messageRouter.registerHandler("CONVERSATION_LIST", async (payload) => {
   logger.info("Handler", "CONVERSATION_LIST", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init(); // Ensure DB is initialized
     const conversations = await indexedDBManager.listConversations();
     logger.info("Handler", "CONVERSATION_LIST result", {
@@ -1005,7 +1116,6 @@ messageRouter.registerHandler("CONVERSATION_LIST", async (payload) => {
 messageRouter.registerHandler("CONVERSATION_GET", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_GET", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     const conversation = await indexedDBManager.getConversation(
       payload.conversationId,
@@ -1023,7 +1133,6 @@ messageRouter.registerHandler("CONVERSATION_GET", async (payload: any) => {
 messageRouter.registerHandler("CONVERSATION_CREATE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_CREATE", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     logger.info("Handler", "Creating conversation", {
       messageCount: payload.messages?.length || 0,
@@ -1060,7 +1169,6 @@ messageRouter.registerHandler("CONVERSATION_CREATE", async (payload: any) => {
 messageRouter.registerHandler("CONVERSATION_UPDATE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_UPDATE", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     await indexedDBManager.updateConversation(
       payload.conversationId,
@@ -1121,7 +1229,6 @@ messageRouter.registerHandler("METADATA_QUEUE_STATUS", async (payload: any) => {
     const status = metadataQueueManager.getStatus();
     
     // Count conversations without metadata
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     const conversations = await indexedDBManager.listConversations();
     const conversationsWithoutMetadata = conversations.filter(c => !c.metadata).length;
@@ -1144,7 +1251,6 @@ messageRouter.registerHandler("METADATA_QUEUE_STATUS", async (payload: any) => {
 messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
   logger.info("Handler", "CONVERSATION_DELETE", payload);
   try {
-    const { indexedDBManager } = await import("./indexeddb-manager.js");
     await indexedDBManager.init();
     await indexedDBManager.deleteConversation(payload.conversationId);
     logger.info("Handler", "CONVERSATION_DELETE success");
@@ -1159,8 +1265,7 @@ messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_CREATE", payload);
   try {
-    const { createAbbreviation } = await import("./abbreviation-storage.js");
-    const abbreviation = await createAbbreviation(
+    const abbreviation = await abbreviationStorage.createAbbreviation(
       payload.shortcut,
       payload.expansion,
       payload.category
@@ -1176,8 +1281,7 @@ messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_GET", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_GET", payload);
   try {
-    const { getAbbreviation } = await import("./abbreviation-storage.js");
-    const abbreviation = await getAbbreviation(payload.shortcut);
+    const abbreviation = await abbreviationStorage.getAbbreviation(payload.shortcut);
     logger.info("Handler", "ABBREVIATION_GET success", { found: !!abbreviation });
     return { success: true, data: abbreviation };
   } catch (error) {
@@ -1189,8 +1293,7 @@ messageRouter.registerHandler("ABBREVIATION_GET", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_UPDATE", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_UPDATE", payload);
   try {
-    const { updateAbbreviation } = await import("./abbreviation-storage.js");
-    const abbreviation = await updateAbbreviation(payload.shortcut, {
+    const abbreviation = await abbreviationStorage.updateAbbreviation(payload.shortcut, {
       expansion: payload.expansion,
       category: payload.category
     });
@@ -1205,8 +1308,7 @@ messageRouter.registerHandler("ABBREVIATION_UPDATE", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_DELETE", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_DELETE", payload);
   try {
-    const { deleteAbbreviation } = await import("./abbreviation-storage.js");
-    await deleteAbbreviation(payload.shortcut);
+    await abbreviationStorage.deleteAbbreviation(payload.shortcut);
     logger.info("Handler", "ABBREVIATION_DELETE success", { shortcut: payload.shortcut });
     return { success: true };
   } catch (error) {
@@ -1218,8 +1320,7 @@ messageRouter.registerHandler("ABBREVIATION_DELETE", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_LIST", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_LIST", payload);
   try {
-    const { listAbbreviations } = await import("./abbreviation-storage.js");
-    const abbreviations = await listAbbreviations(payload?.category);
+    const abbreviations = await abbreviationStorage.listAbbreviations(payload?.category);
     logger.info("Handler", "ABBREVIATION_LIST success", { count: abbreviations.length });
     return { success: true, data: abbreviations };
   } catch (error) {
@@ -1231,8 +1332,7 @@ messageRouter.registerHandler("ABBREVIATION_LIST", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_EXPAND", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_EXPAND", payload);
   try {
-    const { expandAbbreviation } = await import("./abbreviation-storage.js");
-    const result = await expandAbbreviation(payload.shortcut);
+    const result = await abbreviationStorage.expandAbbreviation(payload.shortcut);
     logger.info("Handler", "ABBREVIATION_EXPAND success", { 
       shortcut: payload.shortcut,
       expansion: result.expansion 
