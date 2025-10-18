@@ -31,7 +31,7 @@ export function NoteList({
   const rowVirtualizer = useVirtualizer({
     count: useVirtualized ? notes.length : 0,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 136,
+    estimateSize: () => 152,
     overscan: 8,
   });
 
@@ -41,10 +41,16 @@ export function NoteList({
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString();
+    const timeStr = date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+
+    if (diffDays === 0) return `Today, ${timeStr}`;
+    if (diffDays === 1) return `Yesterday, ${timeStr}`;
+    if (diffDays < 7) return `${diffDays} days ago, ${timeStr}`;
+    return `${date.toLocaleDateString()}, ${timeStr}`;
   };
 
   const getPreview = (content: string, maxLength: number = 150) => {
@@ -156,136 +162,68 @@ export function NoteList({
     <div
       key={note.id}
       className={cn(
-        "group relative flex items-start gap-3 p-4 rounded-lg border",
+        "group relative flex flex-col p-3 rounded-lg border h-[140px]",
         "hover:bg-accent/50 cursor-pointer transition-colors",
         "bg-card border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20",
         selectedNotes.includes(note.id!) && "ring-2 ring-amber-500"
       )}
       onMouseEnter={() => setShowActions(note.id!)}
       onMouseLeave={() => setShowActions(null)}
+      onClick={() => onEditNote(note)}
     >
       {/* Note Badge */}
-      <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-medium text-amber-700 dark:text-amber-400">
+      <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-medium text-amber-700 dark:text-amber-400">
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
         Note
       </div>
 
-      {/* Selection Checkbox */}
-      <input
-        type="checkbox"
-        checked={selectedNotes.includes(note.id!)}
-        onChange={(e) => handleSelectNote(note.id!, e.target.checked)}
-        className="mt-1 rounded"
-        onClick={(e) => e.stopPropagation()}
-      />
-
-      {/* Note Icon */}
-      <div className="shrink-0 mt-1 text-amber-600 dark:text-amber-500">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </svg>
-      </div>
-
       {/* Content */}
-      <div 
-        className="flex-1 min-w-0"
-        onClick={() => onEditNote(note)}
-      >
-        <div className="flex items-start justify-between mb-2">
-          <h3 className="font-semibold text-base truncate pr-20">
-            {note.title || "Untitled Note"}
-          </h3>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-            {note.category && (
-              <span className="px-2 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-amber-700 dark:text-amber-400">
-                {note.category}
-              </span>
-            )}
-            <span>{formatDate(note.updatedAt || note.createdAt || Date.now())}</span>
-          </div>
-        </div>
+      <div className="flex-1 min-w-0 flex flex-col">
+        <h3 className="font-semibold text-base mb-2 line-clamp-2 pr-16">
+          {note.title || "Untitled Note"}
+        </h3>
 
         {/* Preview */}
-        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-          {getPreview(note.content)}
+        <p className="text-xs text-muted-foreground/70 line-clamp-3 flex-1">
+          {getPreview(note.content, 100)}
         </p>
 
-        {/* Tags */}
-        {note.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {note.tags.slice(0, 4).map((tag) => (
-              <span
-                key={tag}
-                className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs text-amber-700 dark:text-amber-400"
-              >
-                #{tag}
-              </span>
-            ))}
-            {note.tags.length > 4 && (
-              <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs text-amber-700 dark:text-amber-400">
-                +{note.tags.length - 4}
-              </span>
-            )}
-          </div>
-        )}
+        {/* Date - Bottom */}
+        <div className="text-xs text-muted-foreground/60 mt-auto pt-1">
+          {formatDate(note.updatedAt || note.createdAt || Date.now())}
+        </div>
       </div>
 
-      {/* Actions */}
-      <div
+      {/* Delete Button - Bottom Right */}
+      <Button
+        variant="ghost"
+        size="sm"
         className={cn(
-          "flex items-center gap-2 transition-opacity",
+          "absolute bottom-2 right-2 h-7 w-7 p-0 transition-opacity",
           showActions === note.id ? "opacity-100" : "opacity-0"
         )}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDeleteNote(note.id!);
+        }}
+        title="Delete note"
       >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEditNote(note);
-          }}
-          title="Edit note"
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-            />
-          </svg>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteNote(note.id!);
-          }}
-          title="Delete note"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            />
-          </svg>
-        </Button>
-      </div>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+          />
+        </svg>
+      </Button>
     </div>
   );
 
@@ -320,7 +258,7 @@ export function NoteList({
         </div>
       )}
 
-      {/* Notes List */}
+      {/* Notes Grid */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 pt-40 sm:pt-44 md:pt-48">
         {useVirtualized ? (
           <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
@@ -343,7 +281,7 @@ export function NoteList({
             })}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {notes.map((note) => renderNoteItem(note))}
           </div>
         )}
