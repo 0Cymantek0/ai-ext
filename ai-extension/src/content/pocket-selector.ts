@@ -40,46 +40,51 @@ export class PocketSelector {
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
       z-index: 2147483647;
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      animation: fadeIn 0.2s ease-out;
     `;
 
     // Create modal
     const modal = document.createElement("div");
     modal.style.cssText = `
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      background: #1f2937;
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
       max-width: 500px;
       width: 90%;
       max-height: 80vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      border: 1px solid #374151;
+      animation: slideUp 0.3s ease-out;
     `;
 
     // Header
     const header = document.createElement("div");
     header.style.cssText = `
-      padding: 20px 24px;
-      border-bottom: 1px solid #e5e7eb;
+      padding: 24px;
+      border-bottom: 1px solid #374151;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      background: linear-gradient(to bottom, #1f2937, #111827);
     `;
 
     const title = document.createElement("h2");
     title.textContent = "Save to Pocket";
     title.style.cssText = `
       margin: 0;
-      font-size: 20px;
-      font-weight: 600;
-      color: #111827;
+      font-size: 22px;
+      font-weight: 700;
+      color: #f9fafb;
+      letter-spacing: -0.5px;
     `;
 
     const closeBtn = document.createElement("button");
@@ -88,19 +93,25 @@ export class PocketSelector {
       background: none;
       border: none;
       font-size: 24px;
-      color: #6b7280;
+      color: #9ca3af;
       cursor: pointer;
       padding: 0;
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 6px;
-      transition: background 0.2s;
+      border-radius: 8px;
+      transition: all 0.2s;
     `;
-    closeBtn.onmouseover = () => (closeBtn.style.background = "#f3f4f6");
-    closeBtn.onmouseout = () => (closeBtn.style.background = "none");
+    closeBtn.onmouseover = () => {
+      closeBtn.style.background = "#374151";
+      closeBtn.style.color = "#f9fafb";
+    };
+    closeBtn.onmouseout = () => {
+      closeBtn.style.background = "none";
+      closeBtn.style.color = "#9ca3af";
+    };
     closeBtn.onclick = () => this.handleCancel();
 
     header.appendChild(title);
@@ -109,9 +120,10 @@ export class PocketSelector {
     // Pocket list container
     const listContainer = document.createElement("div");
     listContainer.style.cssText = `
-      padding: 16px;
+      padding: 20px;
       overflow-y: auto;
       flex: 1;
+      background: #111827;
     `;
 
     // Create pocket items
@@ -123,28 +135,35 @@ export class PocketSelector {
     // Footer
     const footer = document.createElement("div");
     footer.style.cssText = `
-      padding: 16px 24px;
-      border-top: 1px solid #e5e7eb;
+      padding: 20px 24px;
+      border-top: 1px solid #374151;
       display: flex;
       justify-content: flex-end;
       gap: 12px;
+      background: #1f2937;
     `;
 
     const cancelBtn = document.createElement("button");
     cancelBtn.textContent = "Cancel";
     cancelBtn.style.cssText = `
-      padding: 8px 16px;
-      border: 1px solid #d1d5db;
-      background: white;
-      color: #374151;
-      border-radius: 6px;
+      padding: 10px 20px;
+      border: 1px solid #4b5563;
+      background: #374151;
+      color: #f9fafb;
+      border-radius: 8px;
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
     `;
-    cancelBtn.onmouseover = () => (cancelBtn.style.background = "#f9fafb");
-    cancelBtn.onmouseout = () => (cancelBtn.style.background = "white");
+    cancelBtn.onmouseover = () => {
+      cancelBtn.style.background = "#4b5563";
+      cancelBtn.style.borderColor = "#6b7280";
+    };
+    cancelBtn.onmouseout = () => {
+      cancelBtn.style.background = "#374151";
+      cancelBtn.style.borderColor = "#4b5563";
+    };
     cancelBtn.onclick = () => this.handleCancel();
 
     footer.appendChild(cancelBtn);
@@ -167,25 +186,27 @@ export class PocketSelector {
   private createPocketItem(pocket: Pocket): HTMLDivElement {
     const item = document.createElement("div");
     item.style.cssText = `
-      padding: 16px;
-      margin-bottom: 8px;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
+      padding: 18px;
+      margin-bottom: 12px;
+      border: 2px solid #374151;
+      border-radius: 12px;
       cursor: pointer;
       transition: all 0.2s;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
+      background: #1f2937;
     `;
 
     // Color indicator
     const colorDot = document.createElement("div");
     colorDot.style.cssText = `
-      width: 12px;
-      height: 12px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
       background: ${pocket.color || "#3b82f6"};
       flex-shrink: 0;
+      box-shadow: 0 0 0 3px ${pocket.color || "#3b82f6"}33;
     `;
 
     // Text content
@@ -198,22 +219,20 @@ export class PocketSelector {
     name.textContent = pocket.name;
     name.style.cssText = `
       font-size: 16px;
-      font-weight: 500;
-      color: #111827;
+      font-weight: 600;
+      color: #f9fafb;
       margin-bottom: 4px;
     `;
 
     const description = document.createElement("div");
-    description.textContent = pocket.description || "";
+    description.textContent = pocket.description || "No description";
     description.style.cssText = `
-      font-size: 14px;
-      color: #6b7280;
+      font-size: 13px;
+      color: #9ca3af;
     `;
 
     textContainer.appendChild(name);
-    if (pocket.description) {
-      textContainer.appendChild(description);
-    }
+    textContainer.appendChild(description);
 
     item.appendChild(colorDot);
     item.appendChild(textContainer);
@@ -221,11 +240,15 @@ export class PocketSelector {
     // Hover effects
     item.onmouseover = () => {
       item.style.borderColor = pocket.color || "#3b82f6";
-      item.style.background = "#f9fafb";
+      item.style.background = "#374151";
+      item.style.transform = "translateY(-2px)";
+      item.style.boxShadow = `0 4px 12px ${pocket.color || "#3b82f6"}40`;
     };
     item.onmouseout = () => {
-      item.style.borderColor = "#e5e7eb";
-      item.style.background = "white";
+      item.style.borderColor = "#374151";
+      item.style.background = "#1f2937";
+      item.style.transform = "translateY(0)";
+      item.style.boxShadow = "none";
     };
 
     // Click handler

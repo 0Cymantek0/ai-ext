@@ -10,25 +10,11 @@ import { pocketSelectorModal } from "./pocket-selector-modal.js";
 export class ContextMenuCaptureHandler {
   /**
    * Initialize the context menu capture handler
+   * NOTE: This handler is deprecated. The new pocket selector is handled in content-main.ts
    */
   initialize(): void {
-    // Listen for messages from background script
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.kind === "SHOW_POCKET_SELECTOR") {
-        this.handleShowPocketSelector(message.payload)
-          .then((result) => sendResponse({ success: true, data: result }))
-          .catch((error) => {
-            logger.error("ContextMenuCaptureHandler", "Error showing pocket selector", error);
-            sendResponse({ 
-              success: false, 
-              error: { message: error.message || "Failed to show pocket selector" }
-            });
-          });
-        return true; // Keep channel open for async response
-      }
-    });
-
-    logger.info("ContextMenuCaptureHandler", "Initialized");
+    // Deprecated - pocket selector is now handled in content-main.ts
+    logger.info("ContextMenuCaptureHandler", "Deprecated - using new pocket selector in content-main.ts");
   }
 
   /**

@@ -193,7 +193,35 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         },
       });
 
-      if (response?.status === "success") {
+      logger.info("ServiceWorker", "Received response from pocket selector", {
+        status: response?.status,
+        hasCapturedContent: !!response?.capturedContent,
+        fullResponse: JSON.stringify(response, null, 2),
+      });
+
+      if (response?.status === "success" && response?.capturedContent) {
+        // Process and save the captured content
+        const { pocketId, capturedContent } = response;
+
+        logger.info("ServiceWorker", "Processing captured content", {
+          pocketId,
+          mode: capturedContent.mode,
+        });
+
+        const processed = await contentProcessor.processContent({
+          pocketId,
+          mode: capturedContent.mode,
+          content: capturedContent.content,
+          metadata: capturedContent.metadata,
+          sourceUrl: tab.url || "",
+          sanitize: true,
+        });
+
+        logger.info("ServiceWorker", "Content processed and saved", {
+          contentId: processed.contentId,
+          type: processed.type,
+        });
+
         // Show success notification
         await chrome.notifications.create({
           type: "basic",
@@ -203,16 +231,29 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         });
 
         logger.info("ServiceWorker", "Selection saved via pocket selector", {
-          pocketId: response.pocketId,
-          contentId: response.contentId,
+          pocketId,
+          contentId: processed.contentId,
         });
       } else if (response?.status === "cancelled") {
         logger.info("ServiceWorker", "User cancelled pocket selection");
       } else {
-        throw new Error(response?.error || "Failed to save selection");
+        const errorMsg = response?.error || "Failed to save selection";
+        const errorDetails = {
+          error: errorMsg,
+          status: response?.status,
+          fullResponse: JSON.stringify(response, null, 2),
+        };
+        logger.error("ServiceWorker", "Save failed", errorDetails);
+        throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
       }
     } catch (error) {
-      logger.error("ServiceWorker", "Context menu handler error", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      logger.error("ServiceWorker", "Context menu handler error", {
+        message: errorMessage,
+        stack: errorStack,
+        error: error,
+      });
 
       // Show error notification
       await chrome.notifications.create({

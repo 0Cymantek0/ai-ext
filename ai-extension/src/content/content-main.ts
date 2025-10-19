@@ -157,31 +157,28 @@ class ContentScriptManager {
           };
         }
 
-        // User selected a pocket, now capture and save
+        console.info("[ContentScript] User selected pocket", { pocketId: selectedPocketId });
+
+        // User selected a pocket, now capture the selection
         const result = await contentCapture.capture({
           mode: "selection",
           pocketId: selectedPocketId,
           sanitize: true,
         });
 
-        // Send the captured content to service worker to save
-        const saveResponse = await sendMessage("CAPTURE_REQUEST", {
-          mode: "selection",
-          pocketId: selectedPocketId,
-          content: result.content,
-          metadata: result.metadata,
+        console.info("[ContentScript] Content captured", {
+          mode: result.mode,
+          hasContent: !!result.content,
+          hasMetadata: !!result.metadata,
         });
 
-        if (saveResponse.success) {
-          return {
-            status: "success",
-            pocketId: selectedPocketId,
-            contentId: saveResponse.data?.contentId,
-            timestamp: Date.now(),
-          };
-        } else {
-          throw new Error(saveResponse.error?.message || "Failed to save");
-        }
+        // Return the captured content to service worker
+        return {
+          status: "success",
+          pocketId: selectedPocketId,
+          capturedContent: result,
+          timestamp: Date.now(),
+        };
       } catch (error) {
         console.error("[ContentScript] Pocket selector failed", error);
         return {
