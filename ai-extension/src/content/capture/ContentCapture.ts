@@ -102,6 +102,8 @@ export interface BackgroundMessenger {
   captureScreenshot(): Promise<string | null>;
 }
 
+import type { SelectedElement } from "../element-selector.js";
+
 export type ContentCaptureDeps = {
   domAnalyzer: IDOMAnalyzer;
   sanitizer: IContentSanitizer;
@@ -109,6 +111,7 @@ export type ContentCaptureDeps = {
   selection: IReliableSelectionCapture;
   processor?: IContentProcessor; // optional for unit tests
   messenger?: BackgroundMessenger; // for screenshot capture
+  elementProvider?: () => Promise<SelectedElement[]>; // optional hook for element mode
 };
 
 function defaultMessenger(): BackgroundMessenger {
@@ -361,8 +364,64 @@ export class ContentCapture {
   }
 
   private async captureElements(sanitize: boolean): Promise<any> {
-    // Integrates with ElementSelector UI in production. For unit tests, we return empty by default.
-    return { elements: [], count: 0 };
+    // Prefer a provided element provider (for tests or pre-selected elements)
+    let selected: any[] = [];
+
+    // If a dependency provided a hook, use it
+    const anyDeps: any = this.deps as any;
+    if (typeof anyDeps.elementProvider === "function") {
+      selected = await anyDeps.elementProvider();
+    } else {
+      // Try to use the runtime element selector if available
+      try {
+        const mod: any = await import("../element-selector.js");
+        if (mod?.elementSelector?.getSelectedElements) {
+          selected = await mod.elementSelector.getSelectedElements();
+        }
+      } catch {
+        // No selector available in this environment
+        selected = [];
+      }
+    }
+
+    const processed = await Promise.all(
+      (selected as any[]).map(async (el: any) => {
+        // Accept several shapes: { info, enhancedInfo, element } from ElementSelector
+        // or a plain object with tagName/textContent/selector fields from tests
+        const info = el.info || el;
+        const enhancedInfo = el.enhancedInfo || {};
+        let textContent: string =
+          typeof el.textContent === "string"
+            ? el.textContent
+            : enhancedInfo.textContent || info.textContent || "";
+
+        let sanitizationInfo: any = null;
+        if (sanitize && textContent) {
+          try {
+            const s = this.deps.sanitizer.sanitize(textContent);
+            textContent = s.sanitizedContent;
+            sanitizationInfo = {
+              detectedPII: s.detectedPII.length,
+              redactionCount: s.redactionCount,
+              piiTypes: s.detectedPII.map((p: any) => p.type),
+            };
+          } catch (err) {
+            throw new CaptureError(CaptureErrorType.SANITIZATION, "Sanitization failed", err);
+          }
+        }
+
+        return {
+          ...info,
+          enhancedInfo,
+          textContent,
+          preview: el.preview,
+          snippets: el.snippets,
+          sanitization: sanitizationInfo,
+        };
+      })
+    );
+
+    return { elements: processed, count: processed.length };
   }
 
   private async captureNote(text: string, sanitize: boolean): Promise<any> {
