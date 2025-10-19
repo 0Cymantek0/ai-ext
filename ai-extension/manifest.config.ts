@@ -23,6 +23,7 @@ export default defineManifest({
     "downloads",
     "notifications",
     "unlimitedStorage",
+    "contextMenus",
   ],
   optional_permissions: ["microphone"],
   host_permissions: ["<all_urls>"],

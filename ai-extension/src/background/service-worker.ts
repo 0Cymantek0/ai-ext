@@ -9,7 +9,7 @@
 if (typeof document === 'undefined') {
   (globalThis as any).document = {
     createElement: () => ({ rel: '', href: '' }),
-    head: { appendChild: () => {} },
+    head: { appendChild: () => { } },
   };
 }
 
@@ -26,6 +26,204 @@ import { indexedDBManager } from "./indexeddb-manager.js";
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import * as abbreviationStorage from "./abbreviation-storage.js";
+
+/**
+ * Context Menu Management
+ * Creates and handles "Save to Pocket" context menu
+ */
+async function createContextMenu(): Promise<void> {
+  try {
+    // Remove existing context menus
+    await chrome.contextMenus.removeAll();
+
+    // Create "Save to Pocket" context menu
+    chrome.contextMenus.create({
+      id: "save-to-pocket",
+      title: "Save to Pocket",
+      contexts: ["selection"],
+    });
+
+    logger.info("ServiceWorker", "Context menu created");
+  } catch (error) {
+    logger.error("ServiceWorker", "Failed to create context menu", error);
+  }
+}
+
+/**
+ * Ensure content script is loaded in the tab
+ */
+async function ensureContentScriptLoaded(tabId: number): Promise<boolean> {
+  try {
+    // Try to ping the content script
+    await chrome.tabs.sendMessage(tabId, { kind: "PING", payload: {} });
+    return true;
+  } catch (error) {
+    // Content script not responding, it might be loading or the page doesn't support it
+    // Wait a bit and try again
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    try {
+      await chrome.tabs.sendMessage(tabId, { kind: "PING", payload: {} });
+      return true;
+    } catch (retryError) {
+      logger.error("ServiceWorker", "Content script not responding", { tabId, error: retryError });
+      return false;
+    }
+  }
+}
+
+/**
+ * Send message to content script with retry logic
+ */
+async function sendMessageWithRetry(
+  tabId: number,
+  message: any,
+  maxRetries: number = 3
+): Promise<any> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await chrome.tabs.sendMessage(tabId, message);
+      return response;
+    } catch (error) {
+      logger.warn("ServiceWorker", `Send message attempt ${attempt} failed`, error);
+
+      if (attempt < maxRetries) {
+        // Try to ensure content script is loaded before retry
+        await ensureContentScriptLoaded(tabId);
+
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
+/**
+ * Helper function to save selection to a specific pocket
+ */
+async function saveSelectionToPocket(tabId: number, pocketId: string): Promise<void> {
+  try {
+    // Send capture request with selection mode
+    const response = await sendMessageWithRetry(tabId, {
+      kind: "CAPTURE_REQUEST",
+      payload: {
+        mode: "selection",
+        pocketId: pocketId,
+      },
+    });
+
+    if (response?.success) {
+      // Show success notification
+      await chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icons/48.png",
+        title: "Saved to Pocket",
+        message: `Selection saved successfully`,
+      });
+
+      logger.info("ServiceWorker", "Selection saved to pocket", {
+        pocketId,
+        contentId: response.data?.contentId,
+      });
+    } else {
+      throw new Error(response?.error?.message || "Failed to save selection");
+    }
+  } catch (error) {
+    logger.error("ServiceWorker", "Failed to save selection", error);
+    throw error;
+  }
+}
+
+// Context menu click handler
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === "save-to-pocket" && tab?.id) {
+    try {
+      logger.info("ServiceWorker", "Context menu clicked", {
+        tabId: tab.id,
+        selectionText: info.selectionText?.substring(0, 50),
+      });
+
+      // Ensure content script is loaded
+      const isLoaded = await ensureContentScriptLoaded(tab.id);
+      if (!isLoaded) {
+        logger.error("ServiceWorker", "Content script could not be loaded");
+        // Show notification to user
+        await chrome.notifications.create({
+          type: "basic",
+          iconUrl: "icons/48.png",
+          title: "Save to Pocket Failed",
+          message: "Could not load content script. Please refresh the page and try again.",
+        });
+        return;
+      }
+
+      // Get list of pockets
+      await indexedDBManager.init();
+      let pockets = await indexedDBManager.listPockets();
+
+      // If no pockets exist, create a default one
+      if (pockets.length === 0) {
+        logger.info("ServiceWorker", "No pockets found, creating default pocket");
+        const defaultPocketId = await indexedDBManager.createPocket({
+          name: "My Pocket",
+          description: "Default pocket for saved content",
+          tags: [],
+          color: "#3b82f6",
+          contentIds: [],
+        });
+
+        // Refresh pocket list
+        pockets = await indexedDBManager.listPockets();
+      }
+
+      // Send pocket list to content script to show selector
+      const response = await sendMessageWithRetry(tab.id, {
+        kind: "SHOW_POCKET_SELECTOR",
+        payload: {
+          pockets: pockets.map(p => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            color: p.color,
+          })),
+          selectionText: info.selectionText,
+          sourceUrl: tab.url,
+        },
+      });
+
+      if (response?.status === "success") {
+        // Show success notification
+        await chrome.notifications.create({
+          type: "basic",
+          iconUrl: "icons/48.png",
+          title: "Saved to Pocket",
+          message: `Selection saved successfully`,
+        });
+
+        logger.info("ServiceWorker", "Selection saved via pocket selector", {
+          pocketId: response.pocketId,
+          contentId: response.contentId,
+        });
+      } else if (response?.status === "cancelled") {
+        logger.info("ServiceWorker", "User cancelled pocket selection");
+      } else {
+        throw new Error(response?.error || "Failed to save selection");
+      }
+    } catch (error) {
+      logger.error("ServiceWorker", "Context menu handler error", error);
+
+      // Show error notification
+      await chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icons/48.png",
+        title: "Save to Pocket Failed",
+        message: error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  }
+});
 
 type ServiceWorkerState = {
   initialized: boolean;
@@ -314,6 +512,9 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       enabled: true,
     });
 
+    // Create context menu for "Save to Pocket"
+    await createContextMenu();
+
     // Handle different installation reasons
     if (details.reason === "install") {
       logger.info("ServiceWorker", "First time installation");
@@ -343,6 +544,7 @@ chrome.runtime.onStartup.addListener(async () => {
 
   try {
     await lifecycle.initialize();
+    await createContextMenu();
   } catch (error) {
     logger.error("ServiceWorker", "Startup error", error);
   }
@@ -593,44 +795,44 @@ const messageRouter = new MessageRouter();
 // Register content capture handler
 messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
   logger.info("Handler", "CAPTURE_REQUEST", payload);
-  
+
   try {
-    const { mode, pocketId, content, metadata } = payload as { 
-      mode: string; 
+    const { mode, pocketId, content, metadata } = payload as {
+      mode: string;
       pocketId: string;
       content?: any;
       metadata?: any;
     };
-    
+
     // Validate payload
     if (!mode) {
       throw new Error("Missing required field: mode");
     }
-    
+
     // For notes, pocketId can be empty string (means no specific pocket)
     if (mode !== "note" && !pocketId) {
       throw new Error("Missing required field: pocketId");
     }
-    
+
     // Handle direct note creation (from side panel)
     if (mode === "note" && content !== undefined) {
-      logger.info("Handler", "Processing direct note creation", { 
+      logger.info("Handler", "Processing direct note creation", {
         hasContentId: !!metadata?.contentId,
         contentLength: content?.length,
         pocketId: pocketId || "(empty)"
       });
-      
+
       await indexedDBManager.init();
-      
+
       // Ensure we have a valid pocketId - create default "Notes" pocket if needed
       let targetPocketId = pocketId;
       if (!targetPocketId || targetPocketId === "") {
         logger.info("Handler", "No pocketId provided, checking for default Notes pocket");
-        
+
         // Check if a "Notes" pocket exists
         const pockets = await indexedDBManager.listPockets();
         let notesPocket = pockets.find(p => p.name === "Notes" || p.name === "My Notes");
-        
+
         if (!notesPocket) {
           // Create default Notes pocket
           logger.info("Handler", "Creating default Notes pocket");
@@ -647,12 +849,12 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           logger.info("Handler", "Using existing Notes pocket", { pocketId: targetPocketId });
         }
       }
-      
+
       // Check if this is an update (contentId in metadata)
       if (metadata?.contentId) {
         // Update existing note
         logger.info("Handler", "Updating existing note", { contentId: metadata.contentId });
-        
+
         await indexedDBManager.updateContent(metadata.contentId, {
           content: content,
           metadata: {
@@ -663,7 +865,7 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
             updatedAt: Date.now(),
           },
         });
-        
+
         // Fetch updated record for ACK/broadcast
         const updatedRecord = await indexedDBManager.getContent(metadata.contentId);
         if (updatedRecord) {
@@ -673,9 +875,9 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
             payload: { content: updatedRecord },
           } as any);
         }
-        
+
         logger.info("Handler", "Note updated successfully", { contentId: metadata.contentId });
-        
+
         return {
           status: "success",
           contentId: metadata.contentId,
@@ -686,7 +888,7 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
       } else {
         // Create new note
         logger.info("Handler", "Creating new note", { pocketId: targetPocketId });
-        
+
         const processed = await contentProcessor.processContent({
           pocketId: targetPocketId,
           mode: "note",
@@ -700,7 +902,7 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           sourceUrl: "",
           sanitize: false,
         });
-        
+
         // Fetch created record for ACK/broadcast
         const createdRecord = await indexedDBManager.getContent(processed.contentId);
         if (createdRecord) {
@@ -709,13 +911,13 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
             payload: { content: createdRecord },
           } as any);
         }
-        
+
         logger.info("Handler", "Note created successfully", {
           contentId: processed.contentId,
           type: processed.type,
           pocketId: targetPocketId,
         });
-        
+
         return {
           status: "success",
           contentId: processed.contentId,
@@ -725,46 +927,46 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
         };
       }
     }
-    
+
     // Handle content script-based captures (full-page, selection, element)
     const tabId = sender.tab?.id;
     if (!tabId) {
       throw new Error("No active tab found for content capture");
     }
-    
+
     // Send capture request to content script
     const response = await messageRouter.sendToContentScript<any>(tabId, {
       kind: "CAPTURE_REQUEST",
       payload: { mode, pocketId },
     });
-    
+
     if (!response.success || !response.data) {
       throw new Error(response.error?.message || "Content capture failed");
     }
-    
+
     const captureResult = (response.data as any).result;
-    
+
     // Process and store the captured content
-    
+
     // Use enhanced processing for full-page captures
     const processed = captureResult.mode === "full-page"
       ? await contentProcessor.processFullPageCapture({
-          pocketId,
-          mode: captureResult.mode,
-          content: captureResult.content,
-          metadata: captureResult.metadata,
-          sourceUrl: sender.tab?.url || "",
-          sanitize: true,
-        })
+        pocketId,
+        mode: captureResult.mode,
+        content: captureResult.content,
+        metadata: captureResult.metadata,
+        sourceUrl: sender.tab?.url || "",
+        sanitize: true,
+      })
       : await contentProcessor.processContent({
-          pocketId,
-          mode: captureResult.mode,
-          content: captureResult.content,
-          metadata: captureResult.metadata,
-          sourceUrl: sender.tab?.url || "",
-          sanitize: true,
-        });
-    
+        pocketId,
+        mode: captureResult.mode,
+        content: captureResult.content,
+        metadata: captureResult.metadata,
+        sourceUrl: sender.tab?.url || "",
+        sanitize: true,
+      });
+
     // Fetch created record and broadcast event for UI live updates
     try {
       const createdRecord = await indexedDBManager.getContent(processed.contentId);
@@ -777,13 +979,13 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
     } catch (e) {
       logger.warn("Handler", "Failed to broadcast content created event", e);
     }
-    
+
     logger.info("Handler", "CAPTURE_REQUEST completed", {
       contentId: processed.contentId,
       type: processed.type,
       status: processed.status,
     });
-    
+
     return {
       status: "success",
       contentId: processed.contentId,
@@ -826,7 +1028,7 @@ messageRouter.registerHandler("CAPTURE_SCREENSHOT", async (payload, sender) => {
 
 messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
   logger.info("Handler", "AI_PROCESS_REQUEST", payload);
-  
+
   try {
     const { prompt, task, preferLocal, style, originalText } = payload as {
       prompt: string;
@@ -835,22 +1037,22 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
       style?: string;
       originalText?: string;
     };
-    
+
     // For text enhancement tasks
     if (task === 'enhance') {
       logger.info("Handler", "Processing text enhancement", { style, textLength: originalText?.length });
-      
+
       // Check if Gemini Nano is available
       const availability = await aiManager.checkModelAvailability();
-      
+
       if (availability === 'no' && preferLocal) {
         throw new Error('Gemini Nano is not available on this device. Please enable on-device AI in Chrome settings.');
       }
-      
+
       // Initialize or get session
       let sessionId: string;
       const activeSessions = aiManager.getActiveSessions();
-      
+
       if (activeSessions.length > 0) {
         // Reuse existing session
         sessionId = activeSessions[0]!;
@@ -862,7 +1064,7 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
         });
         logger.info("Handler", "Created new AI session", { sessionId });
       }
-      
+
       // Process the enhancement prompt
       const startTime = performance.now();
       const enhancedText = await aiManager.processPrompt(
@@ -871,17 +1073,17 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
         { operation: 'enhance' as any }
       );
       const processingTime = performance.now() - startTime;
-      
+
       logger.info("Handler", "Enhancement completed", {
         processingTime: `${processingTime.toFixed(2)}ms`,
         originalLength: originalText?.length,
         enhancedLength: enhancedText.length,
       });
-      
+
       // Get token usage
       const usage = aiManager.getSessionUsage(sessionId);
       logger.debug("Handler", "Token usage", usage);
-      
+
       return {
         enhancedText,
         processingTime,
@@ -889,11 +1091,11 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
         source: 'gemini-nano',
       };
     }
-    
+
     // For other AI tasks (summarize, embed, etc.)
     logger.warn("Handler", "Unsupported AI task type", { task });
     return { status: "processing", taskId: crypto.randomUUID() };
-    
+
   } catch (error) {
     logger.error("Handler", "AI_PROCESS_REQUEST error", error);
     throw error;
@@ -991,7 +1193,7 @@ messageRouter.registerHandler("CONTENT_GET", async (payload: any) => {
 messageRouter.registerHandler("POCKET_SEARCH", async (payload: any) => {
   logger.info("Handler", "POCKET_SEARCH", payload);
   try {
-    
+
     const results = await vectorSearchService.searchPockets(
       payload.query,
       payload.limit || 10
@@ -1010,7 +1212,7 @@ messageRouter.registerHandler("POCKET_SEARCH", async (payload: any) => {
 messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
   logger.info("Handler", "CONTENT_SEARCH", payload);
   try {
-    
+
     const results = await vectorSearchService.searchContent(
       payload.query,
       payload.pocketId,
@@ -1100,7 +1302,7 @@ messageRouter.registerHandler("AI_PROCESS_TEXT_CORRECTION", async (payload: any)
   logger.info("Handler", "AI_PROCESS_TEXT_CORRECTION", payload);
   try {
     const { text } = payload;
-    
+
     if (!text || typeof text !== 'string') {
       throw new Error("Invalid text provided for correction");
     }
@@ -1264,29 +1466,29 @@ messageRouter.registerHandler("METADATA_QUEUE_STATUS", async (payload: any) => {
   logger.info("Handler", "METADATA_QUEUE_STATUS", payload);
   try {
     if (!metadataQueueManager) {
-      return { 
-        queueLength: 0, 
+      return {
+        queueLength: 0,
         isProcessing: false,
         conversationsWithoutMetadata: 0,
       };
     }
-    
+
     const status = metadataQueueManager.getStatus();
-    
+
     // Count conversations without metadata
     await indexedDBManager.init();
     const conversations = await indexedDBManager.listConversations();
     const conversationsWithoutMetadata = conversations.filter(c => !c.metadata).length;
-    
+
     logger.info("Handler", "METADATA_QUEUE_STATUS success", status);
-    return { 
+    return {
       ...status,
       conversationsWithoutMetadata,
     };
   } catch (error) {
     logger.error("Handler", "METADATA_QUEUE_STATUS error", error);
-    return { 
-      queueLength: 0, 
+    return {
+      queueLength: 0,
       isProcessing: false,
       conversationsWithoutMetadata: 0,
     };
@@ -1378,9 +1580,9 @@ messageRouter.registerHandler("ABBREVIATION_EXPAND", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_EXPAND", payload);
   try {
     const result = await abbreviationStorage.expandAbbreviation(payload.shortcut);
-    logger.info("Handler", "ABBREVIATION_EXPAND success", { 
+    logger.info("Handler", "ABBREVIATION_EXPAND success", {
       shortcut: payload.shortcut,
-      expansion: result.expansion 
+      expansion: result.expansion
     });
     return { success: true, data: result };
   } catch (error) {

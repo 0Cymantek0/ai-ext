@@ -51,6 +51,22 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
     loadPockets();
   }, []);
 
+  // Listen for content updates from background
+  React.useEffect(() => {
+    const messageListener = (message: any) => {
+      if (message.kind === "CONTENT_CREATED" || message.kind === "CONTENT_UPDATED") {
+        console.log("PocketManager: Content change detected, reloading pockets");
+        loadPockets();
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+    };
+  }, []);
+
   // Filter and sort pockets when dependencies change
   React.useEffect(() => {
     filterAndSortPockets();
