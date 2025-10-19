@@ -6,3 +6,4 @@ export { PocketExportImport } from "./PocketExportImport";
 export { ContentList } from "./ContentList";
 export { ContentCard } from "./ContentCard";
 export { ContentPreview } from "./ContentPreview";
+export { NotePreview } from "./NotePreview";

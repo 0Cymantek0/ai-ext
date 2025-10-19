@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ContentCard } from "./ContentCard";
 import { ContentPreview } from "./ContentPreview";
+import { NotePreview } from "./NotePreview";
 import { NoteManager } from "@/components/notes";
 import { SearchBar } from "@/components/SearchBar";
 import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
@@ -275,6 +276,13 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
     setPreviewContent(null);
   };
 
+  const handleEditNote = () => {
+    // Close preview and switch to edit mode
+    setIsPreviewOpen(false);
+    setContentView("notes");
+    // TODO: Pass the content to NoteManager for editing
+  };
+
   const handleAddNote = () => {
     setShowAddMenu(false);
     setContentView("notes");
@@ -522,12 +530,24 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
       </div>
 
 
-      {/* Preview Modal */}
-      <ContentPreview
-        content={previewContent}
-        isOpen={isPreviewOpen}
-        onClose={handleClosePreview}
-      />
+      {/* Preview Modal - Show NotePreview for notes, ContentPreview for other content */}
+      {isPreviewOpen && previewContent && (
+        previewContent.type === "note" ? (
+          <div className="fixed inset-0 z-50 bg-[#1A1A1A]">
+            <NotePreview
+              content={previewContent}
+              onBack={handleClosePreview}
+              onEdit={handleEditNote}
+            />
+          </div>
+        ) : (
+          <ContentPreview
+            content={previewContent}
+            isOpen={isPreviewOpen}
+            onClose={handleClosePreview}
+          />
+        )
+      )}
     </div>
 
     {/* Search Results Overlay with animation */}
