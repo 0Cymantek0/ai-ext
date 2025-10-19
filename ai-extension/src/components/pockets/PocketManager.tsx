@@ -44,7 +44,6 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   const [selectedPocket, setSelectedPocket] = React.useState<PocketData | null>(null);
   const [showAnalytics, setShowAnalytics] = React.useState(false);
   const [showExportImport, setShowExportImport] = React.useState(false);
-  const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
 
   // Load pockets on mount
   React.useEffect(() => {
@@ -70,7 +69,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   // Filter and sort pockets when dependencies change
   React.useEffect(() => {
     filterAndSortPockets();
-  }, [pockets, searchQuery, sortBy, categoryFilter]);
+  }, [pockets, searchQuery, sortBy]);
 
   const loadPockets = async () => {
     setIsLoading(true);
@@ -97,11 +96,6 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
 
   const filterAndSortPockets = () => {
     let filtered = [...pockets];
-
-    // Apply category filter
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter((pocket) => (pocket as any).category === categoryFilter);
-    }
 
     // Apply text-based filtering (basic search)
     if (searchQuery.trim()) {
@@ -384,15 +378,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
     }
   };
 
-  // Get unique categories for filter
-  const categories = React.useMemo(() => {
-    const cats = new Set<string>();
-    pockets.forEach((pocket) => {
-      const cat = (pocket as any).category || "Other";
-      cats.add(cat);
-    });
-    return Array.from(cats).sort();
-  }, [pockets]);
+
 
   // Expose imperative methods via ref
   React.useImperativeHandle(ref, () => ({
@@ -477,28 +463,6 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
               />
             </div>
           </div>
-          {/* Category Filter */}
-          {categories.length > 0 && (
-            <div className="flex items-center gap-2">
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className={cn(
-                  "flex-1 px-3 py-2 rounded-lg border text-sm",
-                  "bg-white/10 border-white/10 text-white backdrop-blur-xl",
-                  "focus:outline-none"
-                )}
-              >
-                <option value="all" className="bg-[rgba(17,25,40,0.95)]">All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat} className="bg-[rgba(17,25,40,0.95)]">
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {/* Action Buttons removed per request */}
         </div>
       </FloatingPanel>
 
