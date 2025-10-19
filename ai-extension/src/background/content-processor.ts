@@ -277,6 +277,21 @@ export class ContentProcessor {
       domain: pageMetadata.domain,
     };
 
+    // Add tags if present
+    if (pageMetadata.tags && Array.isArray(pageMetadata.tags)) {
+      metadata.tags = pageMetadata.tags;
+    }
+
+    // Add category if present
+    if (pageMetadata.category) {
+      metadata.category = pageMetadata.category;
+    }
+
+    // Add updatedAt if present (for note updates)
+    if (pageMetadata.updatedAt) {
+      metadata.updatedAt = pageMetadata.updatedAt;
+    }
+
     // Add mode-specific metadata
     if (mode === "selection" && content.context) {
       metadata.selectionContext = content.context;

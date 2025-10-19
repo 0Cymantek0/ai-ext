@@ -396,7 +396,7 @@ export function AIInputWithFile({
           className={cn(
             "relative max-w-lg w-full mx-auto",
             isDragging &&
-            "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-full"
+            "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-3xl"
           )}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -422,7 +422,7 @@ export function AIInputWithFile({
 
             {/* Drag and Drop Overlay */}
             {isDragging && (
-              <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 rounded-full border-2 border-dashed border-blue-500 z-10">
+              <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 rounded-3xl border-2 border-dashed border-blue-500 z-10">
                 <div className="text-center">
                   <FileUp className="w-8 h-8 mx-auto mb-2 text-blue-500" />
                   <p className="text-sm text-blue-600 dark:text-blue-400">
@@ -437,7 +437,7 @@ export function AIInputWithFile({
               placeholder={isDragging ? "Drop file here..." : placeholder}
               disabled={disabled}
               className={cn(
-                "max-w-lg bg-black/30 dark:bg-white/10 backdrop-blur-sm w-full rounded-full pl-14 sm:pl-16 pr-12 sm:pr-16 border border-white/10 shadow-lg",
+                "max-w-lg bg-black/30 dark:bg-white/10 backdrop-blur-sm w-full rounded-3xl pl-14 sm:pl-16 pr-12 sm:pr-16 border border-white/10 shadow-lg",
                 "placeholder:text-white/40",
                 "ring-0",
                 "text-white text-wrap py-3.5 sm:py-4 leading-[1.4]",

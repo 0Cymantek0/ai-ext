@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { CapturedContent, ContentMetadata } from "@/background/indexeddb-manager";
+import type { CapturedContent } from "@/background/indexeddb-manager";
 
 export interface ContentCardProps {
   content: CapturedContent;
@@ -90,10 +90,18 @@ export function ContentCard({
   };
 
   const getContentPreview = (content: CapturedContent): string => {
-    if (typeof content.content === "string") {
-      return content.content.substring(0, 150);
-    }
-    return `Binary content (${content.type})`;
+    if (typeof content.content !== "string") return `Binary content (${content.type})`;
+    const text = content.content
+      .replace(/#{1,6}\s+/g, "")
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/`(.*?)`/g, "$1")
+      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+      .replace(/^\s*[-*+]\s+/gm, "")
+      .replace(/^\s*\d+\.\s+/gm, "")
+      .replace(/\n+/g, " ")
+      .trim();
+    return text.length > 160 ? text.slice(0, 160) + "..." : text;
   };
 
   const getContentTitle = (content: CapturedContent): string => {
@@ -113,77 +121,83 @@ export function ContentCard({
     return (
       <div
         className={cn(
-          "group relative flex items-start gap-4 p-4 rounded-lg border",
-          "hover:bg-accent/50 cursor-pointer transition-colors",
-          "bg-card",
-          isNote && "border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20"
+          "group relative flex flex-col p-4 rounded-xl border-2",
+          "hover:border-[#8B7355]/80 cursor-pointer transition-all",
+          isNote ? "bg-[#2A2A2A] border-[#6B5D4F]" : "bg-card border-border"
         )}
         onClick={() => onPreview(content)}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
       >
-        {/* Note Badge */}
-        {isNote && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-medium text-amber-700 dark:text-amber-400">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Note
-          </div>
-        )}
-
-        {/* Icon */}
-        <div className={cn(
-          "shrink-0 mt-1",
-          isNote ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"
-        )}>
-          {getContentIcon(content.type)}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm truncate mb-1 pr-16">
-            {getContentTitle(content)}
-          </h3>
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-            {getContentPreview(content)}
-          </p>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="capitalize">{content.type}</span>
-            <span>•</span>
-            <span>{formatDate(content.capturedAt)}</span>
-            <span>•</span>
-            <span className="truncate max-w-[200px]">{content.sourceUrl}</span>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div
-          className={cn(
-            "flex items-center gap-2 transition-opacity",
-            showActions ? "opacity-100" : "opacity-0"
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          {isNote ? (
+            <div className="shrink-0 mt-0.5 text-[#F59E0B]">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+          ) : (
+            <div className="shrink-0 mt-0.5 text-muted-foreground">
+              {getContentIcon(content.type)}
+            </div>
           )}
-        >
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDelete}
-            title="Delete content"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <h3 className={cn(
+              "font-semibold text-lg truncate pr-2",
+              isNote ? "text-white" : ""
+            )}>
+              {getContentTitle(content)}
+            </h3>
+            <p className={cn(
+              "mt-1.5 text-sm line-clamp-2",
+              isNote ? "text-[#9CA3AF]" : "text-muted-foreground/80"
+            )}>
+              {getContentPreview(content)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={cn(
+                "h-8 w-8 p-0 hover:bg-transparent",
+                isNote ? "text-white/70 hover:text-white" : ""
+              )}
+              onClick={handleDelete} 
+              title="Delete"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
-          </Button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </Button>
+            {(content.metadata.tags || []).slice(0,3).map((t, i) => (
+              <span
+                key={t + i}
+                className={cn("px-2.5 py-1 rounded-md text-xs font-medium",
+                  i === 0 ? "bg-[#8B7355] text-white" : i === 1 ? "bg-[#4A7C9C] text-white" : "bg-[#5A8B6B] text-white"
+                )}
+              >
+                {t}
+              </span>
+            ))}
+            {((content.metadata.tags?.length || 0) > 3) && (
+              <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#3A3A3A] text-white">
+                +{(content.metadata.tags!.length - 3)}
+              </span>
+            )}
+          </div>
+          <div className={cn(
+            "text-sm",
+            isNote ? "text-[#9CA3AF]" : "text-muted-foreground/70"
+          )}>
+            {formatDate(content.capturedAt)}
+          </div>
         </div>
       </div>
     );
@@ -191,69 +205,94 @@ export function ContentCard({
 
   // Grid view
   const isNote = content.type === "note";
+  const tags = content.metadata.tags || [];
+  const visibleTags = tags.slice(0, 3);
+  const extraCount = Math.max(tags.length - 3, 0);
   
   return (
     <div
       className={cn(
-        "group relative flex flex-col p-3 rounded-lg border",
-        "hover:bg-accent/50 cursor-pointer transition-colors",
-        "bg-card",
-        isNote && "border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20"
+        "group relative flex flex-col p-4 rounded-xl border-2 h-full",
+        "hover:border-[#8B7355]/80 cursor-pointer transition-all",
+        isNote ? "bg-[#2A2A2A] border-[#6B5D4F]" : "bg-card border-border"
       )}
       onClick={() => onPreview(content)}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
-      {/* Note Badge */}
-      {isNote && (
-        <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-medium text-amber-700 dark:text-amber-400 z-10">
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          Note
+      {/* Content area - grows to fill space */}
+      <div className="flex-1 flex flex-col">
+        <div className="flex items-start gap-3">
+          <div className={cn("mt-0.5 shrink-0", isNote ? "text-[#F59E0B]" : "text-muted-foreground")}>
+            {isNote ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            ) : (
+              getContentIcon(content.type)
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className={cn(
+              "font-semibold text-lg line-clamp-2 pr-2",
+              isNote ? "text-white" : ""
+            )}>
+              {getContentTitle(content)}
+            </h3>
+          </div>
         </div>
-      )}
-
-      {/* Content */}
-      <div className="flex flex-col gap-1.5">
-        <h3 className="font-semibold text-base line-clamp-2 pr-16">
-          {getContentTitle(content)}
-        </h3>
-        <p className="text-xs text-muted-foreground/70 line-clamp-3">
+        
+        <p className={cn(
+          "mt-2 text-sm line-clamp-3",
+          isNote ? "text-[#9CA3AF]" : "text-muted-foreground/80"
+        )}>
           {getContentPreview(content)}
         </p>
+
+        {/* Tags section */}
+        {(visibleTags.length > 0 || extraCount > 0) && (
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            {visibleTags.map((t, i) => (
+              <span
+                key={t + i}
+                className={cn("px-2.5 py-1 rounded-md text-xs font-medium",
+                  i === 0 ? "bg-[#8B7355] text-white" : i === 1 ? "bg-[#4A7C9C] text-white" : "bg-[#5A8B6B] text-white"
+                )}
+              >
+                {t}
+              </span>
+            ))}
+            {extraCount > 0 && (
+              <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#3A3A3A] text-white">
+                +{extraCount}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Bottom Row: Date and Delete Button */}
-      <div className="flex items-center justify-between mt-2">
-        <div className="text-xs text-muted-foreground/50">
+      {/* Footer - always at bottom */}
+      <div className="mt-auto pt-3 flex items-center justify-between">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className={cn(
+            "h-8 w-8 p-0 hover:bg-transparent",
+            isNote ? "text-white/70 hover:text-white" : ""
+          )}
+          onClick={handleDelete} 
+          title="Delete"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </Button>
+        <div className={cn(
+          "text-sm",
+          isNote ? "text-[#9CA3AF]" : "text-muted-foreground/70"
+        )}>
           {formatDate(content.capturedAt)}
         </div>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleDelete}
-          title="Delete content"
-          className={cn(
-            "h-7 w-7 p-0 transition-opacity",
-            showActions ? "opacity-100" : "opacity-0"
-          )}
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            />
-          </svg>
-        </Button>
       </div>
     </div>
   );
