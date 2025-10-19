@@ -33,9 +33,12 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children }) =>
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (inline) {
+  // Treat as inline if explicitly marked or if there's no language and no newlines
+  const isInline = inline || (!language && !code.includes('\n'));
+
+  if (isInline) {
     return (
-      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
+      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm whitespace-nowrap">
         {children}
       </code>
     );
