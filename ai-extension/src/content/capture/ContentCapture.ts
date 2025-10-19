@@ -23,11 +23,34 @@ export enum CaptureErrorType {
 export class CaptureError extends Error {
   readonly type: CaptureErrorType;
   readonly details?: any;
+  readonly userMessage: string;
   constructor(type: CaptureErrorType, message: string, details?: any) {
     super(message);
     this.name = "CaptureError";
     this.type = type;
     this.details = details;
+    this.userMessage = mapCaptureErrorToUserMessage(type);
+  }
+}
+
+/**
+ * Map CaptureErrorType to user-friendly messages
+ */
+function mapCaptureErrorToUserMessage(type: CaptureErrorType): string {
+  switch (type) {
+    case CaptureErrorType.SELECTION_EMPTY:
+      return "No text selected. Please select text and try again.";
+    case CaptureErrorType.DOM_ACCESS:
+      return "Couldn't access page content. The page may be restricted.";
+    case CaptureErrorType.SANITIZATION:
+      return "Sanitization failed. Try again without sanitization.";
+    case CaptureErrorType.STORAGE:
+      return "Couldn't save content. Check storage or try again.";
+    case CaptureErrorType.MEDIA_LOAD:
+      return "Some media couldn't be captured; continue or retry.";
+    case CaptureErrorType.UNKNOWN:
+    default:
+      return "An unexpected error occurred. Please try again.";
   }
 }
 
@@ -125,9 +148,13 @@ function defaultMessenger(): BackgroundMessenger {
     async captureScreenshot(): Promise<string | null> {
       try {
         const response: any = await chrome.runtime.sendMessage({ kind: "CAPTURE_SCREENSHOT", payload: {} });
-        if (response && response.screenshot) return response.screenshot as string;
+        if (response && response.screenshot) {
+          return response.screenshot as string;
+        }
+        console.warn("[ContentCapture] Screenshot capture returned no data (non-blocking)");
         return null;
-      } catch {
+      } catch (err) {
+        console.warn("[ContentCapture] Screenshot capture failed (non-blocking)", err);
         return null;
       }
     },
@@ -148,15 +175,61 @@ export class ContentCapture {
     } as ContentCaptureDeps;
   }
 
+  /**
+   * Lightweight logger with [ContentCapture] prefix
+   */
+  private log = {
+    start: (mode: CaptureMode, sanitize: boolean, pocketId: string) => {
+      console.info("[ContentCapture] Capture started", {
+        mode,
+        sanitize,
+        pocketId: this.maskPocketId(pocketId),
+        timestamp: new Date().toISOString(),
+      });
+    },
+    completion: (mode: CaptureMode, duration: number, summary: any, warnings: string[]) => {
+      console.info("[ContentCapture] Capture completed", {
+        mode,
+        durationMs: Math.round(duration),
+        summary,
+        warnings: warnings.length > 0 ? warnings : undefined,
+      });
+    },
+    error: (mode: CaptureMode, duration: number, error: CaptureError) => {
+      console.error("[ContentCapture] Capture failed", {
+        mode,
+        durationMs: Math.round(duration),
+        errorType: error.type,
+        message: error.message,
+        userMessage: error.userMessage,
+      });
+    },
+  };
+
+  /**
+   * Mask pocket ID for privacy in logs (show first 8 chars)
+   */
+  private maskPocketId(pocketId: string): string {
+    if (!pocketId || pocketId.length <= 8) return pocketId;
+    return pocketId.slice(0, 8) + "...";
+  }
+
   async capture(options: CaptureOptions): Promise<CaptureResult> {
-    const { mode, sanitize = false } = options;
+    const { mode, sanitize = false, pocketId } = options;
+    const startTime = performance.now();
+
+    // Log capture start
+    this.log.start(mode, sanitize, pocketId);
 
     // Always extract metadata first
     let metadata: PageMetadata;
     try {
       metadata = this.deps.domAnalyzer.extractMetadata();
     } catch (err) {
-      throw new CaptureError(CaptureErrorType.DOM_ACCESS, "Failed to extract page metadata", err);
+      const duration = performance.now() - startTime;
+      const captureError = new CaptureError(CaptureErrorType.DOM_ACCESS, "Failed to extract page metadata", err);
+      this.log.error(mode, duration, captureError);
+      throw captureError;
     }
 
     const timestamp = Date.now();
@@ -187,7 +260,10 @@ export class ContentCapture {
           preview = this.mediaPreview(content);
           break;
         default:
-          throw new CaptureError(CaptureErrorType.UNKNOWN, `Unsupported capture mode: ${mode}`);
+          const unknownError = new CaptureError(CaptureErrorType.UNKNOWN, `Unsupported capture mode: ${mode}`);
+          const duration = performance.now() - startTime;
+          this.log.error(mode, duration, unknownError);
+          throw unknownError;
       }
 
       // Store content via processor if available
@@ -202,20 +278,117 @@ export class ContentCapture {
             sanitize,
           });
         } catch (err) {
-          throw new CaptureError(CaptureErrorType.STORAGE, "Failed to store captured content", err);
+          const duration = performance.now() - startTime;
+          const storageError = new CaptureError(CaptureErrorType.STORAGE, "Failed to store captured content", err);
+          this.log.error(mode, duration, storageError);
+          throw storageError;
         }
       }
 
+      // Generate summary and warnings for completion log
+      const summary = this.generateCaptureSummary(mode, content);
+      const warnings = this.extractWarnings(content);
+      const duration = performance.now() - startTime;
+      this.log.completion(mode, duration, summary, warnings);
+
       return { mode, content, metadata, timestamp, preview };
     } catch (err: any) {
-      if (err instanceof CaptureError) throw err;
+      const duration = performance.now() - startTime;
+      
+      if (err instanceof CaptureError) {
+        // Already logged in specific handlers, but log again if not
+        if (!err.message.includes("Failed to extract page metadata") && 
+            !err.message.includes("Unsupported capture mode") &&
+            !err.message.includes("Failed to store captured content")) {
+          this.log.error(mode, duration, err);
+        }
+        throw err;
+      }
+      
       // Map common errors
       const message = typeof err?.message === "string" ? err.message : "Unknown error";
+      let captureError: CaptureError;
+      
       if (/selection/i.test(message) && /empty|no/i.test(message)) {
-        throw new CaptureError(CaptureErrorType.SELECTION_EMPTY, "No text selected", err);
+        captureError = new CaptureError(CaptureErrorType.SELECTION_EMPTY, "No text selected", err);
+      } else {
+        captureError = new CaptureError(CaptureErrorType.UNKNOWN, message, err);
       }
-      throw new CaptureError(CaptureErrorType.UNKNOWN, message, err);
+      
+      this.log.error(mode, duration, captureError);
+      throw captureError;
     }
+  }
+
+  /**
+   * Generate capture summary for logging
+   */
+  private generateCaptureSummary(mode: CaptureMode, content: any): any {
+    switch (mode) {
+      case "full-page":
+        return {
+          textLength: content?.text?.content?.length || 0,
+          wordCount: content?.text?.wordCount || 0,
+          hasScreenshot: !!content?.screenshot,
+          structuredDataCount: content?.structuredData?.length || 0,
+        };
+      case "selection":
+        const text = typeof content.text === "string" ? content.text : content.text?.content || "";
+        return {
+          textLength: text.length,
+          hasContext: !!(content.context?.before || content.context?.after),
+          hasHtml: !!content.htmlContent,
+        };
+      case "element":
+        return {
+          elementCount: content?.elements?.length || 0,
+          hasPreview: content?.elements?.some((e: any) => e.preview),
+          hasSnippets: content?.elements?.some((e: any) => e.snippets),
+        };
+      case "note":
+        return {
+          textLength: content?.text?.length || 0,
+        };
+      case "media":
+        return {
+          imageCount: content?.images?.length || 0,
+          audioCount: content?.audios?.length || 0,
+          videoCount: content?.videos?.length || 0,
+          totalSize: content?.totalSize || 0,
+        };
+      default:
+        return {};
+    }
+  }
+
+  /**
+   * Extract warnings from captured content
+   */
+  private extractWarnings(content: any): string[] {
+    const warnings: string[] = [];
+    
+    // Check for sanitization warnings
+    if (content?.sanitization?.redactionCount > 0) {
+      warnings.push(`${content.sanitization.redactionCount} PII item(s) redacted`);
+    }
+    
+    // Check for element-specific warnings
+    if (content?.elements) {
+      const emptyElements = content.elements.filter((e: any) => !e.textContent?.trim());
+      if (emptyElements.length > 0) {
+        warnings.push(`${emptyElements.length} element(s) have no text content`);
+      }
+    }
+    
+    // Check for large content warnings
+    if (content?.text) {
+      const text = typeof content.text === "string" ? content.text : content.text?.content || "";
+      if (text.length > 50000) {
+        warnings.push("Content is very large (>50,000 characters)");
+      }
+    }
+    
+    return warnings;
   }
 
   async captureWithPreview(options: CaptureOptions): Promise<{ result: CaptureResult; editablePreview: EditablePreview | null; validation: ValidationResult }> {
@@ -334,6 +507,9 @@ export class ContentCapture {
 
   // Mode handlers
   private async captureFullPage(sanitize: boolean): Promise<any> {
+    const startTime = performance.now();
+    console.info("[ContentCapture] Full-page extraction started");
+
     const text = this.deps.domAnalyzer.extractText();
     const formatted = this.tryFormatText(text);
     const structured = this.deps.domAnalyzer.extractStructuredData ? this.deps.domAnalyzer.extractStructuredData() : [];
@@ -354,12 +530,24 @@ export class ContentCapture {
           redactionCount: s1.redactionCount,
           piiTypes: s1.detectedPII.map(p => p.type),
         };
+        console.info("[ContentCapture] Sanitization applied", {
+          redactionCount: s1.redactionCount,
+          piiTypes: sanitizationInfo.piiTypes,
+        });
       } catch (err) {
+        console.error("[ContentCapture] Sanitization failed in full-page mode", err);
         throw new CaptureError(CaptureErrorType.SANITIZATION, "Sanitization failed", err);
       }
     }
 
     const screenshot = await this.deps.messenger!.captureScreenshot();
+
+    const duration = performance.now() - startTime;
+    console.info("[ContentCapture] Full-page extraction completed", {
+      durationMs: Math.round(duration),
+      wordCount: text.wordCount,
+      hasScreenshot: !!screenshot,
+    });
 
     return {
       text: { ...text, content: processedText, formattedContent: formattedProcessed },
@@ -371,6 +559,8 @@ export class ContentCapture {
   }
 
   private async captureSelection(sanitize: boolean): Promise<any> {
+    console.info("[ContentCapture] Selection extraction started");
+    
     const op = async () => {
       const detailed = this.deps.domAnalyzer.extractDetailedSelection?.(200);
       if (detailed) return this.processDetailedSelection(detailed, sanitize);
@@ -391,7 +581,11 @@ export class ContentCapture {
             redactionCount: s.redactionCount,
             piiTypes: s.detectedPII.map(p => p.type),
           };
+          console.info("[ContentCapture] Sanitization applied to selection", {
+            redactionCount: s.redactionCount,
+          });
         } catch (err) {
+          console.error("[ContentCapture] Sanitization failed in selection mode", err);
           throw new CaptureError(CaptureErrorType.SANITIZATION, "Sanitization failed", err);
         }
       }
@@ -400,7 +594,9 @@ export class ContentCapture {
       return { text: { ...basic, content: processed }, context, sanitization: sanitizationInfo };
     };
 
-    return await this.deps.selection.captureWithReliability(op, { checkStability: true, enableRetry: true, monitorPerformance: true });
+    const result = await this.deps.selection.captureWithReliability(op, { checkStability: true, enableRetry: true, monitorPerformance: true });
+    console.info("[ContentCapture] Selection extraction completed");
+    return result;
   }
 
   private async processDetailedSelection(sel: DetailedSelection, sanitize: boolean): Promise<any> {
@@ -423,7 +619,11 @@ export class ContentCapture {
           redactionCount: sText.redactionCount,
           piiTypes: sText.detectedPII.map(p => p.type),
         };
+        console.info("[ContentCapture] Sanitization applied to detailed selection", {
+          redactionCount: sText.redactionCount,
+        });
       } catch (err) {
+        console.error("[ContentCapture] Sanitization failed in detailed selection", err);
         throw new CaptureError(CaptureErrorType.SANITIZATION, "Sanitization failed", err);
       }
     }
@@ -444,6 +644,8 @@ export class ContentCapture {
   }
 
   private async captureElements(sanitize: boolean): Promise<any> {
+    console.info("[ContentCapture] Element extraction started");
+    
     // Prefer a provided element provider (for tests or pre-selected elements)
     let selected: any[] = [];
 
@@ -463,6 +665,8 @@ export class ContentCapture {
         selected = [];
       }
     }
+
+    console.info("[ContentCapture] Processing elements", { count: selected.length });
 
     const processed = await Promise.all(
       (selected as any[]).map(async (el: any) => {
@@ -486,6 +690,7 @@ export class ContentCapture {
               piiTypes: s.detectedPII.map((p: any) => p.type),
             };
           } catch (err) {
+            console.error("[ContentCapture] Sanitization failed for element", err);
             throw new CaptureError(CaptureErrorType.SANITIZATION, "Sanitization failed", err);
           }
         }
@@ -501,10 +706,13 @@ export class ContentCapture {
       })
     );
 
+    console.info("[ContentCapture] Element extraction completed", { count: processed.length });
     return { elements: processed, count: processed.length };
   }
 
   private async captureNote(text: string, sanitize: boolean): Promise<any> {
+    console.info("[ContentCapture] Note capture started", { textLength: text.length });
+    
     let processed = text;
     let sanitizationInfo: any = null;
     if (sanitize && text) {
@@ -516,14 +724,22 @@ export class ContentCapture {
           redactionCount: s.redactionCount,
           piiTypes: s.detectedPII.map(p => p.type),
         };
+        console.info("[ContentCapture] Sanitization applied to note", {
+          redactionCount: s.redactionCount,
+        });
       } catch (err) {
+        console.error("[ContentCapture] Sanitization failed in note mode", err);
         throw new CaptureError(CaptureErrorType.SANITIZATION, "Sanitization failed", err);
       }
     }
+    
+    console.info("[ContentCapture] Note capture completed");
     return { text: processed, sanitization: sanitizationInfo, type: "note" };
   }
 
   private async captureMedia(options?: MediaCaptureOptions): Promise<MediaCaptureResult> {
+    console.info("[ContentCapture] Media capture started");
+    
     try {
       const result = await this.deps.media.captureAllMedia({
         compressImages: true,
@@ -532,8 +748,17 @@ export class ContentCapture {
         thumbnailSize: 200,
         ...(options || {}),
       });
+      
+      console.info("[ContentCapture] Media capture completed", {
+        imageCount: result.images?.length || 0,
+        audioCount: result.audios?.length || 0,
+        videoCount: result.videos?.length || 0,
+        totalSize: result.totalSize || 0,
+      });
+      
       return result;
     } catch (err) {
+      console.error("[ContentCapture] Media capture failed", err);
       throw new CaptureError(CaptureErrorType.MEDIA_LOAD, "Failed to capture media", err);
     }
   }
