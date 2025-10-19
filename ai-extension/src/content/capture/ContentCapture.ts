@@ -64,6 +64,12 @@ export interface EditablePreview {
   preview: string;
 }
 
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
 // Lightweight dependency interfaces for testability
 export interface IDOMAnalyzer {
   extractMetadata(): PageMetadata;
@@ -212,13 +218,20 @@ export class ContentCapture {
     }
   }
 
-  async captureWithPreview(options: CaptureOptions): Promise<{ result: CaptureResult; editablePreview: EditablePreview | null }> {
+  async captureWithPreview(options: CaptureOptions): Promise<{ result: CaptureResult; editablePreview: EditablePreview | null; validation: ValidationResult }> {
     const result = await this.capture(options);
 
     // Editable preview for selection/element/note
     let editablePreview: EditablePreview | null = null;
+    let validation: ValidationResult = {
+      isValid: true,
+      errors: [],
+      warnings: [],
+    };
+
     if (options.mode === "selection") {
       editablePreview = this.toEditablePreviewFromSelection(result.content);
+      validation = this.validateSelection(result.content);
     } else if (options.mode === "note") {
       const text = (result.content?.text as string) || "";
       editablePreview = {
@@ -229,7 +242,7 @@ export class ContentCapture {
         editable: true,
         preview: this.truncate(text),
       };
-
+      validation = this.validateNote(text);
     } else if (options.mode === "element") {
       const first = result.content?.elements?.[0];
       if (first) {
@@ -247,9 +260,76 @@ export class ContentCapture {
         }
         editablePreview = previewObj;
       }
+      validation = this.validateElements(result.content);
     }
 
-    return { result, editablePreview };
+    return { result, editablePreview, validation };
+  }
+
+  /**
+   * Capture multiple selections with batch processing
+   * Requirements: 2.1, 2.2, 2.3, 15.1, 17.1, 17.2
+   */
+  async captureMultipleSelections(sanitize: boolean = true): Promise<any> {
+    return await this.deps.selection.captureWithReliability(
+      async () => {
+        // Try to get multiple detailed selections if the analyzer supports it
+        const anyAnalyzer = this.deps.domAnalyzer as any;
+        if (typeof anyAnalyzer.extractMultipleSelections === "function") {
+          const selections = anyAnalyzer.extractMultipleSelections(200);
+          
+          if (selections.length === 0) {
+            throw new CaptureError(CaptureErrorType.SELECTION_EMPTY, "No text selected");
+          }
+
+          console.info("[ContentCapture] Processing multiple selections", {
+            count: selections.length,
+          });
+
+          const processedSelections = await Promise.all(
+            selections.map((selection: any) => this.processDetailedSelection(selection, sanitize))
+          );
+
+          return {
+            selections: processedSelections,
+            count: processedSelections.length,
+            batchTimestamp: Date.now(),
+          };
+        }
+
+        // Fallback: capture single selection
+        const selection = this.deps.domAnalyzer.extractSelection();
+        if (!selection || !selection.content || selection.content.trim().length === 0) {
+          throw new CaptureError(CaptureErrorType.SELECTION_EMPTY, "No text selected");
+        }
+
+        let processed = selection.content;
+        let sanitizationInfo: any = null;
+        if (sanitize) {
+          const s = this.deps.sanitizer.sanitize(processed);
+          processed = s.sanitizedContent;
+          sanitizationInfo = {
+            detectedPII: s.detectedPII.length,
+            redactionCount: s.redactionCount,
+            piiTypes: s.detectedPII.map(p => p.type),
+          };
+        }
+
+        return {
+          selections: [{
+            text: { ...selection, content: processed },
+            sanitization: sanitizationInfo,
+          }],
+          count: 1,
+          batchTimestamp: Date.now(),
+        };
+      },
+      {
+        checkStability: true,
+        enableRetry: true,
+        monitorPerformance: true,
+      }
+    );
   }
 
   // Mode handlers
@@ -520,6 +600,97 @@ export class ContentCapture {
       timestamp: selection.timestamp || Date.now(),
       editable: true,
       preview: this.selectionPreview(selection),
+    };
+  }
+
+  // Validation methods
+  private validateSelection(selection: any): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    const text = typeof selection.text === "string" ? selection.text : selection.text?.content || "";
+
+    // Check if text is empty
+    if (!text || text.trim().length === 0) {
+      errors.push("Selection text is empty");
+    }
+
+    // Check text length
+    if (text && text.length > 50000) {
+      warnings.push("Selection is very large (>50,000 characters)");
+    }
+
+    // Check if source location is available
+    if (!selection.sourceLocation?.url) {
+      warnings.push("Source URL is missing");
+    }
+
+    // Check if context is available
+    if (!selection.context?.before && !selection.context?.after) {
+      warnings.push("No surrounding context available");
+    }
+
+    // Check for sanitization warnings
+    if (selection.sanitization && selection.sanitization.redactionCount > 0) {
+      warnings.push(`${selection.sanitization.redactionCount} PII item(s) were redacted`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    };
+  }
+
+  private validateNote(text: string): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Check if text is empty
+    if (!text || text.trim().length === 0) {
+      errors.push("Note text is empty");
+    }
+
+    // Check text length
+    if (text && text.length > 100000) {
+      warnings.push("Note is very large (>100,000 characters)");
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    };
+  }
+
+  private validateElements(content: any): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    const elements = content?.elements || [];
+
+    // Check if elements array is empty
+    if (elements.length === 0) {
+      errors.push("No elements were selected");
+    }
+
+    // Check for elements without text content
+    const emptyElements = elements.filter((el: any) => !el.textContent || el.textContent.trim().length === 0);
+    if (emptyElements.length > 0) {
+      warnings.push(`${emptyElements.length} element(s) have no text content`);
+    }
+
+    // Check for sanitization warnings
+    const sanitizedElements = elements.filter((el: any) => el.sanitization && el.sanitization.redactionCount > 0);
+    if (sanitizedElements.length > 0) {
+      const totalRedactions = sanitizedElements.reduce((sum: number, el: any) => sum + el.sanitization.redactionCount, 0);
+      warnings.push(`${totalRedactions} PII item(s) were redacted across ${sanitizedElements.length} element(s)`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
     };
   }
 }

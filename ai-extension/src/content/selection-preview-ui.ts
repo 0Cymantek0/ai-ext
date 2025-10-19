@@ -304,20 +304,22 @@ export class SelectionPreviewUI {
     `;
 
     const url = document.createElement("div");
-    url.innerHTML = `<strong>Source:</strong> ${this.preview!.sourceLocation.url}`;
+    url.innerHTML = `<strong>Source:</strong> ${this.preview!.sourceLocation?.url || 'Unknown'}`;
     url.style.cssText = `
       margin-bottom: 4px;
       word-break: break-all;
     `;
 
-    const path = document.createElement("div");
-    path.innerHTML = `<strong>Element:</strong> ${this.preview!.sourceLocation.elementPath}`;
-    path.style.cssText = `
-      word-break: break-all;
-    `;
-
     info.appendChild(url);
-    info.appendChild(path);
+
+    if (this.preview!.sourceLocation?.elementPath) {
+      const path = document.createElement("div");
+      path.innerHTML = `<strong>Element:</strong> ${this.preview!.sourceLocation.elementPath}`;
+      path.style.cssText = `
+        word-break: break-all;
+      `;
+      info.appendChild(path);
+    }
 
     return info;
   }
