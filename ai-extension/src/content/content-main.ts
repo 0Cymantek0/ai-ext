@@ -13,7 +13,6 @@ import { domAnalyzer } from "./dom-analyzer.js";
 import { contentSanitizer } from "./content-sanitizer.js";
 import { contentCapture } from "./content-capture.js";
 import { selectionPreviewUI } from "./selection-preview-ui.js";
-import { contextMenuCaptureHandler } from "./context-menu-capture.js";
 import { PocketSelector } from "./pocket-selector.js";
 
 interface ContentScriptState {
@@ -46,9 +45,6 @@ class ContentScriptManager {
 
       // Register message handlers
       this.registerMessageHandlers();
-
-      // Initialize context menu capture handler
-      contextMenuCaptureHandler.initialize();
 
       // Set up page lifecycle listeners
       this.setupLifecycleListeners();
