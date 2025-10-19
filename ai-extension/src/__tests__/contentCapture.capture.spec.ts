@@ -96,9 +96,20 @@ describe("ContentCapture.capture - selection", () => {
 describe("ContentCapture.capture - element", () => {
   it("aggregates selected elements with per-element previews and sanitization when enabled", async () => {
     const deps = createDeps();
+    const mockRect = { top: 0, left: 0, width: 0, height: 0, bottom: 0, right: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
     const elementProvider = async () => [
-      { tagName: "DIV", selector: "div.article", textContent: "Hello from article" },
-      { tagName: "A", selector: "a.contact", textContent: "Contact at test@example.com" },
+      { 
+        element: document.createElement("div") as HTMLElement,
+        info: { tagName: "DIV", selector: "div.article", textContent: "Hello from article", innerHTML: "", attributes: {}, boundingRect: mockRect },
+        enhancedInfo: {} as any,
+        textContent: "Hello from article"
+      },
+      { 
+        element: document.createElement("a") as HTMLElement,
+        info: { tagName: "A", selector: "a.contact", textContent: "Contact at test@example.com", innerHTML: "", attributes: {}, boundingRect: mockRect },
+        enhancedInfo: {} as any,
+        textContent: "Contact at test@example.com"
+      },
     ];
 
     const cc = new ContentCapture({ domAnalyzer: deps.dom, sanitizer: deps.sanitizer, media: deps.media, selection: deps.selection, messenger: deps.messenger, elementProvider });
