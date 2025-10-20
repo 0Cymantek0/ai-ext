@@ -4,15 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Response } from "@/components/ai/response";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   Bold, 
   Italic, 
   Underline, 
   Strikethrough, 
   Type,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
   List,
   ListOrdered,
   Code,
@@ -23,14 +26,14 @@ import {
   ArrowLeft,
   Eye,
   Edit3,
-  Plus,
   X,
   Quote,
   Minus,
   Link,
   Image,
   Keyboard,
-  Save
+  Save,
+  ChevronDown
 } from "lucide-react";
 
 export interface NoteData {
@@ -421,183 +424,209 @@ export function NoteEditorPage({
       <div className="flex-1 flex flex-col overflow-hidden">
         {!isPreviewMode ? (
           <>
-            {/* Toolbar */}
-            <div className="flex items-center gap-0.5 px-4 py-2.5 border-b border-zinc-800 bg-zinc-900/50 overflow-x-auto">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => insertMarkdown("**", "**", "bold")}
-                title="Bold (Ctrl+B)"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Bold className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => insertMarkdown("*", "*", "italic")}
-                title="Italic (Ctrl+I)"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Italic className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => insertMarkdown("<u>", "</u>", "underline")}
-                title="Underline (Ctrl+U)"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Underline className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => insertMarkdown("~~", "~~", "strikethrough")}
-                title="Strikethrough"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Strikethrough className="h-4 w-4" />
-              </Button>
+            {/* Toolbar - Responsive with Grouped Menus */}
+            <div className="flex items-center gap-1 px-4 py-2.5 border-b border-zinc-800 bg-zinc-900/50 flex-wrap">
+              {/* Text Formatting Group */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-3 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
+                    title="Text Formatting"
+                  >
+                    <Type className="h-4 w-4 mr-1.5" />
+                    Text
+                    <ChevronDown className="h-3 w-3 ml-1.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-zinc-900 border-zinc-800">
+                  <DropdownMenuItem
+                    onClick={() => insertMarkdown("**", "**", "bold")}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Bold className="h-4 w-4 mr-2" />
+                    Bold <span className="ml-auto text-xs text-zinc-500">Ctrl+B</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => insertMarkdown("*", "*", "italic")}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Italic className="h-4 w-4 mr-2" />
+                    Italic <span className="ml-auto text-xs text-zinc-500">Ctrl+I</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => insertMarkdown("<u>", "</u>", "underline")}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Underline className="h-4 w-4 mr-2" />
+                    Underline <span className="ml-auto text-xs text-zinc-500">Ctrl+U</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => insertMarkdown("~~", "~~", "strikethrough")}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Strikethrough className="h-4 w-4 mr-2" />
+                    Strikethrough
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => insertMarkdown("## ", "", "Heading")}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Type className="h-4 w-4 mr-2" />
+                    Heading
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Lists Group */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-3 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
+                    title="Lists"
+                  >
+                    <List className="h-4 w-4 mr-1.5" />
+                    Lists
+                    <ChevronDown className="h-3 w-3 ml-1.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-zinc-900 border-zinc-800">
+                  <DropdownMenuItem
+                    onClick={() => insertMarkdown("\n- ", "", "List item")}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <List className="h-4 w-4 mr-2" />
+                    Bullet List
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => insertMarkdown("\n1. ", "", "List item")}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <ListOrdered className="h-4 w-4 mr-2" />
+                    Numbered List
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={insertNestedList}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <ListTree className="h-4 w-4 mr-2" />
+                    Nested List
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Code & Tables Group */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-3 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
+                    title="Code & Tables"
+                  >
+                    <Code className="h-4 w-4 mr-1.5" />
+                    Code
+                    <ChevronDown className="h-3 w-3 ml-1.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-zinc-900 border-zinc-800">
+                  <DropdownMenuItem
+                    onClick={() => insertMarkdown("`", "`", "code")}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Code className="h-4 w-4 mr-2" />
+                    Inline Code
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={insertCodeBlock}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <FileCode className="h-4 w-4 mr-2" />
+                    Code Block
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={insertTable}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Table className="h-4 w-4 mr-2" />
+                    Table
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={insertHTMLBoilerplate}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <FileCode className="h-4 w-4 mr-2" />
+                    HTML Boilerplate
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Media & More Group */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-3 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
+                    title="Media & More"
+                  >
+                    <Image className="h-4 w-4 mr-1.5" />
+                    Insert
+                    <ChevronDown className="h-3 w-3 ml-1.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-zinc-900 border-zinc-800">
+                  <DropdownMenuItem
+                    onClick={insertLink}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Link className="h-4 w-4 mr-2" />
+                    Link <span className="ml-auto text-xs text-zinc-500">Ctrl+Shift+K</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={insertImage}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Image className="h-4 w-4 mr-2" />
+                    Image
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={insertBlockquote}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Quote className="h-4 w-4 mr-2" />
+                    Blockquote
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={insertHorizontalRule}
+                    className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
+                  >
+                    <Minus className="h-4 w-4 mr-2" />
+                    Horizontal Rule
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               
-              <div className="w-px h-5 bg-zinc-700 mx-1.5 shrink-0" />
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => insertMarkdown("## ", "", "Heading")}
-                title="Heading"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Type className="h-4 w-4" />
-              </Button>
-              
-              <div className="w-px h-5 bg-zinc-700 mx-1.5 shrink-0" />
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => insertMarkdown("\n- ", "", "List item")}
-                title="Bullet List"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => insertMarkdown("\n1. ", "", "List item")}
-                title="Numbered List"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <ListOrdered className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={insertNestedList}
-                title="Nested List"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <ListTree className="h-4 w-4" />
-              </Button>
-              
-              <div className="w-px h-5 bg-zinc-700 mx-1.5 shrink-0" />
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => insertMarkdown("`", "`", "code")}
-                title="Inline Code"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Code className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={insertCodeBlock}
-                title="Code Block"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <FileCode className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={insertTable}
-                title="Insert Table"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Table className="h-4 w-4" />
-              </Button>
-              
-              <div className="w-px h-5 bg-zinc-700 mx-1.5 shrink-0" />
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={insertBlockquote}
-                title="Blockquote"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Quote className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={insertHorizontalRule}
-                title="Horizontal Rule"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={insertLink}
-                title="Link (Ctrl+Shift+K)"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Link className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={insertImage}
-                title="Image"
-                className="h-8 w-8 shrink-0 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                <Image className="h-4 w-4" />
-              </Button>
-              
-              <div className="w-px h-5 bg-zinc-700 mx-1.5 shrink-0" />
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={insertHTMLBoilerplate}
-                title="HTML Boilerplate"
-                className="h-8 px-3 shrink-0 text-xs hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-              >
-                HTML
-              </Button>
-              
-              <div className="flex-1" />
+              <div className="flex-1 min-w-[20px]" />
               
               <div className="text-xs text-zinc-500 mr-3 shrink-0">
                 {wordCount} words · {charCount} chars
               </div>
               
               <Button
-                size="sm"
+                size="icon"
                 onClick={handleAutoFormat}
                 disabled={isAutoFormatting}
-                className="h-8 px-4 shrink-0 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 hover:from-purple-600 hover:via-pink-600 hover:to-purple-600 text-white border-0 shadow-lg shadow-purple-500/20"
+                className={cn(
+                  "h-8 w-8 shrink-0 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 hover:from-purple-600 hover:via-pink-600 hover:to-purple-600 text-white border-0 shadow-lg shadow-purple-500/20",
+                  isAutoFormatting && "animate-shimmer bg-[length:200%_100%]"
+                )}
                 title="AI Auto-format"
               >
-                <Sparkles className="h-3.5 w-3.5 mr-2" />
-                {isAutoFormatting ? "Formatting..." : "Auto-format"}
+                <Sparkles className={cn("h-4 w-4", isAutoFormatting && "animate-pulse")} />
               </Button>
             </div>
 
