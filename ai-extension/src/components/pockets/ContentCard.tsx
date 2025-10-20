@@ -213,15 +213,13 @@ export function ContentCard({
             {(content.metadata.tags || []).slice(0,3).map((t, i) => (
               <span
                 key={t + i}
-                className={cn("px-2.5 py-1 rounded-md text-xs font-medium",
-                  i === 0 ? "bg-[#8B7355] text-white" : i === 1 ? "bg-[#4A7C9C] text-white" : "bg-[#5A8B6B] text-white"
-                )}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 text-amber-500 rounded-full text-xs font-medium"
               >
-                {t}
+                #{t}
               </span>
             ))}
             {((content.metadata.tags?.length || 0) > 3) && (
-              <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#3A3A3A] text-white">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 text-amber-500 rounded-full text-xs font-medium">
                 +{(content.metadata.tags!.length - 3)}
               </span>
             )}
@@ -289,15 +287,13 @@ export function ContentCard({
             {visibleTags.map((t, i) => (
               <span
                 key={t + i}
-                className={cn("px-2.5 py-1 rounded-md text-xs font-medium",
-                  i === 0 ? "bg-[#8B7355] text-white" : i === 1 ? "bg-[#4A7C9C] text-white" : "bg-[#5A8B6B] text-white"
-                )}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 text-amber-500 rounded-full text-xs font-medium"
               >
-                {t}
+                #{t}
               </span>
             ))}
             {extraCount > 0 && (
-              <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#3A3A3A] text-white">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 text-amber-500 rounded-full text-xs font-medium">
                 +{extraCount}
               </span>
             )}

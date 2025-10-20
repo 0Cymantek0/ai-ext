@@ -57,14 +57,9 @@ export function NotePreview({ content, onBack, onEdit }: NotePreviewProps) {
             {tags.map((tag, index) => (
               <span
                 key={`${tag}-${index}`}
-                className={cn(
-                  "px-3 py-1 rounded-md text-sm font-medium",
-                  index === 0 ? "bg-[#8B7355] text-white" :
-                  index === 1 ? "bg-[#4A7C9C] text-white" :
-                  "bg-[#5A8B6B] text-white"
-                )}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 text-amber-500 rounded-full text-sm font-medium"
               >
-                {tag}
+                #{tag}
               </span>
             ))}
           </div>
