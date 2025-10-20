@@ -573,20 +573,67 @@ export function ChatApp() {
   };
 
   const handleAddFile = async () => {
-    try {
-      // Trigger content capture with selection mode
-      await chrome.runtime.sendMessage({
-        kind: "CAPTURE_REQUEST",
-        requestId: crypto.randomUUID(),
-        payload: {
-          mode: "selection",
-          pocketId: currentPocketId,
-        },
-      });
-      console.log("Capture request sent for pocket:", currentPocketId);
-    } catch (error) {
-      console.error("Error capturing content:", error);
+    if (!currentPocketId) {
+      alert("No pocket selected. Please select a pocket first.");
+      return;
     }
+
+    // Create a file input element
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".pdf,.doc,.docx,.xls,.xlsx,.txt,.md";
+    fileInput.multiple = false;
+
+    fileInput.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        console.log("Uploading file:", file.name, file.type, file.size);
+
+        // Read file as base64
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64Data = event.target?.result as string;
+
+          try {
+            const response = await chrome.runtime.sendMessage({
+              kind: "FILE_UPLOAD",
+              requestId: crypto.randomUUID(),
+              payload: {
+                pocketId: currentPocketId,
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                fileData: base64Data,
+              },
+            });
+
+            if (response?.status === "success") {
+              console.log("File uploaded successfully:", response.contentId);
+            } else {
+              console.error("Upload failed:", response?.error);
+              alert("Failed to upload file. Please try again.");
+            }
+          } catch (error) {
+            console.error("Error uploading file:", error);
+            alert("Error uploading file. Please try again.");
+          }
+        };
+
+        reader.onerror = () => {
+          alert("Error reading file. Please try again.");
+        };
+
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error("Error processing file:", error);
+        alert("Error processing file. Please try again.");
+      }
+    };
+
+    // Trigger file selection
+    fileInput.click();
   };
 
 

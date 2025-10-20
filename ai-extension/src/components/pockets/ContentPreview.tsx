@@ -27,7 +27,79 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
     return new Date(timestamp).toLocaleString();
   };
 
+  const handleDownloadFile = () => {
+    if (!content || !content.content) return;
+
+    try {
+      const fileContent = content.content as any;
+      const fileName = content.metadata.title || "download";
+      
+      // If content has fileData, use it
+      if (fileContent.fileData) {
+        const link = document.createElement("a");
+        link.href = fileContent.fileData;
+        link.download = fileContent.fileName || fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      alert("Failed to download file");
+    }
+  };
+
   const renderContent = () => {
+    // Handle file types (PDF, DOCX, XLSX, etc.)
+    if (content.type === "pdf" || content.type === "document" || content.type === "spreadsheet" || content.type === "file") {
+      const fileContent = content.content as any;
+      const fileSize = content.metadata.fileSize 
+        ? `${(content.metadata.fileSize / 1024).toFixed(1)} KB`
+        : "Unknown size";
+      const fileType = content.metadata.fileExtension?.toUpperCase() || content.type.toUpperCase();
+      
+      return (
+        <div className="p-8 bg-accent/10 rounded-lg text-center">
+          <div className="flex flex-col items-center gap-4">
+            {/* File icon */}
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+              {content.type === "pdf" ? (
+                <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              ) : content.type === "document" ? (
+                <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              ) : content.type === "spreadsheet" ? (
+                <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              ) : (
+                <svg className="w-10 h-10 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              )}
+            </div>
+            
+            {/* File info */}
+            <div>
+              <h3 className="text-lg font-semibold">{fileContent.fileName || content.metadata.title}</h3>
+              <p className="text-sm text-muted-foreground mt-1">{fileType} • {fileSize}</p>
+            </div>
+
+            {/* Download button */}
+            <Button onClick={handleDownloadFile} className="mt-4">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download File
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     if (content.type === "image" && content.content instanceof ArrayBuffer) {
       const blob = new Blob([content.content], { type: "image/png" });
       const url = URL.createObjectURL(blob);
@@ -119,6 +191,18 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
                   <span className="text-muted-foreground">Captured:</span>
                   <span className="ml-2">{formatDate(content.capturedAt)}</span>
                 </div>
+                {content.metadata.fileSize && (
+                  <div>
+                    <span className="text-muted-foreground">File Size:</span>
+                    <span className="ml-2">{(content.metadata.fileSize / 1024).toFixed(1)} KB</span>
+                  </div>
+                )}
+                {content.metadata.fileExtension && (
+                  <div>
+                    <span className="text-muted-foreground">Format:</span>
+                    <span className="ml-2 uppercase">{content.metadata.fileExtension}</span>
+                  </div>
+                )}
                 {content.metadata.author && (
                   <div>
                     <span className="text-muted-foreground">Author:</span>

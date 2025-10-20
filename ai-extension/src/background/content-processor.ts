@@ -15,7 +15,7 @@ import {
 
 export interface ProcessContentOptions {
   pocketId: string;
-  mode: "full-page" | "selection" | "element" | "note";
+  mode: "full-page" | "selection" | "element" | "note" | "file";
   content: any;
   metadata: any;
   sourceUrl: string;
@@ -154,6 +154,18 @@ export class ContentProcessor {
         }
         break;
 
+      case "file":
+        if (!content.fileData) {
+          errors.push("File upload missing file data");
+        }
+        if (!content.fileName) {
+          errors.push("File upload missing file name");
+        }
+        if (content.fileSize && content.fileSize > 50 * 1024 * 1024) {
+          warnings.push("File size exceeds 50MB, may cause performance issues");
+        }
+        break;
+
       default:
         errors.push(`Unknown capture mode: ${mode}`);
     }
@@ -213,6 +225,14 @@ export class ContentProcessor {
       case "note":
         return ContentType.NOTE;
 
+      case "file":
+        // Detect file type based on extension
+        const fileExtension = content.fileExtension?.toLowerCase();
+        if (fileExtension === "pdf") return ContentType.PDF;
+        if (["doc", "docx"].includes(fileExtension)) return ContentType.DOCUMENT;
+        if (["xls", "xlsx"].includes(fileExtension)) return ContentType.SPREADSHEET;
+        return ContentType.FILE;
+
       default:
         return ContentType.TEXT;
     }
@@ -251,6 +271,18 @@ export class ContentProcessor {
 
       case ContentType.NOTE:
         return content.text || "";
+
+      case ContentType.PDF:
+      case ContentType.DOCUMENT:
+      case ContentType.SPREADSHEET:
+      case ContentType.FILE:
+        return JSON.stringify({
+          fileData: content.fileData,
+          fileName: content.fileName,
+          fileType: content.fileType,
+          fileSize: content.fileSize,
+          fileExtension: content.fileExtension,
+        });
 
       case ContentType.IMAGE:
       case ContentType.VIDEO:
@@ -309,6 +341,13 @@ export class ContentProcessor {
       };
     }
 
+    // Add file metadata for file uploads
+    if (mode === "file") {
+      metadata.fileSize = pageMetadata.fileSize || content.fileSize;
+      metadata.fileType = pageMetadata.fileType || content.fileType;
+      metadata.fileExtension = pageMetadata.fileExtension || content.fileExtension;
+    }
+
     return metadata;
   }
 
@@ -337,6 +376,18 @@ export class ContentProcessor {
 
       case ContentType.NOTE:
         return this.truncateText(content.text || "", maxLength);
+
+      case ContentType.PDF:
+        return `PDF: ${content.fileName || "Untitled"} (${this.formatFileSize(content.fileSize)})`;
+
+      case ContentType.DOCUMENT:
+        return `Document: ${content.fileName || "Untitled"} (${this.formatFileSize(content.fileSize)})`;
+
+      case ContentType.SPREADSHEET:
+        return `Spreadsheet: ${content.fileName || "Untitled"} (${this.formatFileSize(content.fileSize)})`;
+
+      case ContentType.FILE:
+        return `File: ${content.fileName || "Untitled"} (${this.formatFileSize(content.fileSize)})`;
 
       case ContentType.IMAGE:
         return `Image: ${content.alt || content.src || "Untitled"}`;
@@ -381,6 +432,25 @@ export class ContentProcessor {
     }
 
     return `${secs}s`;
+  }
+
+  /**
+   * Format file size in bytes to readable string
+   */
+  private formatFileSize(bytes: number | undefined): string {
+    if (!bytes || isNaN(bytes)) return "Unknown size";
+
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+
+    const kb = bytes / 1024;
+    if (kb < 1024) {
+      return `${kb.toFixed(1)} KB`;
+    }
+
+    const mb = kb / 1024;
+    return `${mb.toFixed(1)} MB`;
   }
 
   /**

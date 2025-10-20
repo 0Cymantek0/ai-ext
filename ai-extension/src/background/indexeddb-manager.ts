@@ -26,6 +26,10 @@ export enum ContentType {
   ELEMENT = "element",
   PAGE = "page",
   NOTE = "note",
+  PDF = "pdf",
+  DOCUMENT = "document",
+  SPREADSHEET = "spreadsheet",
+  FILE = "file",
 }
 
 export enum ProcessingStatus {
@@ -60,6 +64,9 @@ export interface ContentMetadata {
   tags?: string[];
   category?: string;
   updatedAt?: number;
+  fileSize?: number;
+  fileType?: string;
+  fileExtension?: string;
 }
 
 export interface CapturedContent {

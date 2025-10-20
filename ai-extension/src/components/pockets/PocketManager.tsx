@@ -314,6 +314,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   };
 
   const handlePocketClick = (pocket: PocketData) => {
+    console.log("Pocket selected:", pocket.id, pocket.name);
     setSelectedPocket(pocket);
     if (onSelectPocket) {
       onSelectPocket(pocket);
@@ -395,6 +396,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
         onBack={handleBackToPockets}
         onAddNote={onAddNote}
         onAddFile={onAddFile}
+        key={selectedPocket.id} // Force remount when pocket changes
       />
     );
   }
