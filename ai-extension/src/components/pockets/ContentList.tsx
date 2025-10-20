@@ -38,8 +38,9 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
   const [showNoteTemplates, setShowNoteTemplates] = React.useState(false);
   const [contentView, setContentView] = React.useState<"files" | "notes">("files");
 
-  // Load contents on mount
+  // Load contents on mount and when pocket changes
   React.useEffect(() => {
+    console.log("Loading contents for pocket:", pocket.id);
     loadContents();
   }, [pocket.id]);
 
@@ -53,10 +54,22 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
     const onMessage = (message: any) => {
       try {
         if (!message || !message.kind) return;
+        
+        console.log("ContentList received message:", message.kind, message.payload);
+        
         if (message.kind === "CONTENT_CREATED" && message.payload?.content) {
           const created = message.payload.content as CapturedContent;
+          console.log("Content created:", created.id, "for pocket:", created.pocketId, "current pocket:", pocket.id);
           if (created.pocketId === pocket.id) {
-            setContents((prev) => [created, ...prev.filter((c) => c.id !== created.id)]);
+            setContents((prev) => {
+              // Check if content already exists to avoid duplicates
+              const exists = prev.some(c => c.id === created.id);
+              if (exists) {
+                return prev.map(c => c.id === created.id ? created : c);
+              }
+              return [created, ...prev];
+            });
+            console.log("Content added to list");
           }
         } else if (message.kind === "CONTENT_UPDATED" && message.payload?.content) {
           const updated = message.payload.content as CapturedContent;
@@ -290,24 +303,70 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
     setShowNoteTemplates(true);
   };
 
-  const handleCaptureContent = async () => {
+  const handleAddFileClick = async () => {
     setShowAddMenu(false);
-    try {
-      // Trigger content capture with selection mode
-      await chrome.runtime.sendMessage({
-        kind: "CAPTURE_REQUEST",
-        requestId: crypto.randomUUID(),
-        payload: {
-          mode: "selection",
-          pocketId: pocket.id,
-        },
-      });
-      // Reload contents after capture
-      setTimeout(() => loadContents(), 1000);
-    } catch (error) {
-      console.error("Error capturing content:", error);
-    }
+    
+    // Create a file input element
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".pdf,.doc,.docx,.xls,.xlsx,.txt,.md";
+    fileInput.multiple = false;
+
+    fileInput.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        console.log("Uploading file:", file.name, file.type, file.size);
+
+        // Read file as base64
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64Data = event.target?.result as string;
+
+          try {
+            const response = await chrome.runtime.sendMessage({
+              kind: "FILE_UPLOAD",
+              requestId: crypto.randomUUID(),
+              payload: {
+                pocketId: pocket.id,
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                fileData: base64Data,
+              },
+            });
+
+            if (response?.status === "success") {
+              console.log("File uploaded successfully:", response.contentId);
+              // Reload contents after upload
+              setTimeout(() => loadContents(), 500);
+            } else {
+              console.error("Upload failed:", response?.error);
+              alert("Failed to upload file. Please try again.");
+            }
+          } catch (error) {
+            console.error("Error uploading file:", error);
+            alert("Error uploading file. Please try again.");
+          }
+        };
+
+        reader.onerror = () => {
+          alert("Error reading file. Please try again.");
+        };
+
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error("Error processing file:", error);
+        alert("Error processing file. Please try again.");
+      }
+    };
+
+    // Trigger file selection
+    fileInput.click();
   };
+
+
 
   // Close add menu when clicking outside
   React.useEffect(() => {

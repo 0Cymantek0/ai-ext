@@ -1012,13 +1012,22 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
     try {
       const createdRecord = await indexedDBManager.getContent(processed.contentId);
       if (createdRecord) {
-        await messageRouter.sendToSidePanel({
+        logger.info("Handler", "Broadcasting CONTENT_CREATED event", {
+          contentId: createdRecord.id,
+          pocketId: createdRecord.pocketId,
+        });
+        
+        const broadcastResult = await messageRouter.sendToSidePanel({
           kind: "CONTENT_CREATED",
           payload: { content: createdRecord },
         } as any);
+        
+        logger.info("Handler", "Broadcast result", broadcastResult);
+      } else {
+        logger.warn("Handler", "Created record not found", { contentId: processed.contentId });
       }
     } catch (e) {
-      logger.warn("Handler", "Failed to broadcast content created event", e);
+      logger.error("Handler", "Failed to broadcast content created event", e);
     }
 
     logger.info("Handler", "CAPTURE_REQUEST completed", {
@@ -1035,6 +1044,92 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
     };
   } catch (error) {
     logger.error("Handler", "CAPTURE_REQUEST error", error);
+    throw error;
+  }
+});
+
+// Register file upload handler
+messageRouter.registerHandler("FILE_UPLOAD", async (payload, sender) => {
+  const { pocketId, fileName, fileType, fileSize, fileData } = payload as {
+    pocketId: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    fileData: string;
+  };
+
+  logger.info("Handler", "FILE_UPLOAD", {
+    fileName,
+    fileType,
+    fileSize,
+  });
+
+  try {
+
+    // Validate payload
+    if (!pocketId || !fileName || !fileData) {
+      throw new Error("Missing required fields for file upload");
+    }
+
+    await indexedDBManager.init();
+
+    // Determine file extension and type
+    const fileExtension = fileName.split(".").pop()?.toLowerCase() || "";
+    const contentType = fileExtension === "pdf" ? "pdf" 
+      : ["doc", "docx"].includes(fileExtension) ? "document"
+      : ["xls", "xlsx"].includes(fileExtension) ? "spreadsheet"
+      : ["txt", "md"].includes(fileExtension) ? "text"
+      : "file";
+
+    // Create content record for the file
+    const processed = await contentProcessor.processContent({
+      pocketId,
+      mode: "file",
+      content: {
+        fileData,
+        fileName,
+        fileType,
+        fileSize,
+        fileExtension,
+      },
+      metadata: {
+        title: fileName,
+        domain: "local-file",
+        fileType,
+        fileSize,
+        fileExtension,
+      },
+      sourceUrl: "",
+      sanitize: false,
+    });
+
+    // Fetch created record and broadcast event
+    const createdRecord = await indexedDBManager.getContent(processed.contentId);
+    if (createdRecord) {
+      logger.info("Handler", "Broadcasting FILE_UPLOAD CONTENT_CREATED event", {
+        contentId: createdRecord.id,
+        pocketId: createdRecord.pocketId,
+      });
+
+      await messageRouter.sendToSidePanel({
+        kind: "CONTENT_CREATED",
+        payload: { content: createdRecord },
+      } as any);
+    }
+
+    logger.info("Handler", "FILE_UPLOAD completed", {
+      contentId: processed.contentId,
+      fileName,
+    });
+
+    return {
+      status: "success",
+      contentId: processed.contentId,
+      type: contentType,
+      preview: fileName,
+    };
+  } catch (error) {
+    logger.error("Handler", "FILE_UPLOAD error", error);
     throw error;
   }
 });
