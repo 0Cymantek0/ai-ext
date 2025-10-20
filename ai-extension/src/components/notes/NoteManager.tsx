@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { NoteEditor, type NoteData } from "./NoteEditor";
+import { NoteEditorPage, type NoteData } from "./NoteEditorPage";
 import { NoteTemplates, type NoteTemplate } from "./NoteTemplates";
 import { NoteList } from "./NoteList";
 import { NoteExporter } from "./NoteExporter";
@@ -9,7 +9,7 @@ import { SearchBar } from "@/components/SearchBar";
 import { FloatingPanel } from "@/components/FloatingControls";
 import { AnimatePresence, motion } from "framer-motion";
 
-type ViewMode = "list" | "editor" | "templates";
+type ViewMode = "list" | "editorPage" | "templates";
 
 interface NoteManagerProps {
   pocketId?: string;
@@ -17,6 +17,7 @@ interface NoteManagerProps {
   className?: string;
   initialShowTemplates?: boolean;
   onTemplateSelectionComplete?: () => void;
+  initialEditNote?: NoteData;
 }
 
 export function NoteManager({ 
@@ -24,12 +25,15 @@ export function NoteManager({
   onBack, 
   className,
   initialShowTemplates = false,
-  onTemplateSelectionComplete
+  onTemplateSelectionComplete,
+  initialEditNote
 }: NoteManagerProps) {
-  const [viewMode, setViewMode] = React.useState<ViewMode>(initialShowTemplates ? "templates" : "list");
+  const [viewMode, setViewMode] = React.useState<ViewMode>(
+    initialEditNote ? "editorPage" : initialShowTemplates ? "templates" : "list"
+  );
   const [notes, setNotes] = React.useState<NoteData[]>([]);
   const [filteredNotes, setFilteredNotes] = React.useState<NoteData[]>([]);
-  const [editingNote, setEditingNote] = React.useState<NoteData | null>(null);
+  const [editingNote, setEditingNote] = React.useState<NoteData | null>(initialEditNote || null);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSearching, setIsSearching] = React.useState(false);
@@ -227,12 +231,12 @@ export function NoteManager({
     }
     
     setEditingNote(newNote);
-    setViewMode("editor");
+    setViewMode("editorPage");
   };
 
   const handleEditNote = (note: NoteData) => {
     setEditingNote(note);
-    setViewMode("editor");
+    setViewMode("editorPage");
   };
 
   const handleSaveNote = async (noteData: Omit<NoteData, "id" | "createdAt" | "updatedAt">) => {
@@ -348,9 +352,9 @@ export function NoteManager({
     return ["all", ...Array.from(cats)];
   }, [notes]);
 
-  if (viewMode === "editor") {
+  if (viewMode === "editorPage") {
     return (
-      <NoteEditor
+      <NoteEditorPage
         {...(editingNote && { note: editingNote })}
         onSave={handleSaveNote}
         onCancel={handleCancel}

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { type NoteData } from "./NoteEditor";
+import { type NoteData } from "./NoteEditorPage";
 
 interface NoteExporterProps {
   notes: NoteData[];
