@@ -1,10 +1,11 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
@@ -12,20 +13,23 @@ import "katex/dist/katex.min.css";
 
 interface MarkdownRendererProps {
   content: string;
-  className?: string;
+  className?: string | undefined;
+  theme?: "light" | "dark";
 }
 
 interface CodeBlockProps {
   inline?: boolean;
-  className?: string;
+  className?: string | undefined;
   children?: React.ReactNode;
+  theme?: "light" | "dark";
 }
 
-const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children }) => {
+const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children, theme = "dark" }) => {
   const [copied, setCopied] = React.useState(false);
   const match = /language-(\w+)/.exec(className || "");
   const language = match ? match[1] : "";
   const code = String(children).replace(/\n$/, "");
+  const codeTheme = theme === "dark" ? oneDark : oneLight;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code);
@@ -46,6 +50,12 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children }) =>
 
   return (
     <div className="group relative my-4 max-w-full overflow-x-auto rounded-lg">
+      {/* Language label */}
+      {language && (
+        <div className="bg-muted px-4 py-2 text-xs font-mono text-muted-foreground border-b border-border rounded-t-lg">
+          {language}
+        </div>
+      )}
       <div className="absolute right-2 top-2 z-10">
         <Button
           variant="ghost"
@@ -62,14 +72,17 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children }) =>
         </Button>
       </div>
       <SyntaxHighlighter
-        style={oneDark}
+        style={codeTheme}
         language={language || "text"}
         PreTag="div"
-        className="rounded-lg !bg-[#282c34] text-sm min-w-0"
+        className={cn(
+          "text-sm min-w-0",
+          language ? "!rounded-t-none" : "rounded-lg"
+        )}
         customStyle={{
           margin: 0,
           padding: "1rem",
-          paddingTop: "2.5rem",
+          paddingTop: language ? "1rem" : "2.5rem",
           overflowX: "auto",
           maxWidth: "100%",
         }}
@@ -83,15 +96,16 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children }) =>
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
   className,
+  theme = "dark",
 }) => {
   return (
     <div className={cn("markdown-content break-words max-w-full", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[rehypeRaw, rehypeKatex]}
         components={{
           // Code blocks with syntax highlighting
-          code: CodeBlock,
+          code: (props) => <CodeBlock {...props} theme={theme} />,
           
           // Links open in new tab
           a: ({ node, ...props }) => (
@@ -142,24 +156,63 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           ),
           
           // Paragraphs
-          p: ({ node, ...props }) => (
-            <p {...props} className="mb-4 leading-7 last:mb-0 break-words" />
-          ),
+          p: ({ children, ...props }) => {
+            return (
+              <p {...props} className="mb-4 leading-7 last:mb-0 break-words">
+                {children}
+              </p>
+            );
+          },
           
           // Unordered lists
           ul: ({ node, ...props }) => (
-            <ul {...props} className="mb-4 ml-6 list-disc space-y-2" />
+            <ul {...props} className="mb-4 ml-6 list-disc list-outside space-y-1" />
           ),
           
           // Ordered lists
           ol: ({ node, ...props }) => (
-            <ol {...props} className="mb-4 ml-6 list-decimal space-y-2" />
+            <ol {...props} className="mb-4 ml-6 list-decimal list-outside space-y-1" />
           ),
           
-          // List items
-          li: ({ node, ...props }) => (
-            <li {...props} className="leading-7" />
-          ),
+          // List items (with task list support)
+          li: ({ node, children, ...props }) => {
+            // Check if this is a task list item
+            const childArray = React.Children.toArray(children);
+            const firstChild = childArray[0];
+            
+            if (
+              typeof firstChild === "object" &&
+              firstChild &&
+              "type" in firstChild &&
+              firstChild.type === "input"
+            ) {
+              return (
+                <li className="list-none flex items-start gap-2 leading-7 ml-0">
+                  {children}
+                </li>
+              );
+            }
+            
+            return (
+              <li className="leading-7 pl-1">
+                {children}
+              </li>
+            );
+          },
+          
+          // Task list checkboxes
+          input: ({ node, ...props }) => {
+            if (props.type === "checkbox") {
+              return (
+                <input
+                  className="mt-1.5 cursor-pointer w-4 h-4 rounded border-2 border-primary accent-primary"
+                  disabled
+                  {...props}
+                />
+              );
+            }
+            return <input {...props} />;
+          },
           
           // Tables
           table: ({ node, ...props }) => (
@@ -212,8 +265,42 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           
           // Strikethrough (from GFM)
           del: ({ node, ...props }) => (
-            <del {...props} className="line-through" />
+            <del {...props} className="line-through opacity-70" />
           ),
+          
+          // Images with better styling
+          img: ({ node, ...props }) => (
+            <img
+              {...props}
+              className="max-w-full h-auto rounded-lg my-4 border border-border"
+              loading="lazy"
+            />
+          ),
+          
+          // Preformatted text (for code blocks without language)
+          pre: ({ children, ...props }) => {
+            // Check if this pre contains a code element
+            const hasCodeChild = React.Children.toArray(children).some(
+              (child) =>
+                typeof child === "object" &&
+                child &&
+                "type" in child &&
+                child.type === "code"
+            );
+
+            if (hasCodeChild) {
+              return <>{children}</>;
+            }
+
+            return (
+              <pre
+                className="bg-muted p-4 rounded-lg overflow-x-auto my-4 text-sm font-mono border border-border"
+                {...props}
+              >
+                {children}
+              </pre>
+            );
+          },
         }}
       >
         {content}

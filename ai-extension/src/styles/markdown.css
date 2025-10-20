@@ -1,0 +1,351 @@
+/* Markdown Content Styling */
+.markdown-content {
+  color: hsl(var(--foreground));
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Smooth scrolling for anchor links */
+.markdown-content a[href^="#"] {
+  scroll-behavior: smooth;
+}
+
+/* Code block scrollbar styling */
+.markdown-content pre::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.markdown-content pre::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Table responsive wrapper */
+.markdown-content table {
+  display: table;
+  width: 100%;
+  border-spacing: 0;
+}
+
+/* List styling */
+.markdown-content ul,
+.markdown-content ol {
+  display: block;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+}
+
+.markdown-content ul {
+  list-style-type: disc;
+}
+
+.markdown-content ol {
+  list-style-type: decimal;
+}
+
+.markdown-content li {
+  display: list-item;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Ensure list item content is visible */
+.markdown-content li > * {
+  display: inline;
+}
+
+.markdown-content li > p {
+  display: inline;
+  margin: 0;
+}
+
+/* Nested lists */
+.markdown-content ul ul,
+.markdown-content ul ol,
+.markdown-content ol ul,
+.markdown-content ol ol {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-left: 1.5rem;
+}
+
+.markdown-content ul ul {
+  list-style-type: circle;
+}
+
+.markdown-content ul ul ul {
+  list-style-type: square;
+}
+
+/* Task list styling */
+.markdown-content input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
+  border: 2px solid hsl(var(--primary));
+  accent-color: hsl(var(--primary));
+}
+
+.markdown-content input[type="checkbox"]:checked {
+  background-color: hsl(var(--primary));
+}
+
+/* Blockquote nested styling */
+.markdown-content blockquote blockquote {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Image captions (if using title attribute) */
+.markdown-content img[title] {
+  @apply cursor-help;
+}
+
+/* Footnotes styling (if supported) */
+.markdown-content .footnotes {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 0.875rem;
+}
+
+.markdown-content .footnotes ol {
+  padding-left: 1rem;
+}
+
+/* Definition lists (if supported) */
+.markdown-content dl {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.markdown-content dt {
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.markdown-content dd {
+  margin-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Keyboard key styling */
+.markdown-content kbd {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-family: monospace;
+  background-color: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Abbreviations */
+.markdown-content abbr {
+  cursor: help;
+  border-bottom: 1px dotted hsl(var(--foreground));
+}
+
+/* Mark/highlight text */
+.markdown-content mark {
+  background-color: #fef08a;
+  padding: 0 0.25rem;
+  border-radius: 0.125rem;
+}
+
+.dark .markdown-content mark {
+  background-color: #713f12;
+}
+
+/* Subscript and superscript */
+.markdown-content sub,
+.markdown-content sup {
+  @apply text-xs;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+.markdown-content sup {
+  top: -0.5em;
+}
+
+.markdown-content sub {
+  bottom: -0.25em;
+}
+
+/* Math equations */
+.markdown-content .katex {
+  color: hsl(var(--foreground));
+}
+
+.markdown-content .katex-display {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Inline math */
+.markdown-content .katex-inline {
+  margin-left: 0.25rem;
+  margin-right: 0.25rem;
+}
+
+/* Details/Summary (collapsible sections) */
+.markdown-content details {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+}
+
+.markdown-content summary {
+  cursor: pointer;
+  font-weight: 600;
+  user-select: none;
+  transition: color 150ms;
+}
+
+.markdown-content summary:hover {
+  color: hsl(var(--primary));
+}
+
+.markdown-content details[open] summary {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+/* Alerts/Admonitions (GitHub style) */
+.markdown-content .alert {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-left: 4px solid;
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.markdown-content .alert-note {
+  border-color: #3b82f6;
+  background-color: #eff6ff;
+}
+
+.dark .markdown-content .alert-note {
+  background-color: #172554;
+}
+
+.markdown-content .alert-tip {
+  border-color: #22c55e;
+  background-color: #f0fdf4;
+}
+
+.dark .markdown-content .alert-tip {
+  background-color: #052e16;
+}
+
+.markdown-content .alert-important {
+  border-color: #a855f7;
+  background-color: #faf5ff;
+}
+
+.dark .markdown-content .alert-important {
+  background-color: #2e1065;
+}
+
+.markdown-content .alert-warning {
+  border-color: #eab308;
+  background-color: #fefce8;
+}
+
+.dark .markdown-content .alert-warning {
+  background-color: #422006;
+}
+
+.markdown-content .alert-caution {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.dark .markdown-content .alert-caution {
+  background-color: #450a0a;
+}
+
+/* Print styles */
+@media print {
+  .markdown-content {
+    color: black;
+  }
+
+  .markdown-content a {
+    color: #2563eb;
+    text-decoration: underline;
+  }
+
+  .markdown-content pre,
+  .markdown-content code {
+    border: 1px solid #d1d5db;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .markdown-content h1 {
+    font-size: 1.875rem;
+  }
+
+  .markdown-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .markdown-content h3 {
+    font-size: 1.25rem;
+  }
+
+  .markdown-content table {
+    font-size: 0.875rem;
+  }
+
+  .markdown-content th,
+  .markdown-content td {
+    padding: 0.25rem 0.5rem;
+  }
+}
+
+/* Animation for content loading */
+.markdown-content-loading {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Selection styling */
+.markdown-content ::selection {
+  background-color: hsl(var(--primary) / 0.2);
+}
+
+/* Focus visible for accessibility */
+.markdown-content a:focus-visible,
+.markdown-content button:focus-visible,
+.markdown-content input:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
