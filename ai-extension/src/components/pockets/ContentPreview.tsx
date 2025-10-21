@@ -203,22 +203,12 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
                     <span className="ml-2 uppercase">{content.metadata.fileExtension}</span>
                   </div>
                 )}
-                {content.metadata.author && (
+                {content.sourceUrl && (
                   <div>
-                    <span className="text-muted-foreground">Author:</span>
-                    <span className="ml-2">{content.metadata.author}</span>
+                    <span className="text-muted-foreground">Source:</span>
+                    <span className="ml-2 text-xs break-all">{content.sourceUrl}</span>
                   </div>
                 )}
-                {content.metadata.publishedDate && (
-                  <div>
-                    <span className="text-muted-foreground">Published:</span>
-                    <span className="ml-2">{content.metadata.publishedDate}</span>
-                  </div>
-                )}
-                <div>
-                  <span className="text-muted-foreground">Domain:</span>
-                  <span className="ml-2">{content.metadata.domain}</span>
-                </div>
                 <div>
                   <span className="text-muted-foreground">Status:</span>
                   <span className="ml-2 capitalize">{content.processingStatus}</span>

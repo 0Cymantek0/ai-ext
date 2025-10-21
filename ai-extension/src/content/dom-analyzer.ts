@@ -8,18 +8,8 @@
  * Metadata extracted from a web page
  */
 export interface PageMetadata {
-  title: string;
-  description?: string;
-  author?: string;
-  publishedDate?: string;
-  modifiedDate?: string;
-  domain: string;
   url: string;
-  language?: string;
-  keywords?: string[];
-  ogImage?: string;
-  favicon?: string;
-  canonicalUrl?: string;
+  timestamp: number;
 }
 
 /**
@@ -101,76 +91,10 @@ export class DOMAnalyzer {
    * Requirements: 2.5
    */
   extractMetadata(): PageMetadata {
-    const metadata: PageMetadata = {
-      title: document.title,
-      domain: window.location.hostname,
+    return {
       url: window.location.href,
+      timestamp: Date.now(),
     };
-
-    // Extract meta tags
-    const metaTags = document.querySelectorAll("meta");
-    metaTags.forEach((meta) => {
-      const name = meta.getAttribute("name") || meta.getAttribute("property");
-      const content = meta.getAttribute("content");
-
-      if (!name || !content) return;
-
-      switch (name.toLowerCase()) {
-        case "description":
-        case "og:description":
-          if (!metadata.description) metadata.description = content;
-          break;
-        case "author":
-          if (!metadata.author) metadata.author = content;
-          break;
-        case "article:published_time":
-        case "date":
-          if (!metadata.publishedDate) metadata.publishedDate = content;
-          break;
-        case "article:modified_time":
-        case "last-modified":
-          if (!metadata.modifiedDate) metadata.modifiedDate = content;
-          break;
-        case "keywords":
-          metadata.keywords = content.split(",").map((k) => k.trim());
-          break;
-        case "og:image":
-          if (!metadata.ogImage) metadata.ogImage = content;
-          break;
-        case "language":
-        case "og:locale":
-          if (!metadata.language) metadata.language = content;
-          break;
-      }
-    });
-
-    // Extract language from html tag if not found
-    if (!metadata.language) {
-      metadata.language =
-        document.documentElement.lang || navigator.language || "en";
-    }
-
-    // Extract canonical URL
-    const canonical = document.querySelector('link[rel="canonical"]');
-    if (canonical) {
-      const canonicalHref = canonical.getAttribute("href");
-      if (canonicalHref) {
-        metadata.canonicalUrl = canonicalHref;
-      }
-    }
-
-    // Extract favicon
-    const favicon =
-      document.querySelector('link[rel="icon"]') ||
-      document.querySelector('link[rel="shortcut icon"]');
-    if (favicon) {
-      const faviconHref = favicon.getAttribute("href");
-      if (faviconHref) {
-        metadata.favicon = faviconHref;
-      }
-    }
-
-    return metadata;
   }
 
   /**

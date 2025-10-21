@@ -78,7 +78,7 @@ export async function saveSensitiveContent(
     type: ContentType.TEXT,
     content: JSON.stringify(encrypted), // Store as JSON string
     metadata: {
-      domain: new URL(sourceUrl).hostname,
+      timestamp: Date.now(),
       title: "Encrypted Content",
     },
     sourceUrl,

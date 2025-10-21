@@ -141,12 +141,41 @@ class ContentScriptManager {
       try {
         const { pockets, selectionText, sourceUrl } = payload;
 
+        // Validate pockets array
+        if (!pockets || !Array.isArray(pockets) || pockets.length === 0) {
+          console.error("[ContentScript] No pockets available");
+          return {
+            status: "error",
+            error: "No pockets available. Please create a pocket first.",
+            timestamp: Date.now(),
+          };
+        }
+
+        console.info("[ContentScript] Showing pocket selector with", pockets.length, "pockets");
+        console.info("[ContentScript] Selection text from service worker", {
+          hasSelectionText: !!selectionText,
+          textLength: selectionText?.length || 0,
+          preview: selectionText?.substring(0, 100),
+        });
+
+        // Use the selectionText passed from service worker
+        // This text was captured by Chrome when the context menu was shown
+        if (!selectionText || selectionText.trim().length === 0) {
+          console.error("[ContentScript] No selection text provided");
+          return {
+            status: "error",
+            error: "No text was selected",
+            timestamp: Date.now(),
+          };
+        }
+
         // Show pocket selector UI
         const pocketSelector = new PocketSelector();
         const selectedPocketId = await pocketSelector.show(pockets);
 
         if (!selectedPocketId) {
           // User cancelled
+          console.info("[ContentScript] User cancelled pocket selection");
           return {
             status: "cancelled",
             timestamp: Date.now(),
@@ -155,24 +184,31 @@ class ContentScriptManager {
 
         console.info("[ContentScript] User selected pocket", { pocketId: selectedPocketId });
 
-        // User selected a pocket, now capture the selection
-        const result = await contentCapture.capture({
+        // Create the captured content structure using the pre-captured selection text
+        const capturedContent = {
           mode: "selection",
+          content: {
+            text: selectionText,
+            type: "selection",
+          },
+          metadata: {
+            url: sourceUrl || window.location.href,
+            timestamp: Date.now(),
+          },
+          timestamp: Date.now(),
+        };
+
+        console.info("[ContentScript] Returning captured content", {
           pocketId: selectedPocketId,
-          sanitize: true,
+          mode: capturedContent.mode,
+          textLength: selectionText.length,
         });
 
-        console.info("[ContentScript] Content captured", {
-          mode: result.mode,
-          hasContent: !!result.content,
-          hasMetadata: !!result.metadata,
-        });
-
-        // Return the captured content to service worker
+        // Return the content with the selected pocket ID
         return {
           status: "success",
           pocketId: selectedPocketId,
-          capturedContent: result,
+          capturedContent: capturedContent,
           timestamp: Date.now(),
         };
       } catch (error) {
@@ -180,6 +216,7 @@ class ContentScriptManager {
         return {
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",
+          timestamp: Date.now(),
         };
       }
     });

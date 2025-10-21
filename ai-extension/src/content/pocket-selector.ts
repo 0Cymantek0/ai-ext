@@ -13,13 +13,25 @@ export interface Pocket {
 export class PocketSelector {
   private overlay: HTMLDivElement | null = null;
   private resolveSelection: ((pocketId: string | null) => void) | null = null;
+  private static isShowing: boolean = false;
 
   /**
    * Show pocket selector and wait for user selection
    */
   async show(pockets: Pocket[]): Promise<string | null> {
+    // Prevent multiple instances from showing simultaneously
+    if (PocketSelector.isShowing) {
+      console.warn("[PocketSelector] Already showing, ignoring duplicate request");
+      return null;
+    }
+
+    PocketSelector.isShowing = true;
+
     return new Promise((resolve) => {
-      this.resolveSelection = resolve;
+      this.resolveSelection = (pocketId: string | null) => {
+        PocketSelector.isShowing = false;
+        resolve(pocketId);
+      };
       this.createUI(pockets);
     });
   }
@@ -30,6 +42,12 @@ export class PocketSelector {
   private createUI(pockets: Pocket[]): void {
     // Remove existing overlay if any
     this.cleanup();
+
+    // Also remove any orphaned overlays from previous instances
+    const existingOverlay = document.getElementById("pocket-selector-overlay");
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
 
     // Create overlay
     this.overlay = document.createElement("div");

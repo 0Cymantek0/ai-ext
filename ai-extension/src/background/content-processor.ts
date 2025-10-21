@@ -256,7 +256,8 @@ export class ContentProcessor {
           images: content.text?.images || [],
           lists: content.text?.lists || content.lists || [],
           tables: content.text?.tables || content.tables || [],
-          context: content.context,
+          context: content.context || content.text?.context || {},
+          selection: content.selection || content.text?.selection || {},
           sanitization: content.sanitization,
           readability: content.readability,
           structuredData: content.structuredData,
@@ -303,10 +304,7 @@ export class ContentProcessor {
     mode: string
   ): ContentMetadata {
     const metadata: ContentMetadata = {
-      title: pageMetadata.title,
-      author: pageMetadata.author,
-      publishedDate: pageMetadata.publishedDate,
-      domain: pageMetadata.domain,
+      timestamp: pageMetadata.timestamp || Date.now(),
     };
 
     // Add tags if present
@@ -317,6 +315,11 @@ export class ContentProcessor {
     // Add category if present
     if (pageMetadata.category) {
       metadata.category = pageMetadata.category;
+    }
+
+    // Add title if present (for notes)
+    if (pageMetadata.title) {
+      metadata.title = pageMetadata.title;
     }
 
     // Add updatedAt if present (for note updates)

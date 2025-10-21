@@ -159,10 +159,10 @@ export class VectorSearchService {
         }
       }
 
-      // Check domain
-      if (content.metadata.domain.toLowerCase().includes(lowerQuery)) {
+      // Check source URL (domain)
+      if (content.sourceUrl?.toLowerCase().includes(lowerQuery)) {
         score += 0.1;
-        matchedFields.push("domain");
+        matchedFields.push("sourceUrl");
       }
 
       // Check type

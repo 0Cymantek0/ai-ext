@@ -58,7 +58,7 @@ describe("VectorSearchService", () => {
     // Import mocked modules
     const { hybridAIEngine } = await import("./hybrid-ai-engine.js");
     const { indexedDBManager } = await import("./indexeddb-manager.js");
-    
+
     mockHybridAIEngine = hybridAIEngine;
     mockIndexedDBManager = indexedDBManager;
 
@@ -140,7 +140,7 @@ describe("VectorSearchService", () => {
       ];
 
       mockIndexedDBManager.listPockets.mockResolvedValue(mockPockets);
-      
+
       // Mock embedding generation to return consistent vectors
       let callCount = 0;
       mockHybridAIEngine.generateEmbedding.mockImplementation((text: string) => {
@@ -230,7 +230,7 @@ describe("VectorSearchService", () => {
           content: "Introduction to machine learning algorithms",
           metadata: {
             title: "ML Tutorial",
-            domain: "example.com",
+            timestamp: Date.now(),
           },
           capturedAt: Date.now(),
           sourceUrl: "https://example.com/ml",
@@ -555,7 +555,7 @@ describe("VectorSearchService", () => {
 
       // First call
       await (service as any).generateEmbedding("test text");
-      
+
       // Second call with same text
       await (service as any).generateEmbedding("test text");
 
@@ -567,9 +567,9 @@ describe("VectorSearchService", () => {
       mockHybridAIEngine.generateEmbedding.mockResolvedValue([0.5, 0.5, 0.0]);
 
       await (service as any).generateEmbedding("test text");
-      
+
       service.clearCache();
-      
+
       await (service as any).generateEmbedding("test text");
 
       // Should call generateEmbedding twice after cache clear

@@ -240,7 +240,15 @@ function ContentResultsList({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {results.map(({ item, relevanceScore, matchedFields }) => {
-        const title = item.metadata?.title || item.metadata?.domain || "Untitled";
+        const getDomain = () => {
+          if (!item.sourceUrl) return "";
+          try {
+            return new URL(item.sourceUrl).hostname;
+          } catch {
+            return "";
+          }
+        };
+        const title = item.metadata?.title || getDomain() || "Untitled";
         const snippet = typeof item.content === "string" ? item.content.slice(0, 220) : "";
         return (
           <button

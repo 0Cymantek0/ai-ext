@@ -9,7 +9,7 @@ function makeDeps(overrides: Partial<ReturnType<typeof createDeps>> = {}) {
 
 function createDeps() {
   const dom: IDOMAnalyzer = {
-    extractMetadata: () => ({ title: "Test Page", domain: "example.com", url: "https://example.com" }),
+    extractMetadata: () => ({ url: "https://example.com", timestamp: Date.now() }),
     extractText: () => ({ content: "Full page content", wordCount: 3, characterCount: 18, paragraphs: [], headings: [], links: [], images: [], lists: [], tables: [] }),
     extractStructuredData: () => [{ type: "Article" }],
     analyzeReadability: () => ({ textLength: 18, averageWordLength: 6, averageSentenceLength: 3, readingTimeMinutes: 1 }),
@@ -57,7 +57,7 @@ describe("ContentCapture - mode routing and metadata", () => {
     const res = await cc.capture(options);
 
     expect(res.mode).toBe("note");
-    expect(res.metadata.title).toBe("Test Page");
+    expect(res.metadata.url).toBe("https://example.com");
     expect(res.content.text).toBe("hello");
     expect(deps.processor.processContent).toHaveBeenCalled();
     const callArg = (deps.processor.processContent as any).mock.calls[0][0];

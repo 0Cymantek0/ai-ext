@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ContentCard } from "./ContentCard";
 import { ContentPreview } from "./ContentPreview";
 import { NotePreview } from "./NotePreview";
+import { SelectionPreview } from "./SelectionPreview";
 import { NoteManager } from "@/components/notes";
 import { SearchBar } from "@/components/SearchBar";
 import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
@@ -21,6 +22,16 @@ interface ContentListProps {
   onAddNote?: (() => void) | undefined;
   onAddFile?: (() => void) | undefined;
 }
+
+// Helper function to get domain from sourceUrl
+const getDomain = (content: CapturedContent): string => {
+  if (!content.sourceUrl) return "";
+  try {
+    return new URL(content.sourceUrl).hostname;
+  } catch {
+    return "";
+  }
+};
 
 export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentListProps) {
   const [contents, setContents] = React.useState<CapturedContent[]>([]);
@@ -121,7 +132,7 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((content) => {
         const title = content.metadata.title?.toLowerCase() || "";
-        const domain = content.metadata.domain?.toLowerCase() || "";
+        const domain = getDomain(content).toLowerCase();
         const contentText = typeof content.content === "string" 
           ? content.content.toLowerCase() 
           : "";
@@ -139,8 +150,8 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "title":
-          const titleA = a.metadata.title || a.metadata.domain || "";
-          const titleB = b.metadata.title || b.metadata.domain || "";
+          const titleA = a.metadata.title || getDomain(a) || "";
+          const titleB = b.metadata.title || getDomain(b) || "";
           return titleA.localeCompare(titleB);
         case "type":
           return a.type.localeCompare(b.type);
@@ -184,7 +195,7 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
         const q = query.toLowerCase();
         let fallback = contents.filter((content) => {
           const title = content.metadata.title?.toLowerCase() || "";
-          const domain = content.metadata.domain?.toLowerCase() || "";
+          const domain = getDomain(content).toLowerCase();
           const contentText = typeof content.content === "string" ? content.content.toLowerCase() : "";
           return (
             title.includes(q) ||
@@ -196,8 +207,8 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
         fallback = [...fallback].sort((a, b) => {
           switch (sortBy) {
             case "title":
-              const titleA = a.metadata.title || a.metadata.domain || "";
-              const titleB = b.metadata.title || b.metadata.domain || "";
+              const titleA = a.metadata.title || getDomain(a) || "";
+              const titleB = b.metadata.title || getDomain(b) || "";
               return titleA.localeCompare(titleB);
             case "type":
               return a.type.localeCompare(b.type);
@@ -215,7 +226,7 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
       const q = query.toLowerCase();
       let fallback = contents.filter((content) => {
         const title = content.metadata.title?.toLowerCase() || "";
-        const domain = content.metadata.domain?.toLowerCase() || "";
+        const domain = getDomain(content).toLowerCase();
         const contentText = typeof content.content === "string" ? content.content.toLowerCase() : "";
         return (
           title.includes(q) ||
@@ -227,8 +238,8 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
       fallback = [...fallback].sort((a, b) => {
         switch (sortBy) {
           case "title":
-            const titleA = a.metadata.title || a.metadata.domain || "";
-            const titleB = b.metadata.title || b.metadata.domain || "";
+            const titleA = a.metadata.title || getDomain(a) || "";
+            const titleB = b.metadata.title || getDomain(b) || "";
             return titleA.localeCompare(titleB);
           case "type":
             return a.type.localeCompare(b.type);
@@ -589,7 +600,7 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
       </div>
 
 
-      {/* Preview Modal - Show NotePreview for notes, ContentPreview for other content */}
+      {/* Preview Modal - Show appropriate preview based on content type */}
       {isPreviewOpen && previewContent && (
         previewContent.type === "note" ? (
           <div className="fixed inset-0 z-50 bg-[#1A1A1A]">
@@ -599,6 +610,11 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
               onEdit={handleEditNote}
             />
           </div>
+        ) : previewContent.type === "text" ? (
+          <SelectionPreview
+            content={previewContent}
+            onClose={handleClosePreview}
+          />
         ) : (
           <ContentPreview
             content={previewContent}

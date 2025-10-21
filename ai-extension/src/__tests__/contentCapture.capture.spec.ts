@@ -4,7 +4,7 @@ import type { IDOMAnalyzer, IContentSanitizer, IMediaCapture, IReliableSelection
 
 function createDeps() {
   const dom: IDOMAnalyzer = {
-    extractMetadata: () => ({ title: "T", domain: "example.com", url: "https://example.com" }),
+    extractMetadata: () => ({ url: "https://example.com", timestamp: Date.now() }),
     extractText: () => ({ content: "Full page content with email test@example.com", wordCount: 6, characterCount: 40, paragraphs: [], headings: [], links: [], images: [], lists: [], tables: [] }),
     extractStructuredData: () => [{ type: "Article" }],
     analyzeReadability: () => ({ textLength: 40, averageWordLength: 5, averageSentenceLength: 10, readingTimeMinutes: 1 }),

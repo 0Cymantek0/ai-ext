@@ -54,16 +54,14 @@ export interface Pocket {
 }
 
 export interface ContentMetadata {
+  timestamp: number;
   title?: string;
-  author?: string;
-  publishedDate?: string;
-  domain: string;
-  selectionContext?: string;
-  elementSelector?: string;
-  dimensions?: { width: number; height: number };
   tags?: string[];
   category?: string;
   updatedAt?: number;
+  selectionContext?: string;
+  elementSelector?: string;
+  dimensions?: { width: number; height: number };
   fileSize?: number;
   fileType?: string;
   fileExtension?: string;
