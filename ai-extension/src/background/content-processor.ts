@@ -12,6 +12,7 @@ import {
   type CapturedContent,
   type ContentMetadata,
 } from "./indexeddb-manager.js";
+import { pdfProcessor, type PDFMetadata } from "./pdf-processor.js";
 
 export interface ProcessContentOptions {
   pocketId: string;
@@ -65,6 +66,23 @@ export class ContentProcessor {
       // Detect content type
       const contentType = this.detectContentType(content, mode);
 
+      // Process PDF if applicable
+      let pdfMetadata: PDFMetadata | undefined;
+      if (contentType === ContentType.PDF && content.fileData) {
+        logger.info("ContentProcessor", "Processing PDF content");
+        try {
+          pdfMetadata = await pdfProcessor.processPDF(content.fileData);
+          logger.info("ContentProcessor", "PDF processing completed", {
+            pageCount: pdfMetadata.pageCount,
+            textLength: pdfMetadata.text.length,
+            imageCount: pdfMetadata.images.length,
+          });
+        } catch (error) {
+          logger.error("ContentProcessor", "PDF processing failed", error);
+          // Continue without PDF metadata - store binary only
+        }
+      }
+
       // Prepare content for storage
       const preparedContent = this.prepareContent(content, contentType, mode);
 
@@ -73,14 +91,21 @@ export class ContentProcessor {
 
       // Save to IndexedDB
       await indexedDBManager.init();
-      const contentId = await indexedDBManager.saveContent({
+      const contentData: Omit<CapturedContent, "id" | "capturedAt"> = {
         pocketId,
         type: contentType,
         content: preparedContent,
         metadata: contentMetadata,
         sourceUrl,
         processingStatus: ProcessingStatus.COMPLETED,
-      });
+      };
+      
+      // Add pdfMetadata only if it exists
+      if (pdfMetadata) {
+        contentData.pdfMetadata = pdfMetadata;
+      }
+      
+      const contentId = await indexedDBManager.saveContent(contentData);
 
       // Generate preview
       const preview = this.generatePreview(content, contentType, mode);

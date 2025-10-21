@@ -11,6 +11,7 @@ import { logger } from "./monitoring.js";
 import { vectorSearchService, type SearchResult } from "./vector-search-service.js";
 import type { CapturedContent } from "./indexeddb-manager.js";
 import { conversationContextLoader } from "./conversation-context-loader.js";
+import { extractLLMContent } from "./content-extractor.js";
 
 /**
  * Context signal types
@@ -237,9 +238,9 @@ export class ContextBundleBuilder {
         bundle.signals.push("pockets");
 
         for (const result of results) {
-          const contentTokens = this.estimateTokens(
-            typeof result.item.content === "string" ? result.item.content : ""
-          );
+          // Extract LLM-friendly content (handles PDFs with metadata)
+          const llmContent = extractLLMContent(result.item);
+          const contentTokens = this.estimateTokens(llmContent);
 
           if (contentTokens > remainingTokens) {
             bundle.truncated = true;

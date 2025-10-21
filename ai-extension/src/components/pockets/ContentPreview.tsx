@@ -27,25 +27,44 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
     return new Date(timestamp).toLocaleString();
   };
 
-  const handleDownloadFile = () => {
+  const handleViewFile = () => {
     if (!content || !content.content) return;
 
     try {
-      const fileContent = content.content as any;
-      const fileName = content.metadata.title || "download";
+      const fileContent = typeof content.content === 'string' 
+        ? JSON.parse(content.content) 
+        : content.content;
       
-      // If content has fileData, use it
+      // For PDFs, open in Chrome's built-in viewer
+      if (content.type === "pdf" && fileContent.fileData) {
+        // Convert base64 to blob
+        const base64Data = fileContent.fileData.split(',')[1] || fileContent.fileData;
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        
+        // Open in new tab with Chrome's PDF viewer
+        window.open(url, '_blank');
+        return;
+      }
+
+      // For other files, download them
       if (fileContent.fileData) {
         const link = document.createElement("a");
         link.href = fileContent.fileData;
-        link.download = fileContent.fileName || fileName;
+        link.download = fileContent.fileName || content.metadata.title || "download";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       }
     } catch (error) {
-      console.error("Error downloading file:", error);
-      alert("Failed to download file");
+      console.error("Error viewing/downloading file:", error);
+      alert("Failed to open file");
     }
   };
 
@@ -86,14 +105,45 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
             <div>
               <h3 className="text-lg font-semibold">{fileContent.fileName || content.metadata.title}</h3>
               <p className="text-sm text-muted-foreground mt-1">{fileType} • {fileSize}</p>
+              
+              {/* PDF metadata preview */}
+              {content.type === "pdf" && content.pdfMetadata && (
+                <div className="mt-4 text-left max-w-md">
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>📄 {content.pdfMetadata.pageCount} pages</p>
+                    {content.pdfMetadata.structuredContent.headings.length > 0 && (
+                      <p>📑 {content.pdfMetadata.structuredContent.headings.length} headings</p>
+                    )}
+                    {content.pdfMetadata.structuredContent.tables.length > 0 && (
+                      <p>📊 {content.pdfMetadata.structuredContent.tables.length} tables</p>
+                    )}
+                    {content.pdfMetadata.images.length > 0 && (
+                      <p>🖼️ {content.pdfMetadata.images.length} images</p>
+                    )}
+                    <p className="text-green-600 dark:text-green-400">✓ AI-readable metadata extracted</p>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Download button */}
-            <Button onClick={handleDownloadFile} className="mt-4">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download File
+            {/* View/Download button */}
+            <Button onClick={handleViewFile} className="mt-4">
+              {content.type === "pdf" ? (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  Open PDF
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download File
+                </>
+              )}
             </Button>
           </div>
         </div>

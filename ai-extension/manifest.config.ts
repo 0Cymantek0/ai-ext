@@ -49,7 +49,7 @@ export default defineManifest({
   ],
   web_accessible_resources: [
     {
-      resources: ["src/sidepanel/*", "assets/*", "styles/*"],
+      resources: ["src/sidepanel/*", "assets/*", "styles/*", "pdfjs-dist/build/*"],
       matches: ["<all_urls>"],
     },
   ],

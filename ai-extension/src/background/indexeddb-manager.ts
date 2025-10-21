@@ -77,6 +77,24 @@ export interface CapturedContent {
   capturedAt: number;
   sourceUrl: string;
   processingStatus: ProcessingStatus;
+  pdfMetadata?: {
+    text: string;
+    structuredContent: {
+      headings: Array<{ level: number; text: string }>;
+      paragraphs: string[];
+      lists: string[];
+      tables: string[];
+    };
+    images: Array<{
+      data: string;
+      width: number;
+      height: number;
+      pageNumber: number;
+    }>;
+    pageCount: number;
+    extractedAt: number;
+    tokenCount: number;
+  };
 }
 
 export interface Message {
