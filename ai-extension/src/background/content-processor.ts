@@ -226,6 +226,8 @@ export class ContentProcessor {
           return ContentType.AUDIO;
         case "note":
           return ContentType.NOTE;
+        case "snippet":
+          return ContentType.SNIPPET;
       }
     }
 
@@ -271,6 +273,7 @@ export class ContentProcessor {
     switch (type) {
       case ContentType.PAGE:
       case ContentType.TEXT:
+      case ContentType.SNIPPET:
         return JSON.stringify({
           text: content.text?.content || "",
           formattedContent: content.text?.formattedContent || "",
@@ -281,6 +284,7 @@ export class ContentProcessor {
           images: content.text?.images || [],
           lists: content.text?.lists || content.lists || [],
           tables: content.text?.tables || content.tables || [],
+          paragraphs: content.text?.paragraphs || [],
           context: content.context || content.text?.context || {},
           selection: content.selection || content.text?.selection || {},
           sanitization: content.sanitization,
@@ -388,6 +392,7 @@ export class ContentProcessor {
     switch (type) {
       case ContentType.PAGE:
       case ContentType.TEXT:
+      case ContentType.SNIPPET:
         const text = content.text?.content || "";
         return this.truncateText(text, maxLength);
 

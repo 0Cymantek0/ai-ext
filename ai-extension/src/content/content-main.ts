@@ -14,6 +14,7 @@ import { contentSanitizer } from "./content-sanitizer.js";
 import { contentCapture } from "./content-capture.js";
 import { selectionPreviewUI } from "./selection-preview-ui.js";
 import { PocketSelector } from "./pocket-selector.js";
+import { buildSnippetCapturePayload } from "./snippet-utils.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -184,32 +185,31 @@ class ContentScriptManager {
 
         console.info("[ContentScript] User selected pocket", { pocketId: selectedPocketId });
 
-        // Create the captured content structure using the pre-captured selection text
-        const capturedContent = {
-          mode: "selection",
-          content: {
-            text: selectionText,
-            type: "selection",
-          },
-          metadata: {
-            url: sourceUrl || window.location.href,
-            timestamp: Date.now(),
-          },
-          timestamp: Date.now(),
-        };
+        const detailedSelection = domAnalyzer.extractDetailedSelection?.(160);
+        const capturedContent = buildSnippetCapturePayload(selectionText, {
+          sourceUrl: sourceUrl || window.location.href,
+          title: document.title,
+          context: detailedSelection
+            ? {
+              before: detailedSelection.beforeContext || "",
+              after: detailedSelection.afterContext || "",
+            }
+            : undefined,
+        });
 
         console.info("[ContentScript] Returning captured content", {
           pocketId: selectedPocketId,
           mode: capturedContent.mode,
-          textLength: selectionText.length,
+          textLength: capturedContent.content.text.characterCount,
+          wordCount: capturedContent.content.text.wordCount,
         });
 
         // Return the content with the selected pocket ID
         return {
           status: "success",
           pocketId: selectedPocketId,
-          capturedContent: capturedContent,
-          timestamp: Date.now(),
+          capturedContent,
+          timestamp: capturedContent.timestamp,
         };
       } catch (error) {
         console.error("[ContentScript] Pocket selector failed", error);

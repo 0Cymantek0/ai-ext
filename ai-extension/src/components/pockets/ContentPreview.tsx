@@ -160,6 +160,36 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
       );
     }
 
+    if (content.type === "snippet" && typeof content.content === "string") {
+      try {
+        const parsed = JSON.parse(content.content);
+        const isObject = parsed && typeof parsed === "object" && !Array.isArray(parsed);
+        const snippetText = isObject ? (parsed as any).text ?? "" : typeof parsed === "string" ? parsed : "";
+        const contextBefore = isObject ? (parsed as any).context?.before : undefined;
+        const contextAfter = isObject ? (parsed as any).context?.after : undefined;
+
+        return (
+          <div className="space-y-4">
+            {contextBefore && (
+              <div className="p-3 rounded-lg bg-accent/10 text-sm text-muted-foreground italic">
+                {contextBefore}
+              </div>
+            )}
+            <div className="p-4 bg-accent/10 rounded-lg">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{snippetText}</p>
+            </div>
+            {contextAfter && (
+              <div className="p-3 rounded-lg bg-accent/10 text-sm text-muted-foreground italic">
+                {contextAfter}
+              </div>
+            )}
+          </div>
+        );
+      } catch (error) {
+        console.warn("Failed to parse snippet content", error);
+      }
+    }
+
     if (typeof content.content === "string") {
       return (
         <div className="p-4 bg-accent/10 rounded-lg">
