@@ -469,3 +469,25 @@ kbd {
     display: none;
   }
 }
+
+/* Shimmer animation for auto-format button */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    rgb(168, 85, 247) 0%,
+    rgb(236, 72, 153) 25%,
+    rgb(168, 85, 247) 50%,
+    rgb(236, 72, 153) 75%,
+    rgb(168, 85, 247) 100%
+  );
+}

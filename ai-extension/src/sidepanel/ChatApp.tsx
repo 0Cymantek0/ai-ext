@@ -20,7 +20,7 @@ import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
 import { PocketManager, type PocketManagerRef } from "@/components/pockets";
-import { NoteEditor } from "@/components/notes/NoteEditor";
+import { NoteEditorPage } from "@/components/notes/NoteEditorPage";
 import { ShareModal } from "@/components/ShareModal";
 import { 
   exportToMarkdown, 
@@ -1346,17 +1346,15 @@ export function ChatApp() {
         </div>
       )}
 
-      {/* Note Editor Modal */}
+      {/* Note Editor - Full Page */}
       {showNoteEditor && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-4xl h-[90vh] bg-background rounded-lg shadow-2xl overflow-hidden">
-            <NoteEditor
-              {...(currentPocketId ? { note: { pocketId: currentPocketId, title: "", content: "", tags: [] } } : {})}
-              onSave={handleSaveNote}
-              onCancel={() => setShowNoteEditor(false)}
-              isLoading={isSavingNote}
-            />
-          </div>
+        <div className="fixed inset-0 z-[100]">
+          <NoteEditorPage
+            {...(currentPocketId ? { note: { pocketId: currentPocketId, title: "", content: "", tags: [] } } : {})}
+            onSave={handleSaveNote}
+            onCancel={() => setShowNoteEditor(false)}
+            isLoading={isSavingNote}
+          />
         </div>
       )}
 

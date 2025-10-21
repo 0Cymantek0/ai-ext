@@ -6,6 +6,7 @@ import { ContentPreview } from "./ContentPreview";
 import { NotePreview } from "./NotePreview";
 import { SelectionPreview } from "./SelectionPreview";
 import { NoteManager } from "@/components/notes";
+import { NoteEditorPage } from "@/components/notes/NoteEditorPage";
 import { SearchBar } from "@/components/SearchBar";
 import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
 import { AnimatePresence, motion } from "framer-motion";
@@ -48,6 +49,8 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
   const [showAddMenu, setShowAddMenu] = React.useState(false);
   const [showNoteTemplates, setShowNoteTemplates] = React.useState(false);
   const [contentView, setContentView] = React.useState<"files" | "notes">("files");
+  const [editingNote, setEditingNote] = React.useState<any>(null);
+  const [isEditorOpen, setIsEditorOpen] = React.useState(false);
 
   // Load contents on mount and when pocket changes
   React.useEffect(() => {
@@ -301,10 +304,22 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
   };
 
   const handleEditNote = () => {
-    // Close preview and switch to edit mode
+    // Close preview and open editor as full-screen overlay
+    if (previewContent) {
+      const noteData = {
+        id: previewContent.id,
+        title: previewContent.metadata?.title || "Untitled Note",
+        content: typeof previewContent.content === "string" ? previewContent.content : "",
+        tags: previewContent.metadata?.tags || [],
+        category: previewContent.metadata?.category,
+        createdAt: previewContent.capturedAt,
+        updatedAt: previewContent.metadata?.updatedAt || previewContent.capturedAt,
+        pocketId: previewContent.pocketId,
+      };
+      setEditingNote(noteData);
+      setIsEditorOpen(true);
+    }
     setIsPreviewOpen(false);
-    setContentView("notes");
-    // TODO: Pass the content to NoteManager for editing
   };
 
   const handleAddNote = () => {
@@ -312,6 +327,49 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
     setContentView("notes");
     // Signal to NoteManager to show template selection
     setShowNoteTemplates(true);
+  };
+
+  const handleSaveNote = async (noteData: any) => {
+    try {
+      const targetPocketId = noteData.pocketId || pocket.id;
+      
+      if (editingNote?.id) {
+        // Update existing note
+        const response = await chrome.runtime.sendMessage({
+          kind: "CAPTURE_REQUEST",
+          requestId: crypto.randomUUID(),
+          payload: {
+            mode: "note",
+            pocketId: targetPocketId,
+            content: noteData.content,
+            metadata: {
+              title: noteData.title,
+              tags: noteData.tags,
+              category: noteData.category,
+              updatedAt: Date.now(),
+              contentId: editingNote.id,
+            },
+          },
+        });
+
+        if (!response.success) {
+          throw new Error(response.error?.message || response.error || "Failed to update note");
+        }
+      }
+
+      // Reload contents and close editor
+      await loadContents();
+      setIsEditorOpen(false);
+      setEditingNote(null);
+    } catch (error) {
+      console.error("Error saving note:", error);
+      alert("Failed to save note. Please try again.");
+    }
+  };
+
+  const handleCloseEditor = () => {
+    setIsEditorOpen(false);
+    setEditingNote(null);
   };
 
   const handleAddFileClick = async () => {
@@ -500,9 +558,11 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
             onBack={() => {
               setContentView("files");
               setShowNoteTemplates(false);
+              setEditingNote(null);
             }}
             initialShowTemplates={showNoteTemplates}
             onTemplateSelectionComplete={() => setShowNoteTemplates(false)}
+            initialEditNote={editingNote}
           />
         ) : isLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -622,6 +682,18 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
             onClose={handleClosePreview}
           />
         )
+      )}
+
+      {/* Note Editor - Full Screen Overlay */}
+      {isEditorOpen && editingNote && (
+        <div className="fixed inset-0 z-50">
+          <NoteEditorPage
+            note={editingNote}
+            onSave={handleSaveNote}
+            onCancel={handleCloseEditor}
+            isLoading={false}
+          />
+        </div>
       )}
     </div>
 

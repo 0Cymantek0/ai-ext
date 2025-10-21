@@ -26,17 +26,7 @@ const PRESET_COLORS = [
 
 const PRESET_ICONS = ["📁", "📚", "💼", "🎨", "🔬", "💡", "🎯", "🌟", "🚀", "📊"];
 
-const PRESET_CATEGORIES = [
-  "Work",
-  "Personal",
-  "Research",
-  "Learning",
-  "Projects",
-  "Ideas",
-  "Reference",
-  "Archive",
-  "Other",
-];
+
 
 export function PocketDialog({
   isOpen,
@@ -48,7 +38,6 @@ export function PocketDialog({
   const [description, setDescription] = React.useState("");
   const [color, setColor] = React.useState<string>(PRESET_COLORS[0]!);
   const [icon, setIcon] = React.useState<string>(PRESET_ICONS[0]!);
-  const [category, setCategory] = React.useState<string>("Other");
   const [tags, setTags] = React.useState<string[]>([]);
   const [tagInput, setTagInput] = React.useState("");
 
@@ -58,14 +47,12 @@ export function PocketDialog({
       setDescription(editingPocket.description);
       setColor(editingPocket.color);
       setIcon(editingPocket.icon || PRESET_ICONS[0]!);
-      setCategory((editingPocket as any).category || "Other");
       setTags(editingPocket.tags);
     } else {
       setName("");
       setDescription("");
       setColor(PRESET_COLORS[0]!);
       setIcon(PRESET_ICONS[0]!);
-      setCategory("Other");
       setTags([]);
     }
     setTagInput("");
@@ -82,7 +69,6 @@ export function PocketDialog({
       description: description.trim(),
       color,
       icon,
-      category,
       tags,
     } as any);
 
@@ -111,164 +97,180 @@ export function PocketDialog({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className={cn(
-          "w-full max-w-md m-4 p-6 rounded-2xl shadow-2xl border",
-          "bg-[rgba(17,25,40,0.75)] border-white/10 backdrop-blur-xl",
-          "text-white"
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-xl font-semibold mb-4">
-          {editingPocket ? "Edit Pocket" : "Create New Pocket"}
-        </h2>
-
-        <div className="space-y-4">
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Name *</label>
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter pocket name"
-              className="bg-white/10 border-white/10 text-white placeholder-white/60"
-              autoFocus
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter description (optional)"
-              className={cn(
-                "w-full px-3 py-2 rounded-md border bg-white/10 border-white/10 text-white placeholder-white/60",
-                "focus:outline-none",
-                "resize-none text-base"
-              )}
-              rows={3}
-            />
-          </div>
-
-          {/* Icon */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Icon</label>
-            <div className="flex gap-2 flex-wrap">
-              {PRESET_ICONS.map((presetIcon) => (
-                <button
-                  key={presetIcon}
-                  type="button"
-                  onClick={() => setIcon(presetIcon)}
-                  className={cn(
-                    "w-10 h-10 rounded-lg flex items-center justify-center text-xl",
-                    "border-2 transition-colors",
-                    icon === presetIcon
-                      ? "border-primary bg-accent"
-                      : "border-transparent hover:border-white/20"
-                  )}
-                >
-                  {presetIcon}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Color */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Color</label>
-            <div className="flex gap-2 flex-wrap">
-              {PRESET_COLORS.map((presetColor) => (
-                <button
-                  key={presetColor}
-                  type="button"
-                  onClick={() => setColor(presetColor)}
-                  className={cn(
-                    "w-10 h-10 rounded-lg border-2 transition-all",
-                    color === presetColor
-                      ? "border-foreground scale-110"
-                      : "border-transparent hover:scale-105"
-                  )}
-                  style={{ backgroundColor: presetColor }}
-                  title={presetColor}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className={cn(
-                "w-full px-3 py-2 rounded-md border bg-white/10 border-white/10 text-white",
-                "focus:outline-none"
-              )}
+    <div className="fixed inset-0 z-50 bg-[rgba(17,25,40,0.98)] backdrop-blur-xl text-white overflow-y-auto">
+      <div className="min-h-screen flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-[rgba(17,25,40,0.95)] backdrop-blur-xl border-b border-white/10">
+          <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">
+              {editingPocket ? "Edit Pocket" : "Create New Pocket"}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-white/60 hover:text-white transition-colors p-2"
+              aria-label="Close"
             >
-              {PRESET_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat} className="bg-[rgba(17,25,40,0.95)]">
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Tags</label>
-            <div className="flex gap-2 mb-2">
-              <Input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Add tag and press Enter"
-                className="bg-white/10 border-white/10 text-white placeholder-white/60"
-              />
-              <Button type="button" onClick={handleAddTag} size="sm">
-                Add
-              </Button>
-            </div>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-3 py-1 rounded-full bg-accent text-sm flex items-center gap-2"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="hover:text-destructive"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-2 mt-6">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>
-            {editingPocket ? "Save Changes" : "Create Pocket"}
-          </Button>
+        {/* Content */}
+        <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8">
+          <div className="space-y-8">
+
+            {/* Name */}
+            <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+              <label className="block text-base font-medium mb-3">
+                Pocket Name <span className="text-red-400">*</span>
+              </label>
+              <Input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter a descriptive name for your pocket"
+                className="bg-white/10 border-white/10 text-white placeholder-white/50 h-12 text-base"
+                autoFocus
+              />
+            </div>
+
+            {/* Description */}
+            <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+              <label className="block text-base font-medium mb-3">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Add a description to help you remember what this pocket is for (optional)"
+                className={cn(
+                  "w-full px-4 py-3 rounded-lg border bg-white/10 border-white/10 text-white placeholder-white/50",
+                  "focus:outline-none focus:ring-2 focus:ring-primary/50",
+                  "resize-none text-base"
+                )}
+                rows={4}
+              />
+            </div>
+
+            {/* Icon */}
+            <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+              <label className="block text-base font-medium mb-4">
+                Choose an Icon
+              </label>
+              <div className="flex gap-3 flex-wrap">
+                {PRESET_ICONS.map((presetIcon) => (
+                  <button
+                    key={presetIcon}
+                    type="button"
+                    onClick={() => setIcon(presetIcon)}
+                    className={cn(
+                      "w-14 h-14 rounded-xl flex items-center justify-center text-2xl",
+                      "border-2 transition-all hover:scale-105",
+                      icon === presetIcon
+                        ? "border-primary bg-primary/20 shadow-lg shadow-primary/20"
+                        : "border-white/10 hover:border-white/30 bg-white/5"
+                    )}
+                  >
+                    {presetIcon}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Color */}
+            <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+              <label className="block text-base font-medium mb-4">
+                Choose a Color
+              </label>
+              <div className="flex gap-3 flex-wrap">
+                {PRESET_COLORS.map((presetColor) => (
+                  <button
+                    key={presetColor}
+                    type="button"
+                    onClick={() => setColor(presetColor)}
+                    className={cn(
+                      "w-14 h-14 rounded-xl border-2 transition-all hover:scale-105",
+                      color === presetColor
+                        ? "border-white scale-110 shadow-lg"
+                        : "border-white/20 hover:border-white/40"
+                    )}
+                    style={{ backgroundColor: presetColor }}
+                    title={presetColor}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+              <label className="block text-base font-medium mb-3">Tags</label>
+              <div className="flex gap-2 mb-4">
+                <Input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Add tags to organize your pocket"
+                  className="bg-white/10 border-white/10 text-white placeholder-white/50 h-12 text-base"
+                />
+                <Button
+                  type="button"
+                  onClick={handleAddTag}
+                  className="h-12 px-6"
+                >
+                  Add
+                </Button>
+              </div>
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-4 py-2 rounded-full bg-primary/20 border border-primary/30 text-sm flex items-center gap-2"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="hover:text-red-400 transition-colors text-lg"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="sticky bottom-0 bg-[rgba(17,25,40,0.95)] backdrop-blur-xl border-t border-white/10">
+          <div className="max-w-3xl mx-auto px-6 py-4 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="h-12 px-8 text-base"
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSave} className="h-12 px-8 text-base">
+              {editingPocket ? "Save Changes" : "Create Pocket"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
