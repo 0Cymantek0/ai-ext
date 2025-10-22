@@ -134,7 +134,7 @@ function delay(ms: number): Promise<void> {
 }
 
 type PocketSelectionResolver = {
-  resolve: (pocketId: string) => void;
+  resolve: (response: { pocketId: string; editedTitle?: string | undefined }) => void;
   reject: (error: Error) => void;
   timeoutId: number;
 };
@@ -180,9 +180,9 @@ async function requestPocketSelection(
   tabId: number,
   pockets: Array<{ id: string; name: string; description?: string; color?: string }>,
   context: PocketSelectionContext,
-): Promise<string> {
+): Promise<{ pocketId: string; editedTitle?: string | undefined }> {
   if (pockets.length === 1) {
-    return pockets[0]!.id;
+    return { pocketId: pockets[0]!.id, editedTitle: undefined };
   }
 
   const requestId = crypto.randomUUID();
@@ -208,7 +208,7 @@ async function requestPocketSelection(
     ...(context.sourceUrl ? { sourceUrl: context.sourceUrl } : {}),
   });
 
-  return await new Promise<string>((resolve, reject) => {
+  return await new Promise<{ pocketId: string; editedTitle?: string | undefined }>((resolve, reject) => {
     const timeoutId = setTimeout(async () => {
       pocketSelectionRequests.delete(requestId);
       try {
@@ -227,10 +227,10 @@ async function requestPocketSelection(
     }, 45000) as unknown as number;
 
     pocketSelectionRequests.set(requestId, {
-      resolve: (pocketId) => {
+      resolve: (response) => {
         clearTimeout(timeoutId);
         pocketSelectionRequests.delete(requestId);
-        resolve(pocketId);
+        resolve(response);
       },
       reject: (error) => {
         clearTimeout(timeoutId);
@@ -329,11 +329,12 @@ if (!contextMenuHandlerRegistered) {
           logger.info("ServiceWorker", "Auto-selecting sole pocket", { pocketId: targetPocketId });
         } else {
           try {
-            targetPocketId = await requestPocketSelection(tab.id, pockets, {
+            const response = await requestPocketSelection(tab.id, pockets, {
               selectionText: snippetText,
               preview: snippetPreview,
               sourceUrl: snippet.metadata?.url || tab.url || "",
             });
+            targetPocketId = response.pocketId;
           } catch (selectionError) {
             if (selectionError instanceof Error) {
               if (selectionError.message === "POCKET_SELECTION_CANCELLED") {
@@ -495,35 +496,68 @@ if (!contextMenuHandlerRegistered) {
         }
 
         const imageData = imageEnvelope.imageData;
-        const imageTitle = imageData.alt || imageData.title || "Saved Image";
+        const defaultImageTitle = imageData.alt || imageData.title || "Saved Image";
         const imagePreview = `Image: ${imageData.width}x${imageData.height}`;
 
-        // Determine target pocket
-        let targetPocketId: string;
-        if (pockets.length === 1) {
-          targetPocketId = pockets[0]!.id;
-          logger.info("ServiceWorker", "Auto-selecting sole pocket", { pocketId: targetPocketId });
-        } else {
-          try {
-            targetPocketId = await requestPocketSelection(tab.id, pockets, {
-              selectionText: imageTitle,
-              preview: imagePreview,
-              sourceUrl: tab.url || "",
-            });
-          } catch (selectionError) {
-            if (selectionError instanceof Error) {
-              if (selectionError.message === "POCKET_SELECTION_CANCELLED") {
-                logger.info("ServiceWorker", "User cancelled pocket selection from side panel");
-                return;
-              }
-              if (selectionError.message === "POCKET_SELECTION_TIMEOUT") {
-                throw new Error("Pocket selection timed out");
-              }
-            }
-            throw selectionError;
-          }
+        // Open side panel to allow user to edit title and select pocket
+        try {
+          await chrome.sidePanel.open({ tabId: tab.id });
+        } catch (error) {
+          logger.warn("ServiceWorker", "Failed to open side panel for image save", error);
         }
 
+        // Request pocket selection with editable title
+        const requestId = crypto.randomUUID();
+        
+        await dispatchPocketSelectionRequest({
+          requestId,
+          pockets: pockets.map((pocket) => ({
+            id: pocket.id,
+            name: pocket.name,
+            ...(pocket.description ? { description: pocket.description } : {}),
+            ...(pocket.color ? { color: pocket.color } : {}),
+          })),
+          selectionText: defaultImageTitle,
+          preview: imagePreview,
+          sourceUrl: tab.url || "",
+        });
+
+        // Wait for user response with edited title and selected pocket
+        const response = await new Promise<{ pocketId: string; editedTitle?: string | undefined }>((resolve, reject) => {
+          const timeoutId = setTimeout(async () => {
+            pocketSelectionRequests.delete(requestId);
+            try {
+              await chrome.runtime.sendMessage({
+                kind: "POCKET_SELECTION_RESPONSE",
+                payload: {
+                  requestId,
+                  status: "error",
+                  error: "timeout",
+                },
+              });
+            } catch (error) {
+              logger.warn("ServiceWorker", "Failed to notify pocket selection timeout", error);
+            }
+            reject(new Error("POCKET_SELECTION_TIMEOUT"));
+          }, 45000) as unknown as number;
+
+          pocketSelectionRequests.set(requestId, {
+            resolve: (response) => {
+              clearTimeout(timeoutId);
+              pocketSelectionRequests.delete(requestId);
+              resolve(response);
+            },
+            reject: (error) => {
+              clearTimeout(timeoutId);
+              pocketSelectionRequests.delete(requestId);
+              reject(error);
+            },
+            timeoutId,
+          });
+        });
+
+        const targetPocketId = response.pocketId;
+        const finalImageTitle = response.editedTitle || defaultImageTitle;
         const targetPocket = pockets.find((p) => p.id === targetPocketId) || null;
 
         // Process and save image
@@ -540,7 +574,7 @@ if (!contextMenuHandlerRegistered) {
             },
           },
           metadata: {
-            title: imageTitle,
+            title: finalImageTitle,
             timestamp: Date.now(),
             url: tab.url || "",
             dimensions: { width: imageData.width, height: imageData.height },
@@ -1720,14 +1754,15 @@ messageRouter.registerHandler("POCKET_DELETE", async (payload: any) => {
 });
 
 messageRouter.registerHandler("POCKET_SELECTION_RESPONSE", async (payload: any) => {
-  const { requestId, status, pocketId, error } = payload as {
+  const { requestId, status, pocketId, editedTitle, error } = payload as {
     requestId: string;
     status: "success" | "cancelled" | "error";
     pocketId?: string;
+    editedTitle?: string;
     error?: string;
   };
 
-  logger.info("Handler", "POCKET_SELECTION_RESPONSE", { requestId, status });
+  logger.info("Handler", "POCKET_SELECTION_RESPONSE", { requestId, status, editedTitle });
 
   const pending = pocketSelectionRequests.get(requestId);
   if (!pending) {
@@ -1736,7 +1771,7 @@ messageRouter.registerHandler("POCKET_SELECTION_RESPONSE", async (payload: any) 
   }
 
   if (status === "success" && pocketId) {
-    pending.resolve(pocketId);
+    pending.resolve({ pocketId, editedTitle });
   } else if (status === "cancelled") {
     pending.reject(new Error("POCKET_SELECTION_CANCELLED"));
   } else {
