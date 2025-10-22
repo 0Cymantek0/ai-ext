@@ -89,6 +89,7 @@ export function NoteEditorPage({
       if (!hasAutoFormatted && content.trim() && !note?.id) {
         setHasAutoFormatted(true);
         setIsAutoFormatting(true);
+        console.log("[NoteEditor] Starting auto-format on mount", { contentLength: content.length });
         try {
           const response = await chrome.runtime.sendMessage({
             kind: "AI_FORMAT_REQUEST",
@@ -100,11 +101,20 @@ export function NoteEditorPage({
             },
           });
 
+          console.log("[NoteEditor] Format response received", response);
+
           if (response.success && response.data?.formattedContent) {
+            console.log("[NoteEditor] ✓ Content formatted", {
+              usedAI: response.data.usedAI,
+              originalLength: content.length,
+              formattedLength: response.data.formattedContent.length
+            });
             setContent(response.data.formattedContent);
+          } else {
+            console.warn("[NoteEditor] Format response unsuccessful", response);
           }
         } catch (error) {
-          console.error("Auto-format on mount failed:", error);
+          console.error("[NoteEditor] Auto-format on mount failed:", error);
         } finally {
           setIsAutoFormatting(false);
         }
@@ -328,6 +338,7 @@ export function NoteEditorPage({
     }
 
     setIsAutoFormatting(true);
+    console.log("[NoteEditor] Manual format triggered", { contentLength: content.length });
     try {
       // Send to AI for formatting
       const response = await chrome.runtime.sendMessage({
@@ -335,13 +346,22 @@ export function NoteEditorPage({
         requestId: crypto.randomUUID(),
         payload: {
           content: content,
-          instructions: "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting."
+          instructions: "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting.",
+          preferLocal: true,
         },
       });
 
+      console.log("[NoteEditor] Manual format response", response);
+
       if (response.success && response.data?.formattedContent) {
+        console.log("[NoteEditor] ✓ Manual format successful", {
+          usedAI: response.data.usedAI,
+          originalLength: content.length,
+          formattedLength: response.data.formattedContent.length
+        });
         setContent(response.data.formattedContent);
       } else {
+        console.warn("[NoteEditor] Format unsuccessful, using fallback");
         // Fallback: Basic formatting
         const formatted = content
           .split('\n')
@@ -351,7 +371,7 @@ export function NoteEditorPage({
         setContent(formatted);
       }
     } catch (error) {
-      console.error("Auto-format error:", error);
+      console.error("[NoteEditor] Auto-format error:", error);
       alert("Failed to auto-format. Please try again.");
     } finally {
       setIsAutoFormatting(false);
