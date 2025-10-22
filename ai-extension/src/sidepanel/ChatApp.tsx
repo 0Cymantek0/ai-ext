@@ -901,6 +901,10 @@ export function ChatApp() {
     }
   };
 
+  const selectionPreviewText = pendingSelectionRequest
+    ? pendingSelectionRequest.preview ?? pendingSelectionRequest.selectionText
+    : undefined;
+
   return (
     <TooltipProvider>
     <div className="flex h-screen flex-col overflow-hidden">
@@ -1443,8 +1447,8 @@ export function ChatApp() {
       {pendingSelectionRequest && (
         <PocketSelectionModal
           pockets={pendingSelectionRequest.pockets}
-          selectionText={pendingSelectionRequest.preview || pendingSelectionRequest.selectionText}
-          sourceUrl={pendingSelectionRequest.sourceUrl}
+          {...(selectionPreviewText ? { selectionText: selectionPreviewText } : {})}
+          {...(pendingSelectionRequest.sourceUrl ? { sourceUrl: pendingSelectionRequest.sourceUrl } : {})}
           onSelect={handlePocketSelectionConfirm}
           onCancel={handlePocketSelectionCancel}
         />

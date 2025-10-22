@@ -12,7 +12,7 @@ import {
 import { domAnalyzer } from "./dom-analyzer.js";
 import { contentCapture } from "./content-capture.js";
 import { selectionPreviewUI } from "./selection-preview-ui.js";
-import { buildSnippetCapturePayload } from "./snippet-utils.js";
+import { buildSnippetCapturePayload, type SnippetOptions } from "./snippet-utils.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -208,12 +208,17 @@ class ContentScriptManager {
           }
         }
 
-        const snippet = buildSnippetCapturePayload(sanitizedText, {
+        const snippetOptions: SnippetOptions = {
           sourceUrl: sourceUrl || window.location.href,
           title: providedTitle || document.title,
-          timestamp: captureTimestamp,
           ...(contextInfo ? { context: contextInfo } : {}),
-        });
+        };
+
+        if (typeof captureTimestamp === "number") {
+          snippetOptions.timestamp = captureTimestamp;
+        }
+
+        const snippet = buildSnippetCapturePayload(sanitizedText, snippetOptions);
 
         if (sanitizationInfo) {
           snippet.content.sanitization = sanitizationInfo;

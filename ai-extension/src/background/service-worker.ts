@@ -186,17 +186,19 @@ async function requestPocketSelection(
     logger.warn("ServiceWorker", "Failed to open side panel before pocket selection", error);
   }
 
+  const normalizedPockets = pockets.map((pocket) => ({
+    id: pocket.id,
+    name: pocket.name,
+    ...(pocket.description ? { description: pocket.description } : {}),
+    ...(pocket.color ? { color: pocket.color } : {}),
+  }));
+
   await dispatchPocketSelectionRequest({
     requestId,
-    pockets: pockets.map((pocket) => ({
-      id: pocket.id,
-      name: pocket.name,
-      description: pocket.description,
-      color: pocket.color,
-    })),
-    selectionText: context.selectionText,
-    preview: context.preview,
-    sourceUrl: context.sourceUrl,
+    pockets: normalizedPockets,
+    ...(context.selectionText ? { selectionText: context.selectionText } : {}),
+    ...(context.preview ? { preview: context.preview } : {}),
+    ...(context.sourceUrl ? { sourceUrl: context.sourceUrl } : {}),
   });
 
   return await new Promise<string>((resolve, reject) => {
