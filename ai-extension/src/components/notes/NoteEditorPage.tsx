@@ -71,6 +71,7 @@ export function NoteEditorPage({
   const [showShortcuts, setShowShortcuts] = React.useState(false);
   const [wordCount, setWordCount] = React.useState(0);
   const [charCount, setCharCount] = React.useState(0);
+  const [hasAutoFormatted, setHasAutoFormatted] = React.useState(false);
 
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -81,6 +82,37 @@ export function NoteEditorPage({
     setWordCount(words);
     setCharCount(chars);
   }, [content]);
+
+  // Auto-format on mount if content exists and hasn't been formatted yet
+  React.useEffect(() => {
+    const autoFormatOnMount = async () => {
+      if (!hasAutoFormatted && content.trim() && !note?.id) {
+        setHasAutoFormatted(true);
+        setIsAutoFormatting(true);
+        try {
+          const response = await chrome.runtime.sendMessage({
+            kind: "AI_FORMAT_REQUEST",
+            requestId: crypto.randomUUID(),
+            payload: {
+              content: content,
+              instructions: "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting.",
+              preferLocal: true,
+            },
+          });
+
+          if (response.success && response.data?.formattedContent) {
+            setContent(response.data.formattedContent);
+          }
+        } catch (error) {
+          console.error("Auto-format on mount failed:", error);
+        } finally {
+          setIsAutoFormatting(false);
+        }
+      }
+    };
+
+    autoFormatOnMount();
+  }, []);
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -328,6 +360,16 @@ export function NoteEditorPage({
 
   return (
     <div className={cn("flex flex-col h-screen bg-zinc-950 text-zinc-100", className)}>
+      {/* Auto-formatting overlay */}
+      {isAutoFormatting && !note?.id && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl px-6 py-4 flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-purple-400 animate-pulse" />
+            <span className="text-zinc-100 font-medium">Formatting...</span>
+          </div>
+        </div>
+      )}
+
       {/* Top Bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-900/60">
         <div className="flex items-center gap-3">
