@@ -125,6 +125,14 @@ export function ContentCard({
       return `${fileType} file • ${fileSize}`;
     }
 
+    // Handle image types
+    if (content.type === "image") {
+      const dimensions = content.metadata.dimensions 
+        ? `${content.metadata.dimensions.width}x${content.metadata.dimensions.height}`
+        : "Unknown size";
+      return `Image • ${dimensions}`;
+    }
+
     if (typeof content.content !== "string") return `Binary content (${content.type})`;
     const text = content.content
       .replace(/#{1,6}\s+/g, "")
@@ -137,6 +145,20 @@ export function ContentCard({
       .replace(/\n+/g, " ")
       .trim();
     return text.length > 160 ? text.slice(0, 160) + "..." : text;
+  };
+
+  const getImageSrc = (content: CapturedContent): string | null => {
+    if (content.type !== "image") return null;
+    
+    try {
+      if (typeof content.content === "string") {
+        const parsed = JSON.parse(content.content);
+        return parsed?.image?.src || null;
+      }
+    } catch {
+      // If parsing fails, return null
+    }
+    return null;
   };
 
   const getContentTitle = (content: CapturedContent): string => {
@@ -160,6 +182,8 @@ export function ContentCard({
 
   if (viewMode === "list") {
     const isNote = content.type === "note";
+    const isImage = content.type === "image";
+    const imageSrc = isImage ? getImageSrc(content) : null;
     
     return (
       <div
@@ -173,8 +197,20 @@ export function ContentCard({
         onMouseLeave={() => setShowActions(false)}
       >
         <div className="flex items-start gap-3">
-          {/* Icon */}
-          {isNote ? (
+          {/* Icon or Image Thumbnail */}
+          {isImage && imageSrc ? (
+            <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-accent/10">
+              <img 
+                src={imageSrc} 
+                alt={content.metadata.title || "Image"} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback to icon if image fails to load
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+          ) : isNote ? (
             <div className="shrink-0 mt-0.5 text-[#F59E0B]">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -246,6 +282,8 @@ export function ContentCard({
 
   // Grid view
   const isNote = content.type === "note";
+  const isImage = content.type === "image";
+  const imageSrc = isImage ? getImageSrc(content) : null;
   const tags = content.metadata.tags || [];
   const visibleTags = tags.slice(0, 3);
   const extraCount = Math.max(tags.length - 3, 0);
@@ -263,6 +301,20 @@ export function ContentCard({
     >
       {/* Content area - grows to fill space */}
       <div className="flex-1 flex flex-col">
+        {/* Image Thumbnail for grid view */}
+        {isImage && imageSrc && (
+          <div className="w-full h-32 rounded-lg overflow-hidden bg-accent/10 mb-3">
+            <img 
+              src={imageSrc} 
+              alt={content.metadata.title || "Image"} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+        
         <div className="flex items-start gap-3">
           <div className={cn("mt-0.5 shrink-0", isNote ? "text-[#F59E0B]" : "text-muted-foreground")}>
             {isNote ? (
@@ -283,12 +335,23 @@ export function ContentCard({
           </div>
         </div>
         
-        <p className={cn(
-          "mt-2 text-sm line-clamp-3",
-          isNote ? "text-[#9CA3AF]" : "text-muted-foreground/80"
-        )}>
-          {getContentPreview(content)}
-        </p>
+        {!isImage && (
+          <p className={cn(
+            "mt-2 text-sm line-clamp-3",
+            isNote ? "text-[#9CA3AF]" : "text-muted-foreground/80"
+          )}>
+            {getContentPreview(content)}
+          </p>
+        )}
+        
+        {isImage && (
+          <p className={cn(
+            "mt-2 text-sm",
+            "text-muted-foreground/80"
+          )}>
+            {getContentPreview(content)}
+          </p>
+        )}
 
         {/* Tags section */}
         {(visibleTags.length > 0 || extraCount > 0) && (

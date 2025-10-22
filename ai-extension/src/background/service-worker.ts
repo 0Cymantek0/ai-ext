@@ -36,11 +36,18 @@ async function createContextMenu(): Promise<void> {
     // Remove existing context menus
     await chrome.contextMenus.removeAll();
 
-    // Create "Save to Pocket" context menu
+    // Create "Save to Pocket" context menu for text selection
     chrome.contextMenus.create({
       id: "save-to-pocket",
       title: "Save to Pocket",
       contexts: ["selection"],
+    });
+
+    // Create "Save to Pocket" context menu for images
+    chrome.contextMenus.create({
+      id: "save-image-to-pocket",
+      title: "Save to Pocket",
+      contexts: ["image"],
     });
 
     logger.info("ServiceWorker", "Context menu created");
@@ -242,6 +249,7 @@ let isProcessingSaveToPocket = false;
 
 if (!contextMenuHandlerRegistered) {
   chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    // Handle text selection
     if (info.menuItemId === "save-to-pocket" && tab?.id) {
       // Prevent multiple simultaneous operations
       if (isProcessingSaveToPocket) {
@@ -414,6 +422,174 @@ if (!contextMenuHandlerRegistered) {
         });
 
         // Show error notification
+        await chrome.notifications.create({
+          type: "basic",
+          iconUrl: "icons/48.png",
+          title: "Save to Pocket Failed",
+          message: error instanceof Error ? error.message : "An unknown error occurred",
+        });
+      } finally {
+        isProcessingSaveToPocket = false;
+      }
+    }
+    
+    // Handle image save
+    if (info.menuItemId === "save-image-to-pocket" && tab?.id) {
+      // Prevent multiple simultaneous operations
+      if (isProcessingSaveToPocket) {
+        logger.warn("ServiceWorker", "Save to pocket already in progress, ignoring duplicate click");
+        return;
+      }
+
+      isProcessingSaveToPocket = true;
+
+      try {
+        logger.info("ServiceWorker", "Image context menu clicked", {
+          tabId: tab.id,
+          srcUrl: info.srcUrl,
+        });
+
+        // Ensure content script is loaded
+        const isLoaded = await ensureContentScriptLoaded(tab.id);
+        if (!isLoaded) {
+          logger.error("ServiceWorker", "Content script could not be loaded");
+          await chrome.notifications.create({
+            type: "basic",
+            iconUrl: "icons/48.png",
+            title: "Save to Pocket Failed",
+            message: "Could not load content script. Please refresh the page and try again.",
+          });
+          return;
+        }
+
+        // Initialize IndexedDB and load pockets
+        await indexedDBManager.init();
+        let pockets = await indexedDBManager.listPockets();
+
+        if (pockets.length === 0) {
+          logger.info("ServiceWorker", "No pockets found, creating default pocket");
+          await indexedDBManager.createPocket({
+            name: "My Pocket",
+            description: "Default pocket for saved content",
+            tags: [],
+            color: "#3b82f6",
+            contentIds: [],
+          });
+          pockets = await indexedDBManager.listPockets();
+        }
+
+        // Capture image data from content script
+        const imageResponse = await sendMessageWithRetry(tab.id, {
+          kind: "CAPTURE_IMAGE_DATA",
+          payload: {
+            srcUrl: info.srcUrl,
+            pageUrl: tab.url,
+          },
+        });
+
+        const imageEnvelope = imageResponse?.data || imageResponse;
+        if (!imageEnvelope || imageEnvelope.status !== "success" || !imageEnvelope.imageData) {
+          const captureError = imageEnvelope?.error || "Failed to capture image";
+          logger.error("ServiceWorker", "Image capture failed", { captureError, imageEnvelope });
+          throw new Error(typeof captureError === "string" ? captureError : JSON.stringify(captureError));
+        }
+
+        const imageData = imageEnvelope.imageData;
+        const imageTitle = imageData.alt || imageData.title || "Saved Image";
+        const imagePreview = `Image: ${imageData.width}x${imageData.height}`;
+
+        // Determine target pocket
+        let targetPocketId: string;
+        if (pockets.length === 1) {
+          targetPocketId = pockets[0]!.id;
+          logger.info("ServiceWorker", "Auto-selecting sole pocket", { pocketId: targetPocketId });
+        } else {
+          try {
+            targetPocketId = await requestPocketSelection(tab.id, pockets, {
+              selectionText: imageTitle,
+              preview: imagePreview,
+              sourceUrl: tab.url || "",
+            });
+          } catch (selectionError) {
+            if (selectionError instanceof Error) {
+              if (selectionError.message === "POCKET_SELECTION_CANCELLED") {
+                logger.info("ServiceWorker", "User cancelled pocket selection from side panel");
+                return;
+              }
+              if (selectionError.message === "POCKET_SELECTION_TIMEOUT") {
+                throw new Error("Pocket selection timed out");
+              }
+            }
+            throw selectionError;
+          }
+        }
+
+        const targetPocket = pockets.find((p) => p.id === targetPocketId) || null;
+
+        // Process and save image
+        const processed = await contentProcessor.processContent({
+          pocketId: targetPocketId,
+          mode: "image",
+          content: {
+            image: {
+              src: imageData.src,
+              alt: imageData.alt,
+              title: imageData.title,
+              width: imageData.width,
+              height: imageData.height,
+            },
+          },
+          metadata: {
+            title: imageTitle,
+            timestamp: Date.now(),
+            url: tab.url || "",
+            dimensions: { width: imageData.width, height: imageData.height },
+          },
+          sourceUrl: tab.url || "",
+          sanitize: false,
+        });
+
+        logger.info("ServiceWorker", "Image processed and saved", {
+          contentId: processed.contentId,
+          type: processed.type,
+        });
+
+        const savedContent = await indexedDBManager.getContent(processed.contentId);
+
+        if (savedContent) {
+          try {
+            await chrome.runtime.sendMessage({
+              kind: "CONTENT_CREATED",
+              payload: { content: savedContent },
+            });
+            logger.info("ServiceWorker", "Broadcasted CONTENT_CREATED event");
+          } catch (broadcastError) {
+            logger.warn("ServiceWorker", "Failed to broadcast CONTENT_CREATED", broadcastError);
+          }
+        }
+
+        await chrome.notifications.create({
+          type: "basic",
+          iconUrl: "icons/48.png",
+          title: "Saved to Pocket",
+          message: targetPocket?.name
+            ? `Image saved to ${targetPocket.name}`
+            : "Image saved successfully",
+        });
+
+        logger.info("ServiceWorker", "Image saved via context menu", {
+          pocketId: targetPocketId,
+          contentId: processed.contentId,
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        logger.error("ServiceWorker", "Image context menu handler error", {
+          message: errorMessage,
+          stack: errorStack,
+          error: error,
+        });
+
         await chrome.notifications.create({
           type: "basic",
           iconUrl: "icons/48.png",

@@ -133,6 +133,63 @@ class ContentScriptManager {
       return { status: "ready", timestamp: Date.now() };
     });
 
+    // Handler for capturing image data
+    messageHandler.on("CAPTURE_IMAGE_DATA", async (payload) => {
+      console.debug("[ContentScript] Received CAPTURE_IMAGE_DATA", payload);
+
+      try {
+        const srcUrl = payload?.srcUrl as string | undefined;
+        const pageUrl = payload?.pageUrl as string | undefined;
+
+        if (!srcUrl) {
+          return {
+            status: "error",
+            error: "No image source URL provided",
+            timestamp: Date.now(),
+          };
+        }
+
+        // Find the image element on the page
+        const images = Array.from(document.querySelectorAll("img"));
+        const targetImage = images.find((img) => img.src === srcUrl || img.currentSrc === srcUrl);
+
+        if (!targetImage) {
+          return {
+            status: "error",
+            error: "Image element not found on page",
+            timestamp: Date.now(),
+          };
+        }
+
+        // Extract image data
+        const imageData = {
+          src: targetImage.src || targetImage.currentSrc,
+          alt: targetImage.alt || "",
+          title: targetImage.title || "",
+          width: targetImage.naturalWidth || targetImage.width,
+          height: targetImage.naturalHeight || targetImage.height,
+        };
+
+        console.info("[ContentScript] Captured image data", {
+          src: imageData.src.substring(0, 100),
+          dimensions: `${imageData.width}x${imageData.height}`,
+        });
+
+        return {
+          status: "success",
+          imageData,
+          timestamp: Date.now(),
+        };
+      } catch (error) {
+        console.error("[ContentScript] CAPTURE_IMAGE_DATA failed", error);
+        return {
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+          timestamp: Date.now(),
+        };
+      }
+    });
+
     // Handler for capturing selection snippet without UI
     messageHandler.on("CAPTURE_SELECTION_SNIPPET", async (payload) => {
       console.debug("[ContentScript] Received CAPTURE_SELECTION_SNIPPET", payload);
