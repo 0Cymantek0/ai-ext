@@ -1401,6 +1401,89 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
   }
 });
 
+messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
+  const { content, instructions, preferLocal } = payload as {
+    content?: unknown;
+    instructions?: string;
+    preferLocal?: boolean;
+  };
+
+  logger.info("Handler", "AI_FORMAT_REQUEST", {
+    hasContent: typeof content === "string" && content.length > 0,
+    length: typeof content === "string" ? content.length : 0,
+  });
+
+  if (typeof content !== "string" || content.trim().length === 0) {
+    throw new Error("Content is required for formatting");
+  }
+
+  const userInstructions = instructions && instructions.trim().length > 0
+    ? instructions.trim()
+    : "Improve the formatting of the provided markdown note. Ensure headings, lists, and code blocks are well structured. Fix indentation and whitespace issues. Preserve the original meaning and return valid markdown only.";
+
+  const preferLocalProcessing = preferLocal !== false;
+  let formattedContent: string | null = null;
+  let usedAI = false;
+  let sessionId: string | null = null;
+
+  if (preferLocalProcessing) {
+    try {
+      const availability = await aiManager.checkModelAvailability();
+      if (availability !== "no") {
+        sessionId = await aiManager.initializeGeminiNano({
+          temperature: 0.2,
+          topK: 32,
+          initialPrompts: [
+            {
+              role: "system",
+              content:
+                "You are a meticulous markdown editor. Format notes to be clean, readable, and consistent. Preserve all semantic meaning, code blocks, and lists. Output valid markdown only without additional commentary.",
+            },
+          ],
+        });
+
+        const prompt = `Instructions:\n${userInstructions}\n\n---\nORIGINAL MARKDOWN:\n${content}\n---\n\nReturn the reformatted markdown with improved structure and readability.`;
+
+        const aiResult = await aiManager.processPrompt(sessionId, prompt);
+        const trimmed = aiResult.trim();
+
+        if (trimmed.length > 0) {
+          formattedContent = trimmed;
+          usedAI = true;
+        }
+      }
+    } catch (error) {
+      logger.warn("Handler", "AI_FORMAT_REQUEST local formatting failed", error);
+    } finally {
+      if (sessionId) {
+        aiManager.destroySession(sessionId);
+      }
+    }
+  }
+
+  const basicFormat = (text: string) =>
+    text
+      .split("\n")
+      .map((line) => line.trimEnd())
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+  if (!formattedContent || formattedContent.length === 0) {
+    formattedContent = basicFormat(content);
+  }
+
+  // Ensure we never return empty content
+  if (!formattedContent || formattedContent.length === 0) {
+    formattedContent = content;
+  }
+
+  return {
+    formattedContent,
+    usedAI,
+  };
+});
+
 messageRouter.registerHandler("POCKET_CREATE", async (payload: any) => {
   logger.info("Handler", "POCKET_CREATE", payload);
   try {

@@ -11,6 +11,7 @@ export type MessageKind =
   | "CONTEXT_MENU_SAVE_TO_POCKET"
   | "POCKET_SELECTION_REQUEST"
   | "POCKET_SELECTION_RESPONSE"
+  | "AI_FORMAT_REQUEST"
   | "AI_PROCESS_REQUEST"
   | "AI_PROCESS_UPDATE"
   | "AI_PROCESS_RESULT"
@@ -159,6 +160,12 @@ export interface PocketSelectionResponsePayload {
   status: "success" | "cancelled" | "error";
   pocketId?: string;
   error?: string;
+}
+
+export interface AIFormatRequestPayload {
+  content: string;
+  instructions?: string;
+  preferLocal?: boolean;
 }
 
 export interface ContentSearchPayload {
