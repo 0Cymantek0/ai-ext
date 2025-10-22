@@ -186,15 +186,17 @@ class ContentScriptManager {
         console.info("[ContentScript] User selected pocket", { pocketId: selectedPocketId });
 
         const detailedSelection = domAnalyzer.extractDetailedSelection?.(160);
+        const selectionContext = detailedSelection
+          ? {
+            before: detailedSelection.beforeContext || "",
+            after: detailedSelection.afterContext || "",
+          }
+          : undefined;
+
         const capturedContent = buildSnippetCapturePayload(selectionText, {
           sourceUrl: sourceUrl || window.location.href,
           title: document.title,
-          context: detailedSelection
-            ? {
-              before: detailedSelection.beforeContext || "",
-              after: detailedSelection.afterContext || "",
-            }
-            : undefined,
+          ...(selectionContext ? { context: selectionContext } : {}),
         });
 
         console.info("[ContentScript] Returning captured content", {
