@@ -122,41 +122,117 @@ async function sendMessageWithRetry(
   }
 }
 
-/**
- * Helper function to save selection to a specific pocket
- */
-async function saveSelectionToPocket(tabId: number, pocketId: string): Promise<void> {
-  try {
-    // Send capture request with selection mode
-    const response = await sendMessageWithRetry(tabId, {
-      kind: "CAPTURE_REQUEST",
-      payload: {
-        mode: "selection",
-        pocketId: pocketId,
-      },
-    });
-
-    if (response?.success) {
-      // Show success notification
-      await chrome.notifications.create({
-        type: "basic",
-        iconUrl: "icons/48.png",
-        title: "Saved to Pocket",
-        message: `Selection saved successfully`,
-      });
-
-      logger.info("ServiceWorker", "Selection saved to pocket", {
-        pocketId,
-        contentId: response.data?.contentId,
-      });
-    } else {
-      throw new Error(response?.error?.message || "Failed to save selection");
-    }
-  } catch (error) {
-    logger.error("ServiceWorker", "Failed to save selection", error);
-    throw error;
-  }
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+type PocketSelectionResolver = {
+  resolve: (pocketId: string) => void;
+  reject: (error: Error) => void;
+  timeoutId: number;
+};
+
+type PocketSelectionContext = {
+  selectionText?: string;
+  preview?: string;
+  sourceUrl?: string;
+};
+
+const pocketSelectionRequests = new Map<string, PocketSelectionResolver>();
+
+async function dispatchPocketSelectionRequest(request: {
+  requestId: string;
+  pockets: Array<{ id: string; name: string; description?: string; color?: string }>;
+  selectionText?: string;
+  preview?: string;
+  sourceUrl?: string;
+}): Promise<void> {
+  const maxAttempts = 5;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await chrome.runtime.sendMessage({
+        kind: "POCKET_SELECTION_REQUEST",
+        payload: request,
+      });
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("Receiving end does not exist") && attempt < maxAttempts) {
+        await delay(200 * attempt);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error("Failed to dispatch pocket selection request");
+}
+
+async function requestPocketSelection(
+  tabId: number,
+  pockets: Array<{ id: string; name: string; description?: string; color?: string }>,
+  context: PocketSelectionContext,
+): Promise<string> {
+  if (pockets.length === 1) {
+    return pockets[0]!.id;
+  }
+
+  const requestId = crypto.randomUUID();
+
+  try {
+    await chrome.sidePanel.open({ tabId });
+  } catch (error) {
+    logger.warn("ServiceWorker", "Failed to open side panel before pocket selection", error);
+  }
+
+  await dispatchPocketSelectionRequest({
+    requestId,
+    pockets: pockets.map((pocket) => ({
+      id: pocket.id,
+      name: pocket.name,
+      description: pocket.description,
+      color: pocket.color,
+    })),
+    selectionText: context.selectionText,
+    preview: context.preview,
+    sourceUrl: context.sourceUrl,
+  });
+
+  return await new Promise<string>((resolve, reject) => {
+    const timeoutId = setTimeout(async () => {
+      pocketSelectionRequests.delete(requestId);
+      try {
+        await chrome.runtime.sendMessage({
+          kind: "POCKET_SELECTION_RESPONSE",
+          payload: {
+            requestId,
+            status: "error",
+            error: "timeout",
+          },
+        });
+      } catch (error) {
+        logger.warn("ServiceWorker", "Failed to notify pocket selection timeout", error);
+      }
+      reject(new Error("POCKET_SELECTION_TIMEOUT"));
+    }, 45000) as unknown as number;
+
+    pocketSelectionRequests.set(requestId, {
+      resolve: (pocketId) => {
+        clearTimeout(timeoutId);
+        pocketSelectionRequests.delete(requestId);
+        resolve(pocketId);
+      },
+      reject: (error) => {
+        clearTimeout(timeoutId);
+        pocketSelectionRequests.delete(requestId);
+        reject(error);
+      },
+      timeoutId,
+    });
+  });
+}
+
 
 // Context menu click handler (registered once at module level)
 let contextMenuHandlerRegistered = false;
@@ -193,132 +269,139 @@ if (!contextMenuHandlerRegistered) {
           return;
         }
 
-        // Get list of pockets
+        // Initialize IndexedDB and load pockets
         await indexedDBManager.init();
         let pockets = await indexedDBManager.listPockets();
 
-        // If no pockets exist, create a default one
         if (pockets.length === 0) {
           logger.info("ServiceWorker", "No pockets found, creating default pocket");
-          const defaultPocketId = await indexedDBManager.createPocket({
+          await indexedDBManager.createPocket({
             name: "My Pocket",
             description: "Default pocket for saved content",
             tags: [],
             color: "#3b82f6",
             contentIds: [],
           });
-
-          // Refresh pocket list
           pockets = await indexedDBManager.listPockets();
         }
 
-        // Send pocket list to content script to show selector
-        let response;
-        try {
-          response = await sendMessageWithRetry(tab.id, {
-            kind: "SHOW_POCKET_SELECTOR",
-            payload: {
-              pockets: pockets.map(p => ({
-                id: p.id,
-                name: p.name,
-                description: p.description,
-                color: p.color,
-              })),
-              selectionText: info.selectionText,
-              sourceUrl: tab.url,
-            },
-          });
-        } catch (error) {
-          // Check if this is a "message channel closed" error
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          if (errorMessage.includes("message channel closed") ||
-            errorMessage.includes("message port closed")) {
-            // This likely means the user cancelled or closed the selector
-            logger.info("ServiceWorker", "Message channel closed - likely user cancelled");
-            return; // Exit gracefully
-          }
-          throw error; // Re-throw other errors
-        }
-
-        // Unwrap the message envelope
-        const actualResponse = response?.data || response;
-
-        logger.info("ServiceWorker", "Received response from pocket selector", {
-          status: actualResponse?.status,
-          hasCapturedContent: !!actualResponse?.capturedContent,
-          responseType: typeof actualResponse,
-          responseKeys: actualResponse ? Object.keys(actualResponse) : [],
-          fullResponse: JSON.stringify(actualResponse, null, 2),
+        // Capture the selection snippet before prompting the user
+        const snippetResponse = await sendMessageWithRetry(tab.id, {
+          kind: "CAPTURE_SELECTION_SNIPPET",
+          payload: {
+            selectionText: info.selectionText,
+            sourceUrl: tab.url,
+          },
         });
 
-        // Check if response is valid
-        if (!actualResponse) {
-          throw new Error("No response received from content script");
+        const snippetEnvelope = snippetResponse?.data || snippetResponse;
+        if (!snippetEnvelope || snippetEnvelope.status !== "success" || !snippetEnvelope.snippet) {
+          const captureError = snippetEnvelope?.error || "Failed to capture selected text";
+          logger.error("ServiceWorker", "Snippet capture failed", { captureError, snippetEnvelope });
+          throw new Error(typeof captureError === "string" ? captureError : JSON.stringify(captureError));
         }
 
-        if (actualResponse?.status === "success" && actualResponse?.capturedContent) {
-          // Process and save the captured content
-          const { pocketId, capturedContent } = actualResponse;
+        const snippet = snippetEnvelope.snippet;
+        const snippetTextRaw = snippet?.content?.text?.content || info.selectionText || "";
+        const snippetText = typeof snippetTextRaw === "string" ? snippetTextRaw.trim() : "";
 
-          logger.info("ServiceWorker", "Processing captured content", {
-            pocketId,
-            mode: capturedContent.mode,
-          });
+        if (!snippetText) {
+          throw new Error("Captured selection was empty");
+        }
 
-          const processed = await contentProcessor.processContent({
-            pocketId,
-            mode: capturedContent.mode,
-            content: capturedContent.content,
-            metadata: capturedContent.metadata,
-            sourceUrl: tab.url || "",
-            sanitize: true,
-          });
+        const snippetPreview = snippetText.slice(0, 200);
+        const snippetTitleCandidate = snippetText.slice(0, 80);
 
-          logger.info("ServiceWorker", "Content processed and saved", {
-            contentId: processed.contentId,
-            type: processed.type,
-          });
-
-          // Fetch the saved content to broadcast
-          const savedContent = await indexedDBManager.getContent(processed.contentId);
-
-          // Broadcast to side panel that content was created
-          if (savedContent) {
-            try {
-              await chrome.runtime.sendMessage({
-                kind: "CONTENT_CREATED",
-                payload: { content: savedContent },
-              });
-              logger.info("ServiceWorker", "Broadcasted CONTENT_CREATED event");
-            } catch (broadcastError) {
-              logger.warn("ServiceWorker", "Failed to broadcast CONTENT_CREATED", broadcastError);
-            }
-          }
-
-          // Show success notification
-          await chrome.notifications.create({
-            type: "basic",
-            iconUrl: "icons/48.png",
-            title: "Saved to Pocket",
-            message: `Selection saved successfully`,
-          });
-
-          logger.info("ServiceWorker", "Selection saved via pocket selector", {
-            pocketId,
-            contentId: processed.contentId,
-          });
-        } else if (actualResponse?.status === "cancelled") {
-          logger.info("ServiceWorker", "User cancelled pocket selection");
+        // Determine target pocket (prompt via side panel if multiple)
+        let targetPocketId: string;
+        if (pockets.length === 1) {
+          targetPocketId = pockets[0]!.id;
+          logger.info("ServiceWorker", "Auto-selecting sole pocket", { pocketId: targetPocketId });
         } else {
-          const errorMsg = actualResponse?.error || "Failed to save selection";
-          const errorDetails = {
-            error: errorMsg,
-            status: actualResponse?.status,
-            fullResponse: JSON.stringify(actualResponse, null, 2),
-          };
-          logger.error("ServiceWorker", "Save failed", errorDetails);
-          throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
+          try {
+            targetPocketId = await requestPocketSelection(tab.id, pockets, {
+              selectionText: snippetText,
+              preview: snippetPreview,
+              sourceUrl: snippet.metadata?.url || tab.url || "",
+            });
+          } catch (selectionError) {
+            if (selectionError instanceof Error) {
+              if (selectionError.message === "POCKET_SELECTION_CANCELLED") {
+                logger.info("ServiceWorker", "User cancelled pocket selection from side panel");
+                return;
+              }
+              if (selectionError.message === "POCKET_SELECTION_TIMEOUT") {
+                throw new Error("Pocket selection timed out");
+              }
+            }
+            throw selectionError;
+          }
         }
+
+        const targetPocket = pockets.find((p) => p.id === targetPocketId) || null;
+
+        // Normalize metadata before saving
+        snippet.metadata = {
+          ...snippet.metadata,
+          url: snippet.metadata?.url || tab.url || "",
+          timestamp: snippet.metadata?.timestamp || Date.now(),
+        };
+
+        if (!snippet.metadata.title) {
+          try {
+            const source = snippet.metadata.url ? new URL(snippet.metadata.url) : null;
+            snippet.metadata.title = snippetTitleCandidate || source?.hostname || "Saved snippet";
+          } catch {
+            snippet.metadata.title = snippetTitleCandidate || "Saved snippet";
+          }
+        }
+
+        logger.info("ServiceWorker", "Processing captured snippet", {
+          pocketId: targetPocketId,
+          preview: snippetPreview,
+        });
+
+        const processed = await contentProcessor.processContent({
+          pocketId: targetPocketId,
+          mode: "selection",
+          content: snippet.content,
+          metadata: snippet.metadata,
+          sourceUrl: snippet.metadata.url || tab.url || "",
+          sanitize: true,
+        });
+
+        logger.info("ServiceWorker", "Content processed and saved", {
+          contentId: processed.contentId,
+          type: processed.type,
+        });
+
+        const savedContent = await indexedDBManager.getContent(processed.contentId);
+
+        if (savedContent) {
+          try {
+            await chrome.runtime.sendMessage({
+              kind: "CONTENT_CREATED",
+              payload: { content: savedContent },
+            });
+            logger.info("ServiceWorker", "Broadcasted CONTENT_CREATED event");
+          } catch (broadcastError) {
+            logger.warn("ServiceWorker", "Failed to broadcast CONTENT_CREATED", broadcastError);
+          }
+        }
+
+        await chrome.notifications.create({
+          type: "basic",
+          iconUrl: "icons/48.png",
+          title: "Saved to Pocket",
+          message: targetPocket?.name
+            ? `Saved to ${targetPocket.name}`
+            : "Selection saved successfully",
+        });
+
+        logger.info("ServiceWorker", "Selection saved via context menu", {
+          pocketId: targetPocketId,
+          contentId: processed.contentId,
+        });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
@@ -1368,6 +1451,33 @@ messageRouter.registerHandler("POCKET_DELETE", async (payload: any) => {
     logger.error("Handler", "POCKET_DELETE error", error);
     throw error;
   }
+});
+
+messageRouter.registerHandler("POCKET_SELECTION_RESPONSE", async (payload: any) => {
+  const { requestId, status, pocketId, error } = payload as {
+    requestId: string;
+    status: "success" | "cancelled" | "error";
+    pocketId?: string;
+    error?: string;
+  };
+
+  logger.info("Handler", "POCKET_SELECTION_RESPONSE", { requestId, status });
+
+  const pending = pocketSelectionRequests.get(requestId);
+  if (!pending) {
+    logger.warn("Handler", "No pending pocket selection request", { requestId, status });
+    return { acknowledged: false };
+  }
+
+  if (status === "success" && pocketId) {
+    pending.resolve(pocketId);
+  } else if (status === "cancelled") {
+    pending.reject(new Error("POCKET_SELECTION_CANCELLED"));
+  } else {
+    pending.reject(new Error(error || "Pocket selection failed"));
+  }
+
+  return { acknowledged: true };
 });
 
 // Register content handlers (Requirement 2.6, 7.6)

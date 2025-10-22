@@ -19,7 +19,7 @@ import { HistoryPanel } from "@/components/HistoryPanel";
 import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
-import { PocketManager, type PocketManagerRef } from "@/components/pockets";
+import { PocketManager, type PocketManagerRef, PocketSelectionModal } from "@/components/pockets";
 import { NoteEditorPage } from "@/components/notes/NoteEditorPage";
 import { ShareModal } from "@/components/ShareModal";
 import { 
@@ -59,6 +59,14 @@ interface ConversationData {
   metadata?: ConversationMetadata;
 }
 
+interface PocketSelectionRequestState {
+  requestId: string;
+  pockets: Array<{ id: string; name: string; description?: string; color?: string }>;
+  selectionText?: string;
+  preview?: string;
+  sourceUrl?: string;
+}
+
 export function ChatApp() {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -84,6 +92,8 @@ export function ChatApp() {
   const [isInsidePocket, setIsInsidePocket] = React.useState(false);
   // Store current pocket ID for add actions
   const [currentPocketId, setCurrentPocketId] = React.useState<string | null>(null);
+  // Pending pocket selection request from background
+  const [pendingSelectionRequest, setPendingSelectionRequest] = React.useState<PocketSelectionRequestState | null>(null);
   // Note editor state
   const [showNoteEditor, setShowNoteEditor] = React.useState(false);
   const [isSavingNote, setIsSavingNote] = React.useState(false);
@@ -270,6 +280,44 @@ export function ChatApp() {
     setCurrentRequestId(null);
   }, []);
 
+  const handlePocketSelectionConfirm = React.useCallback(
+    async (pocketId: string) => {
+      if (!pendingSelectionRequest) return;
+      try {
+        await chrome.runtime.sendMessage({
+          kind: "POCKET_SELECTION_RESPONSE",
+          payload: {
+            requestId: pendingSelectionRequest.requestId,
+            status: "success",
+            pocketId,
+          },
+        });
+      } catch (error) {
+        console.error("Failed to acknowledge pocket selection", error);
+      } finally {
+        setPendingSelectionRequest(null);
+      }
+    },
+    [pendingSelectionRequest],
+  );
+
+  const handlePocketSelectionCancel = React.useCallback(async () => {
+    if (!pendingSelectionRequest) return;
+    try {
+      await chrome.runtime.sendMessage({
+        kind: "POCKET_SELECTION_RESPONSE",
+        payload: {
+          requestId: pendingSelectionRequest.requestId,
+          status: "cancelled",
+        },
+      });
+    } catch (error) {
+      console.error("Failed to cancel pocket selection", error);
+    } finally {
+      setPendingSelectionRequest(null);
+    }
+  }, [pendingSelectionRequest]);
+
   // Set up message listener for streaming responses
   React.useEffect(() => {
     const messageListener = (message: any) => {
@@ -286,6 +334,27 @@ export function ChatApp() {
         case "AI_PROCESS_STREAM_ERROR":
           handleStreamError(message.payload);
           break;
+        case "POCKET_SELECTION_REQUEST": {
+          const payload = message.payload || {};
+          setPendingSelectionRequest({
+            requestId: payload.requestId,
+            pockets: payload.pockets || [],
+            selectionText: payload.selectionText,
+            preview: payload.preview,
+            sourceUrl: payload.sourceUrl,
+          });
+          break;
+        }
+        case "POCKET_SELECTION_RESPONSE": {
+          const payload = message.payload || {};
+          if (
+            pendingSelectionRequest &&
+            payload.requestId === pendingSelectionRequest.requestId
+          ) {
+            setPendingSelectionRequest(null);
+          }
+          break;
+        }
       }
     };
 
@@ -293,7 +362,13 @@ export function ChatApp() {
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener);
     };
-  }, [handleStreamStart, handleStreamChunk, handleStreamEnd, handleStreamError]);
+  }, [
+    handleStreamStart,
+    handleStreamChunk,
+    handleStreamEnd,
+    handleStreamError,
+    pendingSelectionRequest,
+  ]);
 
   // Load conversations on mount
   React.useEffect(() => {
@@ -1364,6 +1439,16 @@ export function ChatApp() {
         onClose={() => setShowShareModal(false)}
         onExport={handleExportAll}
       />
+
+      {pendingSelectionRequest && (
+        <PocketSelectionModal
+          pockets={pendingSelectionRequest.pockets}
+          selectionText={pendingSelectionRequest.preview || pendingSelectionRequest.selectionText}
+          sourceUrl={pendingSelectionRequest.sourceUrl}
+          onSelect={handlePocketSelectionConfirm}
+          onCancel={handlePocketSelectionCancel}
+        />
+      )}
     </div>
     </TooltipProvider>
   );
