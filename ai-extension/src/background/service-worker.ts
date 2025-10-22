@@ -1448,7 +1448,7 @@ messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
         let trimmed = aiResult.trim();
 
         const fencedMarkdownMatch = trimmed.match(/^```(?:markdown)?\s*\n([\s\S]*?)```$/i);
-        if (fencedMarkdownMatch) {
+        if (fencedMarkdownMatch && typeof fencedMarkdownMatch[1] === "string") {
           trimmed = fencedMarkdownMatch[1].trimEnd();
         }
 
