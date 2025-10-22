@@ -182,6 +182,7 @@ async function requestPocketSelection(
 
   try {
     await chrome.sidePanel.open({ tabId });
+    logger.info("ServiceWorker", "Side panel opened for pocket selection");
   } catch (error) {
     logger.warn("ServiceWorker", "Failed to open side panel before pocket selection", error);
   }
@@ -363,41 +364,6 @@ if (!contextMenuHandlerRegistered) {
           preview: snippetPreview,
         });
 
-        // Auto-format the captured text with Gemini Nano
-        let aiFormattedContent: string | null = null;
-        try {
-          logger.info("ServiceWorker", "Auto-formatting captured text with Gemini Nano");
-          const formatResponse = await messageRouter.routeMessage({
-            kind: "AI_FORMAT_REQUEST",
-            requestId: crypto.randomUUID(),
-            payload: {
-              content: snippetText,
-              instructions: "Format this captured text to be well-structured, properly formatted, and easy to read. Improve markdown syntax, fix formatting issues, and enhance readability while preserving the original meaning.",
-              preferLocal: true,
-            },
-          }, { tab: { id: tab.id } } as chrome.runtime.MessageSender);
-
-          if (formatResponse.success && formatResponse.data?.formattedContent) {
-            aiFormattedContent = formatResponse.data.formattedContent;
-            logger.info("ServiceWorker", "✓ Text auto-formatted successfully", {
-              originalLength: snippetText.length,
-              formattedLength: formatResponse.data.formattedContent.length,
-              usedAI: formatResponse.data.usedAI,
-            });
-          } else {
-            logger.warn("ServiceWorker", "Format response unsuccessful", formatResponse);
-          }
-        } catch (formatError) {
-          logger.warn("ServiceWorker", "Auto-format failed, continuing with original text", formatError);
-        }
-
-        // Add AI formatted content to snippet if available
-        if (aiFormattedContent !== null && snippet.content?.text) {
-          if (typeof snippet.content.text === 'object') {
-            snippet.content.text.aiFormattedContent = aiFormattedContent;
-          }
-        }
-
         const processed = await contentProcessor.processContent({
           pocketId: targetPocketId,
           mode: "selection",
@@ -414,6 +380,7 @@ if (!contextMenuHandlerRegistered) {
 
         const savedContent = await indexedDBManager.getContent(processed.contentId);
 
+        // Broadcast content created event (will be received if side panel is open)
         if (savedContent) {
           try {
             await chrome.runtime.sendMessage({
@@ -422,7 +389,8 @@ if (!contextMenuHandlerRegistered) {
             });
             logger.info("ServiceWorker", "Broadcasted CONTENT_CREATED event");
           } catch (broadcastError) {
-            logger.warn("ServiceWorker", "Failed to broadcast CONTENT_CREATED", broadcastError);
+            // This is expected if side panel is not open - user will see content when they open it
+            logger.debug("ServiceWorker", "Broadcast not received (side panel may be closed)", broadcastError);
           }
         }
 
