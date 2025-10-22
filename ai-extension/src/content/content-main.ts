@@ -10,10 +10,9 @@ import {
   sendMessage,
 } from "../shared/message-client.js";
 import { domAnalyzer } from "./dom-analyzer.js";
-import { contentSanitizer } from "./content-sanitizer.js";
 import { contentCapture } from "./content-capture.js";
 import { selectionPreviewUI } from "./selection-preview-ui.js";
-import { PocketSelector } from "./pocket-selector.js";
+import { buildSnippetCapturePayload, type SnippetOptions } from "./snippet-utils.js";
 
 interface ContentScriptState {
   initialized: boolean;
@@ -134,34 +133,22 @@ class ContentScriptManager {
       return { status: "ready", timestamp: Date.now() };
     });
 
-    // Handler for showing pocket selector
-    messageHandler.on("SHOW_POCKET_SELECTOR", async (payload) => {
-      console.debug("[ContentScript] Received SHOW_POCKET_SELECTOR", payload);
+    // Handler for capturing selection snippet without UI
+    messageHandler.on("CAPTURE_SELECTION_SNIPPET", async (payload) => {
+      console.debug("[ContentScript] Received CAPTURE_SELECTION_SNIPPET", payload);
 
       try {
-        const { pockets, selectionText, sourceUrl } = payload;
+        const providedText = payload?.selectionText as string | undefined;
+        const sourceUrl = payload?.sourceUrl as string | undefined;
+        const providedTitle = payload?.title as string | undefined;
 
-        // Validate pockets array
-        if (!pockets || !Array.isArray(pockets) || pockets.length === 0) {
-          console.error("[ContentScript] No pockets available");
-          return {
-            status: "error",
-            error: "No pockets available. Please create a pocket first.",
-            timestamp: Date.now(),
-          };
+        let selectionText = providedText?.trim();
+        if (!selectionText) {
+          selectionText = window.getSelection()?.toString().trim();
         }
 
-        console.info("[ContentScript] Showing pocket selector with", pockets.length, "pockets");
-        console.info("[ContentScript] Selection text from service worker", {
-          hasSelectionText: !!selectionText,
-          textLength: selectionText?.length || 0,
-          preview: selectionText?.substring(0, 100),
-        });
-
-        // Use the selectionText passed from service worker
-        // This text was captured by Chrome when the context menu was shown
-        if (!selectionText || selectionText.trim().length === 0) {
-          console.error("[ContentScript] No selection text provided");
+        if (!selectionText) {
+          console.error("[ContentScript] No text selected for snippet capture");
           return {
             status: "error",
             error: "No text was selected",
@@ -169,50 +156,86 @@ class ContentScriptManager {
           };
         }
 
-        // Show pocket selector UI
-        const pocketSelector = new PocketSelector();
-        const selectedPocketId = await pocketSelector.show(pockets);
-
-        if (!selectedPocketId) {
-          // User cancelled
-          console.info("[ContentScript] User cancelled pocket selection");
-          return {
-            status: "cancelled",
-            timestamp: Date.now(),
-          };
+        let captureResult: Awaited<ReturnType<typeof contentCapture.capture>> | null = null;
+        try {
+          captureResult = await contentCapture.capture({
+            mode: "selection",
+            pocketId: payload?.pocketId || "context-menu",
+            sanitize: true,
+          });
+        } catch (error) {
+          console.warn("[ContentScript] Selection capture failed, falling back to basic snippet", error);
         }
 
-        console.info("[ContentScript] User selected pocket", { pocketId: selectedPocketId });
+        let sanitizedText = selectionText;
+        let contextInfo: { before?: string; after?: string } | undefined;
+        let sanitizationInfo: {
+          detectedPII: number;
+          redactionCount: number;
+          piiTypes: string[];
+        } | null = null;
+        let captureTimestamp = captureResult?.metadata?.timestamp;
 
-        // Create the captured content structure using the pre-captured selection text
-        const capturedContent = {
-          mode: "selection",
-          content: {
-            text: selectionText,
-            type: "selection",
-          },
-          metadata: {
-            url: sourceUrl || window.location.href,
-            timestamp: Date.now(),
-          },
-          timestamp: Date.now(),
+        if (captureResult?.content) {
+          const textContent = captureResult.content.text || captureResult.content;
+          if (typeof textContent?.content === "string" && textContent.content.trim()) {
+            sanitizedText = textContent.content;
+          }
+
+          const context = captureResult.content.context || textContent?.context;
+          if (context) {
+            contextInfo = {
+              before: context.before || "",
+              after: context.after || "",
+            };
+          }
+
+          const sanitization = captureResult.content.sanitization || textContent?.sanitization;
+          if (sanitization) {
+            sanitizationInfo = {
+              detectedPII: sanitization.detectedPII || 0,
+              redactionCount: sanitization.redactionCount || 0,
+              piiTypes: sanitization.piiTypes || [],
+            };
+          }
+        } else {
+          const detailedSelection = domAnalyzer.extractDetailedSelection?.(160);
+          if (detailedSelection) {
+            contextInfo = {
+              before: detailedSelection.beforeContext || "",
+              after: detailedSelection.afterContext || "",
+            };
+          }
+        }
+
+        const snippetOptions: SnippetOptions = {
+          sourceUrl: sourceUrl || window.location.href,
+          title: providedTitle || document.title,
+          ...(contextInfo ? { context: contextInfo } : {}),
         };
 
-        console.info("[ContentScript] Returning captured content", {
-          pocketId: selectedPocketId,
-          mode: capturedContent.mode,
-          textLength: selectionText.length,
+        if (typeof captureTimestamp === "number") {
+          snippetOptions.timestamp = captureTimestamp;
+        }
+
+        const snippet = buildSnippetCapturePayload(sanitizedText, snippetOptions);
+
+        if (sanitizationInfo) {
+          snippet.content.sanitization = sanitizationInfo;
+        }
+
+        console.info("[ContentScript] Returning captured snippet", {
+          length: snippet.content.text.characterCount,
+          wordCount: snippet.content.text.wordCount,
         });
 
-        // Return the content with the selected pocket ID
         return {
           status: "success",
-          pocketId: selectedPocketId,
-          capturedContent: capturedContent,
+          snippet,
           timestamp: Date.now(),
         };
       } catch (error) {
-        console.error("[ContentScript] Pocket selector failed", error);
+        console.error("[ContentScript] CAPTURE_SELECTION_SNIPPET failed", error);
         return {
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",

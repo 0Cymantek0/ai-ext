@@ -20,6 +20,7 @@ export enum StoreName {
 
 export enum ContentType {
   TEXT = "text",
+  SNIPPET = "snippet",
   IMAGE = "image",
   AUDIO = "audio",
   VIDEO = "video",

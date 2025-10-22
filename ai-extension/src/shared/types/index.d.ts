@@ -6,9 +6,12 @@ export type MessageKind =
   | "CAPTURE_MULTI_SELECTION"
   | "CAPTURE_MEDIA"
   | "CAPTURE_MEDIA_ELEMENT"
+  | "CAPTURE_SELECTION_SNIPPET"
   | "FILE_UPLOAD"
   | "CONTEXT_MENU_SAVE_TO_POCKET"
-  | "SHOW_POCKET_SELECTOR"
+  | "POCKET_SELECTION_REQUEST"
+  | "POCKET_SELECTION_RESPONSE"
+  | "AI_FORMAT_REQUEST"
   | "AI_PROCESS_REQUEST"
   | "AI_PROCESS_UPDATE"
   | "AI_PROCESS_RESULT"
@@ -142,6 +145,27 @@ export interface ContentDeletePayload {
 export interface PocketSearchPayload {
   query: string;
   limit?: number;
+}
+
+export interface PocketSelectionRequestPayload {
+  requestId: string;
+  pockets: Array<{ id: string; name: string; description?: string; color?: string }>;
+  selectionText?: string;
+  preview?: string;
+  sourceUrl?: string;
+}
+
+export interface PocketSelectionResponsePayload {
+  requestId: string;
+  status: "success" | "cancelled" | "error";
+  pocketId?: string;
+  error?: string;
+}
+
+export interface AIFormatRequestPayload {
+  content: string;
+  instructions?: string;
+  preferLocal?: boolean;
 }
 
 export interface ContentSearchPayload {
