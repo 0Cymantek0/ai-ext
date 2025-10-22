@@ -58,8 +58,7 @@ export class PocketSelector {
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(8px);
+      background: rgba(15, 23, 42, 0.45);
       z-index: 2147483647;
       display: flex;
       align-items: center;
@@ -71,16 +70,19 @@ export class PocketSelector {
     // Create modal
     const modal = document.createElement("div");
     modal.style.cssText = `
-      background: #1f2937;
-      border-radius: 16px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      position: relative;
+      background: rgba(15, 23, 42, 0.88);
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      box-shadow: 0 30px 60px -20px rgba(15, 23, 42, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.06);
       max-width: 500px;
       width: 90%;
       max-height: 80vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      border: 1px solid #374151;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       animation: slideUp 0.3s ease-out;
     `;
 
@@ -88,11 +90,11 @@ export class PocketSelector {
     const header = document.createElement("div");
     header.style.cssText = `
       padding: 24px;
-      border-bottom: 1px solid #374151;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.22);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: linear-gradient(to bottom, #1f2937, #111827);
+      background: linear-gradient(to bottom, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.65));
     `;
 
     const title = document.createElement("h2");
@@ -108,10 +110,10 @@ export class PocketSelector {
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "✕";
     closeBtn.style.cssText = `
-      background: none;
-      border: none;
-      font-size: 24px;
-      color: #9ca3af;
+      background: rgba(148, 163, 184, 0.08);
+      border: 1px solid transparent;
+      font-size: 22px;
+      color: #d1d5db;
       cursor: pointer;
       padding: 0;
       width: 36px;
@@ -119,17 +121,23 @@ export class PocketSelector {
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 8px;
+      border-radius: 9999px;
       transition: all 0.2s;
     `;
-    closeBtn.onmouseover = () => {
-      closeBtn.style.background = "#374151";
+    const applyCloseHighlight = () => {
+      closeBtn.style.background = "rgba(148, 163, 184, 0.18)";
       closeBtn.style.color = "#f9fafb";
+      closeBtn.style.borderColor = "rgba(148, 163, 184, 0.35)";
     };
-    closeBtn.onmouseout = () => {
-      closeBtn.style.background = "none";
-      closeBtn.style.color = "#9ca3af";
+    const resetCloseHighlight = () => {
+      closeBtn.style.background = "rgba(148, 163, 184, 0.08)";
+      closeBtn.style.color = "#d1d5db";
+      closeBtn.style.borderColor = "transparent";
     };
+    closeBtn.onmouseover = applyCloseHighlight;
+    closeBtn.onfocus = applyCloseHighlight;
+    closeBtn.onmouseout = resetCloseHighlight;
+    closeBtn.onblur = resetCloseHighlight;
     closeBtn.onclick = () => this.handleCancel();
 
     header.appendChild(title);
@@ -141,7 +149,9 @@ export class PocketSelector {
       padding: 20px;
       overflow-y: auto;
       flex: 1;
-      background: #111827;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     `;
 
     // Create pocket items
@@ -154,34 +164,42 @@ export class PocketSelector {
     const footer = document.createElement("div");
     footer.style.cssText = `
       padding: 20px 24px;
-      border-top: 1px solid #374151;
+      border-top: 1px solid rgba(148, 163, 184, 0.22);
       display: flex;
       justify-content: flex-end;
       gap: 12px;
-      background: #1f2937;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     `;
 
     const cancelBtn = document.createElement("button");
     cancelBtn.textContent = "Cancel";
     cancelBtn.style.cssText = `
       padding: 10px 20px;
-      border: 1px solid #4b5563;
-      background: #374151;
-      color: #f9fafb;
-      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(148, 163, 184, 0.16);
+      color: #e5e7eb;
+      border-radius: 9999px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     `;
-    cancelBtn.onmouseover = () => {
-      cancelBtn.style.background = "#4b5563";
-      cancelBtn.style.borderColor = "#6b7280";
+    const applyCancelHighlight = () => {
+      cancelBtn.style.background = "rgba(148, 163, 184, 0.24)";
+      cancelBtn.style.borderColor = "rgba(148, 163, 184, 0.5)";
     };
-    cancelBtn.onmouseout = () => {
-      cancelBtn.style.background = "#374151";
-      cancelBtn.style.borderColor = "#4b5563";
+    const resetCancelHighlight = () => {
+      cancelBtn.style.background = "rgba(148, 163, 184, 0.16)";
+      cancelBtn.style.borderColor = "rgba(148, 163, 184, 0.35)";
     };
+    cancelBtn.onmouseover = applyCancelHighlight;
+    cancelBtn.onfocus = applyCancelHighlight;
+    cancelBtn.onmouseout = resetCancelHighlight;
+    cancelBtn.onblur = resetCancelHighlight;
     cancelBtn.onclick = () => this.handleCancel();
 
     footer.appendChild(cancelBtn);
@@ -202,18 +220,30 @@ export class PocketSelector {
    * Create a pocket item element
    */
   private createPocketItem(pocket: Pocket): HTMLDivElement {
+    const baseBackground = "rgba(15, 23, 42, 0.6)";
+    const baseBorderColor = "rgba(148, 163, 184, 0.25)";
+    const baseBoxShadow = "inset 0 1px 0 rgba(255, 255, 255, 0.04)";
+    const accentColor = pocket.color || "#3b82f6";
+
     const item = document.createElement("div");
+    item.tabIndex = 0;
+    item.setAttribute("role", "button");
+    item.setAttribute("aria-label", `Save to ${pocket.name}`);
     item.style.cssText = `
       padding: 18px;
       margin-bottom: 12px;
-      border: 2px solid #374151;
-      border-radius: 12px;
+      border: 1px solid ${baseBorderColor};
+      border-radius: 14px;
       cursor: pointer;
       transition: all 0.2s;
       display: flex;
       align-items: center;
       gap: 16px;
-      background: #1f2937;
+      background: ${baseBackground};
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: ${baseBoxShadow};
+      transform: translateY(0);
     `;
 
     // Color indicator
@@ -222,9 +252,9 @@ export class PocketSelector {
       width: 16px;
       height: 16px;
       border-radius: 50%;
-      background: ${pocket.color || "#3b82f6"};
+      background: ${accentColor};
       flex-shrink: 0;
-      box-shadow: 0 0 0 3px ${pocket.color || "#3b82f6"}33;
+      box-shadow: 0 0 0 4px ${accentColor}26;
     `;
 
     // Text content
@@ -246,7 +276,7 @@ export class PocketSelector {
     description.textContent = pocket.description || "No description";
     description.style.cssText = `
       font-size: 13px;
-      color: #9ca3af;
+      color: rgba(209, 213, 219, 0.72);
     `;
 
     textContainer.appendChild(name);
@@ -255,22 +285,34 @@ export class PocketSelector {
     item.appendChild(colorDot);
     item.appendChild(textContainer);
 
-    // Hover effects
-    item.onmouseover = () => {
-      item.style.borderColor = pocket.color || "#3b82f6";
-      item.style.background = "#374151";
+    const applyHoverState = () => {
+      item.style.borderColor = accentColor;
+      item.style.background = "rgba(30, 41, 59, 0.75)";
       item.style.transform = "translateY(-2px)";
-      item.style.boxShadow = `0 4px 12px ${pocket.color || "#3b82f6"}40`;
+      item.style.boxShadow = `0 18px 35px -18px ${accentColor}80, inset 0 1px 0 rgba(255, 255, 255, 0.08)`;
     };
-    item.onmouseout = () => {
-      item.style.borderColor = "#374151";
-      item.style.background = "#1f2937";
+
+    const resetState = () => {
+      item.style.borderColor = baseBorderColor;
+      item.style.background = baseBackground;
       item.style.transform = "translateY(0)";
-      item.style.boxShadow = "none";
+      item.style.boxShadow = baseBoxShadow;
     };
+
+    // Hover & focus effects
+    item.onmouseover = applyHoverState;
+    item.onfocus = applyHoverState;
+    item.onmouseout = resetState;
+    item.onblur = resetState;
 
     // Click handler
     item.onclick = () => this.handleSelection(pocket.id);
+    item.onkeydown = (event: KeyboardEvent) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        this.handleSelection(pocket.id);
+      }
+    };
 
     return item;
   }
