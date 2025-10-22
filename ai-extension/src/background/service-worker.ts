@@ -1437,15 +1437,20 @@ messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
             {
               role: "system",
               content:
-                "You are a meticulous markdown editor. Format notes to be clean, readable, and consistent. Preserve all semantic meaning, code blocks, and lists. Output valid markdown only without additional commentary.",
+                "You are a meticulous markdown editor. Format notes to be clean, readable, and consistent. Preserve all semantic meaning, code blocks, and lists. Output valid markdown only without additional commentary, and do not wrap the entire response inside a fenced code block.",
             },
           ],
         });
 
-        const prompt = `Instructions:\n${userInstructions}\n\n---\nORIGINAL MARKDOWN:\n${content}\n---\n\nReturn the reformatted markdown with improved structure and readability.`;
+        const prompt = `Instructions:\n${userInstructions}\n\n---\nORIGINAL MARKDOWN:\n${content}\n---\n\nReturn the reformatted markdown with improved structure and readability. Do not enclose the entire response in a single markdown code block.`;
 
         const aiResult = await aiManager.processPrompt(sessionId, prompt);
-        const trimmed = aiResult.trim();
+        let trimmed = aiResult.trim();
+
+        const fencedMarkdownMatch = trimmed.match(/^```(?:markdown)?\s*\n([\s\S]*?)```$/i);
+        if (fencedMarkdownMatch) {
+          trimmed = fencedMarkdownMatch[1].trimEnd();
+        }
 
         if (trimmed.length > 0) {
           formattedContent = trimmed;
