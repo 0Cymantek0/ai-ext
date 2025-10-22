@@ -57,4 +57,26 @@ describe("buildSnippetCapturePayload", () => {
     expect(payload.content.text.context.before).toBe("Before context");
     expect(payload.content.text.context.after).toBe("After context");
   });
+
+  it("includes HTML content when provided", () => {
+    const text = "Bold text";
+    const html = "<strong>Bold text</strong>";
+    const payload = buildSnippetCapturePayload(text, {
+      sourceUrl: "https://example.com",
+      htmlContent: html,
+    });
+
+    expect(payload.content.text.content).toBe(text);
+    expect(payload.content.text.formattedContent).toBe(html);
+  });
+
+  it("falls back to plain text when HTML content is not provided", () => {
+    const text = "Plain text";
+    const payload = buildSnippetCapturePayload(text, {
+      sourceUrl: "https://example.com",
+    });
+
+    expect(payload.content.text.content).toBe(text);
+    expect(payload.content.text.formattedContent).toBe(text);
+  });
 });

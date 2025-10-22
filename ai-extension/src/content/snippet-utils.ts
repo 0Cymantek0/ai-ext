@@ -8,6 +8,7 @@ export interface SnippetOptions {
   title?: string;
   timestamp?: number;
   context?: SnippetContext;
+  htmlContent?: string;
 }
 
 export interface SnippetCapturePayload {
@@ -84,13 +85,16 @@ export function buildSnippetCapturePayload(
     after: options.context?.after ?? "",
   };
 
+  // Use provided HTML content if available, otherwise fall back to plain text
+  const formattedContent = options.htmlContent || normalized;
+
   return {
     mode: "selection",
     content: {
       type: "snippet",
       text: {
         content: normalized,
-        formattedContent: normalized,
+        formattedContent: formattedContent,
         wordCount,
         characterCount,
         headings: [],

@@ -10,11 +10,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Bold, 
-  Italic, 
-  Underline, 
-  Strikethrough, 
+import {
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
   Type,
   List,
   ListOrdered,
@@ -71,7 +71,7 @@ export function NoteEditorPage({
   const [showShortcuts, setShowShortcuts] = React.useState(false);
   const [wordCount, setWordCount] = React.useState(0);
   const [charCount, setCharCount] = React.useState(0);
-  
+
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Calculate word and character count
@@ -93,11 +93,11 @@ export function NoteEditorPage({
       content: content.trim(),
       tags,
     };
-    
+
     if (note?.pocketId) {
       noteData.pocketId = note.pocketId;
     }
-    
+
     onSave(noteData);
   };
 
@@ -117,8 +117,8 @@ export function NoteEditorPage({
   };
 
   const insertMarkdown = (
-    before: string, 
-    after: string = "", 
+    before: string,
+    after: string = "",
     placeholder: string = "",
     newLine: boolean = false
   ) => {
@@ -128,7 +128,7 @@ export function NoteEditorPage({
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selectedText = content.substring(start, end);
-    
+
     let newText: string;
     let newCursorPos: number;
 
@@ -145,7 +145,7 @@ export function NoteEditorPage({
     }
 
     setContent(newText);
-    
+
     // Set cursor position after state update
     setTimeout(() => {
       textarea.focus();
@@ -169,13 +169,13 @@ export function NoteEditorPage({
     
 </body>
 </html>`;
-    
+
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const newText = content.substring(0, start) + "\n" + boilerplate + "\n" + content.substring(start);
     setContent(newText);
-    
+
     setTimeout(() => {
       textarea.focus();
       const newPos = start + boilerplate.length + 2;
@@ -190,13 +190,13 @@ export function NoteEditorPage({
 | Cell 1   | Cell 2   | Cell 3   |
 | Cell 4   | Cell 5   | Cell 6   |
 `;
-    
+
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const newText = content.substring(0, start) + table + content.substring(start);
     setContent(newText);
-    
+
     setTimeout(() => {
       textarea.focus();
       const newPos = start + table.length;
@@ -213,13 +213,13 @@ export function NoteEditorPage({
 - Parent item 2
   - Child item 2.1
 `;
-    
+
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const newText = content.substring(0, start) + nestedList + content.substring(start);
     setContent(newText);
-    
+
     setTimeout(() => {
       textarea.focus();
       const newPos = start + nestedList.length;
@@ -237,7 +237,7 @@ export function NoteEditorPage({
     const start = textarea.selectionStart;
     const newText = content.substring(0, start) + "\n---\n" + content.substring(start);
     setContent(newText);
-    
+
     setTimeout(() => {
       textarea.focus();
       const newPos = start + 5;
@@ -257,9 +257,9 @@ export function NoteEditorPage({
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isPreviewMode) return;
-      
+
       const isMod = e.ctrlKey || e.metaKey;
-      
+
       if (isMod && e.key === 'b') {
         e.preventDefault();
         insertMarkdown("**", "**", "bold");
@@ -346,7 +346,7 @@ export function NoteEditorPage({
             </span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -366,9 +366,9 @@ export function NoteEditorPage({
           >
             {isPreviewMode ? <Edit3 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </Button>
-          <Button 
-            size="sm" 
-            onClick={handleSave} 
+          <Button
+            size="sm"
+            onClick={handleSave}
             disabled={isLoading}
             className="min-w-[80px] bg-zinc-800 hover:bg-zinc-700 text-zinc-100"
           >
@@ -609,13 +609,13 @@ export function NoteEditorPage({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              
+
               <div className="flex-1 min-w-[20px]" />
-              
+
               <div className="text-xs text-zinc-500 mr-3 shrink-0">
                 {wordCount} words · {charCount} chars
               </div>
-              
+
               <Button
                 size="icon"
                 onClick={handleAutoFormat}
