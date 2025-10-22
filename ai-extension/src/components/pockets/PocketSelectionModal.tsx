@@ -26,8 +26,8 @@ export function PocketSelectionModal({
   const truncatedSelection = selectionText?.trim().slice(0, 600);
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-xl rounded-2xl border border-border bg-background shadow-2xl">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-xl rounded-2xl border border-white/20 bg-gray-900/70 backdrop-blur-2xl shadow-2xl">
         <div className="flex items-start justify-between border-b border-border/60 px-6 py-5">
           <div>
             <h2 className="text-lg font-semibold">Save to Pocket</h2>
