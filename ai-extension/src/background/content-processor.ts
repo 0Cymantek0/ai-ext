@@ -107,6 +107,18 @@ export class ContentProcessor {
       
       const contentId = await indexedDBManager.saveContent(contentData);
 
+      // Trigger Gemini Nano formatting ONLY for captured text (selection and page), NOT notes
+      if (["selection", "page"].includes(mode) && preparedContent) {
+        // Import and trigger formatting in background
+        import("./service-worker.js").then(({ backgroundProcessor }) => {
+          backgroundProcessor.processNewCapture(contentId, preparedContent).catch((error) => {
+            logger.error("ContentProcessor", "Background formatting failed", error);
+          });
+        }).catch((error) => {
+          logger.error("ContentProcessor", "Failed to import background processor", error);
+        });
+      }
+
       // Generate preview
       const preview = this.generatePreview(content, contentType, mode);
 

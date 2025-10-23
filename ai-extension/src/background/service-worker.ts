@@ -26,6 +26,15 @@ import { indexedDBManager } from "./indexeddb-manager.js";
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import * as abbreviationStorage from "./abbreviation-storage.js";
+import { aiManager as aiManagerInstance } from "./ai-manager.js";
+import { ChromeLocalStorage } from "./storage-wrapper.js";
+import { GeminiNanoFormatter } from "./gemini-nano-formatter.js";
+import { ContentProcessorBackground } from "./content-processor-background.js";
+
+// Initialize formatter and background processor
+const storageWrapper = new ChromeLocalStorage();
+const geminiFormatter = new GeminiNanoFormatter(aiManagerInstance, storageWrapper);
+const backgroundProcessor = new ContentProcessorBackground(geminiFormatter);
 
 /**
  * Context Menu Management
@@ -482,6 +491,11 @@ class ServiceWorkerLifecycle {
       this.state.lastActive = Date.now();
 
       await this.persistState();
+
+      // Start background processor for Gemini Nano formatting
+      backgroundProcessor.start().catch((error) => {
+        logger.error("ServiceWorker", "Failed to start background processor", error);
+      });
 
       const initTime = performance.now() - startTime;
       performanceMonitor.recordMetric(
@@ -2159,4 +2173,4 @@ async function performCleanup(): Promise<void> {
 }
 
 // Export for use in other modules
-export { lifecycle, messageRouter, logger, performanceMonitor };
+export { lifecycle, messageRouter, logger, performanceMonitor, geminiFormatter, backgroundProcessor };
