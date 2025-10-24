@@ -23,6 +23,7 @@ import { PocketManager, type PocketManagerRef, PocketSelectionModal } from "@/co
 import { NoteEditorPage } from "@/components/notes/NoteEditorPage";
 import { ShareModal } from "@/components/ShareModal";
 import { useIndexingStatus } from "@/hooks/useIndexingStatus";
+import { IndexingWarningBanner } from "@/components/IndexingWarningBanner";
 import { 
   exportToMarkdown, 
   exportToJSON, 
@@ -951,6 +952,21 @@ export function ChatApp() {
           ) : messages.length === 0 ? (
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
           ) : (
+            <>
+              {/* Indexing Warning Banner for Ask mode */}
+              {currentMode === "ask" && (indexingStatus.status.isAnyIndexing || indexingStatus.status.failedContentIds.size > 0) && (
+                <div className="px-4 pt-20 pb-2">
+                  <IndexingWarningBanner
+                    indexingCount={indexingStatus.status.indexingContentIds.size}
+                    failedCount={indexingStatus.status.failedContentIds.size}
+                    onRetry={() => {
+                      indexingStatus.status.failedContentIds.forEach((contentId) => {
+                        indexingStatus.retryFailedIndexing(contentId);
+                      });
+                    }}
+                  />
+                </div>
+              )}
               <Conversation className="overflow-hidden">
               <ConversationContent
                 ref={conversationContentRef}
@@ -1374,6 +1390,7 @@ export function ChatApp() {
                 )}
               </ConversationContent>
             </Conversation>
+            </>
           )}
         </div>
       </div>

@@ -65,9 +65,9 @@ export function IndexingWarningBanner({
               </p>
             </>
           )}
-          {hasFailed && !isIndexing && (
+          {hasFailed && (
             <>
-              <h4 className="text-sm font-semibold mb-1">
+              <h4 className={`text-sm font-semibold ${isIndexing ? 'mt-2' : 'mb-1'}`}>
                 Indexing failed for some content
               </h4>
               <p className="text-xs opacity-90 mb-2">

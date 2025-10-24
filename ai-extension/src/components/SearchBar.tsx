@@ -80,10 +80,12 @@ export function SearchBar({
         <button
           type="button"
           onClick={handleClear}
+          disabled={disabled}
           className={cn(
             "inline-flex items-center justify-center",
             "rounded-full p-1 text-muted-foreground hover:text-foreground",
             "hover:bg-accent/60 transition-colors",
+            disabled && "opacity-50 cursor-not-allowed",
           )}
           aria-label="Clear search"
         >

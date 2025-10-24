@@ -36,7 +36,7 @@ export function useIndexingStatus() {
 
   React.useEffect(() => {
     const messageListener = (message: any) => {
-      if (message.type === "VECTOR_INDEXING_PROGRESS") {
+      if (message.kind === "VECTOR_INDEXING_PROGRESS") {
         const progress = message.payload as IndexingProgress;
         
         setStatus((prev) => {
@@ -100,7 +100,7 @@ export function useIndexingStatus() {
       const indexing = contentIds.filter((id) => status.indexingContentIds.has(id));
       const failed = contentIds.filter((id) => status.failedContentIds.has(id));
       const completed = contentIds.filter(
-        (id) => !status.indexingContentIds.has(id) && !status.failedContentIds.has(id)
+        (id) => status.progressByContentId.get(id)?.status === 'completed'
       );
 
       return {
@@ -114,7 +114,7 @@ export function useIndexingStatus() {
         failedContentIds: failed,
       };
     },
-    [status.indexingContentIds, status.failedContentIds]
+    [status.indexingContentIds, status.failedContentIds, status.progressByContentId]
   );
 
   const retryFailedIndexing = React.useCallback(async (contentId: string) => {
