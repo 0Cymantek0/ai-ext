@@ -7,6 +7,7 @@ export type MessageKind =
   | "CAPTURE_MEDIA"
   | "CAPTURE_MEDIA_ELEMENT"
   | "CAPTURE_SELECTION_SNIPPET"
+  | "CAPTURE_IMAGE_DATA"
   | "FILE_UPLOAD"
   | "CONTEXT_MENU_SAVE_TO_POCKET"
   | "POCKET_SELECTION_REQUEST"
@@ -49,6 +50,8 @@ export type MessageKind =
   | "ABBREVIATION_DELETE"
   | "ABBREVIATION_LIST"
   | "ABBREVIATION_EXPAND"
+  | "VECTOR_INDEXING_RETRY"
+  | "VECTOR_INDEXING_PROGRESS"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {

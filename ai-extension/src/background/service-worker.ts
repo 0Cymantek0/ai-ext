@@ -30,6 +30,7 @@ import { aiManager as aiManagerInstance } from "./ai-manager.js";
 import { ChromeLocalStorage } from "./storage-wrapper.js";
 import { GeminiNanoFormatter } from "./gemini-nano-formatter.js";
 import { ContentProcessorBackground } from "./content-processor-background.js";
+import { vectorIndexingQueue, IndexingOperation } from "./vector-indexing-queue.js";
 
 // Initialize formatter and background processor
 const storageWrapper = new ChromeLocalStorage();
@@ -45,11 +46,18 @@ async function createContextMenu(): Promise<void> {
     // Remove existing context menus
     await chrome.contextMenus.removeAll();
 
-    // Create "Save to Pocket" context menu
+    // Create "Save to Pocket" context menu for text selection
     chrome.contextMenus.create({
       id: "save-to-pocket",
       title: "Save to Pocket",
       contexts: ["selection"],
+    });
+
+    // Create "Save to Pocket" context menu for images
+    chrome.contextMenus.create({
+      id: "save-image-to-pocket",
+      title: "Save to Pocket",
+      contexts: ["image"],
     });
 
     logger.info("ServiceWorker", "Context menu created");
@@ -136,7 +144,7 @@ function delay(ms: number): Promise<void> {
 }
 
 type PocketSelectionResolver = {
-  resolve: (pocketId: string) => void;
+  resolve: (response: { pocketId: string; editedTitle?: string | undefined }) => void;
   reject: (error: Error) => void;
   timeoutId: number;
 };
@@ -182,9 +190,9 @@ async function requestPocketSelection(
   tabId: number,
   pockets: Array<{ id: string; name: string; description?: string; color?: string }>,
   context: PocketSelectionContext,
-): Promise<string> {
+): Promise<{ pocketId: string; editedTitle?: string | undefined }> {
   if (pockets.length === 1) {
-    return pockets[0]!.id;
+    return { pocketId: pockets[0]!.id, editedTitle: undefined };
   }
 
   const requestId = crypto.randomUUID();
@@ -211,7 +219,7 @@ async function requestPocketSelection(
     ...(context.sourceUrl ? { sourceUrl: context.sourceUrl } : {}),
   });
 
-  return await new Promise<string>((resolve, reject) => {
+  return await new Promise<{ pocketId: string; editedTitle?: string | undefined }>((resolve, reject) => {
     const timeoutId = setTimeout(async () => {
       pocketSelectionRequests.delete(requestId);
       try {
@@ -230,10 +238,10 @@ async function requestPocketSelection(
     }, 45000) as unknown as number;
 
     pocketSelectionRequests.set(requestId, {
-      resolve: (pocketId) => {
+      resolve: (response) => {
         clearTimeout(timeoutId);
         pocketSelectionRequests.delete(requestId);
-        resolve(pocketId);
+        resolve(response);
       },
       reject: (error) => {
         clearTimeout(timeoutId);
@@ -252,6 +260,7 @@ let isProcessingSaveToPocket = false;
 
 if (!contextMenuHandlerRegistered) {
   chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    // Handle text selection
     if (info.menuItemId === "save-to-pocket" && tab?.id) {
       // Prevent multiple simultaneous operations
       if (isProcessingSaveToPocket) {
@@ -331,11 +340,12 @@ if (!contextMenuHandlerRegistered) {
           logger.info("ServiceWorker", "Auto-selecting sole pocket", { pocketId: targetPocketId });
         } else {
           try {
-            targetPocketId = await requestPocketSelection(tab.id, pockets, {
+            const response = await requestPocketSelection(tab.id, pockets, {
               selectionText: snippetText,
               preview: snippetPreview,
               sourceUrl: snippet.metadata?.url || tab.url || "",
             });
+            targetPocketId = response.pocketId;
           } catch (selectionError) {
             if (selectionError instanceof Error) {
               if (selectionError.message === "POCKET_SELECTION_CANCELLED") {
@@ -426,6 +436,207 @@ if (!contextMenuHandlerRegistered) {
         });
 
         // Show error notification
+        await chrome.notifications.create({
+          type: "basic",
+          iconUrl: "icons/48.png",
+          title: "Save to Pocket Failed",
+          message: error instanceof Error ? error.message : "An unknown error occurred",
+        });
+      } finally {
+        isProcessingSaveToPocket = false;
+      }
+    }
+    
+    // Handle image save
+    if (info.menuItemId === "save-image-to-pocket" && tab?.id) {
+      // Prevent multiple simultaneous operations
+      if (isProcessingSaveToPocket) {
+        logger.warn("ServiceWorker", "Save to pocket already in progress, ignoring duplicate click");
+        return;
+      }
+
+      isProcessingSaveToPocket = true;
+
+      try {
+        logger.info("ServiceWorker", "Image context menu clicked", {
+          tabId: tab.id,
+          srcUrl: info.srcUrl,
+        });
+
+        // Ensure content script is loaded
+        const isLoaded = await ensureContentScriptLoaded(tab.id);
+        if (!isLoaded) {
+          logger.error("ServiceWorker", "Content script could not be loaded");
+          await chrome.notifications.create({
+            type: "basic",
+            iconUrl: "icons/48.png",
+            title: "Save to Pocket Failed",
+            message: "Could not load content script. Please refresh the page and try again.",
+          });
+          return;
+        }
+
+        // Initialize IndexedDB and load pockets
+        await indexedDBManager.init();
+        let pockets = await indexedDBManager.listPockets();
+
+        if (pockets.length === 0) {
+          logger.info("ServiceWorker", "No pockets found, creating default pocket");
+          await indexedDBManager.createPocket({
+            name: "My Pocket",
+            description: "Default pocket for saved content",
+            tags: [],
+            color: "#3b82f6",
+            contentIds: [],
+          });
+          pockets = await indexedDBManager.listPockets();
+        }
+
+        // Capture image data from content script
+        const imageResponse = await sendMessageWithRetry(tab.id, {
+          kind: "CAPTURE_IMAGE_DATA",
+          payload: {
+            srcUrl: info.srcUrl,
+            pageUrl: tab.url,
+          },
+        });
+
+        const imageEnvelope = imageResponse?.data || imageResponse;
+        if (!imageEnvelope || imageEnvelope.status !== "success" || !imageEnvelope.imageData) {
+          const captureError = imageEnvelope?.error || "Failed to capture image";
+          logger.error("ServiceWorker", "Image capture failed", { captureError, imageEnvelope });
+          throw new Error(typeof captureError === "string" ? captureError : JSON.stringify(captureError));
+        }
+
+        const imageData = imageEnvelope.imageData;
+        const defaultImageTitle = imageData.alt || imageData.title || "Saved Image";
+        const imagePreview = `Image: ${imageData.width}x${imageData.height}`;
+
+        // Open side panel to allow user to edit title and select pocket
+        try {
+          await chrome.sidePanel.open({ tabId: tab.id });
+        } catch (error) {
+          logger.warn("ServiceWorker", "Failed to open side panel for image save", error);
+        }
+
+        // Request pocket selection with editable title
+        const requestId = crypto.randomUUID();
+        
+        await dispatchPocketSelectionRequest({
+          requestId,
+          pockets: pockets.map((pocket) => ({
+            id: pocket.id,
+            name: pocket.name,
+            ...(pocket.description ? { description: pocket.description } : {}),
+            ...(pocket.color ? { color: pocket.color } : {}),
+          })),
+          selectionText: defaultImageTitle,
+          preview: imagePreview,
+          sourceUrl: tab.url || "",
+        });
+
+        // Wait for user response with edited title and selected pocket
+        const response = await new Promise<{ pocketId: string; editedTitle?: string | undefined }>((resolve, reject) => {
+          const timeoutId = setTimeout(async () => {
+            pocketSelectionRequests.delete(requestId);
+            try {
+              await chrome.runtime.sendMessage({
+                kind: "POCKET_SELECTION_RESPONSE",
+                payload: {
+                  requestId,
+                  status: "error",
+                  error: "timeout",
+                },
+              });
+            } catch (error) {
+              logger.warn("ServiceWorker", "Failed to notify pocket selection timeout", error);
+            }
+            reject(new Error("POCKET_SELECTION_TIMEOUT"));
+          }, 45000) as unknown as number;
+
+          pocketSelectionRequests.set(requestId, {
+            resolve: (response) => {
+              clearTimeout(timeoutId);
+              pocketSelectionRequests.delete(requestId);
+              resolve(response);
+            },
+            reject: (error) => {
+              clearTimeout(timeoutId);
+              pocketSelectionRequests.delete(requestId);
+              reject(error);
+            },
+            timeoutId,
+          });
+        });
+
+        const targetPocketId = response.pocketId;
+        const finalImageTitle = response.editedTitle || defaultImageTitle;
+        const targetPocket = pockets.find((p) => p.id === targetPocketId) || null;
+
+        // Process and save image
+        const processed = await contentProcessor.processContent({
+          pocketId: targetPocketId,
+          mode: "image",
+          content: {
+            image: {
+              src: imageData.src,
+              alt: imageData.alt,
+              title: imageData.title,
+              width: imageData.width,
+              height: imageData.height,
+            },
+          },
+          metadata: {
+            title: finalImageTitle,
+            timestamp: Date.now(),
+            url: tab.url || "",
+            dimensions: { width: imageData.width, height: imageData.height },
+          },
+          sourceUrl: tab.url || "",
+          sanitize: false,
+        });
+
+        logger.info("ServiceWorker", "Image processed and saved", {
+          contentId: processed.contentId,
+          type: processed.type,
+        });
+
+        const savedContent = await indexedDBManager.getContent(processed.contentId);
+
+        if (savedContent) {
+          try {
+            await chrome.runtime.sendMessage({
+              kind: "CONTENT_CREATED",
+              payload: { content: savedContent },
+            });
+            logger.info("ServiceWorker", "Broadcasted CONTENT_CREATED event");
+          } catch (broadcastError) {
+            logger.warn("ServiceWorker", "Failed to broadcast CONTENT_CREATED", broadcastError);
+          }
+        }
+
+        await chrome.notifications.create({
+          type: "basic",
+          iconUrl: "icons/48.png",
+          title: "Saved to Pocket",
+          message: targetPocket?.name
+            ? `Image saved to ${targetPocket.name}`
+            : "Image saved successfully",
+        });
+
+        logger.info("ServiceWorker", "Image saved via context menu", {
+          pocketId: targetPocketId,
+          contentId: processed.contentId,
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        logger.error("ServiceWorker", "Image context menu handler error", {
+          message: errorMessage,
+          stack: errorStack,
+          error: error,
+        });
+
         await chrome.notifications.create({
           type: "basic",
           iconUrl: "icons/48.png",
@@ -1561,14 +1772,15 @@ messageRouter.registerHandler("POCKET_DELETE", async (payload: any) => {
 });
 
 messageRouter.registerHandler("POCKET_SELECTION_RESPONSE", async (payload: any) => {
-  const { requestId, status, pocketId, error } = payload as {
+  const { requestId, status, pocketId, editedTitle, error } = payload as {
     requestId: string;
     status: "success" | "cancelled" | "error";
     pocketId?: string;
+    editedTitle?: string;
     error?: string;
   };
 
-  logger.info("Handler", "POCKET_SELECTION_RESPONSE", { requestId, status });
+  logger.info("Handler", "POCKET_SELECTION_RESPONSE", { requestId, status, editedTitle });
 
   const pending = pocketSelectionRequests.get(requestId);
   if (!pending) {
@@ -1577,7 +1789,7 @@ messageRouter.registerHandler("POCKET_SELECTION_RESPONSE", async (payload: any) 
   }
 
   if (status === "success" && pocketId) {
-    pending.resolve(pocketId);
+    pending.resolve({ pocketId, editedTitle });
   } else if (status === "cancelled") {
     pending.reject(new Error("POCKET_SELECTION_CANCELLED"));
   } else {
@@ -1681,6 +1893,29 @@ messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
     return { success: true };
   } catch (error) {
     logger.error("Handler", "CONTENT_DELETE error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("VECTOR_INDEXING_RETRY", async (payload: any) => {
+  try {
+    const { contentId } = payload as { contentId: string };
+    if (!contentId) {
+      throw new Error("Missing required field: contentId");
+    }
+
+    await indexedDBManager.init();
+    const content = await indexedDBManager.getContent(contentId);
+    if (!content) {
+      throw new Error(`Content not found: ${contentId}`);
+    }
+
+    await vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.UPDATE, "high");
+
+    logger.info("Handler", "VECTOR_INDEXING_RETRY enqueued", { contentId });
+    return { enqueued: true };
+  } catch (error) {
+    logger.error("Handler", "VECTOR_INDEXING_RETRY error", error);
     throw error;
   }
 });

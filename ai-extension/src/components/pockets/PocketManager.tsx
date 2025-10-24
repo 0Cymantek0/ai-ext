@@ -8,6 +8,8 @@ import { SearchBar } from "@/components/SearchBar";
 import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
 import { PocketAnalytics } from "@/components/pockets/PocketAnalytics";
 import { PocketExportImport } from "@/components/pockets/PocketExportImport";
+import { PocketIndexingStatus } from "./IndexingStatusBadge";
+import { useIndexingStatus } from "@/hooks/useIndexingStatus";
 import { AnimatePresence, motion } from "framer-motion";
 import { GlassSelector, GlassSort, FloatingPanel } from "@/components/FloatingControls";
 
@@ -44,6 +46,9 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
   const [selectedPocket, setSelectedPocket] = React.useState<PocketData | null>(null);
   const [showAnalytics, setShowAnalytics] = React.useState(false);
   const [showExportImport, setShowExportImport] = React.useState(false);
+  
+  // Indexing status hook
+  const indexingStatus = useIndexingStatus();
 
   // Load pockets on mount
   React.useEffect(() => {
@@ -568,17 +573,36 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
                 : "space-y-3"
             )}
           >
-            {filteredPockets.map((pocket) => (
-              <PocketCard
-                key={pocket.id}
-                pocket={pocket}
-                viewMode={viewMode}
-                onEdit={handleEditPocket}
-                onDelete={handleDeletePocket}
-                onClick={handlePocketClick}
-                onShare={handleSharePocket}
-              />
-            ))}
+            {filteredPockets.map((pocket) => {
+              const pocketIndexingInfo = indexingStatus.getPocketIndexingStatus(pocket.contentIds);
+              return (
+                <PocketCard
+                  key={pocket.id}
+                  pocket={pocket}
+                  viewMode={viewMode}
+                  onEdit={handleEditPocket}
+                  onDelete={handleDeletePocket}
+                  onClick={handlePocketClick}
+                  onShare={handleSharePocket}
+                  indexingStatus={
+                    pocketIndexingInfo.totalContent > 0 ? (
+                      <PocketIndexingStatus
+                        indexingCount={pocketIndexingInfo.indexingCount}
+                        failedCount={pocketIndexingInfo.failedCount}
+                        completedCount={pocketIndexingInfo.completedCount}
+                        totalContent={pocketIndexingInfo.totalContent}
+                        onRetry={() => {
+                          // Retry all failed content in this pocket
+                          pocketIndexingInfo.failedContentIds.forEach((contentId) => {
+                            indexingStatus.retryFailedIndexing(contentId);
+                          });
+                        }}
+                      />
+                    ) : undefined
+                  }
+                />
+              );
+            })}
           </div>
         )}
       </div>

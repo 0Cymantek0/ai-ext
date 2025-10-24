@@ -22,6 +22,8 @@ import { TooltipProvider } from "@/components/animate-ui/components/animate/tool
 import { PocketManager, type PocketManagerRef, PocketSelectionModal } from "@/components/pockets";
 import { NoteEditorPage } from "@/components/notes/NoteEditorPage";
 import { ShareModal } from "@/components/ShareModal";
+import { useIndexingStatus } from "@/hooks/useIndexingStatus";
+import { IndexingWarningBanner } from "@/components/IndexingWarningBanner";
 import { 
   exportToMarkdown, 
   exportToJSON, 
@@ -114,6 +116,9 @@ export function ChatApp() {
   const [selectedModel, setSelectedModel] = React.useState<
     "auto" | "nano" | "flash-lite" | "flash" | "pro"
   >("auto");
+  
+  // Indexing status hook
+  const indexingStatus = useIndexingStatus();
 
   const mapSelectedToPreferLocal = (
     model: typeof selectedModel,
@@ -281,7 +286,7 @@ export function ChatApp() {
   }, []);
 
   const handlePocketSelectionConfirm = React.useCallback(
-    async (pocketId: string) => {
+    async (pocketId: string, editedTitle?: string) => {
       if (!pendingSelectionRequest) return;
       try {
         await chrome.runtime.sendMessage({
@@ -290,6 +295,7 @@ export function ChatApp() {
             requestId: pendingSelectionRequest.requestId,
             status: "success",
             pocketId,
+            editedTitle,
           },
         });
       } catch (error) {
@@ -947,6 +953,21 @@ export function ChatApp() {
           ) : messages.length === 0 ? (
             <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
           ) : (
+            <>
+              {/* Indexing Warning Banner for Ask mode */}
+              {currentMode === "ask" && (indexingStatus.status.isAnyIndexing || indexingStatus.status.failedContentIds.size > 0) && (
+                <div className="px-4 pt-20 pb-2">
+                  <IndexingWarningBanner
+                    indexingCount={indexingStatus.status.indexingContentIds.size}
+                    failedCount={indexingStatus.status.failedContentIds.size}
+                    onRetry={() => {
+                      indexingStatus.status.failedContentIds.forEach((contentId) => {
+                        indexingStatus.retryFailedIndexing(contentId);
+                      });
+                    }}
+                  />
+                </div>
+              )}
               <Conversation className="overflow-hidden">
               <ConversationContent
                 ref={conversationContentRef}
@@ -1370,6 +1391,7 @@ export function ChatApp() {
                 )}
               </ConversationContent>
             </Conversation>
+            </>
           )}
         </div>
       </div>
@@ -1447,8 +1469,9 @@ export function ChatApp() {
       {pendingSelectionRequest && (
         <PocketSelectionModal
           pockets={pendingSelectionRequest.pockets}
-          {...(selectionPreviewText ? { selectionText: selectionPreviewText } : {})}
-          {...(pendingSelectionRequest.sourceUrl ? { sourceUrl: pendingSelectionRequest.sourceUrl } : {})}
+          selectionText={pendingSelectionRequest.selectionText}
+          preview={pendingSelectionRequest.preview}
+          sourceUrl={pendingSelectionRequest.sourceUrl}
           onSelect={handlePocketSelectionConfirm}
           onCancel={handlePocketSelectionCancel}
         />
