@@ -348,18 +348,11 @@ export class VectorIndexingQueue {
         const embedding = await hybridAIEngine.generateEmbedding(chunk.text);
 
         // Save embedding
-        const embeddingId = `${job.contentId}_chunk_${i}`;
+        // Note: saveEmbedding will generate its own ID and handle updates
         await indexedDBManager.saveEmbedding({
-          id: embeddingId,
           contentId: job.contentId,
           vector: embedding,
           model: "gemini",
-          metadata: {
-            chunkIndex: chunk.chunkIndex,
-            totalChunks: chunk.totalChunks,
-            startIndex: chunk.startIndex,
-            endIndex: chunk.endIndex,
-          },
         });
 
         // Emit progress
@@ -395,22 +388,11 @@ export class VectorIndexingQueue {
   private async deleteContentEmbeddings(job: IndexingJob): Promise<void> {
     await indexedDBManager.init();
 
-    // Get all embeddings
-    const allEmbeddings = await indexedDBManager.getAllEmbeddings();
-    
-    // Filter embeddings for this content
-    const contentEmbeddings = allEmbeddings.filter(
-      emb => emb.contentId === job.contentId
-    );
-
-    // Delete each embedding
-    for (const embedding of contentEmbeddings) {
-      await indexedDBManager.deleteEmbedding(embedding.id!);
-    }
+    // Delete all embeddings for this content
+    await indexedDBManager.deleteEmbeddingByContentId(job.contentId);
 
     logger.info("VectorIndexingQueue", "Embeddings deleted", {
       contentId: job.contentId,
-      count: contentEmbeddings.length,
     });
   }
 

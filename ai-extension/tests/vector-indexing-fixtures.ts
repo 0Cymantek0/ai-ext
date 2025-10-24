@@ -337,15 +337,34 @@ export class MockIndexedDBManager {
     return this.contents.get(id);
   }
 
-  async saveEmbedding(embedding: Embedding): Promise<void> {
-    const id = embedding.id || `emb_${Date.now()}`;
-    this.embeddings.set(id, { ...embedding, id });
+  async saveEmbedding(
+    embedding: Omit<Embedding, "id" | "createdAt">
+  ): Promise<string> {
+    const id = `emb_${Date.now()}_${Math.random()}`;
+    const fullEmbedding: Embedding = {
+      id,
+      ...embedding,
+      createdAt: Date.now(),
+    };
+    this.embeddings.set(id, fullEmbedding);
+    return id;
   }
 
   async getAllEmbeddings(): Promise<Embedding[]> {
     return Array.from(this.embeddings.values());
   }
 
+  async deleteEmbeddingByContentId(contentId: string): Promise<void> {
+    const toDelete = Array.from(this.embeddings.entries())
+      .filter(([_, emb]) => emb.contentId === contentId)
+      .map(([id, _]) => id);
+    
+    for (const id of toDelete) {
+      this.embeddings.delete(id);
+    }
+  }
+
+  // Helper method for tests
   async deleteEmbedding(id: string): Promise<void> {
     this.embeddings.delete(id);
   }

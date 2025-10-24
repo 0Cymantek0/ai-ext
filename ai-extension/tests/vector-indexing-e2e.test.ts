@@ -56,7 +56,7 @@ vi.mock("../src/background/indexeddb-manager.js", async () => {
       init: vi.fn(),
       saveEmbedding: vi.fn(),
       getAllEmbeddings: vi.fn().mockResolvedValue([]),
-      deleteEmbedding: vi.fn(),
+      deleteEmbeddingByContentId: vi.fn(),
       getContent: vi.fn(),
       saveContent: vi.fn(),
       getContentByPocket: vi.fn().mockResolvedValue([]),
@@ -300,8 +300,8 @@ describe("Vector Indexing Queue", () => {
     mockIndexedDB.getAllEmbeddings.mockImplementation(() =>
       mockDB.getAllEmbeddings()
     );
-    mockIndexedDB.deleteEmbedding.mockImplementation((id: string) =>
-      mockDB.deleteEmbedding(id)
+    mockIndexedDB.deleteEmbeddingByContentId.mockImplementation((contentId: string) =>
+      mockDB.deleteEmbeddingByContentId(contentId)
     );
 
     // Mock chrome.runtime.sendMessage
@@ -448,7 +448,11 @@ describe("Vector Indexing Queue", () => {
 
       // Create embeddings
       const embedding = createMockEmbedding(content.id);
-      await mockDB.saveEmbedding(embedding);
+      await mockDB.saveEmbedding({
+        contentId: embedding.contentId,
+        vector: embedding.vector,
+        model: embedding.model,
+      });
 
       expect(mockDB.getEmbeddingCount()).toBe(1);
 
@@ -841,13 +845,21 @@ describe("End-to-End Integration", () => {
     await mockDB.saveContent(content);
 
     const embedding1 = createMockEmbedding(content.id);
-    await mockDB.saveEmbedding(embedding1);
+    await mockDB.saveEmbedding({
+      contentId: embedding1.contentId,
+      vector: embedding1.vector,
+      model: embedding1.model,
+    });
 
     expect(mockDB.getEmbeddingCount()).toBe(1);
 
     // Update
     const embedding2 = createMockEmbedding(content.id);
-    await mockDB.saveEmbedding(embedding2);
+    await mockDB.saveEmbedding({
+      contentId: embedding2.contentId,
+      vector: embedding2.vector,
+      model: embedding2.model,
+    });
 
     expect(mockDB.getEmbeddingCount()).toBe(2);
 
