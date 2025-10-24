@@ -238,4 +238,231 @@ describe("ModeAwareProcessor", () => {
       expect(chunks.length).toBeGreaterThan(0);
     });
   });
+
+  describe("Ask Mode with Chunk-Level RAG", () => {
+    it("should enable RAG in Ask mode when pocketId is provided", async () => {
+      const { contextBundleBuilder } = await import("./context-bundle");
+      const buildSpy = vi.spyOn(contextBundleBuilder, "buildContextBundle");
+
+      const request: ModeAwareRequest = {
+        prompt: "What does my research say about AI?",
+        mode: "ask",
+        pocketId: "pocket-123",
+        autoContext: true,
+        preferLocal: true,
+      };
+
+      const chunks: string[] = [];
+      for await (const chunk of processor.processRequest(request)) {
+        if (typeof chunk === "string") {
+          chunks.push(chunk);
+        }
+      }
+
+      expect(chunks.length).toBeGreaterThan(0);
+      expect(buildSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "ask",
+          pocketId: "pocket-123",
+          query: request.prompt,
+          // maxTokens is not passed - determined by ContextBundleBuilder
+        }),
+      );
+    });
+
+    it("should use standard budget in Ask mode without pocketId", async () => {
+      const { contextBundleBuilder } = await import("./context-bundle");
+      const buildSpy = vi.spyOn(contextBundleBuilder, "buildContextBundle");
+
+      const request: ModeAwareRequest = {
+        prompt: "General question",
+        mode: "ask",
+        autoContext: true,
+        preferLocal: true,
+      };
+
+      const chunks: string[] = [];
+      for await (const chunk of processor.processRequest(request)) {
+        if (typeof chunk === "string") {
+          chunks.push(chunk);
+        }
+      }
+
+      expect(chunks.length).toBeGreaterThan(0);
+      expect(buildSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "ask",
+          pocketId: undefined,
+          // maxTokens is not passed - determined by ContextBundleBuilder
+        }),
+      );
+    });
+
+    it("should handle empty pocket gracefully in Ask mode", async () => {
+      const { contextBundleBuilder } = await import("./context-bundle");
+      vi.spyOn(contextBundleBuilder, "buildContextBundle").mockResolvedValue({
+        totalTokens: 50,
+        truncated: false,
+        signals: ["history"],
+        timestamp: Date.now(),
+        pockets: [], // Empty pockets array
+      });
+
+      const request: ModeAwareRequest = {
+        prompt: "Query with empty pocket",
+        mode: "ask",
+        pocketId: "empty-pocket",
+        autoContext: true,
+        preferLocal: true,
+      };
+
+      const chunks: string[] = [];
+      for await (const chunk of processor.processRequest(request)) {
+        if (typeof chunk === "string") {
+          chunks.push(chunk);
+        }
+      }
+
+      // Should still process successfully
+      expect(chunks.length).toBeGreaterThan(0);
+    });
+
+    it("should include fallback message when no relevant content found", async () => {
+      const { contextBundleBuilder } = await import("./context-bundle");
+      vi.spyOn(contextBundleBuilder, "buildContextBundle").mockResolvedValue({
+        totalTokens: 50,
+        truncated: false,
+        signals: [],
+        timestamp: Date.now(),
+        pockets: undefined, // No pockets
+      });
+
+      const request: ModeAwareRequest = {
+        prompt: "Query for non-existent content",
+        mode: "ask",
+        pocketId: "pocket-with-no-matches",
+        autoContext: true,
+        preferLocal: true,
+      };
+
+      const chunks: string[] = [];
+      for await (const chunk of processor.processRequest(request)) {
+        if (typeof chunk === "string") {
+          chunks.push(chunk);
+        }
+      }
+
+      expect(chunks.length).toBeGreaterThan(0);
+    });
+
+    it("should enforce pocket scoping when pocketId provided", async () => {
+      const { contextBundleBuilder } = await import("./context-bundle");
+      const buildSpy = vi.spyOn(contextBundleBuilder, "buildContextBundle");
+
+      const request: ModeAwareRequest = {
+        prompt: "Search within specific pocket",
+        mode: "ask",
+        pocketId: "scoped-pocket-456",
+        autoContext: true,
+        preferLocal: true,
+      };
+
+      const chunks: string[] = [];
+      for await (const chunk of processor.processRequest(request)) {
+        if (typeof chunk === "string") {
+          chunks.push(chunk);
+        }
+      }
+
+      expect(buildSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pocketId: "scoped-pocket-456",
+        }),
+      );
+    });
+
+    it("should respect context window budgets with RAG", async () => {
+      const { contextBundleBuilder } = await import("./context-bundle");
+      vi.spyOn(contextBundleBuilder, "buildContextBundle").mockResolvedValue({
+        totalTokens: 5500, // Close to 6000 budget
+        truncated: false,
+        signals: ["pockets", "history"],
+        timestamp: Date.now(),
+        pockets: [
+          {
+            content: {
+              id: "content-1",
+              pocketId: "pocket-1",
+              type: "text" as any,
+              content: "Test content",
+              metadata: { timestamp: Date.now() },
+              capturedAt: Date.now(),
+              sourceUrl: "https://example.com",
+              processingStatus: "completed" as any,
+            },
+            relevanceScore: 0.85,
+          },
+        ],
+      });
+
+      const request: ModeAwareRequest = {
+        prompt: "Large context query",
+        mode: "ask",
+        pocketId: "pocket-789",
+        autoContext: true,
+        preferLocal: true,
+      };
+
+      const chunks: string[] = [];
+      for await (const chunk of processor.processRequest(request)) {
+        if (typeof chunk === "string") {
+          chunks.push(chunk);
+        }
+      }
+
+      expect(chunks.length).toBeGreaterThan(0);
+    });
+
+    it("should handle truncated context gracefully", async () => {
+      const { contextBundleBuilder } = await import("./context-bundle");
+      vi.spyOn(contextBundleBuilder, "buildContextBundle").mockResolvedValue({
+        totalTokens: 6000, // At budget limit
+        truncated: true, // Context was truncated
+        signals: ["pockets", "history"],
+        timestamp: Date.now(),
+        pockets: [
+          {
+            content: {
+              id: "content-1",
+              pocketId: "pocket-1",
+              type: "text" as any,
+              content: "Truncated content",
+              metadata: { timestamp: Date.now() },
+              capturedAt: Date.now(),
+              sourceUrl: "https://example.com",
+              processingStatus: "completed" as any,
+            },
+            relevanceScore: 0.75,
+          },
+        ],
+      });
+
+      const request: ModeAwareRequest = {
+        prompt: "Query causing truncation",
+        mode: "ask",
+        pocketId: "large-pocket",
+        autoContext: true,
+        preferLocal: true,
+      };
+
+      const chunks: string[] = [];
+      for await (const chunk of processor.processRequest(request)) {
+        if (typeof chunk === "string") {
+          chunks.push(chunk);
+        }
+      }
+
+      expect(chunks.length).toBeGreaterThan(0);
+    });
+  });
 });

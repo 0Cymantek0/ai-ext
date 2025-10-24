@@ -148,8 +148,8 @@ export class ContextBundleBuilder {
    */
   async buildContextBundle(options: ContextBundleOptions): Promise<ContextBundle> {
     const startTime = performance.now();
-    const maxTokens = options.maxTokens || 6000; // Default 6KB target
-    
+    const maxTokens = options.maxTokens ?? this.determineBudget(options);
+
     logger.info("ContextBundleBuilder", "Building context bundle", {
       mode: options.mode,
       maxTokens,
@@ -237,6 +237,9 @@ export class ContextBundleBuilder {
         bundle.pockets = [];
         bundle.signals.push("pockets");
 
+        // Track tokens before adding pockets
+        const tokensBeforePockets = bundle.totalTokens;
+
         for (const result of results) {
           // Extract LLM-friendly content (handles PDFs with metadata)
           const llmContent = extractLLMContent(result.item);
@@ -258,7 +261,12 @@ export class ContextBundleBuilder {
 
         logger.info("ContextBundleBuilder", "Added pockets context", {
           count: bundle.pockets.length,
-          tokensUsed: bundle.totalTokens,
+          tokensUsed: bundle.totalTokens - tokensBeforePockets,
+          avgRelevance: (
+            bundle.pockets.reduce((sum, p) => sum + p.relevanceScore, 0) /
+            bundle.pockets.length
+          ).toFixed(2),
+          pocketScoped: !!options.pocketId,
         });
       }
     } catch (error) {
@@ -450,6 +458,18 @@ export class ContextBundleBuilder {
     }
 
     return remainingTokens;
+  }
+
+  /**
+   * Determine token budget based on mode and context
+   * Centralized logic for token budget allocation
+   */
+  private determineBudget(options: ContextBundleOptions): number {
+    if (options.mode === 'ask' && !options.pocketId) {
+      return 4000; // Standard budget for Ask mode without RAG
+    }
+    // Default for RAG-enabled modes ('ask' with pocketId, 'ai-pocket')
+    return 6000;
   }
 
   /**

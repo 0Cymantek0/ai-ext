@@ -215,11 +215,12 @@ export class ModeAwareProcessor {
     let contextBundle: ContextBundle | undefined;
     if (request.autoContext) {
       try {
+        // Token budget is determined by ContextBundleBuilder based on mode and pocketId
         contextBundle = await contextBundleBuilder.buildContextBundle({
           mode: "ask",
           query: request.prompt,
           conversationId: request.conversationId,
-          maxTokens: 4000, // Reserve tokens for Ask mode
+          // maxTokens is omitted - let ContextBundleBuilder decide based on context
         });
 
         // Serialize context bundle into preamble
@@ -229,7 +230,25 @@ export class ModeAwareProcessor {
         logger.info("ModeAwareProcessor", "Built context bundle for Ask mode", {
           signals: contextBundle.signals,
           totalTokens: contextBundle.totalTokens,
+          hasPockets:
+            !!contextBundle.pockets && contextBundle.pockets.length > 0,
+          pocketsCount: contextBundle.pockets?.length || 0,
         });
+
+        // Check if RAG was requested but no content found
+        if (
+          request.pocketId &&
+          (!contextBundle.pockets || contextBundle.pockets.length === 0)
+        ) {
+          logger.warn(
+            "ModeAwareProcessor",
+            "No relevant content found in pocket for Ask mode",
+            {
+              pocketId: request.pocketId,
+            },
+          );
+          // Note: User-facing messages should be handled in the UI layer, not in the AI prompt
+        }
       } catch (error) {
         logger.error("ModeAwareProcessor", "Failed to build context bundle", error);
       }
@@ -290,12 +309,13 @@ export class ModeAwareProcessor {
     // Requirement 8.3.2: Retrieve top 5 most relevant content pieces
     let contextBundle: ContextBundle;
     try {
+      // Token budget is determined by ContextBundleBuilder
       contextBundle = await contextBundleBuilder.buildContextBundle({
         mode: "ai-pocket",
         query: request.prompt,
         pocketId: request.pocketId,
         conversationId: request.conversationId,
-        maxTokens: 6000, // More tokens for AI Pocket mode with RAG
+        // maxTokens is omitted - let ContextBundleBuilder decide based on mode
       });
 
       // Requirement 8.3.3: Include original content, source URL, and relevance score
@@ -320,8 +340,11 @@ export class ModeAwareProcessor {
         });
       } else {
         // Requirement 8.3.5: No relevant content found
-        logger.warn("ModeAwareProcessor", "No relevant content found in pockets");
-        contextString += "\n\n*Note: No relevant content found in your pockets for this query.*";
+        logger.warn(
+          "ModeAwareProcessor",
+          "No relevant content found in pockets",
+        );
+        // Note: User-facing messages should be handled in the UI layer, not in the AI prompt
       }
     } catch (error) {
       logger.error("ModeAwareProcessor", "Failed to build RAG context", error);

@@ -25,7 +25,7 @@ CLAUDE.md
 design.md
 requirements.md
 tasks.md
-/*.md
+*.md
 ai-extension/src/background/STORAGE.md
 ai-extension/TASK-3.1-SUMMARY.md
 ai-extension/src/background/INDEXEDDB.md
