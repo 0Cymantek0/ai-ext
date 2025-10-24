@@ -10,11 +10,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Bold, 
-  Italic, 
-  Underline, 
-  Strikethrough, 
+import {
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
   Type,
   List,
   ListOrdered,
@@ -71,7 +71,8 @@ export function NoteEditorPage({
   const [showShortcuts, setShowShortcuts] = React.useState(false);
   const [wordCount, setWordCount] = React.useState(0);
   const [charCount, setCharCount] = React.useState(0);
-  
+  const [hasAutoFormatted, setHasAutoFormatted] = React.useState(false);
+
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Calculate word and character count
@@ -81,6 +82,47 @@ export function NoteEditorPage({
     setWordCount(words);
     setCharCount(chars);
   }, [content]);
+
+  // Auto-format on mount if content exists and hasn't been formatted yet
+  React.useEffect(() => {
+    const autoFormatOnMount = async () => {
+      if (!hasAutoFormatted && content.trim() && !note?.id) {
+        setHasAutoFormatted(true);
+        setIsAutoFormatting(true);
+        console.log("[NoteEditor] Starting auto-format on mount", { contentLength: content.length });
+        try {
+          const response = await chrome.runtime.sendMessage({
+            kind: "AI_FORMAT_REQUEST",
+            requestId: crypto.randomUUID(),
+            payload: {
+              content: content,
+              instructions: "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting.",
+              preferLocal: true,
+            },
+          });
+
+          console.log("[NoteEditor] Format response received", response);
+
+          if (response.success && response.data?.formattedContent) {
+            console.log("[NoteEditor] ✓ Content formatted", {
+              usedAI: response.data.usedAI,
+              originalLength: content.length,
+              formattedLength: response.data.formattedContent.length
+            });
+            setContent(response.data.formattedContent);
+          } else {
+            console.warn("[NoteEditor] Format response unsuccessful", response);
+          }
+        } catch (error) {
+          console.error("[NoteEditor] Auto-format on mount failed:", error);
+        } finally {
+          setIsAutoFormatting(false);
+        }
+      }
+    };
+
+    autoFormatOnMount();
+  }, []);
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -93,11 +135,11 @@ export function NoteEditorPage({
       content: content.trim(),
       tags,
     };
-    
+
     if (note?.pocketId) {
       noteData.pocketId = note.pocketId;
     }
-    
+
     onSave(noteData);
   };
 
@@ -117,8 +159,8 @@ export function NoteEditorPage({
   };
 
   const insertMarkdown = (
-    before: string, 
-    after: string = "", 
+    before: string,
+    after: string = "",
     placeholder: string = "",
     newLine: boolean = false
   ) => {
@@ -128,7 +170,7 @@ export function NoteEditorPage({
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selectedText = content.substring(start, end);
-    
+
     let newText: string;
     let newCursorPos: number;
 
@@ -145,7 +187,7 @@ export function NoteEditorPage({
     }
 
     setContent(newText);
-    
+
     // Set cursor position after state update
     setTimeout(() => {
       textarea.focus();
@@ -169,13 +211,13 @@ export function NoteEditorPage({
     
 </body>
 </html>`;
-    
+
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const newText = content.substring(0, start) + "\n" + boilerplate + "\n" + content.substring(start);
     setContent(newText);
-    
+
     setTimeout(() => {
       textarea.focus();
       const newPos = start + boilerplate.length + 2;
@@ -190,13 +232,13 @@ export function NoteEditorPage({
 | Cell 1   | Cell 2   | Cell 3   |
 | Cell 4   | Cell 5   | Cell 6   |
 `;
-    
+
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const newText = content.substring(0, start) + table + content.substring(start);
     setContent(newText);
-    
+
     setTimeout(() => {
       textarea.focus();
       const newPos = start + table.length;
@@ -213,13 +255,13 @@ export function NoteEditorPage({
 - Parent item 2
   - Child item 2.1
 `;
-    
+
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const newText = content.substring(0, start) + nestedList + content.substring(start);
     setContent(newText);
-    
+
     setTimeout(() => {
       textarea.focus();
       const newPos = start + nestedList.length;
@@ -237,7 +279,7 @@ export function NoteEditorPage({
     const start = textarea.selectionStart;
     const newText = content.substring(0, start) + "\n---\n" + content.substring(start);
     setContent(newText);
-    
+
     setTimeout(() => {
       textarea.focus();
       const newPos = start + 5;
@@ -257,9 +299,9 @@ export function NoteEditorPage({
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isPreviewMode) return;
-      
+
       const isMod = e.ctrlKey || e.metaKey;
-      
+
       if (isMod && e.key === 'b') {
         e.preventDefault();
         insertMarkdown("**", "**", "bold");
@@ -296,6 +338,7 @@ export function NoteEditorPage({
     }
 
     setIsAutoFormatting(true);
+    console.log("[NoteEditor] Manual format triggered", { contentLength: content.length });
     try {
       // Send to AI for formatting
       const response = await chrome.runtime.sendMessage({
@@ -303,13 +346,22 @@ export function NoteEditorPage({
         requestId: crypto.randomUUID(),
         payload: {
           content: content,
-          instructions: "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting."
+          instructions: "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting.",
+          preferLocal: true,
         },
       });
 
+      console.log("[NoteEditor] Manual format response", response);
+
       if (response.success && response.data?.formattedContent) {
+        console.log("[NoteEditor] ✓ Manual format successful", {
+          usedAI: response.data.usedAI,
+          originalLength: content.length,
+          formattedLength: response.data.formattedContent.length
+        });
         setContent(response.data.formattedContent);
       } else {
+        console.warn("[NoteEditor] Format unsuccessful, using fallback");
         // Fallback: Basic formatting
         const formatted = content
           .split('\n')
@@ -319,7 +371,7 @@ export function NoteEditorPage({
         setContent(formatted);
       }
     } catch (error) {
-      console.error("Auto-format error:", error);
+      console.error("[NoteEditor] Auto-format error:", error);
       alert("Failed to auto-format. Please try again.");
     } finally {
       setIsAutoFormatting(false);
@@ -328,6 +380,16 @@ export function NoteEditorPage({
 
   return (
     <div className={cn("flex flex-col h-screen bg-zinc-950 text-zinc-100", className)}>
+      {/* Auto-formatting overlay */}
+      {isAutoFormatting && !note?.id && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl px-6 py-4 flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-purple-400 animate-pulse" />
+            <span className="text-zinc-100 font-medium">Formatting...</span>
+          </div>
+        </div>
+      )}
+
       {/* Top Bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-900/60">
         <div className="flex items-center gap-3">
@@ -346,7 +408,7 @@ export function NoteEditorPage({
             </span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -366,9 +428,9 @@ export function NoteEditorPage({
           >
             {isPreviewMode ? <Edit3 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </Button>
-          <Button 
-            size="sm" 
-            onClick={handleSave} 
+          <Button
+            size="sm"
+            onClick={handleSave}
             disabled={isLoading}
             className="min-w-[80px] bg-zinc-800 hover:bg-zinc-700 text-zinc-100"
           >
@@ -609,13 +671,13 @@ export function NoteEditorPage({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              
+
               <div className="flex-1 min-w-[20px]" />
-              
+
               <div className="text-xs text-zinc-500 mr-3 shrink-0">
                 {wordCount} words · {charCount} chars
               </div>
-              
+
               <Button
                 size="icon"
                 onClick={handleAutoFormat}

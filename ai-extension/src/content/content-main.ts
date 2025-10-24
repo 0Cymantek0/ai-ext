@@ -226,6 +226,7 @@ class ContentScriptManager {
 
         let sanitizedText = selectionText;
         let contextInfo: { before?: string; after?: string } | undefined;
+        let htmlContent: string | undefined;
         let sanitizationInfo: {
           detectedPII: number;
           redactionCount: number;
@@ -262,6 +263,8 @@ class ContentScriptManager {
               before: detailedSelection.beforeContext || "",
               after: detailedSelection.afterContext || "",
             };
+            // Capture HTML content for formatted display
+            htmlContent = detailedSelection.htmlContent || "";
           }
         }
 
@@ -269,6 +272,7 @@ class ContentScriptManager {
           sourceUrl: sourceUrl || window.location.href,
           title: providedTitle || document.title,
           ...(contextInfo ? { context: contextInfo } : {}),
+          ...(htmlContent ? { htmlContent } : {}),
         };
 
         if (typeof captureTimestamp === "number") {

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Response } from "@/components/ai/response";
 import type { CapturedContent } from "@/background/indexeddb-manager";
 
 export interface ContentPreviewProps {
@@ -210,15 +211,15 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
           <div className="space-y-4">
             {contextBefore && (
               <div className="p-3 rounded-lg bg-accent/10 text-sm text-muted-foreground italic">
-                {contextBefore}
+                <Response>{contextBefore}</Response>
               </div>
             )}
-            <div className="p-4 bg-accent/10 rounded-lg">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{snippetText}</p>
+            <div className="p-4 bg-accent/10 rounded-lg prose prose-sm prose-invert max-w-none prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-a:text-purple-400 prose-strong:text-zinc-100 prose-code:text-pink-400 prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800">
+              <Response>{snippetText}</Response>
             </div>
             {contextAfter && (
               <div className="p-3 rounded-lg bg-accent/10 text-sm text-muted-foreground italic">
-                {contextAfter}
+                <Response>{contextAfter}</Response>
               </div>
             )}
           </div>
@@ -228,10 +229,19 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
       }
     }
 
+    // For snippet and page types (captured text), render as markdown
+    if ((content.type === "snippet" || content.type === "page") && typeof content.content === "string") {
+      return (
+        <div className="p-4 bg-accent/10 rounded-lg prose prose-sm prose-invert max-w-none prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-a:text-purple-400 prose-strong:text-zinc-100 prose-code:text-pink-400 prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800">
+          <Response>{content.content}</Response>
+        </div>
+      );
+    }
+
     if (typeof content.content === "string") {
       return (
-        <div className="p-4 bg-accent/10 rounded-lg">
-          <pre className="whitespace-pre-wrap text-sm font-mono">{content.content}</pre>
+        <div className="p-4 bg-accent/10 rounded-lg prose prose-sm prose-invert max-w-none prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-a:text-purple-400 prose-strong:text-zinc-100 prose-code:text-pink-400 prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800">
+          <Response>{content.content}</Response>
         </div>
       );
     }

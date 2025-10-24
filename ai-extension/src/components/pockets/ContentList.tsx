@@ -670,7 +670,7 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
               onEdit={handleEditNote}
             />
           </div>
-        ) : previewContent.type === "text" ? (
+        ) : (previewContent.type === "text" || previewContent.type === "snippet") ? (
           <SelectionPreview
             content={previewContent}
             onClose={handleClosePreview}
