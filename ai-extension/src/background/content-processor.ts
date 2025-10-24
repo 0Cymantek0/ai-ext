@@ -16,7 +16,7 @@ import { pdfProcessor, type PDFMetadata } from "./pdf-processor.js";
 
 export interface ProcessContentOptions {
   pocketId: string;
-  mode: "full-page" | "selection" | "element" | "note" | "file";
+  mode: "full-page" | "selection" | "element" | "note" | "file" | "image";
   content: any;
   metadata: any;
   sourceUrl: string;
@@ -203,6 +203,12 @@ export class ContentProcessor {
         }
         break;
 
+      case "image":
+        if (!content.image || !content.image.src) {
+          errors.push("Image capture missing image source");
+        }
+        break;
+
       default:
         errors.push(`Unknown capture mode: ${mode}`);
     }
@@ -263,6 +269,9 @@ export class ContentProcessor {
 
       case "note":
         return ContentType.NOTE;
+
+      case "image":
+        return ContentType.IMAGE;
 
       case "file":
         // Detect file type based on extension
@@ -383,6 +392,16 @@ export class ContentProcessor {
         width: content.width,
         height: content.height,
       };
+    } else if (content.image?.width && content.image?.height) {
+      metadata.dimensions = {
+        width: content.image.width,
+        height: content.image.height,
+      };
+    }
+    
+    // Add dimensions from metadata if provided
+    if (pageMetadata.dimensions) {
+      metadata.dimensions = pageMetadata.dimensions;
     }
 
     // Add file metadata for file uploads
@@ -435,7 +454,10 @@ export class ContentProcessor {
         return `File: ${content.fileName || "Untitled"} (${this.formatFileSize(content.fileSize)})`;
 
       case ContentType.IMAGE:
-        return `Image: ${content.alt || content.src || "Untitled"}`;
+        const imageAlt = content.image?.alt || content.alt || "";
+        const imageSrc = content.image?.src || content.src || "";
+        const imageTitle = content.image?.title || imageAlt || "Untitled";
+        return `Image: ${imageTitle}`;
 
       case ContentType.VIDEO:
         return `Video: ${content.src || "Untitled"} (${this.formatDuration(content.duration)})`;

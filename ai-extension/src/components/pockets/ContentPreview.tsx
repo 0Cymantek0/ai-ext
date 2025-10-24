@@ -151,14 +151,52 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
       );
     }
 
-    if (content.type === "image" && content.content instanceof ArrayBuffer) {
-      const blob = new Blob([content.content], { type: "image/png" });
-      const url = URL.createObjectURL(blob);
-      return (
-        <div className="flex items-center justify-center p-4 bg-accent/10 rounded-lg">
-          <img src={url} alt={content.metadata.title || "Captured image"} className="max-w-full max-h-96 rounded" />
-        </div>
-      );
+    if (content.type === "image") {
+      // Handle ArrayBuffer images
+      if (content.content instanceof ArrayBuffer) {
+        const blob = new Blob([content.content], { type: "image/png" });
+        const url = URL.createObjectURL(blob);
+        return (
+          <div className="flex items-center justify-center p-4 bg-accent/10 rounded-lg">
+            <img src={url} alt={content.metadata.title || "Captured image"} className="max-w-full max-h-96 rounded" />
+          </div>
+        );
+      }
+      
+      // Handle string-based images (URL or JSON)
+      if (typeof content.content === "string") {
+        try {
+          const parsed = JSON.parse(content.content);
+          const imageSrc = parsed?.image?.src;
+          if (imageSrc) {
+            return (
+              <div className="flex flex-col items-center justify-center p-4 bg-accent/10 rounded-lg gap-4">
+                <img 
+                  src={imageSrc} 
+                  alt={parsed?.image?.alt || content.metadata.title || "Captured image"} 
+                  className="max-w-full max-h-[500px] rounded shadow-lg"
+                />
+                {parsed?.image?.alt && (
+                  <p className="text-sm text-muted-foreground italic text-center">
+                    {parsed.image.alt}
+                  </p>
+                )}
+              </div>
+            );
+          }
+        } catch {
+          // If parsing fails, treat as direct URL
+          return (
+            <div className="flex items-center justify-center p-4 bg-accent/10 rounded-lg">
+              <img 
+                src={content.content} 
+                alt={content.metadata.title || "Captured image"} 
+                className="max-w-full max-h-[500px] rounded shadow-lg"
+              />
+            </div>
+          );
+        }
+      }
     }
 
     if (content.type === "snippet" && typeof content.content === "string") {

@@ -69,5 +69,11 @@
     "manifest.config.ts",
     "vite.config.ts"
   ],
-  "exclude": ["dist", "node_modules"]
+  "exclude": [
+    "dist", 
+    "node_modules",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/__tests__/**/*"
+  ]
 }
