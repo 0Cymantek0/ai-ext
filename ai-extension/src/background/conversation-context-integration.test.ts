@@ -96,7 +96,7 @@ describe("Conversation Context Integration", () => {
 
   it("should handle multi-turn conversation with context window", async () => {
     const conversationId = "integration-test-2";
-    
+
     // Create a longer conversation
     const messages: Array<{
       id: string;
@@ -180,7 +180,7 @@ describe("Conversation Context Integration", () => {
 
   it("should maintain message order in context", async () => {
     const conversationId = "integration-test-order";
-    
+
     const conversation: Conversation = {
       id: conversationId,
       messages: [
@@ -241,7 +241,7 @@ describe("Conversation Context Integration", () => {
 
   it("should prioritize system messages even with token limits", async () => {
     const conversationId = "integration-test-system";
-    
+
     const messages: Array<{
       id: string;
       role: "user" | "assistant" | "system";
@@ -249,14 +249,14 @@ describe("Conversation Context Integration", () => {
       timestamp: number;
       source: "gemini-nano";
     }> = [
-      {
-        id: "msg-system",
-        role: "system" as const,
-        content: "IMPORTANT: You are a specialized assistant for medical queries.",
-        timestamp: Date.now() - 10000,
-        source: "gemini-nano" as const,
-      },
-    ];
+        {
+          id: "msg-system",
+          role: "system" as const,
+          content: "IMPORTANT: You are a specialized assistant for medical queries.",
+          timestamp: Date.now() - 10000,
+          source: "gemini-nano" as const,
+        },
+      ];
 
     // Add many user/assistant messages
     for (let i = 0; i < 15; i++) {

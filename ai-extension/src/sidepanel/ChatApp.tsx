@@ -286,7 +286,7 @@ export function ChatApp() {
   }, []);
 
   const handlePocketSelectionConfirm = React.useCallback(
-    async (pocketId: string) => {
+    async (pocketId: string, editedTitle?: string) => {
       if (!pendingSelectionRequest) return;
       try {
         await chrome.runtime.sendMessage({
@@ -295,6 +295,7 @@ export function ChatApp() {
             requestId: pendingSelectionRequest.requestId,
             status: "success",
             pocketId,
+            editedTitle,
           },
         });
       } catch (error) {
@@ -1468,8 +1469,9 @@ export function ChatApp() {
       {pendingSelectionRequest && (
         <PocketSelectionModal
           pockets={pendingSelectionRequest.pockets}
-          {...(selectionPreviewText ? { selectionText: selectionPreviewText } : {})}
-          {...(pendingSelectionRequest.sourceUrl ? { sourceUrl: pendingSelectionRequest.sourceUrl } : {})}
+          selectionText={pendingSelectionRequest.selectionText}
+          preview={pendingSelectionRequest.preview}
+          sourceUrl={pendingSelectionRequest.sourceUrl}
           onSelect={handlePocketSelectionConfirm}
           onCancel={handlePocketSelectionCancel}
         />
