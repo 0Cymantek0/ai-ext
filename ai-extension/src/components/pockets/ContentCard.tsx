@@ -213,8 +213,8 @@ export function ContentCard({
                   e.currentTarget.style.display = 'none';
                 }}
               />
-          {/* Icon */}
-          {isProcessing ? (
+            </div>
+          ) : isProcessing ? (
             <div className="shrink-0 mt-0.5 text-purple-400">
               <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
