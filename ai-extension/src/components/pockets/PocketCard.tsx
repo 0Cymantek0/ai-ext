@@ -21,6 +21,7 @@ interface PocketCardProps {
   onDelete: (id: string) => void;
   onClick: (pocket: PocketData) => void;
   onShare?: (pocket: PocketData) => void;
+  indexingStatus?: React.ReactNode;
 }
 
 export function PocketCard({
@@ -30,6 +31,7 @@ export function PocketCard({
   onDelete,
   onClick,
   onShare,
+  indexingStatus,
 }: PocketCardProps) {
   const [showActions, setShowActions] = React.useState(false);
 
@@ -123,6 +125,9 @@ export function PocketCard({
               </>
             )}
           </div>
+          {indexingStatus && (
+            <div className="mt-2">{indexingStatus}</div>
+          )}
         </div>
 
         {/* Actions */}
@@ -240,6 +245,9 @@ export function PocketCard({
               </span>
             ))}
           </div>
+        )}
+        {indexingStatus && (
+          <div className="mt-3">{indexingStatus}</div>
         )}
       </div>
 

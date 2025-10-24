@@ -22,6 +22,7 @@ import { TooltipProvider } from "@/components/animate-ui/components/animate/tool
 import { PocketManager, type PocketManagerRef, PocketSelectionModal } from "@/components/pockets";
 import { NoteEditorPage } from "@/components/notes/NoteEditorPage";
 import { ShareModal } from "@/components/ShareModal";
+import { useIndexingStatus } from "@/hooks/useIndexingStatus";
 import { 
   exportToMarkdown, 
   exportToJSON, 
@@ -114,6 +115,9 @@ export function ChatApp() {
   const [selectedModel, setSelectedModel] = React.useState<
     "auto" | "nano" | "flash-lite" | "flash" | "pro"
   >("auto");
+  
+  // Indexing status hook
+  const indexingStatus = useIndexingStatus();
 
   const mapSelectedToPreferLocal = (
     model: typeof selectedModel,

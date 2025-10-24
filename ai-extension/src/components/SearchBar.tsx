@@ -9,6 +9,7 @@ interface FloatingSearchBarProps {
   isSearching?: boolean;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function SearchBar({
@@ -18,6 +19,7 @@ export function SearchBar({
   isSearching,
   placeholder = "Search pockets...",
   className,
+  disabled = false,
 }: FloatingSearchBarProps) {
   const [localValue, setLocalValue] = React.useState<string>(value || "");
   React.useEffect(() => {
@@ -26,6 +28,7 @@ export function SearchBar({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (disabled) return;
     const next = localValue.trim();
     onChange(next);
     if (onSearch) onSearch(next);
@@ -34,6 +37,7 @@ export function SearchBar({
   const handleClear = () => {
     setLocalValue("");
     onChange("");
+    if (disabled) return;
     if (onSearch) onSearch("");
   };
 
@@ -63,11 +67,13 @@ export function SearchBar({
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
+        disabled={disabled}
         className={cn(
           "bg-transparent outline-none flex-1 min-w-0",
           "placeholder:text-muted-foreground/70",
           "text-sm px-1",
           "min-w-[180px]",
+          disabled && "opacity-50 cursor-not-allowed",
         )}
       />
       {localValue && (
