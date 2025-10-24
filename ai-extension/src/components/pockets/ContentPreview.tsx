@@ -2,15 +2,18 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Response } from "@/components/ai/response";
+import { ImageViewer } from "./ImageViewer";
 import type { CapturedContent } from "@/background/indexeddb-manager";
 
 export interface ContentPreviewProps {
   content: CapturedContent | null;
   isOpen: boolean;
   onClose: () => void;
+  allImages?: CapturedContent[];
+  onNavigate?: (content: CapturedContent) => void;
 }
 
-export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps) {
+export function ContentPreview({ content, isOpen, onClose, allImages = [], onNavigate }: ContentPreviewProps) {
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -23,6 +26,19 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
   }, [isOpen, onClose]);
 
   if (!isOpen || !content) return null;
+
+  // Use ImageViewer for image content
+  if (content.type === "image") {
+    return (
+      <ImageViewer
+        content={content}
+        allImages={allImages}
+        isOpen={isOpen}
+        onClose={onClose}
+        onNavigate={onNavigate}
+      />
+    );
+  }
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
@@ -151,53 +167,7 @@ export function ContentPreview({ content, isOpen, onClose }: ContentPreviewProps
       );
     }
 
-    if (content.type === "image") {
-      // Handle ArrayBuffer images
-      if (content.content instanceof ArrayBuffer) {
-        const blob = new Blob([content.content], { type: "image/png" });
-        const url = URL.createObjectURL(blob);
-        return (
-          <div className="flex items-center justify-center p-4 bg-accent/10 rounded-lg">
-            <img src={url} alt={content.metadata.title || "Captured image"} className="max-w-full max-h-96 rounded" />
-          </div>
-        );
-      }
-      
-      // Handle string-based images (URL or JSON)
-      if (typeof content.content === "string") {
-        try {
-          const parsed = JSON.parse(content.content);
-          const imageSrc = parsed?.image?.src;
-          if (imageSrc) {
-            return (
-              <div className="flex flex-col items-center justify-center p-4 bg-accent/10 rounded-lg gap-4">
-                <img 
-                  src={imageSrc} 
-                  alt={parsed?.image?.alt || content.metadata.title || "Captured image"} 
-                  className="max-w-full max-h-[500px] rounded shadow-lg"
-                />
-                {parsed?.image?.alt && (
-                  <p className="text-sm text-muted-foreground italic text-center">
-                    {parsed.image.alt}
-                  </p>
-                )}
-              </div>
-            );
-          }
-        } catch {
-          // If parsing fails, treat as direct URL
-          return (
-            <div className="flex items-center justify-center p-4 bg-accent/10 rounded-lg">
-              <img 
-                src={content.content} 
-                alt={content.metadata.title || "Captured image"} 
-                className="max-w-full max-h-[500px] rounded shadow-lg"
-              />
-            </div>
-          );
-        }
-      }
-    }
+    // Image content is now handled by ImageViewer component above
 
     if (content.type === "snippet" && typeof content.content === "string") {
       try {
