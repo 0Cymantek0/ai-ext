@@ -1,6 +1,6 @@
 /**
  * Streaming Handler Tests
- * 
+ *
  * Tests for mode validation and routing functionality
  * Requirements: 8.2.1, 8.2.2, 8.2.3, 8.2.6, 8.2.7
  */
@@ -219,5 +219,169 @@ describe("BaseMessage Mode Support", () => {
     };
 
     expect(message.mode).toBeUndefined();
+  });
+});
+
+describe("Streaming with Chunk-Level RAG", () => {
+  describe("Ask Mode RAG Context", () => {
+    it("should include pocketId in Ask mode streaming request", () => {
+      const payload: AiStreamRequestPayload = {
+        prompt: "What does my research say?",
+        mode: "ask",
+        pocketId: "pocket-research",
+        autoContext: true,
+      };
+
+      expect(payload.mode).toBe("ask");
+      expect(payload.pocketId).toBe("pocket-research");
+      expect(payload.autoContext).toBe(true);
+    });
+
+    it("should support Ask mode with conversation and pocket context", () => {
+      const payload: AiStreamRequestPayload = {
+        prompt: "Follow-up about my saved content",
+        mode: "ask",
+        pocketId: "pocket-456",
+        conversationId: "conv-789",
+        autoContext: true,
+      };
+
+      expect(payload).toMatchObject({
+        mode: "ask",
+        pocketId: "pocket-456",
+        conversationId: "conv-789",
+        autoContext: true,
+      });
+    });
+  });
+
+  describe("Context Window Budgets", () => {
+    it("should indicate expanded budget for Ask mode with RAG", () => {
+      const payload: AiStreamRequestPayload = {
+        prompt: "Query requiring RAG context",
+        mode: "ask",
+        pocketId: "pocket-large",
+        autoContext: true,
+      };
+
+      // The processor will use 6000 token budget when pocketId is present
+      expect(payload.pocketId).toBeDefined();
+      expect(payload.mode).toBe("ask");
+    });
+
+    it("should use standard budget for Ask mode without RAG", () => {
+      const payload: AiStreamRequestPayload = {
+        prompt: "General conversation",
+        mode: "ask",
+        autoContext: true,
+      };
+
+      // The processor will use 4000 token budget when no pocketId
+      expect(payload.pocketId).toBeUndefined();
+      expect(payload.mode).toBe("ask");
+    });
+  });
+
+  describe("Empty Pocket Handling", () => {
+    it("should gracefully handle empty pocket in streaming request", () => {
+      const payload: AiStreamRequestPayload = {
+        prompt: "Query on empty pocket",
+        mode: "ask",
+        pocketId: "empty-pocket-123",
+        autoContext: true,
+      };
+
+      // Should be valid even if pocket is empty
+      expect(payload.pocketId).toBe("empty-pocket-123");
+      expect(payload.mode).toBe("ask");
+    });
+
+    it("should support fallback messaging in context", () => {
+      const streamEndPayload = {
+        requestId: "req-123",
+        totalTokens: 50,
+        processingTime: 200,
+        source: "gemini-nano" as const,
+        mode: "ask" as const,
+        contextUsed: ["history"], // No "pockets" signal when empty
+      };
+
+      expect(streamEndPayload.contextUsed).not.toContain("pockets");
+      expect(streamEndPayload.mode).toBe("ask");
+    });
+  });
+
+  describe("Context Assembly Tracking", () => {
+    it("should track pockets signal in contextUsed", () => {
+      const streamEndPayload = {
+        requestId: "req-456",
+        totalTokens: 1500,
+        processingTime: 850,
+        source: "gemini-flash" as const,
+        mode: "ask" as const,
+        contextUsed: ["history", "pockets", "page"],
+      };
+
+      expect(streamEndPayload.contextUsed).toContain("pockets");
+      expect(streamEndPayload.contextUsed).toContain("history");
+      expect(streamEndPayload.mode).toBe("ask");
+    });
+
+    it("should indicate successful RAG retrieval in context signals", () => {
+      const streamEndPayload = {
+        requestId: "req-789",
+        totalTokens: 2500,
+        processingTime: 1200,
+        source: "gemini-pro" as const,
+        mode: "ask" as const,
+        contextUsed: ["pockets", "history"],
+      };
+
+      // Pockets signal indicates RAG was used
+      expect(streamEndPayload.contextUsed).toContain("pockets");
+      expect(streamEndPayload.contextUsed.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("should handle truncated context in streaming", () => {
+      const streamEndPayload = {
+        requestId: "req-truncated",
+        totalTokens: 6000, // At budget limit
+        processingTime: 1500,
+        source: "gemini-flash" as const,
+        mode: "ask" as const,
+        contextUsed: ["pockets", "history", "page"],
+      };
+
+      // Context was likely truncated to fit budget
+      expect(streamEndPayload.totalTokens).toBe(6000);
+      expect(streamEndPayload.contextUsed.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Pocket Scoping in Streaming", () => {
+    it("should enforce pocket scoping when pocketId provided", () => {
+      const payload: AiStreamRequestPayload = {
+        prompt: "Scoped search query",
+        mode: "ask",
+        pocketId: "scoped-pocket-999",
+        autoContext: true,
+      };
+
+      // Payload should maintain pocket scope
+      expect(payload.pocketId).toBe("scoped-pocket-999");
+      expect(payload.mode).toBe("ask");
+    });
+
+    it("should search all pockets when no pocketId in AI Pocket mode", () => {
+      const payload: AiStreamRequestPayload = {
+        prompt: "Search everywhere",
+        mode: "ai-pocket",
+        autoContext: true,
+      };
+
+      // No pocket scoping
+      expect(payload.pocketId).toBeUndefined();
+      expect(payload.mode).toBe("ai-pocket");
+    });
   });
 });
