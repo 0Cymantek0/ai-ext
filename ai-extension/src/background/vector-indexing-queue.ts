@@ -453,7 +453,7 @@ export class VectorIndexingQueue {
     // Emit event via chrome runtime messaging
     try {
       chrome.runtime.sendMessage({
-        type: "VECTOR_INDEXING_PROGRESS",
+        kind: "VECTOR_INDEXING_PROGRESS",
         payload: progress,
       }).catch(error => {
         logger.debug("VectorIndexingQueue", "Failed to send progress event", {

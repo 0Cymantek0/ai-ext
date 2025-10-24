@@ -49,6 +49,8 @@ export type MessageKind =
   | "ABBREVIATION_DELETE"
   | "ABBREVIATION_LIST"
   | "ABBREVIATION_EXPAND"
+  | "VECTOR_INDEXING_RETRY"
+  | "VECTOR_INDEXING_PROGRESS"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {

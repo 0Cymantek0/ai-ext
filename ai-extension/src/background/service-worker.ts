@@ -30,6 +30,7 @@ import { aiManager as aiManagerInstance } from "./ai-manager.js";
 import { ChromeLocalStorage } from "./storage-wrapper.js";
 import { GeminiNanoFormatter } from "./gemini-nano-formatter.js";
 import { ContentProcessorBackground } from "./content-processor-background.js";
+import { vectorIndexingQueue, IndexingOperation } from "./vector-indexing-queue.js";
 
 // Initialize formatter and background processor
 const storageWrapper = new ChromeLocalStorage();
@@ -1681,6 +1682,29 @@ messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
     return { success: true };
   } catch (error) {
     logger.error("Handler", "CONTENT_DELETE error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("VECTOR_INDEXING_RETRY", async (payload: any) => {
+  try {
+    const { contentId } = payload as { contentId: string };
+    if (!contentId) {
+      throw new Error("Missing required field: contentId");
+    }
+
+    await indexedDBManager.init();
+    const content = await indexedDBManager.getContent(contentId);
+    if (!content) {
+      throw new Error(`Content not found: ${contentId}`);
+    }
+
+    await vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.UPDATE, "high");
+
+    logger.info("Handler", "VECTOR_INDEXING_RETRY enqueued", { contentId });
+    return { enqueued: true };
+  } catch (error) {
+    logger.error("Handler", "VECTOR_INDEXING_RETRY error", error);
     throw error;
   }
 });

@@ -9,3 +9,4 @@ export { ContentPreview } from "./ContentPreview";
 export { NotePreview } from "./NotePreview";
 export { SelectionPreview } from "./SelectionPreview";
 export { PocketSelectionModal } from "./PocketSelectionModal";
+export { IndexingStatusBadge, PocketIndexingStatus } from "./IndexingStatusBadge";
