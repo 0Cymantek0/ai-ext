@@ -13,6 +13,7 @@ import {
   type ContentMetadata,
 } from "./indexeddb-manager.js";
 import { pdfProcessor, type PDFMetadata } from "./pdf-processor.js";
+import { vectorIndexingQueue, IndexingOperation } from "./vector-indexing-queue.js";
 
 export interface ProcessContentOptions {
   pocketId: string;
@@ -106,6 +107,11 @@ export class ContentProcessor {
       }
       
       const contentId = await indexedDBManager.saveContent(contentData);
+
+      // Enqueue vector indexing job (non-blocking)
+      vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.CREATE).catch((error) => {
+        logger.error("ContentProcessor", "Failed to enqueue vector indexing job", { contentId, error });
+      });
 
       // Trigger Gemini Nano formatting ONLY for captured text (selection and page), NOT notes
       if (["selection", "page"].includes(mode) && preparedContent) {
@@ -563,6 +569,11 @@ export class ContentProcessor {
     try {
       await indexedDBManager.init();
       await indexedDBManager.deleteContent(contentId);
+
+      // Enqueue vector indexing DELETE job (non-blocking)
+      vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.DELETE).catch((error) => {
+        logger.error("ContentProcessor", "Failed to enqueue vector deletion job", { contentId, error });
+      });
 
       logger.info("ContentProcessor", "Content deleted", { contentId });
     } catch (error) {

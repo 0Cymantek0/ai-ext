@@ -1298,6 +1298,11 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           },
         });
 
+        // Enqueue vector indexing UPDATE job (non-blocking)
+        vectorIndexingQueue.enqueueContent(metadata.contentId, IndexingOperation.UPDATE).catch((error) => {
+          logger.error("Handler", "Failed to enqueue vector update job", { contentId: metadata.contentId, error });
+        });
+
         // Fetch updated record for ACK/broadcast
         const updatedRecord = await indexedDBManager.getContent(metadata.contentId);
         if (updatedRecord) {
@@ -1876,8 +1881,8 @@ messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
 messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
   logger.info("Handler", "CONTENT_DELETE", payload);
   try {
-    await indexedDBManager.init();
-    await indexedDBManager.deleteContent(payload.contentId);
+    // Use contentProcessor.deleteContent to handle deletion and vector indexing
+    await contentProcessor.deleteContent(payload.contentId);
 
     // Broadcast deletion so UI can update instantly
     try {
@@ -1885,15 +1890,20 @@ messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
         kind: "CONTENT_DELETED",
         payload: { contentId: payload.contentId },
       } as any);
-    } catch (e) {
-      logger.warn("Handler", "Failed to broadcast content deleted event", e);
+    } catch (broadcastError) {
+      logger.warn("Handler", "Failed to broadcast content deletion", {
+        contentId: payload.contentId,
+        error: broadcastError,
+      });
     }
 
-    logger.info("Handler", "CONTENT_DELETE success", { contentId: payload.contentId });
     return { success: true };
   } catch (error) {
-    logger.error("Handler", "CONTENT_DELETE error", error);
-    throw error;
+    logger.error("Handler", "CONTENT_DELETE failed", {
+      contentId: payload.contentId,
+      error,
+    });
+    return { success: false, error: (error as Error).message };
   }
 });
 
