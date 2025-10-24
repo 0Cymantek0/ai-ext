@@ -10,8 +10,15 @@ import { CloudAIManager } from "./cloud-ai-manager";
 import { HybridAIEngine, TaskOperation } from "./hybrid-ai-engine";
 import type { Task, Content } from "./hybrid-ai-engine";
 import { logger } from "./monitoring";
-import { conversationContextLoader, type ConversationContext } from "./conversation-context-loader";
-import { getModeAwareProcessor, ModeAwareProcessor, type ModeAwareRequest } from "./mode-aware-processor";
+import {
+  conversationContextLoader,
+  type ConversationContext,
+} from "./conversation-context-loader";
+import {
+  getModeAwareProcessor,
+  ModeAwareProcessor,
+  type ModeAwareRequest,
+} from "./mode-aware-processor";
 import type {
   AiStreamRequestPayload,
   AiStreamChunkPayload,
@@ -52,36 +59,45 @@ export class StreamingHandler {
 
   /**
    * Validate and detect mode from payload
-   * 
+   *
    * Requirement 8.2.6: Mode validation and error handling
    * Requirement 8.2.7: Fallback to Ask mode on detection failure
-   * 
+   *
    * @param payload Stream request payload
    * @returns Validated mode
    */
-  private validateAndDetectMode(payload: AiStreamRequestPayload): "ask" | "ai-pocket" {
+  private validateAndDetectMode(
+    payload: AiStreamRequestPayload,
+  ): "ask" | "ai-pocket" {
     // Check if mode is explicitly provided
     if (payload.mode) {
       // Validate mode value
       if (payload.mode !== "ask" && payload.mode !== "ai-pocket") {
-        logger.warn("StreamingHandler", "Invalid mode provided, defaulting to 'ask'", {
-          providedMode: payload.mode,
-        });
+        logger.warn(
+          "StreamingHandler",
+          "Invalid mode provided, defaulting to 'ask'",
+          {
+            providedMode: payload.mode,
+          },
+        );
         return "ask";
       }
-      
+
       // Validate AI Pocket mode requirements
       if (payload.mode === "ai-pocket") {
         // AI Pocket mode should ideally have a pocketId, but it's optional
         // The mode-aware processor will handle missing pocketId gracefully
         if (!payload.pocketId) {
-          logger.info("StreamingHandler", "AI Pocket mode without pocketId - will search all pockets");
+          logger.info(
+            "StreamingHandler",
+            "AI Pocket mode without pocketId - will search all pockets",
+          );
         }
       }
-      
+
       return payload.mode;
     }
-    
+
     // Default to "ask" mode if not specified
     // Requirement 8.2.7: Fallback to Ask mode on detection failure
     logger.info("StreamingHandler", "Mode not specified, defaulting to 'ask'");
@@ -142,7 +158,7 @@ export class StreamingHandler {
 
   /**
    * Process streaming request with mode-aware routing
-   * 
+   *
    * Requirement 8.2.1, 8.2.2, 8.2.3: Mode detection and routing
    */
   private async processStream(
@@ -154,7 +170,7 @@ export class StreamingHandler {
       // Detect mode from payload
       // Requirement 8.2.1: Create mode detection logic according to UI
       const mode = this.validateAndDetectMode(payload);
-      
+
       logger.info("StreamingHandler", "Processing with mode-aware routing", {
         mode,
         conversationId: payload.conversationId,
@@ -260,8 +276,8 @@ export class StreamingHandler {
             content: fullResponse,
             timestamp: Date.now(),
             source,
-            metadata: { 
-              tokensUsed: totalTokens, 
+            metadata: {
+              tokensUsed: totalTokens,
               processingTime,
               mode,
               contextUsed,
@@ -293,16 +309,21 @@ export class StreamingHandler {
           conversationId: payload.conversationId,
           pocketId: payload.pocketId,
         });
-        
+
         // Provide mode-specific error messages
-        let errorMessage = error instanceof Error ? error.message : String(error);
+        let errorMessage =
+          error instanceof Error ? error.message : String(error);
         if (mode === "ai-pocket") {
           errorMessage = `AI Pocket mode error: ${errorMessage}. The mode-aware processor will attempt fallback to Ask mode.`;
         }
-        
+
         // Send error to UI
-        this.sendStreamError(session.requestId, errorMessage, payload.conversationId);
-        
+        this.sendStreamError(
+          session.requestId,
+          errorMessage,
+          payload.conversationId,
+        );
+
         // If we were in AI Pocket mode, the mode-aware processor already handles fallback
         // Just re-throw the error for general error handling
         throw error;
