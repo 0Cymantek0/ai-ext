@@ -291,9 +291,9 @@ export function ImageViewer({ content, allImages, isOpen, onClose, onNavigate }:
           </Button>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Image Display */}
+        {/* Main Content Area - Vertical Layout */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Image Display - Top Section */}
           <div 
             className="flex-1 flex items-center justify-center overflow-hidden relative bg-zinc-900"
             onMouseDown={handleMouseDown}
@@ -348,94 +348,98 @@ export function ImageViewer({ content, allImages, isOpen, onClose, onNavigate }:
             )}
           </div>
 
-          {/* Metadata Sidebar */}
-          <div className="w-80 bg-zinc-900 border-l border-zinc-800 overflow-y-auto">
-            <div className="p-6 space-y-6">
-              {/* Title */}
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                  Image Details
-                </h3>
-                <p className="text-white font-medium break-words">
-                  {imageAlt}
-                </p>
-              </div>
+          {/* Metadata Section - Bottom */}
+          <div className="h-64 bg-zinc-900 border-t border-zinc-800 overflow-y-auto">
+            <div className="px-6 py-4">
+              <div className="grid grid-cols-3 gap-6">
+                {/* Column 1: Image Details & Metadata */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                      Image Details
+                    </h3>
+                    <p className="text-sm text-white font-medium break-words">
+                      {imageAlt}
+                    </p>
+                  </div>
 
-              {/* Metadata */}
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
-                  Metadata
-                </h3>
-                <div className="space-y-3">
-                  {Object.entries(imageMetadata).map(([key, value]) => (
-                    <div key={key}>
-                      <dt className="text-xs text-zinc-500 mb-1">{key}</dt>
-                      <dd className="text-sm text-zinc-200 break-words">{value}</dd>
+                  <div>
+                    <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                      Metadata
+                    </h3>
+                    <div className="space-y-2">
+                      {Object.entries(imageMetadata).map(([key, value]) => (
+                        <div key={key} className="flex justify-between gap-2">
+                          <dt className="text-xs text-zinc-500">{key}:</dt>
+                          <dd className="text-xs text-zinc-200 text-right break-words">{value}</dd>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Source Link */}
-              {content.sourceUrl && (
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                    Source
-                  </h3>
-                  <a
-                    href={content.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-400 hover:text-blue-300 underline break-all inline-flex items-start gap-1"
-                  >
-                    <span className="break-all">{content.sourceUrl}</span>
-                    <svg className="w-3 h-3 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                </div>
-              )}
-
-              {/* Tags */}
-              {content.metadata.tags && content.metadata.tags.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                    Tags
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {content.metadata.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2.5 py-1 bg-amber-500/15 text-amber-400 rounded-md text-xs font-medium"
+                {/* Column 2: Source & Tags */}
+                <div className="space-y-4">
+                  {content.sourceUrl && (
+                    <div>
+                      <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                        Source
+                      </h3>
+                      <a
+                        href={content.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:text-blue-300 underline break-all inline-flex items-start gap-1"
                       >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+                        <span className="break-all">{content.sourceUrl}</span>
+                        <svg className="w-3 h-3 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    </div>
+                  )}
 
-              {/* Keyboard Shortcuts */}
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
-                  Keyboard Shortcuts
-                </h3>
-                <div className="space-y-2 text-xs text-zinc-400">
-                  <div className="flex justify-between">
-                    <span>Navigate</span>
-                    <span className="text-zinc-500">← →</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Zoom in/out</span>
-                    <span className="text-zinc-500">+ / -</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Reset zoom</span>
-                    <span className="text-zinc-500">0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Close</span>
-                    <span className="text-zinc-500">Esc</span>
+                  {content.metadata.tags && content.metadata.tags.length > 0 && (
+                    <div>
+                      <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                        Tags
+                      </h3>
+                      <div className="flex flex-wrap gap-1.5">
+                        {content.metadata.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2 py-0.5 bg-amber-500/15 text-amber-400 rounded text-xs font-medium"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Column 3: Keyboard Shortcuts */}
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Keyboard Shortcuts
+                  </h3>
+                  <div className="space-y-1.5 text-xs text-zinc-400">
+                    <div className="flex justify-between">
+                      <span>Navigate</span>
+                      <span className="text-zinc-500 font-mono">← →</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Zoom in/out</span>
+                      <span className="text-zinc-500 font-mono">+ / -</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Reset zoom</span>
+                      <span className="text-zinc-500 font-mono">0</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Close</span>
+                      <span className="text-zinc-500 font-mono">Esc</span>
+                    </div>
                   </div>
                 </div>
               </div>
