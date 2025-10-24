@@ -5,6 +5,9 @@
  * Handles batch processing, rate limiting, and retries.
  * 
  * Requirements: 7.2, 7.3 (Vector search and semantic indexing)
+ * 
+ * TODO: Consider migrating to established libraries like BullMQ for more robust
+ * queue management with better concurrency control, persistence, and monitoring.
  */
 
 import { logger } from "./monitoring.js";
@@ -24,8 +27,10 @@ export interface IndexingJob {
   operation: IndexingOperation;
   priority: "high" | "normal" | "low";
   retries: number;
+  rateLimitRetries?: number; // Separate counter for rate-limit retries
   createdAt: number;
   scheduledFor?: number; // For rate-limit retry delays
+  chunksProcessed?: number; // Track chunks for progress reporting
 }
 
 export interface IndexingProgress {
@@ -265,13 +270,14 @@ export class VectorIndexingQueue {
           throw new Error(`Unknown operation: ${job.operation}`);
       }
 
-      // Emit completion event
+      // Emit completion event with accurate chunk counts
+      const chunksProcessed = job.chunksProcessed || 0;
       this.emitProgressEvent({
         jobId: job.id,
         contentId: job.contentId,
         operation: job.operation,
-        chunksTotal: 0,
-        chunksProcessed: 0,
+        chunksTotal: chunksProcessed,
+        chunksProcessed: chunksProcessed,
         status: "completed",
       });
 
@@ -285,14 +291,17 @@ export class VectorIndexingQueue {
     } catch (error: any) {
       // Handle rate limiting
       if (this.isRateLimitError(error)) {
+        const rateLimitRetries = (job.rateLimitRetries || 0) + 1;
+        
         logger.warn("VectorIndexingQueue", "Rate limit hit, rescheduling", {
           jobId: job.id,
+          rateLimitRetries,
         });
 
         // Reschedule if not exceeded max rate limit retries
-        if (job.retries < this.maxRateLimitRetries) {
-          job.scheduledFor = Date.now() + this.rateLimitDelay * (job.retries + 1);
-          job.retries++;
+        if (rateLimitRetries <= this.maxRateLimitRetries) {
+          job.scheduledFor = Date.now() + this.rateLimitDelay * rateLimitRetries;
+          job.rateLimitRetries = rateLimitRetries;
           this.queue.push(job);
           this.sortQueue();
           return; // Don't throw, job is rescheduled
@@ -338,6 +347,9 @@ export class VectorIndexingQueue {
       chunksCount: chunks.length,
     });
 
+    // Track chunks processed for completion event
+    job.chunksProcessed = 0;
+
     // Process chunks
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
@@ -354,6 +366,9 @@ export class VectorIndexingQueue {
           vector: embedding,
           model: "gemini",
         });
+
+        // Update chunks processed count
+        job.chunksProcessed = i + 1;
 
         // Emit progress
         this.emitProgressEvent({

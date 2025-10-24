@@ -5,6 +5,9 @@
  * Ensures chunks respect word boundaries and maintain semantic coherence.
  * 
  * Requirements: 7.2 (Vector search and embeddings)
+ * 
+ * TODO: Consider using established text splitting libraries like LangChain's
+ * RecursiveCharacterTextSplitter for more advanced chunking strategies.
  */
 
 import { logger } from "./monitoring.js";

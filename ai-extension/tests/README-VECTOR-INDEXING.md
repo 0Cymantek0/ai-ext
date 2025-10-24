@@ -145,8 +145,10 @@ it("should handle new edge case", async () => {
 - Priority-based job ordering (high > normal > low)
 - Batch processing for efficiency
 - Automatic retry with exponential backoff
-- Rate limit detection and handling
-- Progress tracking and UI notifications
+- Separate retry counters for rate-limit vs. general failures
+- Rate limit detection and handling with configurable backoff
+- Progress tracking with accurate chunk counts
+- UI notifications for all stages (pending, processing, completed, failed)
 
 ### Embedding Generation
 - Uses Gemini embedding model (text-embedding-004)
@@ -154,10 +156,19 @@ it("should handle new edge case", async () => {
 - Caches embeddings in IndexedDB
 - Supports chunked content (multiple embeddings per content item)
 
+## Recent Improvements
+
+- ✅ Separate retry counters for rate-limit vs. general failures to ensure proper retry limits
+- ✅ Accurate chunk count tracking in progress events
+- ✅ Enhanced error handling for rate-limit scenarios
+- ✅ Added TODO notes for potential migration to established libraries (LangChain, BullMQ)
+
 ## Future Enhancements
 
 Potential areas for expansion:
 
+- [ ] Migration to LangChain.js for text splitting (RecursiveCharacterTextSplitter)
+- [ ] Migration to BullMQ or similar for robust queue management
 - [ ] Performance benchmarks for large datasets
 - [ ] Memory usage profiling
 - [ ] Incremental indexing tests
