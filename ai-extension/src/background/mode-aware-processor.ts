@@ -1,16 +1,28 @@
 /**
  * Mode-Aware Processor
- * 
+ *
  * Handles AI processing based on mode (Ask vs AI Pocket) with different
  * context management and RAG integration strategies.
- * 
+ *
  * Requirements: 8.2.1, 8.2.2, 8.2.3, 8.2.4, 8.2.5, 8.2.6, 8.2.7, 36, 38
  */
 
 import { logger } from "./monitoring.js";
-import { HybridAIEngine, TaskOperation, type Task, type Content } from "./hybrid-ai-engine.js";
-import { conversationContextLoader, type ConversationContext } from "./conversation-context-loader.js";
-import { contextBundleBuilder, serializeContextBundle, type ContextBundle } from "./context-bundle.js";
+import {
+  HybridAIEngine,
+  TaskOperation,
+  type Task,
+  type Content,
+} from "./hybrid-ai-engine.js";
+import {
+  conversationContextLoader,
+  type ConversationContext,
+} from "./conversation-context-loader.js";
+import {
+  contextBundleBuilder,
+  serializeContextBundle,
+  type ContextBundle,
+} from "./context-bundle.js";
 import type { AIManager } from "./ai-manager.js";
 import type { CloudAIManager } from "./cloud-ai-manager.js";
 
@@ -66,11 +78,11 @@ export class ModeAwareProcessor {
 
   /**
    * Process a request with mode-aware routing
-   * 
+   *
    * Requirement 8.2.1: Provide general conversational assistance in Ask mode
    * Requirement 8.2.2: Provide content-specific queries in AI Pocket mode
    * Requirement 8.2.3: Route requests to appropriate processing pipeline
-   * 
+   *
    * @param request Mode-aware request
    * @returns Async generator yielding response chunks
    */
@@ -79,7 +91,7 @@ export class ModeAwareProcessor {
     signal?: AbortSignal,
   ): AsyncGenerator<string, ModeAwareResponse, undefined> {
     const startTime = performance.now();
-    
+
     logger.info("ModeAwareProcessor", "Processing request", {
       mode: request.mode,
       conversationId: request.conversationId,
@@ -90,7 +102,7 @@ export class ModeAwareProcessor {
     try {
       // Route to appropriate pipeline based on mode
       let pipelineResult: PipelineResult;
-      
+
       if (request.mode === "ai-pocket") {
         // Requirement 8.2.4: AI Pocket mode pipeline with RAG processing
         pipelineResult = await this.buildAIPocketPipeline(request);
@@ -158,7 +170,7 @@ export class ModeAwareProcessor {
       // Requirement 8.2.7: Fallback to Ask mode on failure
       if (request.mode === "ai-pocket") {
         logger.info("ModeAwareProcessor", "Falling back to Ask mode");
-        
+
         // Retry with Ask mode
         const fallbackRequest: ModeAwareRequest = {
           ...request,
@@ -182,14 +194,20 @@ export class ModeAwareProcessor {
 
   /**
    * Build Ask mode pipeline
-   * 
+   *
    * Requirement 8.2.5: Ask mode uses conversation history and general context
-   * 
+   * Now supports chunk-level RAG when pocketId is provided
+   *
    * @param request Mode-aware request
    * @returns Pipeline result with task and context
    */
-  private async buildAskPipeline(request: ModeAwareRequest): Promise<PipelineResult> {
-    logger.info("ModeAwareProcessor", "Building Ask mode pipeline");
+  private async buildAskPipeline(
+    request: ModeAwareRequest,
+  ): Promise<PipelineResult> {
+    logger.info("ModeAwareProcessor", "Building Ask mode pipeline", {
+      hasPocketId: !!request.pocketId,
+      autoContext: request.autoContext,
+    });
 
     // Load conversation context if available
     let conversationContext: ConversationContext | null = null;
@@ -197,17 +215,23 @@ export class ModeAwareProcessor {
 
     if (request.conversationId) {
       try {
-        conversationContext = await conversationContextLoader.buildConversationContext(
-          request.conversationId
-        );
-        contextString = conversationContextLoader.formatContextAsString(conversationContext);
-        
+        conversationContext =
+          await conversationContextLoader.buildConversationContext(
+            request.conversationId,
+          );
+        contextString =
+          conversationContextLoader.formatContextAsString(conversationContext);
+
         logger.info("ModeAwareProcessor", "Loaded conversation context", {
           messageCount: conversationContext.messages.length,
           totalTokens: conversationContext.totalTokens,
         });
       } catch (error) {
-        logger.error("ModeAwareProcessor", "Failed to load conversation context", error);
+        logger.error(
+          "ModeAwareProcessor",
+          "Failed to load conversation context",
+          error,
+        );
       }
     }
 
@@ -219,6 +243,7 @@ export class ModeAwareProcessor {
         contextBundle = await contextBundleBuilder.buildContextBundle({
           mode: "ask",
           query: request.prompt,
+          pocketId: request.pocketId, // Enable RAG if pocketId provided
           conversationId: request.conversationId,
           // maxTokens is omitted - let ContextBundleBuilder decide based on context
         });
@@ -250,7 +275,11 @@ export class ModeAwareProcessor {
           // Note: User-facing messages should be handled in the UI layer, not in the AI prompt
         }
       } catch (error) {
-        logger.error("ModeAwareProcessor", "Failed to build context bundle", error);
+        logger.error(
+          "ModeAwareProcessor",
+          "Failed to build context bundle",
+          error,
+        );
       }
     }
 
@@ -274,14 +303,16 @@ export class ModeAwareProcessor {
 
   /**
    * Build AI Pocket mode pipeline with RAG
-   * 
+   *
    * Requirement 8.2.4: AI Pocket mode retrieves relevant content using RAG
    * Requirement 8.3.1, 8.3.2, 8.3.3: Vector similarity search and content retrieval
-   * 
+   *
    * @param request Mode-aware request
    * @returns Pipeline result with task and context
    */
-  private async buildAIPocketPipeline(request: ModeAwareRequest): Promise<PipelineResult> {
+  private async buildAIPocketPipeline(
+    request: ModeAwareRequest,
+  ): Promise<PipelineResult> {
     logger.info("ModeAwareProcessor", "Building AI Pocket mode pipeline");
 
     // Load conversation context if available
@@ -290,17 +321,23 @@ export class ModeAwareProcessor {
 
     if (request.conversationId) {
       try {
-        conversationContext = await conversationContextLoader.buildConversationContext(
-          request.conversationId
-        );
-        contextString = conversationContextLoader.formatContextAsString(conversationContext);
-        
+        conversationContext =
+          await conversationContextLoader.buildConversationContext(
+            request.conversationId,
+          );
+        contextString =
+          conversationContextLoader.formatContextAsString(conversationContext);
+
         logger.info("ModeAwareProcessor", "Loaded conversation context", {
           messageCount: conversationContext.messages.length,
           totalTokens: conversationContext.totalTokens,
         });
       } catch (error) {
-        logger.error("ModeAwareProcessor", "Failed to load conversation context", error);
+        logger.error(
+          "ModeAwareProcessor",
+          "Failed to load conversation context",
+          error,
+        );
       }
     }
 
@@ -326,7 +363,10 @@ export class ModeAwareProcessor {
       });
 
       // Requirement 38.1, 38.2: Build mode-specific prompt preamble
-      const contextPreamble = serializeContextBundle(contextBundle, "ai-pocket");
+      const contextPreamble = serializeContextBundle(
+        contextBundle,
+        "ai-pocket",
+      );
       contextString = contextPreamble + "\n\n" + contextString;
 
       // Requirement 8.3.6: Include relevance scores in context
@@ -334,8 +374,10 @@ export class ModeAwareProcessor {
         logger.info("ModeAwareProcessor", "RAG retrieved content", {
           count: contextBundle.pockets.length,
           avgRelevance: (
-            contextBundle.pockets.reduce((sum, p) => sum + p.relevanceScore, 0) /
-            contextBundle.pockets.length
+            contextBundle.pockets.reduce(
+              (sum, p) => sum + p.relevanceScore,
+              0,
+            ) / contextBundle.pockets.length
           ).toFixed(2),
         });
       } else {
@@ -348,7 +390,7 @@ export class ModeAwareProcessor {
       }
     } catch (error) {
       logger.error("ModeAwareProcessor", "Failed to build RAG context", error);
-      
+
       // Requirement 8.3.8: Fallback to keyword-based search (handled in vector-search-service)
       // If RAG fails completely, create minimal context bundle
       contextBundle = {
@@ -387,9 +429,9 @@ export class ModeAwareProcessor {
 
   /**
    * Detect mode from UI state
-   * 
+   *
    * Requirement 8.2.6: Mode switching UI integration
-   * 
+   *
    * @param payload Request payload
    * @returns Detected mode
    */
@@ -401,7 +443,10 @@ export class ModeAwareProcessor {
 
     // Default to Ask mode
     // Requirement 8.2.7: Fallback to Ask mode on detection failure
-    logger.info("ModeAwareProcessor", "Mode not specified, defaulting to Ask mode");
+    logger.info(
+      "ModeAwareProcessor",
+      "Mode not specified, defaulting to Ask mode",
+    );
     return "ask";
   }
 }
@@ -414,7 +459,10 @@ export function getModeAwareProcessor(
   cloudAIManager: CloudAIManager,
 ): ModeAwareProcessor {
   if (!modeAwareProcessorInstance) {
-    modeAwareProcessorInstance = new ModeAwareProcessor(aiManager, cloudAIManager);
+    modeAwareProcessorInstance = new ModeAwareProcessor(
+      aiManager,
+      cloudAIManager,
+    );
   }
   return modeAwareProcessorInstance;
 }

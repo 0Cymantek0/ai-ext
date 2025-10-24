@@ -1,11 +1,14 @@
 /**
  * Mode-Aware Processor Tests
- * 
+ *
  * Tests for mode detection, routing, and processing pipelines
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { ModeAwareProcessor, type ModeAwareRequest } from "./mode-aware-processor";
+import {
+  ModeAwareProcessor,
+  type ModeAwareRequest,
+} from "./mode-aware-processor";
 import { AIManager } from "./ai-manager";
 import { CloudAIManager } from "./cloud-ai-manager";
 
@@ -38,7 +41,9 @@ vi.mock("./context-bundle", () => ({
       timestamp: Date.now(),
     }),
   },
-  serializeContextBundle: vi.fn().mockReturnValue("# Context\nPage context here"),
+  serializeContextBundle: vi
+    .fn()
+    .mockReturnValue("# Context\nPage context here"),
 }));
 
 vi.mock("./hybrid-ai-engine", () => ({

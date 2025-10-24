@@ -1,14 +1,17 @@
 /**
  * Context Bundle
- * 
+ *
  * Builds a compact ContextBundle from multiple signals to personalize prompts
  * across chat and enhancement flows while preserving privacy and performance.
- * 
+ *
  * Requirements: 36, 37, 38
  */
 
 import { logger } from "./monitoring.js";
-import { vectorSearchService, type SearchResult } from "./vector-search-service.js";
+import {
+  vectorSearchService,
+  type SearchResult,
+} from "./vector-search-service.js";
 import type { CapturedContent } from "./indexeddb-manager.js";
 import { conversationContextLoader } from "./conversation-context-loader.js";
 import { extractLLMContent } from "./content-extractor.js";
@@ -85,7 +88,7 @@ export interface ContextPreferences {
   input: boolean;
   pockets: boolean;
   history: boolean;
-  
+
   // Per-site sensitive gating
   sensitiveSites: string[]; // Domains where context is disabled by default
   siteOverrides: Record<string, boolean>; // Per-site enable/disable
@@ -133,7 +136,10 @@ const DEFAULT_PREFERENCES: ContextPreferences = {
  */
 export class ContextBundleBuilder {
   private preferences: ContextPreferences;
-  private cache = new Map<string, { bundle: ContextBundle; timestamp: number }>();
+  private cache = new Map<
+    string,
+    { bundle: ContextBundle; timestamp: number }
+  >();
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   constructor(preferences?: Partial<ContextPreferences>) {
@@ -142,11 +148,13 @@ export class ContextBundleBuilder {
 
   /**
    * Build a context bundle from available signals
-   * 
+   *
    * @param options Bundle building options
    * @returns Context bundle
    */
-  async buildContextBundle(options: ContextBundleOptions): Promise<ContextBundle> {
+  async buildContextBundle(
+    options: ContextBundleOptions,
+  ): Promise<ContextBundle> {
     const startTime = performance.now();
     const maxTokens = options.maxTokens ?? this.determineBudget(options);
 
@@ -159,7 +167,9 @@ export class ContextBundleBuilder {
     const cacheKey = this.getCacheKey(options);
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      logger.info("ContextBundleBuilder", "Returning cached bundle", { cacheKey });
+      logger.info("ContextBundleBuilder", "Returning cached bundle", {
+        cacheKey,
+      });
       return cached.bundle;
     }
 
@@ -175,20 +185,62 @@ export class ContextBundleBuilder {
     // Priority order based on mode
     if (options.mode === "ai-pocket") {
       // AI Pocket mode: prioritize pockets, then history, then page context
-      remainingTokens = await this.addPocketsContext(bundle, options, remainingTokens);
-      remainingTokens = await this.addHistoryContext(bundle, options, remainingTokens);
-      remainingTokens = await this.addPageContext(bundle, options, remainingTokens);
+      remainingTokens = await this.addPocketsContext(
+        bundle,
+        options,
+        remainingTokens,
+      );
+      remainingTokens = await this.addHistoryContext(
+        bundle,
+        options,
+        remainingTokens,
+      );
+      remainingTokens = await this.addPageContext(
+        bundle,
+        options,
+        remainingTokens,
+      );
     } else {
-      // Ask mode: prioritize history, then page, then other signals
-      remainingTokens = await this.addHistoryContext(bundle, options, remainingTokens);
-      remainingTokens = await this.addPageContext(bundle, options, remainingTokens);
-      remainingTokens = await this.addSelectionContext(bundle, options, remainingTokens);
-      remainingTokens = await this.addInputContext(bundle, options, remainingTokens);
+      // Ask mode: prioritize history, then pockets (if provided), then page, then other signals
+      remainingTokens = await this.addHistoryContext(
+        bundle,
+        options,
+        remainingTokens,
+      );
+
+      // Support RAG in Ask mode when pocketId is provided
+      if (options.pocketId) {
+        remainingTokens = await this.addPocketsContext(
+          bundle,
+          options,
+          remainingTokens,
+        );
+      }
+
+      remainingTokens = await this.addPageContext(
+        bundle,
+        options,
+        remainingTokens,
+      );
+      remainingTokens = await this.addSelectionContext(
+        bundle,
+        options,
+        remainingTokens,
+      );
+      remainingTokens = await this.addInputContext(
+        bundle,
+        options,
+        remainingTokens,
+      );
     }
 
     // Add tabs context if enabled and consented
     if (this.preferences.tabs) {
-      remainingTokens = await this.addTabsContext(bundle, options, remainingTokens);
+      remainingTokens = await this.addTabsContext(
+        bundle,
+        options,
+        remainingTokens,
+      );
     }
 
     // Mark as truncated if we ran out of budget
@@ -215,6 +267,7 @@ export class ContextBundleBuilder {
 
   /**
    * Add pockets context (RAG retrieval)
+   * Supports chunk-level semantic search with pocket scoping
    */
   private async addPocketsContext(
     bundle: ContextBundle,
@@ -222,15 +275,27 @@ export class ContextBundleBuilder {
     remainingTokens: number,
   ): Promise<number> {
     if (!this.preferences.pockets || !options.query) {
+      logger.info("ContextBundleBuilder", "Skipping pockets context", {
+        preferencesEnabled: this.preferences.pockets,
+        hasQuery: !!options.query,
+      });
       return remainingTokens;
     }
 
     try {
-      // Perform vector similarity search
+      // Perform vector similarity search with pocket scoping
+      // If pocketId is provided, only search that pocket
+      // Otherwise, search across all pockets
+      logger.info("ContextBundleBuilder", "Performing RAG search", {
+        query: options.query,
+        pocketId: options.pocketId || "all",
+        mode: options.mode,
+      });
+
       const results = await vectorSearchService.searchContent(
         options.query,
-        options.pocketId,
-        5, // Top 5 results
+        options.pocketId, // Enforces pocket scoping
+        5, // Top 5 chunks/results
       );
 
       if (results.length > 0) {
@@ -245,7 +310,17 @@ export class ContextBundleBuilder {
           const llmContent = extractLLMContent(result.item);
           const contentTokens = this.estimateTokens(llmContent);
 
+          // Check if we have budget for this content
           if (contentTokens > remainingTokens) {
+            logger.warn(
+              "ContextBundleBuilder",
+              "Insufficient tokens for pocket content",
+              {
+                required: contentTokens,
+                available: remainingTokens,
+                truncating: true,
+              },
+            );
             bundle.truncated = true;
             break;
           }
@@ -259,7 +334,7 @@ export class ContextBundleBuilder {
           bundle.totalTokens += contentTokens;
         }
 
-        logger.info("ContextBundleBuilder", "Added pockets context", {
+        logger.info("ContextBundleBuilder", "Added pockets context via RAG", {
           count: bundle.pockets.length,
           tokensUsed: bundle.totalTokens - tokensBeforePockets,
           avgRelevance: (
@@ -268,9 +343,24 @@ export class ContextBundleBuilder {
           ).toFixed(2),
           pocketScoped: !!options.pocketId,
         });
+      } else {
+        // No results found - graceful fallback
+        logger.warn(
+          "ContextBundleBuilder",
+          "No relevant chunks found via RAG",
+          {
+            query: options.query,
+            pocketId: options.pocketId || "all",
+            mode: options.mode,
+          },
+        );
       }
     } catch (error) {
-      logger.error("ContextBundleBuilder", "Failed to add pockets context", error);
+      logger.error("ContextBundleBuilder", "Failed to add pockets context", {
+        error: error instanceof Error ? error.message : String(error),
+        query: options.query,
+        pocketId: options.pocketId,
+      });
     }
 
     return remainingTokens;
@@ -291,23 +381,29 @@ export class ContextBundleBuilder {
 
     try {
       // Load actual conversation history using ConversationContextLoader
-      const conversationContext = await conversationContextLoader.buildConversationContext(
-        options.conversationId
-      );
+      const conversationContext =
+        await conversationContextLoader.buildConversationContext(
+          options.conversationId,
+        );
 
       if (conversationContext.messages.length === 0) {
-        logger.info("ContextBundleBuilder", "No conversation history available", {
-          conversationId: options.conversationId,
-        });
+        logger.info(
+          "ContextBundleBuilder",
+          "No conversation history available",
+          {
+            conversationId: options.conversationId,
+          },
+        );
         return remainingTokens;
       }
 
       // Convert formatted messages to HistoryContext
-      const historyContexts: HistoryContext[] = conversationContext.messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: Date.now(), // Actual timestamp would come from Message object
-      }));
+      const historyContexts: HistoryContext[] =
+        conversationContext.messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: Date.now(), // Actual timestamp would come from Message object
+        }));
 
       // Calculate actual token usage
       const historyTokens = conversationContext.totalTokens;
@@ -315,29 +411,41 @@ export class ContextBundleBuilder {
       // Check if we have enough budget
       if (historyTokens > remainingTokens) {
         // Try to fit what we can by limiting message count
-        const maxMessages = Math.floor(remainingTokens / (historyTokens / historyContexts.length));
-        
+        const maxMessages = Math.floor(
+          remainingTokens / (historyTokens / historyContexts.length),
+        );
+
         if (maxMessages > 0) {
           // Take the most recent messages that fit
           bundle.history = historyContexts.slice(-maxMessages);
-          const actualTokens = Math.ceil(historyTokens * (maxMessages / historyContexts.length));
-          
+          const actualTokens = Math.ceil(
+            historyTokens * (maxMessages / historyContexts.length),
+          );
+
           bundle.signals.push("history");
           bundle.totalTokens += actualTokens;
           bundle.truncated = true;
           remainingTokens -= actualTokens;
 
-          logger.info("ContextBundleBuilder", "Added truncated history context", {
-            totalMessages: historyContexts.length,
-            includedMessages: maxMessages,
-            tokensUsed: actualTokens,
-            truncated: true,
-          });
+          logger.info(
+            "ContextBundleBuilder",
+            "Added truncated history context",
+            {
+              totalMessages: historyContexts.length,
+              includedMessages: maxMessages,
+              tokensUsed: actualTokens,
+              truncated: true,
+            },
+          );
         } else {
-          logger.warn("ContextBundleBuilder", "Insufficient tokens for history context", {
-            required: historyTokens,
-            available: remainingTokens,
-          });
+          logger.warn(
+            "ContextBundleBuilder",
+            "Insufficient tokens for history context",
+            {
+              required: historyTokens,
+              available: remainingTokens,
+            },
+          );
         }
       } else {
         // We have enough budget for all history
@@ -353,7 +461,11 @@ export class ContextBundleBuilder {
         });
       }
     } catch (error) {
-      logger.error("ContextBundleBuilder", "Failed to add history context", error);
+      logger.error(
+        "ContextBundleBuilder",
+        "Failed to add history context",
+        error,
+      );
     }
 
     return remainingTokens;
@@ -375,7 +487,7 @@ export class ContextBundleBuilder {
       // Get current page context from content script
       // For now, we'll create a placeholder
       // In production, this would query the active tab's content script
-      
+
       const pageContext: PageContext = {
         title: "Current Page",
         url: "https://example.com",
@@ -384,7 +496,7 @@ export class ContextBundleBuilder {
       };
 
       const pageTokens = this.estimateTokens(
-        `${pageContext.title} ${pageContext.metaDescription || ""}`
+        `${pageContext.title} ${pageContext.metaDescription || ""}`,
       );
 
       if (pageTokens <= remainingTokens) {
@@ -450,7 +562,7 @@ export class ContextBundleBuilder {
       // Get recent tabs (up to 6)
       // For now, this is a placeholder
       // In production, this would query chrome.tabs API
-      
+
       bundle.signals.push("tabs");
       logger.info("ContextBundleBuilder", "Added tabs context");
     } catch (error) {
@@ -526,30 +638,42 @@ export class ContextBundleBuilder {
  */
 export function serializeContextBundle(
   bundle: ContextBundle,
-  mode: "ask" | "ai-pocket"
+  mode: "ask" | "ai-pocket",
 ): string {
   const parts: string[] = [];
 
   // Add mode-specific preamble
   if (mode === "ai-pocket") {
     parts.push("# AI Pocket Mode - Content-Aware Assistant");
-    parts.push("You have access to the user's captured content and can provide contextual responses based on their research.");
+    parts.push(
+      "You have access to the user's captured content and can provide contextual responses based on their research.",
+    );
   } else {
     parts.push("# Ask Mode - General Assistant");
-    parts.push("You are a helpful AI assistant providing general conversational support.");
+    parts.push(
+      "You are a helpful AI assistant providing general conversational support.",
+    );
   }
 
   // Add conversation history context
   if (bundle.history && bundle.history.length > 0) {
     parts.push(`\n## Conversation History`);
-    parts.push(`Recent conversation context (${bundle.history.length} messages):`);
-    
+    parts.push(
+      `Recent conversation context (${bundle.history.length} messages):`,
+    );
+
     for (const msg of bundle.history) {
-      const roleLabel = msg.role === "user" ? "User" : msg.role === "assistant" ? "Assistant" : "System";
+      const roleLabel =
+        msg.role === "user"
+          ? "User"
+          : msg.role === "assistant"
+            ? "Assistant"
+            : "System";
       // Truncate long messages for context preamble
-      const content = msg.content.length > 200 
-        ? msg.content.slice(0, 200) + "..." 
-        : msg.content;
+      const content =
+        msg.content.length > 200
+          ? msg.content.slice(0, 200) + "..."
+          : msg.content;
       parts.push(`- ${roleLabel}: ${content}`);
     }
   }
@@ -567,23 +691,30 @@ export function serializeContextBundle(
   // Add pockets context (RAG results)
   if (bundle.pockets && bundle.pockets.length > 0) {
     parts.push(`\n## Relevant Captured Content`);
-    parts.push(`The following content from the user's pockets is relevant to this query:`);
-    
+    parts.push(
+      `The following content from the user's pockets is relevant to this query:`,
+    );
+
     for (let i = 0; i < bundle.pockets.length; i++) {
       const pocket = bundle.pockets[i];
       if (!pocket) continue;
       const content = pocket.content;
-      const contentText = typeof content.content === "string" 
-        ? content.content.slice(0, 500) 
-        : "";
-      
-      parts.push(`\n### Content ${i + 1} (Relevance: ${(pocket.relevanceScore * 100).toFixed(0)}%)`);
+      const contentText =
+        typeof content.content === "string"
+          ? content.content.slice(0, 500)
+          : "";
+
+      parts.push(
+        `\n### Content ${i + 1} (Relevance: ${(pocket.relevanceScore * 100).toFixed(0)}%)`,
+      );
       parts.push(`Source: ${content.sourceUrl}`);
       parts.push(`Type: ${content.type}`);
       if (content.metadata.title) {
         parts.push(`Title: ${content.metadata.title}`);
       }
-      parts.push(`Content: ${contentText}${contentText.length >= 500 ? "..." : ""}`);
+      parts.push(
+        `Content: ${contentText}${contentText.length >= 500 ? "..." : ""}`,
+      );
     }
   }
 
