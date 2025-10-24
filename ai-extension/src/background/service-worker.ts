@@ -1298,6 +1298,11 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           },
         });
 
+        // Enqueue vector indexing UPDATE job (non-blocking)
+        vectorIndexingQueue.enqueueContent(metadata.contentId, IndexingOperation.UPDATE).catch((error) => {
+          logger.error("Handler", "Failed to enqueue vector update job", { contentId: metadata.contentId, error });
+        });
+
         // Fetch updated record for ACK/broadcast
         const updatedRecord = await indexedDBManager.getContent(metadata.contentId);
         if (updatedRecord) {
@@ -1878,6 +1883,11 @@ messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
   try {
     await indexedDBManager.init();
     await indexedDBManager.deleteContent(payload.contentId);
+
+    // Enqueue vector indexing DELETE job (non-blocking)
+    vectorIndexingQueue.enqueueContent(payload.contentId, IndexingOperation.DELETE).catch((error) => {
+      logger.error("Handler", "Failed to enqueue vector deletion job", { contentId: payload.contentId, error });
+    });
 
     // Broadcast deletion so UI can update instantly
     try {

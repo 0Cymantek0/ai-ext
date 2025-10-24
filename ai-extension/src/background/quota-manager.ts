@@ -11,6 +11,7 @@ import {
   StoreName,
   ProcessingStatus,
 } from "./indexeddb-manager.js";
+import { vectorIndexingQueue, IndexingOperation } from "./vector-indexing-queue.js";
 
 /**
  * Storage usage information across all storage areas
@@ -447,6 +448,12 @@ export class QuotaManager {
           now - content.capturedAt > maxAge
         ) {
           await indexedDBManager.deleteContent(content.id);
+          
+          // Enqueue vector indexing DELETE job (non-blocking)
+          vectorIndexingQueue.enqueueContent(content.id, IndexingOperation.DELETE).catch((error) => {
+            logger.error("QuotaManager", "Failed to enqueue vector deletion job", { contentId: content.id, error });
+          });
+          
           removed++;
         }
       }

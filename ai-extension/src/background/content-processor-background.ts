@@ -1,6 +1,7 @@
 import { logger } from "./monitoring.js";
 import { GeminiNanoFormatter } from "./gemini-nano-formatter.js";
 import { indexedDBManager } from "./indexeddb-manager.js";
+import { vectorIndexingQueue, IndexingOperation } from "./vector-indexing-queue.js";
 
 export class ContentProcessorBackground {
   private formatter: GeminiNanoFormatter;
@@ -129,6 +130,11 @@ export class ContentProcessorBackground {
           } as any
         });
 
+        // Enqueue vector indexing UPDATE job (non-blocking)
+        vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.UPDATE).catch((error) => {
+          logger.error("ContentProcessorBackground", "Failed to enqueue vector update job", { contentId, error });
+        });
+
         logger.info("ContentProcessorBackground", "Successfully processed", {
           contentId,
           usedAI: result.usedAI,
@@ -174,6 +180,11 @@ export class ContentProcessorBackground {
             title: result.generatedTitle,
             ...(result.usedAI !== undefined && { usedAI: result.usedAI })
           } as any
+        });
+
+        // Enqueue vector indexing UPDATE job (non-blocking)
+        vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.UPDATE).catch((error) => {
+          logger.error("ContentProcessorBackground", "Failed to enqueue vector update job", { contentId, error });
         });
 
         logger.info("ContentProcessorBackground", "Successfully processed new capture", {

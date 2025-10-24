@@ -519,7 +519,7 @@ export class IndexedDBManager {
 
   async deleteContent(id: string): Promise<void> {
     await this.executeTransaction(
-      [StoreName.CAPTURED_CONTENT, StoreName.POCKETS, StoreName.EMBEDDINGS],
+      [StoreName.CAPTURED_CONTENT, StoreName.POCKETS],
       "readwrite",
       async (tx) => {
         const contentStore = tx.objectStore(StoreName.CAPTURED_CONTENT);
@@ -537,14 +537,6 @@ export class IndexedDBManager {
               tx.objectStore(StoreName.POCKETS).put(pocket),
             );
           }
-          const embeddingIndex = tx
-            .objectStore(StoreName.EMBEDDINGS)
-            .index("contentId");
-          const embeddingCursor = await this.promisifyRequest(
-            embeddingIndex.openCursor(IDBKeyRange.only(id)),
-          );
-          if (embeddingCursor)
-            await this.promisifyRequest(embeddingCursor.delete());
         }
         await this.promisifyRequest(contentStore.delete(id));
       },
