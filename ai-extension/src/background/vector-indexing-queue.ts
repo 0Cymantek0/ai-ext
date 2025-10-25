@@ -57,8 +57,8 @@ export class VectorIndexingQueue {
   private queue: IndexingJob[] = [];
   private isProcessing: boolean = false;
   private maxRetries: number = 3;
-  private processingInterval: number = 100; // 100ms between jobs
-  private batchSize: number = 5; // Process 5 embeddings at a time
+  private processingInterval: number = 0; // No delay between jobs (was 100ms)
+  private batchSize: number = 20; // Process 20 embeddings at a time (optimized from 5)
   private rateLimitDelay: number = 1000; // 1 second delay on rate limit
   private maxRateLimitRetries: number = 5;
   
@@ -404,16 +404,18 @@ export class VectorIndexingQueue {
         metadata,
       });
 
-      // Update progress
+      // Update progress (emit every 5 chunks or on last chunk to reduce overhead)
       job.chunksProcessed = i + 1;
-      this.emitProgressEvent({
-        jobId: job.id,
-        contentId: job.contentId,
-        operation: job.operation,
-        chunksTotal: textChunks.length,
-        chunksProcessed: i + 1,
-        status: "processing",
-      });
+      if ((i + 1) % 5 === 0 || i === textChunks.length - 1) {
+        this.emitProgressEvent({
+          jobId: job.id,
+          contentId: job.contentId,
+          operation: job.operation,
+          chunksTotal: textChunks.length,
+          chunksProcessed: i + 1,
+          status: "processing",
+        });
+      }
     }
 
     // Store all chunks in batch

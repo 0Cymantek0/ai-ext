@@ -672,6 +672,26 @@ class ServiceWorkerLifecycle {
   private heartbeatTimer: number | null = null;
 
   /**
+   * Preload embedding model in background
+   * This ensures the model is ready when users first use RAG search
+   */
+  private preloadEmbeddingModel(): void {
+    // Import and preload in background (don't await)
+    import("./local-embedding-engine.js").then(({ localEmbeddingEngine }) => {
+      logger.info("ServiceWorker", "Preloading embedding model in background...");
+      
+      // Generate a dummy embedding to trigger model loading
+      localEmbeddingEngine.generateEmbedding("preload").then(() => {
+        logger.info("ServiceWorker", "Embedding model preloaded successfully");
+      }).catch((error) => {
+        logger.warn("ServiceWorker", "Failed to preload embedding model (will load on first use)", { error });
+      });
+    }).catch((error) => {
+      logger.warn("ServiceWorker", "Failed to import embedding engine for preload", { error });
+    });
+  }
+
+  /**
    * Initialize the service worker
    * Restores state from storage and sets up event listeners
    */
@@ -707,6 +727,9 @@ class ServiceWorkerLifecycle {
       backgroundProcessor.start().catch((error) => {
         logger.error("ServiceWorker", "Failed to start background processor", error);
       });
+
+      // Preload embedding model in background (don't block initialization)
+      this.preloadEmbeddingModel();
 
       const initTime = performance.now() - startTime;
       performanceMonitor.recordMetric(
