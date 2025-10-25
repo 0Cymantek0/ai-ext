@@ -25,6 +25,7 @@ import {
 } from "./context-bundle.js";
 import type { AIManager } from "./ai-manager.js";
 import type { CloudAIManager } from "./cloud-ai-manager.js";
+import { indexedDBManager } from "./indexeddb-manager.js";
 
 /**
  * AI processing mode
@@ -212,6 +213,7 @@ export class ModeAwareProcessor {
     // Load conversation context if available
     let conversationContext: ConversationContext | null = null;
     let contextString = "";
+    let effectivePocketId: string | undefined = request.pocketId;
 
     if (request.conversationId) {
       try {
@@ -226,6 +228,42 @@ export class ModeAwareProcessor {
           messageCount: conversationContext.messages.length,
           totalTokens: conversationContext.totalTokens,
         });
+
+        // Read attached pocket from conversation (prioritize over request.pocketId)
+        const conversation = await indexedDBManager.getConversation(
+          request.conversationId,
+        );
+        if (conversation?.attachedPocketId) {
+          effectivePocketId = conversation.attachedPocketId;
+
+          // Validate pocket exists
+          const pocket = await indexedDBManager.getPocket(effectivePocketId);
+          if (!pocket) {
+            logger.warn(
+              "ModeAwareProcessor",
+              "Attached pocket not found, detaching",
+              {
+                conversationId: request.conversationId,
+                pocketId: effectivePocketId,
+              },
+            );
+
+            // Detach the non-existent pocket
+            await indexedDBManager.detachPocketFromConversation(
+              request.conversationId,
+            );
+            effectivePocketId = undefined;
+          } else {
+            logger.info(
+              "ModeAwareProcessor",
+              "Using attached pocket from conversation",
+              {
+                pocketId: effectivePocketId,
+                pocketName: pocket.name,
+              },
+            );
+          }
+        }
       } catch (error) {
         logger.error(
           "ModeAwareProcessor",
@@ -243,7 +281,7 @@ export class ModeAwareProcessor {
         contextBundle = await contextBundleBuilder.buildContextBundle({
           mode: "ask",
           query: request.prompt,
-          pocketId: request.pocketId, // Enable RAG if pocketId provided
+          pocketId: effectivePocketId, // Use effective pocket ID (from conversation or request)
           conversationId: request.conversationId,
           // maxTokens is omitted - let ContextBundleBuilder decide based on context
         });
@@ -258,18 +296,22 @@ export class ModeAwareProcessor {
           hasPockets:
             !!contextBundle.pockets && contextBundle.pockets.length > 0,
           pocketsCount: contextBundle.pockets?.length || 0,
+          hasChunks: !!contextBundle.chunks && contextBundle.chunks.length > 0,
+          chunksCount: contextBundle.chunks?.length || 0,
+          effectivePocketId,
         });
 
         // Check if RAG was requested but no content found
         if (
-          request.pocketId &&
+          effectivePocketId &&
+          (!contextBundle.chunks || contextBundle.chunks.length === 0) &&
           (!contextBundle.pockets || contextBundle.pockets.length === 0)
         ) {
           logger.warn(
             "ModeAwareProcessor",
             "No relevant content found in pocket for Ask mode",
             {
-              pocketId: request.pocketId,
+              pocketId: effectivePocketId,
             },
           );
           // Note: User-facing messages should be handled in the UI layer, not in the AI prompt
@@ -318,6 +360,7 @@ export class ModeAwareProcessor {
     // Load conversation context if available
     let conversationContext: ConversationContext | null = null;
     let contextString = "";
+    let effectivePocketId: string | undefined = request.pocketId;
 
     if (request.conversationId) {
       try {
@@ -332,6 +375,42 @@ export class ModeAwareProcessor {
           messageCount: conversationContext.messages.length,
           totalTokens: conversationContext.totalTokens,
         });
+
+        // Read attached pocket from conversation (prioritize over request.pocketId)
+        const conversation = await indexedDBManager.getConversation(
+          request.conversationId,
+        );
+        if (conversation?.attachedPocketId) {
+          effectivePocketId = conversation.attachedPocketId;
+
+          // Validate pocket exists
+          const pocket = await indexedDBManager.getPocket(effectivePocketId);
+          if (!pocket) {
+            logger.warn(
+              "ModeAwareProcessor",
+              "Attached pocket not found, detaching",
+              {
+                conversationId: request.conversationId,
+                pocketId: effectivePocketId,
+              },
+            );
+
+            // Detach the non-existent pocket
+            await indexedDBManager.detachPocketFromConversation(
+              request.conversationId,
+            );
+            effectivePocketId = undefined;
+          } else {
+            logger.info(
+              "ModeAwareProcessor",
+              "Using attached pocket from conversation",
+              {
+                pocketId: effectivePocketId,
+                pocketName: pocket.name,
+              },
+            );
+          }
+        }
       } catch (error) {
         logger.error(
           "ModeAwareProcessor",
@@ -350,7 +429,7 @@ export class ModeAwareProcessor {
       contextBundle = await contextBundleBuilder.buildContextBundle({
         mode: "ai-pocket",
         query: request.prompt,
-        pocketId: request.pocketId,
+        pocketId: effectivePocketId, // Use effective pocket ID (from conversation or request)
         conversationId: request.conversationId,
         // maxTokens is omitted - let ContextBundleBuilder decide based on mode
       });
@@ -360,6 +439,8 @@ export class ModeAwareProcessor {
         signals: contextBundle.signals,
         totalTokens: contextBundle.totalTokens,
         pocketsCount: contextBundle.pockets?.length || 0,
+        chunksCount: contextBundle.chunks?.length || 0,
+        effectivePocketId,
       });
 
       // Requirement 38.1, 38.2: Build mode-specific prompt preamble
@@ -370,7 +451,15 @@ export class ModeAwareProcessor {
       contextString = contextPreamble + "\n\n" + contextString;
 
       // Requirement 8.3.6: Include relevance scores in context
-      if (contextBundle.pockets && contextBundle.pockets.length > 0) {
+      if (contextBundle.chunks && contextBundle.chunks.length > 0) {
+        logger.info("ModeAwareProcessor", "RAG retrieved chunks", {
+          count: contextBundle.chunks.length,
+          avgRelevance: (
+            contextBundle.chunks.reduce((sum, c) => sum + c.relevanceScore, 0) /
+            contextBundle.chunks.length
+          ).toFixed(2),
+        });
+      } else if (contextBundle.pockets && contextBundle.pockets.length > 0) {
         logger.info("ModeAwareProcessor", "RAG retrieved content", {
           count: contextBundle.pockets.length,
           avgRelevance: (
@@ -385,6 +474,9 @@ export class ModeAwareProcessor {
         logger.warn(
           "ModeAwareProcessor",
           "No relevant content found in pockets",
+          {
+            effectivePocketId,
+          },
         );
         // Note: User-facing messages should be handled in the UI layer, not in the AI prompt
       }
