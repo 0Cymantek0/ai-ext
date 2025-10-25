@@ -30,6 +30,8 @@ tasks.md
 !/CONTRIBUTING.md
 !/dev-tools/debug-recorder/README.md
 !/dev-tools/debug-recorder/examples/*.md
+!/dev-tools/debug-recorder/CLI.md
+!/dev-tools/debug-recorder/reports/README.md
 ai-extension/src/background/STORAGE.md
 ai-extension/TASK-3.1-SUMMARY.md
 ai-extension/src/background/INDEXEDDB.md
