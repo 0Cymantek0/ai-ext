@@ -273,10 +273,30 @@ export class PerformanceMonitor {
   private readonly MEMORY_THRESHOLD = 80 * 1024 * 1024; // 80MB (Requirement 13.9)
   private logger: Logger;
   private monitoringInterval: number | null = null;
+  private memoryApiAvailable: boolean | null = null; // Cache availability check
+  private memoryWarningLogged: boolean = false; // Only warn once
 
   constructor(logger: Logger) {
     this.logger = logger;
     this.loadMetrics();
+    this.checkMemoryApiAvailability();
+  }
+  
+  /**
+   * Check if performance.memory API is available
+   * This API is not available in Chrome extension service workers
+   */
+  private checkMemoryApiAvailability(): void {
+    const chromePerf = performance as ChromePerformance;
+    this.memoryApiAvailable = !!chromePerf.memory;
+    
+    if (!this.memoryApiAvailable && !this.memoryWarningLogged) {
+      this.logger.info(
+        "PerformanceMonitor",
+        "Memory monitoring disabled: performance.memory API not available in this context (expected in service workers)",
+      );
+      this.memoryWarningLogged = true;
+    }
   }
 
   /**
@@ -412,14 +432,31 @@ export class PerformanceMonitor {
    * Capture memory usage snapshot
    */
   captureMemorySnapshot(): MemorySnapshot | null {
+    // Return early if memory API is not available (cached check)
+    if (this.memoryApiAvailable === false) {
+      return null;
+    }
+
     // Check if performance.memory is available (Chrome only)
     const chromePerf = performance as ChromePerformance;
     if (!chromePerf.memory) {
-      this.logger.warn(
-        "PerformanceMonitor",
-        "performance.memory not available",
-      );
+      // Update cache and log warning once
+      if (this.memoryApiAvailable === null) {
+        this.memoryApiAvailable = false;
+        if (!this.memoryWarningLogged) {
+          this.logger.info(
+            "PerformanceMonitor",
+            "Memory monitoring disabled: performance.memory API not available",
+          );
+          this.memoryWarningLogged = true;
+        }
+      }
       return null;
+    }
+
+    // Cache that API is available
+    if (this.memoryApiAvailable === null) {
+      this.memoryApiAvailable = true;
     }
 
     const snapshot: MemorySnapshot = {
