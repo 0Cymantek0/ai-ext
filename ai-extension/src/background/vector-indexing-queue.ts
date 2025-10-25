@@ -12,8 +12,10 @@
 
 import { logger } from "./monitoring.js";
 import { textChunker, type TextChunk } from "./text-chunker.js";
-import { hybridAIEngine } from "./hybrid-ai-engine.js";
-import { indexedDBManager, type CapturedContent, type Embedding } from "./indexeddb-manager.js";
+import { embeddingEngine } from "./embedding-engine.js";
+import { vectorStoreService } from "./vector-store-service.js";
+import { indexedDBManager, type CapturedContent } from "./indexeddb-manager.js";
+import type { VectorChunk, ChunkMetadata } from "./vector-chunk-types.js";
 
 export enum IndexingOperation {
   CREATE = "create",
@@ -325,9 +327,17 @@ export class VectorIndexingQueue {
     }
 
     // Extract text
-    const text = typeof content.content === "string" 
-      ? content.content 
-      : content.metadata.title || "";
+    let text: string;
+    if (typeof content.content === "string") {
+      try {
+        const parsed = JSON.parse(content.content);
+        text = parsed.text?.content || parsed.text || parsed.formattedContent || content.content;
+      } catch {
+        text = content.content;
+      }
+    } else {
+      text = content.metadata.title || "";
+    }
 
     if (!text.trim()) {
       logger.warn("VectorIndexingQueue", "No text to index", {
@@ -336,79 +346,108 @@ export class VectorIndexingQueue {
       return;
     }
 
-    // Chunk text
-    const chunks = textChunker.chunkText(text, {
-      maxChunkSize: 1000,
+    // Chunk text with standardized size (700 chars to match search)
+    const textChunks = textChunker.chunkText(text, {
+      maxChunkSize: 700,
       overlapSize: 100,
+      respectSentences: true,
+      respectParagraphs: true,
     });
 
     logger.info("VectorIndexingQueue", "Text chunked", {
       contentId: job.contentId,
-      chunksCount: chunks.length,
+      chunksCount: textChunks.length,
     });
 
     // Track chunks processed for completion event
     job.chunksProcessed = 0;
 
-    // Process chunks
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      if (!chunk) continue;
-
-      try {
-        // Generate embedding for chunk
-        const embedding = await hybridAIEngine.generateEmbedding(chunk.text);
-
-        // Save embedding
-        // Note: saveEmbedding will generate its own ID and handle updates
-        await indexedDBManager.saveEmbedding({
-          contentId: job.contentId,
-          vector: embedding,
-          model: "gemini",
-        });
-
-        // Update chunks processed count
-        job.chunksProcessed = i + 1;
-
-        // Emit progress
-        this.emitProgressEvent({
-          jobId: job.id,
-          contentId: job.contentId,
-          operation: job.operation,
-          chunksTotal: chunks.length,
-          chunksProcessed: i + 1,
-          status: "processing",
-        });
-
-        logger.debug("VectorIndexingQueue", "Chunk embedded", {
-          contentId: job.contentId,
-          chunkIndex: i,
-          totalChunks: chunks.length,
-        });
-
-      } catch (error) {
-        logger.error("VectorIndexingQueue", "Failed to embed chunk", {
-          contentId: job.contentId,
-          chunkIndex: i,
-          error,
-        });
-        throw error;
-      }
+    // Delete old chunks if this is an update
+    if (job.operation === IndexingOperation.UPDATE) {
+      await vectorStoreService.deleteChunksByContent(job.contentId);
     }
+
+    // Prepare vector chunks
+    const vectorChunks: VectorChunk[] = [];
+
+    // Generate embeddings for all chunks
+    const chunkTexts = textChunks.map(c => c.text);
+    const embeddings = await embeddingEngine.generateEmbeddingsBatch(chunkTexts, {
+      batchSize: this.batchSize,
+    });
+
+    // Create vector chunks with metadata
+    for (let i = 0; i < textChunks.length; i++) {
+      const textChunk = textChunks[i]!;
+      const embedding = embeddings[i]!;
+
+      const metadata: ChunkMetadata = {
+        contentId: content.id,
+        pocketId: content.pocketId,
+        sourceType: content.type,
+        sourceUrl: content.sourceUrl,
+        chunkIndex: textChunk.chunkIndex,
+        totalChunks: textChunk.totalChunks,
+        startOffset: textChunk.startIndex,
+        endOffset: textChunk.endIndex,
+        capturedAt: content.capturedAt,
+        chunkedAt: Date.now(),
+        title: content.metadata.title,
+        category: content.metadata.category,
+        textPreview: textChunk.text.slice(0, 100),
+      };
+
+      vectorChunks.push({
+        id: textChunk.id,
+        text: textChunk.text,
+        embedding,
+        metadata,
+      });
+
+      // Update progress
+      job.chunksProcessed = i + 1;
+      this.emitProgressEvent({
+        jobId: job.id,
+        contentId: job.contentId,
+        operation: job.operation,
+        chunksTotal: textChunks.length,
+        chunksProcessed: i + 1,
+        status: "processing",
+      });
+    }
+
+    // Store all chunks in batch
+    await vectorStoreService.storeChunksBatch(vectorChunks);
+
+    logger.info("VectorIndexingQueue", "Content indexed", {
+      contentId: job.contentId,
+      chunksStored: vectorChunks.length,
+    });
   }
 
   /**
-   * Delete embeddings for content
+   * Delete embeddings and vector chunks for content
    */
   private async deleteContentEmbeddings(job: IndexingJob): Promise<void> {
     await indexedDBManager.init();
 
-    // Delete all embeddings for this content
-    await indexedDBManager.deleteEmbeddingByContentId(job.contentId);
+    try {
+      // Delete vector chunks (new storage)
+      await vectorStoreService.deleteChunksByContent(job.contentId);
+      
+      // Delete old embeddings (legacy storage)
+      await indexedDBManager.deleteEmbeddingByContentId(job.contentId);
 
-    logger.info("VectorIndexingQueue", "Embeddings deleted", {
-      contentId: job.contentId,
-    });
+      logger.info("VectorIndexingQueue", "Content vectors and embeddings deleted", {
+        contentId: job.contentId,
+      });
+    } catch (error) {
+      logger.error("VectorIndexingQueue", "Failed to delete content vectors", {
+        contentId: job.contentId,
+        error,
+      });
+      throw error;
+    }
   }
 
   /**

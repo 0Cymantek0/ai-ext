@@ -7,7 +7,7 @@
 import { logger } from "./monitoring.js";
 
 const DB_NAME = "ai-pocket-db";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bumped for vectorChunks store
 
 export enum StoreName {
   POCKETS = "pockets",
@@ -15,6 +15,7 @@ export enum StoreName {
   CONVERSATIONS = "conversations",
   AI_RESPONSES = "aiResponses",
   EMBEDDINGS = "embeddings",
+  VECTOR_CHUNKS = "vectorChunks", // New store for chunk-level RAG
   SYNC_QUEUE = "syncQueue",
 }
 
@@ -151,6 +152,30 @@ export interface Embedding {
   createdAt: number;
 }
 
+export interface StoredChunk {
+  id: string;
+  contentId: string;
+  pocketId: string;
+  text: string;
+  embedding: number[];
+  metadata: {
+    contentId: string;
+    pocketId: string;
+    sourceType: ContentType;
+    sourceUrl: string;
+    chunkIndex: number;
+    totalChunks: number;
+    startOffset: number;
+    endOffset: number;
+    capturedAt: number;
+    chunkedAt: number;
+    title?: string | undefined;
+    category?: string | undefined;
+    textPreview: string;
+  };
+  createdAt: number;
+}
+
 export interface SyncQueueItem {
   id: string;
   operation: "create" | "update" | "delete";
@@ -257,6 +282,15 @@ export class IndexedDBManager {
       });
       store.createIndex("contentId", "contentId", { unique: true });
       store.createIndex("model", "model", { unique: false });
+      store.createIndex("createdAt", "createdAt", { unique: false });
+    }
+    if (!db.objectStoreNames.contains(StoreName.VECTOR_CHUNKS)) {
+      const store = db.createObjectStore(StoreName.VECTOR_CHUNKS, {
+        keyPath: "id",
+      });
+      store.createIndex("pocketId", "pocketId", { unique: false });
+      store.createIndex("contentId", "contentId", { unique: false });
+      store.createIndex("pocketId_contentId", ["pocketId", "contentId"], { unique: false });
       store.createIndex("createdAt", "createdAt", { unique: false });
     }
     if (!db.objectStoreNames.contains(StoreName.SYNC_QUEUE)) {
@@ -791,6 +825,123 @@ export class IndexedDBManager {
       this.initPromise = null;
       logger.info("IndexedDBManager", "Database closed");
     }
+  }
+
+  // Vector Chunks CRUD Operations
+
+  async saveChunk(chunk: Omit<StoredChunk, "createdAt">): Promise<string> {
+    const newChunk: StoredChunk = { ...chunk, createdAt: Date.now() };
+    return this.executeTransaction(
+      StoreName.VECTOR_CHUNKS,
+      "readwrite",
+      async (tx) => {
+        await this.promisifyRequest(
+          tx.objectStore(StoreName.VECTOR_CHUNKS).put(newChunk),
+        );
+        logger.debug("IndexedDBManager", "Chunk saved", {
+          id: chunk.id,
+          contentId: chunk.contentId,
+          pocketId: chunk.pocketId,
+        });
+        return chunk.id;
+      },
+    );
+  }
+
+  async saveChunksBatch(chunks: Omit<StoredChunk, "createdAt">[]): Promise<void> {
+    return this.executeTransaction(
+      StoreName.VECTOR_CHUNKS,
+      "readwrite",
+      async (tx) => {
+        const store = tx.objectStore(StoreName.VECTOR_CHUNKS);
+        const createdAt = Date.now();
+        
+        for (const chunk of chunks) {
+          const newChunk: StoredChunk = { ...chunk, createdAt };
+          await this.promisifyRequest(store.put(newChunk));
+        }
+        
+        logger.info("IndexedDBManager", "Chunks batch saved", {
+          count: chunks.length,
+        });
+      },
+    );
+  }
+
+  async getChunksByPocket(pocketId: string): Promise<StoredChunk[]> {
+    return this.executeTransaction(
+      StoreName.VECTOR_CHUNKS,
+      "readonly",
+      async (tx) => {
+        const index = tx.objectStore(StoreName.VECTOR_CHUNKS).index("pocketId");
+        return await this.promisifyRequest(index.getAll(pocketId));
+      },
+    );
+  }
+
+  async getChunksByContent(contentId: string): Promise<StoredChunk[]> {
+    return this.executeTransaction(
+      StoreName.VECTOR_CHUNKS,
+      "readonly",
+      async (tx) => {
+        const index = tx.objectStore(StoreName.VECTOR_CHUNKS).index("contentId");
+        return await this.promisifyRequest(index.getAll(contentId));
+      },
+    );
+  }
+
+  async deleteChunksByContent(contentId: string): Promise<void> {
+    return this.executeTransaction(
+      StoreName.VECTOR_CHUNKS,
+      "readwrite",
+      async (tx) => {
+        const store = tx.objectStore(StoreName.VECTOR_CHUNKS);
+        const index = store.index("contentId");
+        const chunks = await this.promisifyRequest(index.getAll(contentId));
+        
+        for (const chunk of chunks) {
+          await this.promisifyRequest(store.delete(chunk.id));
+        }
+        
+        logger.info("IndexedDBManager", "Chunks deleted by content", {
+          contentId,
+          count: chunks.length,
+        });
+      },
+    );
+  }
+
+  async deleteChunksByPocket(pocketId: string): Promise<void> {
+    return this.executeTransaction(
+      StoreName.VECTOR_CHUNKS,
+      "readwrite",
+      async (tx) => {
+        const store = tx.objectStore(StoreName.VECTOR_CHUNKS);
+        const index = store.index("pocketId");
+        const chunks = await this.promisifyRequest(index.getAll(pocketId));
+        
+        for (const chunk of chunks) {
+          await this.promisifyRequest(store.delete(chunk.id));
+        }
+        
+        logger.info("IndexedDBManager", "Chunks deleted by pocket", {
+          pocketId,
+          count: chunks.length,
+        });
+      },
+    );
+  }
+
+  async getAllChunks(): Promise<StoredChunk[]> {
+    return this.executeTransaction(
+      StoreName.VECTOR_CHUNKS,
+      "readonly",
+      async (tx) => {
+        return await this.promisifyRequest(
+          tx.objectStore(StoreName.VECTOR_CHUNKS).getAll(),
+        );
+      },
+    );
   }
 }
 

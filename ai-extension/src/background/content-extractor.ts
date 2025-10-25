@@ -1,12 +1,13 @@
 /**
  * Content Extractor
- * Extracts LLM-friendly content from CapturedContent
- * Handles PDFs with metadata, images, and other content types
+ * Extracts LLM-friendly content from CapturedContent and VectorChunks
+ * Handles PDFs with metadata, images, chunks, and other content types
  */
 
 import { logger } from './monitoring.js';
 import { ContentType, type CapturedContent } from './indexeddb-manager.js';
 import { pdfProcessor } from './pdf-processor.js';
+import type { VectorChunk, ChunkMetadata } from './vector-chunk-types.js';
 
 /**
  * Extract LLM-readable content from CapturedContent
@@ -135,4 +136,87 @@ export function getContentPreview(content: CapturedContent, maxLength: number = 
   }
 
   return fullContent.substring(0, maxLength) + '...';
+}
+
+/**
+ * Extract LLM-readable content from a VectorChunk
+ * Returns formatted text with metadata for context
+ */
+export function extractLLMContentFromChunk(chunk: VectorChunk): string {
+  try {
+    const { text, metadata } = chunk;
+    
+    // Build context-rich representation
+    const parts: string[] = [];
+    
+    // Add source information
+    if (metadata.title) {
+      parts.push(`Title: ${metadata.title}`);
+    }
+    
+    parts.push(`Source: ${metadata.sourceUrl}`);
+    parts.push(`Type: ${metadata.sourceType}`);
+    
+    // Add chunk position context
+    if (metadata.totalChunks > 1) {
+      parts.push(`Part ${metadata.chunkIndex + 1} of ${metadata.totalChunks}`);
+    }
+    
+    // Add timestamp
+    const capturedDate = new Date(metadata.capturedAt).toLocaleDateString();
+    parts.push(`Captured: ${capturedDate}`);
+    
+    // Add the actual text content
+    parts.push('');  // Empty line for separation
+    parts.push(text);
+    
+    return parts.join('\n');
+  } catch (error) {
+    logger.error('ContentExtractor', 'Failed to extract LLM content from chunk', error);
+    return '[Chunk extraction failed]';
+  }
+}
+
+/**
+ * Get chunk preview for display purposes
+ * Returns a short preview of the chunk text
+ */
+export function getChunkPreview(chunk: VectorChunk, maxLength: number = 150): string {
+  if (chunk.text.length <= maxLength) {
+    return chunk.text;
+  }
+  
+  return chunk.text.substring(0, maxLength) + '...';
+}
+
+/**
+ * Format chunk metadata for display
+ * Returns human-readable metadata string
+ */
+export function formatChunkMetadata(metadata: ChunkMetadata): string {
+  const parts: string[] = [];
+  
+  if (metadata.title) {
+    parts.push(metadata.title);
+  }
+  
+  parts.push(`${metadata.sourceType} from ${new URL(metadata.sourceUrl).hostname}`);
+  
+  if (metadata.totalChunks > 1) {
+    parts.push(`(part ${metadata.chunkIndex + 1}/${metadata.totalChunks})`);
+  }
+  
+  return parts.join(' • ');
+}
+
+/**
+ * Estimate token count for a chunk
+ * Uses rough approximation: 1 token ≈ 4 characters
+ */
+export function estimateChunkTokens(chunk: VectorChunk): number {
+  // Include text + metadata overhead
+  const textTokens = Math.ceil(chunk.text.length / 4);
+  const metadataOverhead = 50; // Approximate tokens for metadata formatting
+  
+  return textTokens + metadataOverhead;
 }

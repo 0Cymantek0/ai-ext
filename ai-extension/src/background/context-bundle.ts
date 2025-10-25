@@ -14,7 +14,12 @@ import {
 } from "./vector-search-service.js";
 import type { CapturedContent } from "./indexeddb-manager.js";
 import { conversationContextLoader } from "./conversation-context-loader.js";
-import { extractLLMContent } from "./content-extractor.js";
+import { 
+  extractLLMContent, 
+  extractLLMContentFromChunk,
+  estimateChunkTokens 
+} from "./content-extractor.js";
+import type { VectorChunk, ChunkSearchResult } from "./vector-chunk-types.js";
 
 /**
  * Context signal types
@@ -53,6 +58,11 @@ export interface PocketContext {
   relevanceScore: number;
 }
 
+export interface ChunkContext {
+  chunk: VectorChunk;
+  relevanceScore: number;
+}
+
 export interface HistoryContext {
   role: "user" | "assistant" | "system";
   content: string;
@@ -69,6 +79,7 @@ export interface ContextBundle {
   page?: PageContext;
   tabs?: TabContext[];
   pockets?: PocketContext[];
+  chunks?: ChunkContext[];  // Chunk-level RAG results
   history?: HistoryContext[];
 
   // Metadata
@@ -268,6 +279,7 @@ export class ContextBundleBuilder {
   /**
    * Add pockets context (RAG retrieval)
    * Supports chunk-level semantic search with pocket scoping
+   * Aggregates up to 5 chunks while respecting 1k-1.5k token reserve
    */
   private async addPocketsContext(
     bundle: ContextBundle,
@@ -283,63 +295,93 @@ export class ContextBundleBuilder {
     }
 
     try {
-      // Perform vector similarity search with pocket scoping
-      // If pocketId is provided, only search that pocket
-      // Otherwise, search across all pockets
-      logger.info("ContextBundleBuilder", "Performing RAG search", {
+      // Reserve 1k-1.5k tokens for response and other context
+      const RESERVED_TOKENS = 1250; // Middle of 1k-1.5k range
+      const availableForChunks = Math.max(0, remainingTokens - RESERVED_TOKENS);
+
+      if (availableForChunks < 100) {
+        logger.warn("ContextBundleBuilder", "Insufficient tokens for RAG", {
+          remainingTokens,
+          reserved: RESERVED_TOKENS,
+          available: availableForChunks,
+        });
+        return remainingTokens;
+      }
+
+      // Perform chunk-level vector similarity search with pocket scoping
+      logger.info("ContextBundleBuilder", "Performing chunk-level RAG search", {
         query: options.query,
         pocketId: options.pocketId || "all",
         mode: options.mode,
+        availableTokens: availableForChunks,
       });
 
-      const results = await vectorSearchService.searchContent(
+      const chunkResults = await vectorSearchService.searchChunks(
         options.query,
-        options.pocketId, // Enforces pocket scoping
-        5, // Top 5 chunks/results
+        {
+          pocketId: options.pocketId || undefined,
+          topK: 5, // Request top 5 chunks
+          minRelevance: 0.3,
+          maxTokens: availableForChunks,
+        }
       );
 
-      if (results.length > 0) {
-        bundle.pockets = [];
-        bundle.signals.push("pockets");
+      if (chunkResults.length > 0) {
+        bundle.chunks = [];
+        bundle.signals.push("chunks");
 
-        // Track tokens before adding pockets
-        const tokensBeforePockets = bundle.totalTokens;
+        // Track tokens before adding chunks
+        const tokensBeforeChunks = bundle.totalTokens;
+        let chunksAdded = 0;
+        let tokensUsed = 0;
 
-        for (const result of results) {
-          // Extract LLM-friendly content (handles PDFs with metadata)
-          const llmContent = extractLLMContent(result.item);
-          const contentTokens = this.estimateTokens(llmContent);
+        for (const result of chunkResults) {
+          // Estimate tokens for this chunk (includes metadata overhead)
+          const chunkTokens = estimateChunkTokens(result.chunk);
 
-          // Check if we have budget for this content
-          if (contentTokens > remainingTokens) {
-            logger.warn(
+          // Check if we have budget for this chunk
+          if (tokensUsed + chunkTokens > availableForChunks) {
+            logger.info(
               "ContextBundleBuilder",
-              "Insufficient tokens for pocket content",
+              "Reached token budget for chunks",
               {
-                required: contentTokens,
-                available: remainingTokens,
-                truncating: true,
+                chunksAdded,
+                tokensUsed,
+                available: availableForChunks,
+                skippedChunks: chunkResults.length - chunksAdded,
               },
             );
             bundle.truncated = true;
             break;
           }
 
-          bundle.pockets.push({
-            content: result.item,
+          // Add chunk to bundle
+          bundle.chunks.push({
+            chunk: result.chunk,
             relevanceScore: result.relevanceScore,
           });
 
-          remainingTokens -= contentTokens;
-          bundle.totalTokens += contentTokens;
+          tokensUsed += chunkTokens;
+          chunksAdded++;
+
+          // Stop at 5 chunks max
+          if (chunksAdded >= 5) {
+            break;
+          }
         }
 
-        logger.info("ContextBundleBuilder", "Added pockets context via RAG", {
-          count: bundle.pockets.length,
-          tokensUsed: bundle.totalTokens - tokensBeforePockets,
+        // Update token accounting
+        bundle.totalTokens += tokensUsed;
+        remainingTokens -= tokensUsed;
+
+        logger.info("ContextBundleBuilder", "Added chunks context via RAG", {
+          chunksAdded,
+          tokensUsed,
+          tokensReserved: RESERVED_TOKENS,
+          tokensRemaining: remainingTokens,
           avgRelevance: (
-            bundle.pockets.reduce((sum, p) => sum + p.relevanceScore, 0) /
-            bundle.pockets.length
+            bundle.chunks.reduce((sum, c) => sum + c.relevanceScore, 0) /
+            bundle.chunks.length
           ).toFixed(2),
           pocketScoped: !!options.pocketId,
         });
@@ -356,7 +398,7 @@ export class ContextBundleBuilder {
         );
       }
     } catch (error) {
-      logger.error("ContextBundleBuilder", "Failed to add pockets context", {
+      logger.error("ContextBundleBuilder", "Failed to add chunks context", {
         error: error instanceof Error ? error.message : String(error),
         query: options.query,
         pocketId: options.pocketId,
@@ -688,7 +730,46 @@ export function serializeContextBundle(
     }
   }
 
-  // Add pockets context (RAG results)
+  // Add chunks context (chunk-level RAG results)
+  if (bundle.chunks && bundle.chunks.length > 0) {
+    parts.push(`\n## Relevant Content Chunks`);
+    parts.push(
+      `The following ${bundle.chunks.length} chunk(s) from the user's pockets are relevant to this query:`,
+    );
+
+    for (let i = 0; i < bundle.chunks.length; i++) {
+      const chunkContext = bundle.chunks[i];
+      if (!chunkContext) continue;
+      
+      const { chunk, relevanceScore } = chunkContext;
+      const { metadata } = chunk;
+
+      parts.push(
+        `\n### Chunk ${i + 1} (Relevance: ${(relevanceScore * 100).toFixed(0)}%)`,
+      );
+      
+      // Add metadata
+      if (metadata.title) {
+        parts.push(`Title: ${metadata.title}`);
+      }
+      parts.push(`Source: ${metadata.sourceUrl}`);
+      parts.push(`Type: ${metadata.sourceType}`);
+      
+      // Add chunk position info
+      if (metadata.totalChunks > 1) {
+        parts.push(`Part: ${metadata.chunkIndex + 1} of ${metadata.totalChunks}`);
+      }
+      
+      // Add timestamp
+      const capturedDate = new Date(metadata.capturedAt).toLocaleDateString();
+      parts.push(`Captured: ${capturedDate}`);
+      
+      // Add chunk text
+      parts.push(`\nContent:\n${chunk.text}`);
+    }
+  }
+
+  // Add pockets context (legacy full-content RAG results)
   if (bundle.pockets && bundle.pockets.length > 0) {
     parts.push(`\n## Relevant Captured Content`);
     parts.push(

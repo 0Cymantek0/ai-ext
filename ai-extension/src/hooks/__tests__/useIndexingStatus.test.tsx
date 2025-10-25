@@ -55,7 +55,7 @@ describe('useIndexingStatus', () => {
 
     act(() => {
       messageListener?.({
-        type: 'VECTOR_INDEXING_PROGRESS',
+        kind: 'VECTOR_INDEXING_PROGRESS',
         payload: progress,
       });
     });
@@ -71,7 +71,7 @@ describe('useIndexingStatus', () => {
 
     act(() => {
       messageListener?.({
-        type: 'VECTOR_INDEXING_PROGRESS',
+        kind: 'VECTOR_INDEXING_PROGRESS',
         payload: {
           jobId: 'job-1',
           contentId: 'content-1',
@@ -89,7 +89,7 @@ describe('useIndexingStatus', () => {
 
     act(() => {
       messageListener?.({
-        type: 'VECTOR_INDEXING_PROGRESS',
+        kind: 'VECTOR_INDEXING_PROGRESS',
         payload: {
           jobId: 'job-1',
           contentId: 'content-1',
@@ -112,7 +112,7 @@ describe('useIndexingStatus', () => {
 
     act(() => {
       messageListener?.({
-        type: 'VECTOR_INDEXING_PROGRESS',
+        kind: 'VECTOR_INDEXING_PROGRESS',
         payload: {
           jobId: 'job-1',
           contentId: 'content-1',
@@ -136,7 +136,7 @@ describe('useIndexingStatus', () => {
 
     act(() => {
       messageListener?.({
-        type: 'VECTOR_INDEXING_PROGRESS',
+        kind: 'VECTOR_INDEXING_PROGRESS',
         payload: {
           jobId: 'job-1',
           contentId: 'content-1',

@@ -5,13 +5,19 @@
  */
 
 import { logger } from "./monitoring.js";
-import { hybridAIEngine } from "./hybrid-ai-engine.js";
+import { embeddingEngine } from "./embedding-engine.js";
+import { vectorStoreService } from "./vector-store-service.js";
 import {
   indexedDBManager,
   type Pocket,
   type CapturedContent,
   type Embedding,
 } from "./indexeddb-manager.js";
+import type { 
+  VectorChunk, 
+  ChunkSearchResult, 
+  ChunkSearchOptions,
+} from "./vector-chunk-types.js";
 
 export interface SearchResult<T> {
   item: T;
@@ -62,8 +68,8 @@ export class VectorSearchService {
     }
 
     try {
-      // Use hybrid AI engine to generate embedding
-      const embedding = await hybridAIEngine.generateEmbedding(text);
+      // Use embedding engine (Nano-first approach)
+      const embedding = await embeddingEngine.generateEmbedding(text);
       
       // Cache the result
       this.embeddingCache.set(text, embedding);
@@ -375,6 +381,126 @@ export class VectorSearchService {
     this.embeddingCache.clear();
     logger.info("VectorSearchService", "Cache cleared");
   }
+
+  /**
+   * Search for relevant chunks using vector similarity
+   * This is the primary method for chunk-level RAG
+   * NOW USES PRE-COMPUTED STORED CHUNKS (FIXED PERFORMANCE ISSUE)
+   */
+  async searchChunks(
+    query: string,
+    options: ChunkSearchOptions = {}
+  ): Promise<ChunkSearchResult[]> {
+    const {
+      pocketId,
+      topK = 5,
+      minRelevance = 0.3,
+      maxTokens = 1500,
+    } = options;
+
+    try {
+      logger.info("VectorSearchService", "Searching chunks", {
+        query,
+        pocketId: pocketId || "all",
+        topK,
+        minRelevance,
+        maxTokens,
+      });
+
+      // Get pre-computed chunks from storage
+      let storedChunks: VectorChunk[];
+      if (pocketId) {
+        storedChunks = await vectorStoreService.getChunksByPocket(pocketId);
+      } else {
+        storedChunks = await vectorStoreService.getAllChunks();
+      }
+
+      if (storedChunks.length === 0) {
+        logger.info("VectorSearchService", "No indexed chunks found", {
+          pocketId: pocketId || "all",
+        });
+        return [];
+      }
+
+      logger.info("VectorSearchService", "Retrieved stored chunks", {
+        totalChunks: storedChunks.length,
+        pocketId: pocketId || "all",
+      });
+
+      // Generate query embedding
+      const queryEmbedding = await this.generateEmbedding(query);
+
+      // Calculate similarity for each chunk
+      const results: ChunkSearchResult[] = [];
+
+      for (const chunk of storedChunks) {
+        const similarity = this.cosineSimilarity(queryEmbedding, chunk.embedding);
+
+        if (similarity >= minRelevance) {
+          results.push({
+            chunk: { ...chunk, relevanceScore: similarity },
+            relevanceScore: similarity,
+            matchType: 'semantic',
+          });
+        }
+      }
+
+      // Sort by relevance (descending)
+      results.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+      // Apply topK limit
+      const topResults = results.slice(0, topK);
+
+      // Apply token budget if specified
+      if (maxTokens) {
+        const budgetedResults: ChunkSearchResult[] = [];
+        let tokensUsed = 0;
+
+        for (const result of topResults) {
+          // Estimate tokens (1 token ≈ 4 chars + metadata overhead)
+          const chunkTokens = Math.ceil(result.chunk.text.length / 4) + 50;
+
+          if (tokensUsed + chunkTokens <= maxTokens) {
+            budgetedResults.push(result);
+            tokensUsed += chunkTokens;
+          } else {
+            logger.info("VectorSearchService", "Reached token budget", {
+              tokensUsed,
+              maxTokens,
+              chunksIncluded: budgetedResults.length,
+              chunksSkipped: topResults.length - budgetedResults.length,
+            });
+            break;
+          }
+        }
+
+        logger.info("VectorSearchService", "Chunk search completed", {
+          query,
+          totalChunks: storedChunks.length,
+          matchedChunks: results.length,
+          returnedChunks: budgetedResults.length,
+          tokensUsed,
+        });
+
+        return budgetedResults;
+      }
+
+      logger.info("VectorSearchService", "Chunk search completed", {
+        query,
+        totalChunks: storedChunks.length,
+        matchedChunks: results.length,
+        returnedChunks: topResults.length,
+      });
+
+      return topResults;
+    } catch (error) {
+      logger.error("VectorSearchService", "Chunk search failed", { error });
+      
+      // Graceful fallback: return empty results
+      return [];
+    }
+  }
+
 }
 
 export const vectorSearchService = new VectorSearchService();
