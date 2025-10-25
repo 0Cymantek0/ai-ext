@@ -9,6 +9,7 @@
 
 import { logger } from "./monitoring.js";
 import * as tf from '@tensorflow/tfjs';
+import { setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
 import * as use from '@tensorflow-models/universal-sentence-encoder';
 
 export interface LocalEmbeddingOptions {
@@ -43,9 +44,33 @@ export class LocalEmbeddingEngine {
       try {
         logger.info("LocalEmbeddingEngine", "Loading Universal Sentence Encoder model...");
         
-        // Set TensorFlow.js backend to WebGL for GPU acceleration
-        await tf.setBackend('webgl');
-        await tf.ready();
+        // Set TensorFlow.js backend (WASM for service worker compatibility)
+        // Try backends in order: webgpu > wasm > cpu
+        let backendSet = false;
+        for (const backend of ['webgpu', 'wasm', 'cpu']) {
+          try {
+            // For WASM backend, set the path to WASM files
+            if (backend === 'wasm') {
+              setWasmPaths({
+                'tfjs-backend-wasm.wasm': chrome.runtime.getURL('tfjs-backend-wasm.wasm'),
+                'tfjs-backend-wasm-simd.wasm': chrome.runtime.getURL('tfjs-backend-wasm-simd.wasm'),
+                'tfjs-backend-wasm-threaded-simd.wasm': chrome.runtime.getURL('tfjs-backend-wasm-threaded-simd.wasm'),
+              });
+            }
+            
+            await tf.setBackend(backend);
+            await tf.ready();
+            backendSet = true;
+            logger.info("LocalEmbeddingEngine", `Using TensorFlow.js backend: ${backend}`);
+            break;
+          } catch (e) {
+            logger.warn("LocalEmbeddingEngine", `Backend ${backend} not available, trying next`, { error: e });
+          }
+        }
+        
+        if (!backendSet) {
+          throw new Error("No TensorFlow.js backend available");
+        }
         
         // Load the Universal Sentence Encoder model
         const loadedModel = await use.load();

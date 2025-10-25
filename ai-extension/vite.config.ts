@@ -26,6 +26,36 @@ export default defineConfig({
         }
       },
     },
+    {
+      name: "copy-tfjs-wasm",
+      closeBundle() {
+        // Copy TensorFlow.js WASM files to dist root
+        const wasmDir = path.resolve(__dirname, "node_modules/@tensorflow/tfjs-backend-wasm/dist");
+        const distDir = path.resolve(__dirname, "dist");
+        
+        const wasmFiles = [
+          "tfjs-backend-wasm.wasm",
+          "tfjs-backend-wasm-simd.wasm",
+          "tfjs-backend-wasm-threaded-simd.wasm",
+        ];
+        
+        try {
+          for (const file of wasmFiles) {
+            const src = path.join(wasmDir, file);
+            const dest = path.join(distDir, file);
+            try {
+              copyFileSync(src, dest);
+              console.log(`✓ Copied ${file} to dist`);
+            } catch (err) {
+              // Some WASM files might not exist in all versions, that's ok
+              console.log(`⚠ Could not copy ${file} (might not exist in this version)`);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to copy TensorFlow.js WASM files:", error);
+        }
+      },
+    },
   ],
   resolve: {
     alias: {

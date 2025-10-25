@@ -432,8 +432,20 @@ export class VectorSearchService {
 
       // Calculate similarity for each chunk
       const results: ChunkSearchResult[] = [];
+      let dimensionMismatchCount = 0;
 
       for (const chunk of storedChunks) {
+        // Skip chunks with mismatched embedding dimensions
+        if (chunk.embedding.length !== queryEmbedding.length) {
+          dimensionMismatchCount++;
+          logger.warn("VectorSearchService", "Skipping chunk with mismatched embedding dimension", {
+            chunkId: chunk.id,
+            chunkDim: chunk.embedding.length,
+            queryDim: queryEmbedding.length,
+          });
+          continue;
+        }
+
         const similarity = this.cosineSimilarity(queryEmbedding, chunk.embedding);
 
         if (similarity >= minRelevance) {
@@ -443,6 +455,15 @@ export class VectorSearchService {
             matchType: 'semantic',
           });
         }
+      }
+
+      if (dimensionMismatchCount > 0) {
+        logger.warn("VectorSearchService", "Dimension mismatch detected", {
+          skippedChunks: dimensionMismatchCount,
+          totalChunks: storedChunks.length,
+          queryDim: queryEmbedding.length,
+          message: "Some chunks were indexed with a different embedding model. Consider re-indexing.",
+        });
       }
 
       // Sort by relevance (descending)
