@@ -1,5 +1,7 @@
 # Debug Recorder
 
+> **Note**: This is documentation for a planned diagnostic tool. The features described here represent the intended functionality and design. Implementation is in progress.
+
 A diagnostic tool for capturing runtime state, performance metrics, and AI interaction data from the AI Pocket Chrome extension. This tool helps developers debug issues, analyze performance bottlenecks, and understand extension behavior in production-like scenarios.
 
 ## Table of Contents
@@ -125,8 +127,8 @@ To capture diagnostic data during regular extension usage:
 
 1. **Enable background recording:**
    ```javascript
-   // In service worker console:
-   localStorage.setItem('debug-recorder-enabled', 'true');
+   // In the service worker console:
+   chrome.storage.local.set({ debugRecorderEnabled: true });
    ```
 
 2. **Use the extension normally:**
@@ -142,7 +144,7 @@ To capture diagnostic data during regular extension usage:
 
 4. **Disable recording:**
    ```javascript
-   localStorage.setItem('debug-recorder-enabled', 'false');
+   chrome.storage.local.set({ debugRecorderEnabled: false });
    ```
 
 ## CLI Usage

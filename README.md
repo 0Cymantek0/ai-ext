@@ -60,6 +60,7 @@ AI Pocket is a Chrome extension that helps you capture, organize, and interact w
 
 2. **Install dependencies:**
    ```bash
+   # From the repository root, move into the extension workspace if you aren't already inside it
    cd ai-extension
    npm install
    # or
