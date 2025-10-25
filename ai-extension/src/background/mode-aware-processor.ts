@@ -233,11 +233,16 @@ export class ModeAwareProcessor {
         const conversation = await indexedDBManager.getConversation(
           request.conversationId,
         );
-        if (conversation?.attachedPocketId) {
-          effectivePocketId = conversation.attachedPocketId;
+        let attachedPocketIds = conversation?.attachedPocketIds || [];
+        if (conversation?.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+          attachedPocketIds.push(conversation.attachedPocketId);
+        }
+
+        if (attachedPocketIds.length > 0) {
+          effectivePocketId = attachedPocketIds[0];
 
           // Validate pocket exists
-          const pocket = await indexedDBManager.getPocket(effectivePocketId);
+          const pocket = effectivePocketId ? await indexedDBManager.getPocket(effectivePocketId) : null;
           if (!pocket) {
             logger.warn(
               "ModeAwareProcessor",
@@ -251,6 +256,7 @@ export class ModeAwareProcessor {
             // Detach the non-existent pocket
             await indexedDBManager.detachPocketFromConversation(
               request.conversationId,
+              effectivePocketId,
             );
             effectivePocketId = undefined;
           } else {
@@ -380,11 +386,16 @@ export class ModeAwareProcessor {
         const conversation = await indexedDBManager.getConversation(
           request.conversationId,
         );
-        if (conversation?.attachedPocketId) {
-          effectivePocketId = conversation.attachedPocketId;
+        let attachedPocketIds = conversation?.attachedPocketIds || [];
+        if (conversation?.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+          attachedPocketIds.push(conversation.attachedPocketId);
+        }
+
+        if (attachedPocketIds.length > 0) {
+          effectivePocketId = attachedPocketIds[0];
 
           // Validate pocket exists
-          const pocket = await indexedDBManager.getPocket(effectivePocketId);
+          const pocket = effectivePocketId ? await indexedDBManager.getPocket(effectivePocketId) : null;
           if (!pocket) {
             logger.warn(
               "ModeAwareProcessor",
@@ -398,6 +409,7 @@ export class ModeAwareProcessor {
             // Detach the non-existent pocket
             await indexedDBManager.detachPocketFromConversation(
               request.conversationId,
+              effectivePocketId,
             );
             effectivePocketId = undefined;
           } else {
@@ -558,3 +570,5 @@ export function getModeAwareProcessor(
   }
   return modeAwareProcessorInstance;
 }
+
+

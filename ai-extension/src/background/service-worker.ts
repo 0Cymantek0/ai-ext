@@ -2296,16 +2296,21 @@ messageRouter.registerHandler("CONVERSATION_DETACH_POCKET", async (payload: any)
   logger.info("Handler", "CONVERSATION_DETACH_POCKET", payload);
   try {
     await indexedDBManager.init();
-    await indexedDBManager.detachPocketFromConversation(payload.conversationId);
+    await indexedDBManager.detachPocketFromConversation(
+      payload.conversationId,
+      payload.pocketId // Optional: detach specific pocket or all if undefined
+    );
     
     logger.info("Handler", "CONVERSATION_DETACH_POCKET success", {
       conversationId: payload.conversationId,
+      pocketId: payload.pocketId || "all",
     });
     
     return {
       success: true,
       conversationId: payload.conversationId,
       attachedPocketId: null,
+      attachedPocketIds: [],
     };
   } catch (error) {
     logger.error("Handler", "CONVERSATION_DETACH_POCKET error", error);
@@ -2317,20 +2322,28 @@ messageRouter.registerHandler("CONVERSATION_GET_ATTACHED_POCKET", async (payload
   logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET", payload);
   try {
     await indexedDBManager.init();
-    const pocket = await indexedDBManager.getAttachedPocket(payload.conversationId);
+    const pockets = await indexedDBManager.getAttachedPockets(payload.conversationId);
+    const pocketIds = await indexedDBManager.getAttachedPocketIds(payload.conversationId);
     
     logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET success", {
       conversationId: payload.conversationId,
-      found: !!pocket,
-      pocketId: pocket?.id,
+      found: pockets.length > 0,
+      pocketCount: pockets.length,
     });
     
     return {
       success: true,
       conversationId: payload.conversationId,
-      attachedPocketId: pocket?.id || null,
-      pocketName: pocket?.name,
-      pocketDescription: pocket?.description,
+      attachedPocketId: pockets.length > 0 ? pockets[0]?.id : null, // For backward compatibility
+      attachedPocketIds: pocketIds,
+      pockets: pockets.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        color: p.color,
+      })),
+      pocketName: pockets.length > 0 ? pockets[0]?.name : undefined,
+      pocketDescription: pockets.length > 0 ? pockets[0]?.description : undefined,
     };
   } catch (error) {
     logger.error("Handler", "CONVERSATION_GET_ATTACHED_POCKET error", error);

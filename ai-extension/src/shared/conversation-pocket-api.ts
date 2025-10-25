@@ -47,17 +47,20 @@ export async function attachPocketToConversation(
 }
 
 /**
- * Detach pocket from a conversation
+ * Detach pocket(s) from a conversation
  * 
  * @param conversationId - ID of the conversation
+ * @param pocketId - Optional: ID of specific pocket to detach, or undefined to detach all
  * @returns Result confirming detachment
  * @throws Error if conversation not found
  */
 export async function detachPocketFromConversation(
-  conversationId: string
+  conversationId: string,
+  pocketId?: string
 ): Promise<ConversationAttachedPocketResult> {
   const payload: ConversationDetachPocketPayload = {
     conversationId,
+    ...(pocketId && { pocketId }),
   };
 
   const response = await chrome.runtime.sendMessage({
@@ -72,14 +75,15 @@ export async function detachPocketFromConversation(
   return {
     conversationId: response.conversationId,
     attachedPocketId: null,
+    attachedPocketIds: response.attachedPocketIds || [],
   };
 }
 
 /**
- * Get the pocket attached to a conversation
+ * Get all pockets attached to a conversation
  * 
  * @param conversationId - ID of the conversation
- * @returns Attached pocket information or null if no pocket attached
+ * @returns Attached pockets information or empty array if no pockets attached
  */
 export async function getAttachedPocket(
   conversationId: string
@@ -100,21 +104,23 @@ export async function getAttachedPocket(
   return {
     conversationId: response.conversationId,
     attachedPocketId: response.attachedPocketId,
+    attachedPocketIds: response.attachedPocketIds || [],
+    pockets: response.pockets || [],
     pocketName: response.pocketName,
     pocketDescription: response.pocketDescription,
   };
 }
 
 /**
- * Check if a conversation has an attached pocket
+ * Check if a conversation has attached pockets
  * 
  * @param conversationId - ID of the conversation
- * @returns True if pocket is attached, false otherwise
+ * @returns True if at least one pocket is attached, false otherwise
  */
 export async function hasAttachedPocket(conversationId: string): Promise<boolean> {
   try {
     const result = await getAttachedPocket(conversationId);
-    return result.attachedPocketId !== null;
+    return (result.attachedPocketIds && result.attachedPocketIds.length > 0) || result.attachedPocketId !== null;
   } catch (error) {
     console.error("Failed to check attached pocket:", error);
     return false;

@@ -282,6 +282,7 @@ export interface ConversationAttachPocketPayload {
 
 export interface ConversationDetachPocketPayload {
   conversationId: string;
+  pocketId?: string; // Optional: detach specific pocket, or all if undefined
 }
 
 export interface ConversationGetAttachedPocketPayload {
@@ -290,9 +291,16 @@ export interface ConversationGetAttachedPocketPayload {
 
 export interface ConversationAttachedPocketResult {
   conversationId: string;
-  attachedPocketId: string | null;
-  pocketName?: string;
-  pocketDescription?: string;
+  attachedPocketId: string | null; // For backward compatibility (first pocket)
+  attachedPocketIds?: string[]; // All attached pocket IDs
+  pockets?: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+  }>;
+  pocketName?: string; // For backward compatibility (first pocket)
+  pocketDescription?: string; // For backward compatibility (first pocket)
 }
 
 // Storage Keys

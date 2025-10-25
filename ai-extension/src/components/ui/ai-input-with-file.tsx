@@ -1,7 +1,7 @@
 "use client";
 
 import { Cloud, CornerRightUp, Cpu, FileUp, Plus, Sparkles, X, Zap, Mic, MicOff } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useFileInput } from "@/components/hooks/use-file-input";
@@ -39,9 +39,11 @@ interface AIInputWithFileProps {
   onModelChange?: (model: "auto" | "nano" | "flash-lite" | "flash" | "pro") => void;
   autoContext?: boolean;
   onAutoContextChange?: (enabled: boolean) => void;
-  attachedPocketId?: string | null;
+  attachedPocketId?: string | null; // Deprecated: use attachedPocketIds
+  attachedPocketIds?: string[];
+  attachedPockets?: Array<{id: string; name: string; description?: string; color?: string}>;
   onAttachPocket?: (pocketId: string) => void;
-  onDetachPocket?: () => void;
+  onDetachPocket?: (pocketId?: string) => void;
 }
 
 export function AIInputWithFile({
@@ -60,6 +62,8 @@ export function AIInputWithFile({
   autoContext = true,
   onAutoContextChange,
   attachedPocketId = null,
+  attachedPocketIds = [],
+  attachedPockets = [],
   onAttachPocket,
   onDetachPocket,
 }: AIInputWithFileProps) {
@@ -74,7 +78,6 @@ export function AIInputWithFile({
   // Pocket attachment state
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showPocketSelector, setShowPocketSelector] = useState(false);
-  const [attachedPocket, setAttachedPocket] = useState<PocketInfo | null>(null);
   
   // Element mention state
   const [showElementMention, setShowElementMention] = useState(false);
@@ -364,41 +367,18 @@ export function AIInputWithFile({
     }
   };
 
-  // Load attached pocket info when attachedPocketId changes
-  useEffect(() => {
-    if (!attachedPocketId) {
-      setAttachedPocket(null);
-      return;
-    }
-
-    // Fetch pocket info
-    const fetchPocketInfo = async () => {
-      try {
-        const response = await chrome.runtime.sendMessage({
-          kind: "POCKET_GET",
-          requestId: crypto.randomUUID(),
-          payload: { pocketId: attachedPocketId },
-        });
-
-        if (response.success && response.data?.pocket) {
-          const p = response.data.pocket;
-          setAttachedPocket({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            color: p.color,
-            icon: p.icon,
-            contentCount: p.contentIds?.length || 0,
-            isIndexing: false,
-          });
-        }
-      } catch (error) {
-        console.error("Failed to fetch pocket info:", error);
-      }
-    };
-
-    fetchPocketInfo();
-  }, [attachedPocketId]);
+  // Convert attachedPockets to PocketInfo format
+  const pocketInfos: PocketInfo[] = useMemo(() => {
+    return attachedPockets.map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description || "",
+      color: p.color || "#3b82f6",
+      icon: "",
+      contentCount: 0,
+      isIndexing: false,
+    }));
+  }, [attachedPockets]);
 
   // Pocket management handlers
   const handleAddPocket = () => {
@@ -411,9 +391,9 @@ export function AIInputWithFile({
     setShowPocketSelector(false);
   };
 
-  const handleRemovePocket = () => {
-    // Call parent handler to detach pocket
-    onDetachPocket?.();
+  const handleRemovePocket = (pocketId: string) => {
+    // Call parent handler to detach specific pocket
+    onDetachPocket?.(pocketId);
     setMentionedElements([]);
   };
 
@@ -447,8 +427,8 @@ export function AIInputWithFile({
     setInputValue(value);
     adjustHeight();
 
-    // Check for @ mention only if pocket is attached
-    if (!attachedPocket) {
+    // Check for @ mention only if pockets are attached
+    if (pocketInfos.length === 0) {
       setShowElementMention(false);
       return;
     }
@@ -508,10 +488,10 @@ export function AIInputWithFile({
           </div>
         )}
 
-        {/* Selected Pocket Pill */}
-        {attachedPocket && (
+        {/* Selected Pockets Pills */}
+        {pocketInfos.length > 0 && (
           <SelectedPocketsPills
-            pockets={[attachedPocket]}
+            pockets={pocketInfos}
             onRemove={handleRemovePocket}
             disabled={disabled}
           />
@@ -841,12 +821,12 @@ export function AIInputWithFile({
         isOpen={showPocketSelector}
         onClose={() => setShowPocketSelector(false)}
         onSelectPocket={handleSelectPocket}
-        selectedPocketIds={attachedPocket ? [attachedPocket.id] : []}
+        selectedPocketIds={attachedPocketIds}
         disabled={disabled}
       />
 
       {/* Element Mention Autocomplete */}
-      {attachedPocket && (
+      {pocketInfos.length > 0 && (
         <ElementMentionAutocomplete
           isOpen={showElementMention}
           onClose={() => {
@@ -854,7 +834,7 @@ export function AIInputWithFile({
             setMentionQuery("");
           }}
           onSelectElement={handleSelectElement}
-          selectedPockets={[attachedPocket]}
+          selectedPockets={pocketInfos}
           query={mentionQuery}
           position={mentionPosition}
           disabled={disabled}

@@ -106,8 +106,9 @@ export function ChatApp() {
   const [exportMenuOpenForMessage, setExportMenuOpenForMessage] = React.useState<string | null>(null);
   // Virtual scroll activation threshold and setup
   const useVirtualizedMessages = messages.length > 50;
-  // Attached pocket for current conversation
-  const [attachedPocketId, setAttachedPocketId] = React.useState<string | null>(null);
+  // Attached pockets for current conversation
+  const [attachedPocketIds, setAttachedPocketIds] = React.useState<string[]>([]);
+  const [attachedPockets, setAttachedPockets] = React.useState<Array<{id: string; name: string; description?: string; color?: string}>>([]);
   const rowVirtualizer = useVirtualizer({
     count: useVirtualizedMessages ? messages.length : 0,
     getScrollElement: () => conversationContentRef.current,
@@ -478,13 +479,15 @@ export function ChatApp() {
           });
           console.log("✅ New conversation created with user message");
 
-          // Attach pocket if one was selected
-          if (attachedPocketId) {
+          // Attach pockets if any were selected
+          if (attachedPocketIds.length > 0) {
             try {
-              await attachPocketToConversation(conversationId, attachedPocketId);
-              console.log(`✅ Pocket ${attachedPocketId} attached to new conversation`);
+              for (const pocketId of attachedPocketIds) {
+                await attachPocketToConversation(conversationId, pocketId);
+                console.log(`✅ Pocket ${pocketId} attached to new conversation`);
+              }
             } catch (error) {
-              console.error("Failed to attach pocket to new conversation:", error);
+              console.error("Failed to attach pockets to new conversation:", error);
             }
           }
         }
@@ -611,20 +614,48 @@ export function ChatApp() {
   const handleNewChat = () => {
     setMessages([]);
     setCurrentConversationId(null);
-    setAttachedPocketId(null);
+    setAttachedPocketIds([]);
+    setAttachedPockets([]);
   };
 
   // Handle pocket attachment
   const handleAttachPocket = async (pocketId: string) => {
     if (!currentConversationId) {
-      // Store for when conversation is created
-      setAttachedPocketId(pocketId);
+      // Store for when conversation is created - add to list if not already present
+      if (!attachedPocketIds.includes(pocketId)) {
+        try {
+          // Fetch pocket details to display in UI
+          const response = await chrome.runtime.sendMessage({
+            kind: "POCKET_GET",
+            requestId: crypto.randomUUID(),
+            payload: { pocketId },
+          });
+
+          if (response.success && response.data?.pocket) {
+            const pocket = response.data.pocket;
+            setAttachedPocketIds([...attachedPocketIds, pocketId]);
+            setAttachedPockets([...attachedPockets, {
+              id: pocket.id,
+              name: pocket.name,
+              description: pocket.description,
+              color: pocket.color,
+            }]);
+          }
+        } catch (error) {
+          console.error("Failed to fetch pocket details:", error);
+        }
+      }
       return;
     }
 
     try {
       await attachPocketToConversation(currentConversationId, pocketId);
-      setAttachedPocketId(pocketId);
+      
+      // Reload attached pockets
+      const result = await getAttachedPocket(currentConversationId);
+      setAttachedPocketIds(result.attachedPocketIds || []);
+      setAttachedPockets(result.pockets || []);
+      
       console.log(`✅ Pocket ${pocketId} attached to conversation ${currentConversationId}`);
     } catch (error) {
       console.error("Failed to attach pocket:", error);
@@ -632,16 +663,27 @@ export function ChatApp() {
     }
   };
 
-  const handleDetachPocket = async () => {
+  const handleDetachPocket = async (pocketId?: string) => {
     if (!currentConversationId) {
-      setAttachedPocketId(null);
+      if (pocketId) {
+        setAttachedPocketIds(attachedPocketIds.filter(id => id !== pocketId));
+        setAttachedPockets(attachedPockets.filter(p => p.id !== pocketId));
+      } else {
+        setAttachedPocketIds([]);
+        setAttachedPockets([]);
+      }
       return;
     }
 
     try {
-      await detachPocketFromConversation(currentConversationId);
-      setAttachedPocketId(null);
-      console.log(`✅ Pocket detached from conversation ${currentConversationId}`);
+      await detachPocketFromConversation(currentConversationId, pocketId);
+      
+      // Reload attached pockets
+      const result = await getAttachedPocket(currentConversationId);
+      setAttachedPocketIds(result.attachedPocketIds || []);
+      setAttachedPockets(result.pockets || []);
+      
+      console.log(`✅ Pocket ${pocketId || 'all'} detached from conversation ${currentConversationId}`);
     } catch (error) {
       console.error("Failed to detach pocket:", error);
       alert("Failed to detach pocket. Please try again.");
@@ -793,29 +835,33 @@ export function ChatApp() {
 
         setMessages(chatMessages);
 
-        // Load attached pocket if any
+        // Load attached pockets if any
         try {
           const pocketResult = await getAttachedPocket(id);
-          setAttachedPocketId(pocketResult.attachedPocketId);
-          if (pocketResult.attachedPocketId) {
-            console.log(`📎 Loaded attached pocket: ${pocketResult.pocketName}`);
+          setAttachedPocketIds(pocketResult.attachedPocketIds || []);
+          setAttachedPockets(pocketResult.pockets || []);
+          if (pocketResult.attachedPocketIds && pocketResult.attachedPocketIds.length > 0) {
+            console.log(`📎 Loaded ${pocketResult.attachedPocketIds.length} attached pocket(s)`);
           }
         } catch (error) {
-          console.error("Failed to load attached pocket:", error);
-          setAttachedPocketId(null);
+          console.error("Failed to load attached pockets:", error);
+          setAttachedPocketIds([]);
+          setAttachedPockets([]);
         }
       } else {
         console.error("Failed to load conversation:", response.error);
         // Fallback to empty conversation
         setCurrentConversationId(id);
         setMessages([]);
-        setAttachedPocketId(null);
+        setAttachedPocketIds([]);
+        setAttachedPockets([]);
       }
     } catch (error) {
       console.error("Error loading conversation:", error);
       setCurrentConversationId(id);
       setMessages([]);
-      setAttachedPocketId(null);
+      setAttachedPocketIds([]);
+      setAttachedPockets([]);
     }
   };
 
@@ -1503,7 +1549,8 @@ export function ChatApp() {
                   onModelChange={setSelectedModel}
                   autoContext={autoContext}
                   onAutoContextChange={setAutoContext}
-                  attachedPocketId={attachedPocketId}
+                  attachedPocketIds={attachedPocketIds}
+                  attachedPockets={attachedPockets}
                   onAttachPocket={handleAttachPocket}
                   onDetachPocket={handleDetachPocket}
                 />
