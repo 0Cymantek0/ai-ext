@@ -43,6 +43,9 @@ export type MessageKind =
   | "CONVERSATION_DELETE"
   | "CONVERSATION_GENERATE_METADATA"
   | "CONVERSATION_SEMANTIC_SEARCH"
+  | "CONVERSATION_ATTACH_POCKET"
+  | "CONVERSATION_DETACH_POCKET"
+  | "CONVERSATION_GET_ATTACHED_POCKET"
   | "METADATA_QUEUE_STATUS"
   | "ABBREVIATION_CREATE"
   | "ABBREVIATION_GET"
@@ -268,6 +271,27 @@ export interface AbbreviationExpandPayload {
 export interface AbbreviationExpandResult {
   expansion: string;
   abbreviation: Abbreviation;
+}
+
+// Conversation Pocket Attachment Types
+export interface ConversationAttachPocketPayload {
+  conversationId: string;
+  pocketId: string;
+}
+
+export interface ConversationDetachPocketPayload {
+  conversationId: string;
+}
+
+export interface ConversationGetAttachedPocketPayload {
+  conversationId: string;
+}
+
+export interface ConversationAttachedPocketResult {
+  conversationId: string;
+  attachedPocketId: string | null;
+  pocketName?: string;
+  pocketDescription?: string;
 }
 
 // Storage Keys

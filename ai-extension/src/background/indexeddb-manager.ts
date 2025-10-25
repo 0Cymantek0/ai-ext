@@ -124,6 +124,7 @@ export interface ConversationMetadata {
 export interface Conversation {
   id: string;
   pocketId?: string;
+  attachedPocketId?: string; // Pocket attached for RAG context retrieval
   messages: Message[];
   createdAt: number;
   updatedAt: number;
@@ -940,6 +941,137 @@ export class IndexedDBManager {
         return await this.promisifyRequest(
           tx.objectStore(StoreName.VECTOR_CHUNKS).getAll(),
         );
+      },
+    );
+  }
+
+  // Conversation Pocket Attachment Operations
+
+  /**
+   * Attach a pocket to a conversation for RAG context retrieval
+   * @param conversationId - ID of the conversation
+   * @param pocketId - ID of the pocket to attach
+   * @throws IndexedDBError if conversation or pocket not found
+   */
+  async attachPocketToConversation(conversationId: string, pocketId: string): Promise<void> {
+    await this.executeTransaction(
+      [StoreName.CONVERSATIONS, StoreName.POCKETS],
+      "readwrite",
+      async (tx) => {
+        // Verify conversation exists
+        const conversationStore = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(conversationStore.get(conversationId));
+        
+        if (!conversation) {
+          throw new IndexedDBError(
+            IndexedDBErrorType.NOT_FOUND,
+            `Conversation ${conversationId} not found`,
+          );
+        }
+
+        // Verify pocket exists
+        const pocketStore = tx.objectStore(StoreName.POCKETS);
+        const pocket = await this.promisifyRequest(pocketStore.get(pocketId));
+        
+        if (!pocket) {
+          throw new IndexedDBError(
+            IndexedDBErrorType.NOT_FOUND,
+            `Pocket ${pocketId} not found`,
+          );
+        }
+
+        // Update conversation with attached pocket
+        const updated: Conversation = {
+          ...conversation,
+          attachedPocketId: pocketId,
+          updatedAt: Date.now(),
+        };
+
+        await this.promisifyRequest(conversationStore.put(updated));
+      },
+    );
+
+    logger.info("IndexedDBManager", "Pocket attached to conversation", {
+      conversationId,
+      pocketId,
+    });
+  }
+
+  /**
+   * Detach pocket from a conversation
+   * @param conversationId - ID of the conversation
+   * @throws IndexedDBError if conversation not found
+   */
+  async detachPocketFromConversation(conversationId: string): Promise<void> {
+    await this.executeTransaction(
+      StoreName.CONVERSATIONS,
+      "readwrite",
+      async (tx) => {
+        const store = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(store.get(conversationId));
+        
+        if (!conversation) {
+          throw new IndexedDBError(
+            IndexedDBErrorType.NOT_FOUND,
+            `Conversation ${conversationId} not found`,
+          );
+        }
+
+        // Remove attached pocket
+        const updated: Conversation = {
+          ...conversation,
+          attachedPocketId: undefined,
+          updatedAt: Date.now(),
+        };
+
+        await this.promisifyRequest(store.put(updated));
+      },
+    );
+
+    logger.info("IndexedDBManager", "Pocket detached from conversation", {
+      conversationId,
+    });
+  }
+
+  /**
+   * Get the pocket attached to a conversation
+   * @param conversationId - ID of the conversation
+   * @returns Attached pocket or null if no pocket attached or conversation not found
+   */
+  async getAttachedPocket(conversationId: string): Promise<Pocket | null> {
+    return this.executeTransaction(
+      [StoreName.CONVERSATIONS, StoreName.POCKETS],
+      "readonly",
+      async (tx) => {
+        const conversationStore = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(conversationStore.get(conversationId));
+        
+        if (!conversation || !conversation.attachedPocketId) {
+          return null;
+        }
+
+        const pocketStore = tx.objectStore(StoreName.POCKETS);
+        const pocket = await this.promisifyRequest(pocketStore.get(conversation.attachedPocketId));
+        
+        return pocket || null;
+      },
+    );
+  }
+
+  /**
+   * Get the attached pocket ID for a conversation (lightweight version)
+   * @param conversationId - ID of the conversation
+   * @returns Attached pocket ID or null
+   */
+  async getAttachedPocketId(conversationId: string): Promise<string | null> {
+    return this.executeTransaction(
+      StoreName.CONVERSATIONS,
+      "readonly",
+      async (tx) => {
+        const store = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(store.get(conversationId));
+        
+        return conversation?.attachedPocketId || null;
       },
     );
   }

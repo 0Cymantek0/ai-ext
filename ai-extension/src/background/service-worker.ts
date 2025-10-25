@@ -2210,6 +2210,84 @@ messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
   }
 });
 
+// Register conversation pocket attachment handlers
+messageRouter.registerHandler("CONVERSATION_ATTACH_POCKET", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_ATTACH_POCKET", payload);
+  try {
+    await indexedDBManager.init();
+    await indexedDBManager.attachPocketToConversation(
+      payload.conversationId,
+      payload.pocketId
+    );
+    
+    // Get pocket details for response
+    const pocket = await indexedDBManager.getPocket(payload.pocketId);
+    
+    logger.info("Handler", "CONVERSATION_ATTACH_POCKET success", {
+      conversationId: payload.conversationId,
+      pocketId: payload.pocketId,
+      pocketName: pocket?.name,
+    });
+    
+    return {
+      success: true,
+      conversationId: payload.conversationId,
+      attachedPocketId: payload.pocketId,
+      pocketName: pocket?.name,
+      pocketDescription: pocket?.description,
+    };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_ATTACH_POCKET error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("CONVERSATION_DETACH_POCKET", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_DETACH_POCKET", payload);
+  try {
+    await indexedDBManager.init();
+    await indexedDBManager.detachPocketFromConversation(payload.conversationId);
+    
+    logger.info("Handler", "CONVERSATION_DETACH_POCKET success", {
+      conversationId: payload.conversationId,
+    });
+    
+    return {
+      success: true,
+      conversationId: payload.conversationId,
+      attachedPocketId: null,
+    };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_DETACH_POCKET error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("CONVERSATION_GET_ATTACHED_POCKET", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET", payload);
+  try {
+    await indexedDBManager.init();
+    const pocket = await indexedDBManager.getAttachedPocket(payload.conversationId);
+    
+    logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET success", {
+      conversationId: payload.conversationId,
+      found: !!pocket,
+      pocketId: pocket?.id,
+    });
+    
+    return {
+      success: true,
+      conversationId: payload.conversationId,
+      attachedPocketId: pocket?.id || null,
+      pocketName: pocket?.name,
+      pocketDescription: pocket?.description,
+    };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_GET_ATTACHED_POCKET error", error);
+    throw error;
+  }
+});
+
 // Register abbreviation handlers (Requirement 10.1, 10.2, 10.3, 10.5)
 messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_CREATE", payload);
