@@ -303,6 +303,15 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
     setPreviewContent(null);
   };
 
+  const handleNavigateImage = (content: CapturedContent) => {
+    setPreviewContent(content);
+  };
+
+  // Get all images from the current pocket for navigation
+  const allImages = React.useMemo(() => {
+    return filteredContents.filter(c => c.type === "image");
+  }, [filteredContents]);
+
   const handleEditNote = () => {
     // Close preview and open editor as full-screen overlay
     if (previewContent) {
@@ -680,6 +689,8 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
             content={previewContent}
             isOpen={isPreviewOpen}
             onClose={handleClosePreview}
+            allImages={allImages}
+            onNavigate={handleNavigateImage}
           />
         )
       )}
