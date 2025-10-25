@@ -9,7 +9,6 @@
 
 import { logger } from "./monitoring.js";
 import * as tf from '@tensorflow/tfjs';
-import { setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
 import * as use from '@tensorflow-models/universal-sentence-encoder';
 
 export interface LocalEmbeddingOptions {
@@ -23,6 +22,14 @@ export class LocalEmbeddingEngine {
   private embeddingCache = new Map<string, number[]>();
   private readonly MAX_CACHE_SIZE = 1000;
   private readonly EMBEDDING_DIM = 512; // USE outputs 512-dim vectors
+  
+  /**
+   * Check if we're running in a service worker context
+   */
+  private isServiceWorker(): boolean {
+    // Check if we're in a service worker by checking for service worker specific APIs
+    return 'ServiceWorkerGlobalScope' in self;
+  }
 
   /**
    * Load the Universal Sentence Encoder model
@@ -42,37 +49,48 @@ export class LocalEmbeddingEngine {
     // Start loading the model
     this.modelLoading = (async () => {
       try {
-        logger.info("LocalEmbeddingEngine", "Loading Universal Sentence Encoder model...");
+        logger.info("LocalEmbeddingEngine", "Loading Universal Sentence Encoder model...", {
+          isServiceWorker: this.isServiceWorker(),
+          availableBackends: tf.engine().registryFactory,
+        });
         
-        // Set TensorFlow.js backend (WASM for service worker compatibility)
-        // Try backends in order: webgpu > wasm > cpu
+        // Set TensorFlow.js backend for service worker compatibility
+        // WebGPU and WASM don't work in service workers due to:
+        // - WebGPU: requires rendering context (not available in service workers)
+        // - WASM: URL.createObjectURL not available in service workers
+        // WebGL works well in service workers and provides good performance
+        
+        // Try backends in order: webgl > cpu
+        const backendsToTry = ['webgl', 'cpu'];
         let backendSet = false;
-        for (const backend of ['webgpu', 'wasm', 'cpu']) {
+        
+        for (const backend of backendsToTry) {
           try {
-            // For WASM backend, set the path to WASM files
-            if (backend === 'wasm') {
-              setWasmPaths({
-                'tfjs-backend-wasm.wasm': chrome.runtime.getURL('tfjs-backend-wasm.wasm'),
-                'tfjs-backend-wasm-simd.wasm': chrome.runtime.getURL('tfjs-backend-wasm-simd.wasm'),
-                'tfjs-backend-wasm-threaded-simd.wasm': chrome.runtime.getURL('tfjs-backend-wasm-threaded-simd.wasm'),
-              });
-            }
+            logger.info("LocalEmbeddingEngine", `Attempting to initialize ${backend} backend...`);
             
             await tf.setBackend(backend);
             await tf.ready();
             backendSet = true;
-            logger.info("LocalEmbeddingEngine", `Using TensorFlow.js backend: ${backend}`);
+            
+            logger.info("LocalEmbeddingEngine", `Successfully initialized TensorFlow.js backend: ${backend}`, {
+              backend: tf.getBackend(),
+              numTensors: tf.memory().numTensors,
+            });
             break;
-          } catch (e) {
-            logger.warn("LocalEmbeddingEngine", `Backend ${backend} not available, trying next`, { error: e });
+          } catch (error) {
+            logger.warn("LocalEmbeddingEngine", `Backend ${backend} initialization failed, trying next`, { 
+              error: error instanceof Error ? error.message : String(error),
+              backend,
+            });
           }
         }
         
         if (!backendSet) {
-          throw new Error("No TensorFlow.js backend available");
+          throw new Error("No TensorFlow.js backend available. Tried: " + backendsToTry.join(", "));
         }
         
         // Load the Universal Sentence Encoder model
+        logger.info("LocalEmbeddingEngine", "Downloading Universal Sentence Encoder model (~50MB)...");
         const loadedModel = await use.load();
         
         this.model = loadedModel;
@@ -81,12 +99,21 @@ export class LocalEmbeddingEngine {
         logger.info("LocalEmbeddingEngine", "Model loaded successfully", {
           backend: tf.getBackend(),
           embeddingDim: this.EMBEDDING_DIM,
+          memoryInfo: tf.memory(),
         });
         
         return loadedModel;
       } catch (error) {
         this.modelLoading = null;
-        logger.error("LocalEmbeddingEngine", "Failed to load model", { error });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        
+        logger.error("LocalEmbeddingEngine", "Failed to load model", { 
+          error: errorMessage,
+          stack: errorStack,
+          backend: tf.getBackend(),
+          isServiceWorker: this.isServiceWorker(),
+        });
         throw error;
       }
     })();
