@@ -6,8 +6,9 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SessionStore } from './session-store.js';
 import { ReportGenerator } from './report-generator.js';
-import { normalizeSession, RawSessionCapture } from './normalizer.js';
+import { normalizeSession } from './normalizer.js';
 import type { Session } from './types.js';
+import { CaptureReadError, readCaptureFile } from './utils/capture.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -72,10 +73,18 @@ program
     let session: Session | null = null;
 
     if (options.capture) {
-      const contents = await fs.readFile(options.capture, 'utf-8');
-      const raw: RawSessionCapture = JSON.parse(contents);
-      session = normalizeSession(raw);
-      sessionId = session.metadata.sessionId;
+      try {
+        const raw = await readCaptureFile(options.capture);
+        session = normalizeSession(raw);
+        sessionId = session.metadata.sessionId;
+      } catch (error: unknown) {
+        if (error instanceof CaptureReadError) {
+          console.error(`❌ ${error.message}`);
+        } else {
+          console.error(`❌ Failed to load capture: ${(error as Error).message}`);
+        }
+        process.exit(1);
+      }
     }
 
     if (!sessionId) {
@@ -130,8 +139,17 @@ program
   .action(async (input, options) => {
     console.log(`📥 Loading capture from: ${input}`);
 
-    const contents = await fs.readFile(input, 'utf-8');
-    const raw: RawSessionCapture = JSON.parse(contents);
+    let raw;
+    try {
+      raw = await readCaptureFile(input);
+    } catch (error: unknown) {
+      if (error instanceof CaptureReadError) {
+        console.error(`❌ ${error.message}`);
+      } else {
+        console.error(`❌ Failed to read capture: ${(error as Error).message}`);
+      }
+      process.exit(1);
+    }
 
     console.log(`🔄 Normalizing session data...`);
     const session = normalizeSession(raw);
