@@ -1750,6 +1750,19 @@ messageRouter.registerHandler("POCKET_UPDATE", async (payload: any) => {
   }
 });
 
+messageRouter.registerHandler("POCKET_GET", async (payload: any) => {
+  logger.info("Handler", "POCKET_GET", payload);
+  try {
+    await indexedDBManager.init();
+    const pocket = await indexedDBManager.getPocket(payload.pocketId);
+    logger.info("Handler", "POCKET_GET success", { pocketId: payload.pocketId });
+    return { pocket };
+  } catch (error) {
+    logger.error("Handler", "POCKET_GET error", error);
+    throw error;
+  }
+});
+
 messageRouter.registerHandler("POCKET_LIST", async (payload) => {
   logger.info("Handler", "POCKET_LIST", payload);
   try {
@@ -1973,12 +1986,26 @@ let metadataQueueManager: import("./metadata-queue-manager.js").MetadataQueueMan
 // Initialize metadata queue manager after a short delay to avoid blocking startup
 setTimeout(async () => {
   try {
+    logger.info("ServiceWorker", "Initializing metadata queue manager...");
+    
+    if (!aiManager) {
+      throw new Error("AIManager not available for metadata queue manager");
+    }
+    
     const { MetadataQueueManager } = await import("./metadata-queue-manager.js");
+    logger.info("ServiceWorker", "MetadataQueueManager module loaded");
+    
     metadataQueueManager = new MetadataQueueManager(aiManager);
+    logger.info("ServiceWorker", "MetadataQueueManager instance created");
+    
     metadataQueueManager.start();
-    logger.info("ServiceWorker", "Metadata queue manager started");
+    logger.info("ServiceWorker", "Metadata queue manager started successfully");
   } catch (error) {
-    logger.error("ServiceWorker", "Failed to start metadata queue manager", { error });
+    logger.error("ServiceWorker", "Failed to start metadata queue manager", { 
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined
+    });
   }
 }, 2000); // 2 second delay
 

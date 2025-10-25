@@ -14,6 +14,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
+import {
+  PocketAttachmentMenu,
+  PocketSelector,
+  SelectedPocketsPills,
+  ElementMentionAutocomplete,
+  type PocketInfo,
+  type ContentElement,
+  type MentionedElement,
+} from "@/components/chat";
 
 interface AIInputWithFileProps {
   id?: string;
@@ -30,6 +39,9 @@ interface AIInputWithFileProps {
   onModelChange?: (model: "auto" | "nano" | "flash-lite" | "flash" | "pro") => void;
   autoContext?: boolean;
   onAutoContextChange?: (enabled: boolean) => void;
+  attachedPocketId?: string | null;
+  onAttachPocket?: (pocketId: string) => void;
+  onDetachPocket?: () => void;
 }
 
 export function AIInputWithFile({
@@ -47,6 +59,9 @@ export function AIInputWithFile({
   onModelChange,
   autoContext = true,
   onAutoContextChange,
+  attachedPocketId = null,
+  onAttachPocket,
+  onDetachPocket,
 }: AIInputWithFileProps) {
   const [inputValue, setInputValue] = useState<string>("");
   const [isListening, setIsListening] = useState(false);
@@ -55,6 +70,17 @@ export function AIInputWithFile({
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
   const recognitionRef = useRef<any | null>(null);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Pocket attachment state
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [showPocketSelector, setShowPocketSelector] = useState(false);
+  const [attachedPocket, setAttachedPocket] = useState<PocketInfo | null>(null);
+  
+  // Element mention state
+  const [showElementMention, setShowElementMention] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionPosition, setMentionPosition] = useState<{ top: number; left: number } | undefined>();
+  const [mentionedElements, setMentionedElements] = useState<MentionedElement[]>([]);
   const {
     error,
     files,
@@ -338,13 +364,137 @@ export function AIInputWithFile({
     }
   };
 
+  // Load attached pocket info when attachedPocketId changes
+  useEffect(() => {
+    if (!attachedPocketId) {
+      setAttachedPocket(null);
+      return;
+    }
+
+    // Fetch pocket info
+    const fetchPocketInfo = async () => {
+      try {
+        const response = await chrome.runtime.sendMessage({
+          kind: "POCKET_GET",
+          requestId: crypto.randomUUID(),
+          payload: { pocketId: attachedPocketId },
+        });
+
+        if (response.success && response.data?.pocket) {
+          const p = response.data.pocket;
+          setAttachedPocket({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            color: p.color,
+            icon: p.icon,
+            contentCount: p.contentIds?.length || 0,
+            isIndexing: false,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch pocket info:", error);
+      }
+    };
+
+    fetchPocketInfo();
+  }, [attachedPocketId]);
+
+  // Pocket management handlers
+  const handleAddPocket = () => {
+    setShowPocketSelector(true);
+  };
+
+  const handleSelectPocket = (pocket: PocketInfo) => {
+    // Call parent handler to attach pocket to conversation
+    onAttachPocket?.(pocket.id);
+    setShowPocketSelector(false);
+  };
+
+  const handleRemovePocket = () => {
+    // Call parent handler to detach pocket
+    onDetachPocket?.();
+    setMentionedElements([]);
+  };
+
+  // Element mention handlers
+  const handleSelectElement = (element: ContentElement) => {
+    const mentionedElement: MentionedElement = {
+      ...element,
+      mentionId: crypto.randomUUID(),
+    };
+    
+    setMentionedElements((prev) => [...prev, mentionedElement]);
+    
+    // Insert mention into input at cursor position
+    const mentionText = `@${element.title}`;
+    setInputValue((prev) => {
+      // Replace the @ and query with the mention
+      const beforeMention = prev.slice(0, prev.lastIndexOf("@"));
+      const afterMention = prev.slice(prev.lastIndexOf("@") + mentionQuery.length + 1);
+      return beforeMention + mentionText + " " + afterMention;
+    });
+    
+    setShowElementMention(false);
+    setMentionQuery("");
+    
+    // Focus back on textarea
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
+  // Detect @ mention trigger
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    adjustHeight();
+
+    // Check for @ mention only if pocket is attached
+    if (!attachedPocket) {
+      setShowElementMention(false);
+      return;
+    }
+
+    const cursorPosition = textareaRef.current?.selectionStart || 0;
+    const textBeforeCursor = value.slice(0, cursorPosition);
+    const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
+      
+      // Check if there's a space after @ (which would end the mention)
+      if (!textAfterAt.includes(" ")) {
+        setMentionQuery(textAfterAt);
+        setShowElementMention(true);
+        
+        // Calculate position for mention dropdown
+        if (textareaRef.current) {
+          const rect = textareaRef.current.getBoundingClientRect();
+          setMentionPosition({
+            top: rect.bottom + 8,
+            left: rect.left,
+          });
+        }
+      } else {
+        setShowElementMention(false);
+        setMentionQuery("");
+      }
+    } else {
+      setShowElementMention(false);
+      setMentionQuery("");
+    }
+  };
+
   const handleSubmit = () => {
     if (disabled) return;
     const hasText = Boolean(inputValue.trim());
     const hasFiles = Array.isArray(files) && files.length > 0;
     if (!hasText && !hasFiles) return;
+    
+    // TODO: Include selectedPockets and mentionedElements in submission
+    // This will need to be passed to the backend for RAG context
     onSubmit?.(inputValue, hasFiles ? files : undefined);
+    
     setInputValue("");
+    setMentionedElements([]);
     adjustHeight(true);
   };
 
@@ -356,6 +506,15 @@ export function AIInputWithFile({
           <div className="text-red-500 text-sm px-3 py-1 bg-red-50 dark:bg-red-900/20 rounded-lg">
             {error || voiceError}
           </div>
+        )}
+
+        {/* Selected Pocket Pill */}
+        {attachedPocket && (
+          <SelectedPocketsPills
+            pockets={[attachedPocket]}
+            onRemove={handleRemovePocket}
+            disabled={disabled}
+          />
         )}
 
         {/* Files Display */}
@@ -404,18 +563,28 @@ export function AIInputWithFile({
           onDragLeave={handleDragLeave}
         >
           <div className="relative">
-            {/* Attachment Button */}
-            <div
-              className={cn(
-                "absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 p-0 flex items-center justify-center",
-                disabled
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:cursor-pointer hover:bg-black/40 dark:hover:bg-white/15",
-              )}
-              onClick={() => !disabled && openFilePicker()}
-              title={`Attach file (${accept || 'any type'})`}
-            >
-              <Plus className="w-3.5 sm:w-4 h-3.5 sm:h-4 dark:text-white" />
+            {/* Attachment Button with Menu */}
+            <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-20">
+              <div
+                className={cn(
+                  "w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 p-0 flex items-center justify-center",
+                  disabled
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:cursor-pointer hover:bg-black/40 dark:hover:bg-white/15",
+                )}
+                onClick={() => !disabled && setShowAttachmentMenu(!showAttachmentMenu)}
+                title="Add file or pocket"
+              >
+                <Plus className="w-3.5 sm:w-4 h-3.5 sm:h-4 dark:text-white" />
+              </div>
+              
+              <PocketAttachmentMenu
+                isOpen={showAttachmentMenu}
+                onClose={() => setShowAttachmentMenu(false)}
+                onAddFile={() => openFilePicker()}
+                onAddPocket={handleAddPocket}
+                disabled={disabled}
+              />
             </div>
 
             {/* Model Selector moved below input */}
@@ -451,8 +620,7 @@ export function AIInputWithFile({
               value={inputValue}
               onChange={(e) => {
                 if (!disabled) {
-                  setInputValue(e.target.value);
-                  adjustHeight();
+                  handleInputChange(e.target.value);
                 }
               }}
               // Bind DnD on the textarea to ensure drops are captured even when overlay isn't active
@@ -667,6 +835,31 @@ export function AIInputWithFile({
           </div>
         </div>
       </div>
+
+      {/* Pocket Selector Modal */}
+      <PocketSelector
+        isOpen={showPocketSelector}
+        onClose={() => setShowPocketSelector(false)}
+        onSelectPocket={handleSelectPocket}
+        selectedPocketIds={attachedPocket ? [attachedPocket.id] : []}
+        disabled={disabled}
+      />
+
+      {/* Element Mention Autocomplete */}
+      {attachedPocket && (
+        <ElementMentionAutocomplete
+          isOpen={showElementMention}
+          onClose={() => {
+            setShowElementMention(false);
+            setMentionQuery("");
+          }}
+          onSelectElement={handleSelectElement}
+          selectedPockets={[attachedPocket]}
+          query={mentionQuery}
+          position={mentionPosition}
+          disabled={disabled}
+        />
+      )}
     </div>
   );
 }

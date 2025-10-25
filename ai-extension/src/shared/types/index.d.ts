@@ -24,6 +24,7 @@ export type MessageKind =
   | "AI_PROCESS_TEXT_CORRECTION"
   | "POCKET_CREATE"
   | "POCKET_UPDATE"
+  | "POCKET_GET"
   | "POCKET_LIST"
   | "POCKET_DELETE"
   | "POCKET_SEARCH"
