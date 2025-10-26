@@ -1,6 +1,14 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical, Download, FileText } from "lucide-react";
+import { exportPocket } from "@/lib/pocket-export-service";
 
 export interface PocketData {
   id: string;
@@ -34,6 +42,7 @@ export function PocketCard({
   indexingStatus,
 }: PocketCardProps) {
   const [showActions, setShowActions] = React.useState(false);
+  const [isExporting, setIsExporting] = React.useState(false);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -64,6 +73,26 @@ export function PocketCard({
     if (onShare) {
       onShare(pocket);
     }
+  };
+
+  const handleExport = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsExporting(true);
+    try {
+      await exportPocket(pocket);
+      // Success feedback could be added here
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert(`Failed to export pocket: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleReport = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // TODO: Implement report functionality
+    alert("Report functionality coming soon!");
   };
 
   if (viewMode === "list") {
@@ -199,6 +228,28 @@ export function PocketCard({
               />
             </svg>
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => e.stopPropagation()}
+                title="More options"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onClick={handleExport} disabled={isExporting}>
+                <Download className="w-4 h-4 mr-2" />
+                {isExporting ? "Exporting..." : "Export"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleReport}>
+                <FileText className="w-4 h-4 mr-2" />
+                Report
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     );
@@ -323,6 +374,29 @@ export function PocketCard({
             />
           </svg>
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => e.stopPropagation()}
+              title="More options"
+              className="h-7 w-7 p-0"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={handleExport} disabled={isExporting}>
+              <Download className="w-4 h-4 mr-2" />
+              {isExporting ? "Exporting..." : "Export"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleReport}>
+              <FileText className="w-4 h-4 mr-2" />
+              Report
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
