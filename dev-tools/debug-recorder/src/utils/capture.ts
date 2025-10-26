@@ -6,7 +6,11 @@ export type CaptureErrorCode = 'file-not-found' | 'invalid-json' | 'read-failed'
 export class CaptureReadError extends Error {
   public readonly cause?: unknown;
 
-  constructor(public readonly code: CaptureErrorCode, message: string, cause?: unknown) {
+  constructor(
+    public readonly code: CaptureErrorCode,
+    message: string,
+    cause?: unknown
+  ) {
     super(message);
     this.name = 'CaptureReadError';
     this.cause = cause;
@@ -29,6 +33,10 @@ export async function readCaptureFile(filePath: string): Promise<RawSessionCaptu
   try {
     return JSON.parse(contents) as RawSessionCapture;
   } catch (error: unknown) {
-    throw new CaptureReadError('invalid-json', `Capture file is not valid JSON: ${filePath}`, error);
+    throw new CaptureReadError(
+      'invalid-json',
+      `Capture file is not valid JSON: ${filePath}`,
+      error
+    );
   }
 }

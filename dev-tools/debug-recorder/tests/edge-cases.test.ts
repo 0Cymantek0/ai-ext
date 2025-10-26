@@ -103,7 +103,9 @@ describe('Edge Cases', () => {
             timestamp: Date.now(),
             message: 'Test error',
             source: 'test',
-            stack: 'Error: Test\n' + Array.from({ length: 100 }, (_, i) => `  at fn${i} (file.ts:${i})`).join('\n'),
+            stack:
+              'Error: Test\n' +
+              Array.from({ length: 100 }, (_, i) => `  at fn${i} (file.ts:${i})`).join('\n'),
           },
         ],
         snapshots: [],

@@ -14,7 +14,9 @@ function nextPort(): number {
   return portCounter;
 }
 
-async function createServer(config: Partial<BridgeServerConfig> = {}): Promise<{ token: string; port: number }> {
+async function createServer(
+  config: Partial<BridgeServerConfig> = {}
+): Promise<{ token: string; port: number }> {
   if (server) {
     await server.stop();
     server = null;
@@ -26,18 +28,28 @@ async function createServer(config: Partial<BridgeServerConfig> = {}): Promise<{
   return { token, port };
 }
 
-async function connect({ token, port, context = 'background' }: { token: string; port: number; context?: 'background' | 'content-script' | 'side-panel' | 'offscreen' }): Promise<WebSocket> {
+async function connect({
+  token,
+  port,
+  context = 'background',
+}: {
+  token: string;
+  port: number;
+  context?: 'background' | 'content-script' | 'side-panel' | 'offscreen';
+}): Promise<WebSocket> {
   return new Promise<WebSocket>((resolve, reject) => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}`);
     const timeout = setTimeout(() => reject(new Error('Handshake timeout')), 3000);
 
     ws.on('open', () => {
-      ws.send(JSON.stringify({
-        type: 'HANDSHAKE',
-        id: 'handshake-1',
-        timestamp: Date.now(),
-        payload: { token, context, extensionId: 'test-extension', sessionId: 'test-e2e' },
-      }));
+      ws.send(
+        JSON.stringify({
+          type: 'HANDSHAKE',
+          id: 'handshake-1',
+          timestamp: Date.now(),
+          payload: { token, context, extensionId: 'test-extension', sessionId: 'test-e2e' },
+        })
+      );
     });
 
     ws.on('message', (raw) => {
@@ -85,12 +97,14 @@ describe('Bridge E2E Scenarios', () => {
 
     // Send normal events
     for (let i = 0; i < 3; i++) {
-      client.send(JSON.stringify({
-        type: 'EVENT',
-        id: `event-${i}`,
-        timestamp: Date.now(),
-        payload: { eventType: 'LOG', data: { index: i }, context: 'background' },
-      }));
+      client.send(
+        JSON.stringify({
+          type: 'EVENT',
+          id: `event-${i}`,
+          timestamp: Date.now(),
+          payload: { eventType: 'LOG', data: { index: i }, context: 'background' },
+        })
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(events).toHaveLength(3);
@@ -108,19 +122,21 @@ describe('Bridge E2E Scenarios', () => {
     await pauseReceived;
 
     // Simulate buffered batch
-    client.send(JSON.stringify({
-      type: 'BATCH',
-      id: 'buffered-batch',
-      timestamp: Date.now(),
-      payload: {
-        events: [
-          { eventType: 'LOG', data: { index: 3 }, timestamp: Date.now() },
-          { eventType: 'LOG', data: { index: 4 }, timestamp: Date.now() },
-        ],
-        context: 'background',
-        bufferedSince: Date.now() - 1000,
-      },
-    }));
+    client.send(
+      JSON.stringify({
+        type: 'BATCH',
+        id: 'buffered-batch',
+        timestamp: Date.now(),
+        payload: {
+          events: [
+            { eventType: 'LOG', data: { index: 3 }, timestamp: Date.now() },
+            { eventType: 'LOG', data: { index: 4 }, timestamp: Date.now() },
+          ],
+          context: 'background',
+          bufferedSince: Date.now() - 1000,
+        },
+      })
+    );
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(batches).toHaveLength(1);
     expect(batches[0].payload.events).toHaveLength(2);
@@ -149,19 +165,27 @@ describe('Bridge E2E Scenarios', () => {
     const content = await connect({ token, port, context: 'content-script' });
 
     // Send events from both
-    background.send(JSON.stringify({
-      type: 'EVENT',
-      id: 'bg-event-1',
-      timestamp: Date.now(),
-      payload: { eventType: 'LOG', data: { source: 'background' }, context: 'background' },
-    }));
+    background.send(
+      JSON.stringify({
+        type: 'EVENT',
+        id: 'bg-event-1',
+        timestamp: Date.now(),
+        payload: { eventType: 'LOG', data: { source: 'background' }, context: 'background' },
+      })
+    );
 
-    content.send(JSON.stringify({
-      type: 'EVENT',
-      id: 'cs-event-1',
-      timestamp: Date.now(),
-      payload: { eventType: 'INTERACTION', data: { source: 'content' }, context: 'content-script' },
-    }));
+    content.send(
+      JSON.stringify({
+        type: 'EVENT',
+        id: 'cs-event-1',
+        timestamp: Date.now(),
+        payload: {
+          eventType: 'INTERACTION',
+          data: { source: 'content' },
+          context: 'content-script',
+        },
+      })
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 50));
 
@@ -177,19 +201,23 @@ describe('Bridge E2E Scenarios', () => {
     let received = 0;
 
     const { token, port } = await createServer({
-      onEvent: () => { received++; },
+      onEvent: () => {
+        received++;
+      },
     });
 
     const client = await connect({ token, port });
 
     // Send 100 events rapidly
     for (let i = 0; i < 100; i++) {
-      client.send(JSON.stringify({
-        type: 'EVENT',
-        id: `event-${i}`,
-        timestamp: Date.now(),
-        payload: { eventType: 'LOG', data: { index: i }, context: 'background' },
-      }));
+      client.send(
+        JSON.stringify({
+          type: 'EVENT',
+          id: `event-${i}`,
+          timestamp: Date.now(),
+          payload: { eventType: 'LOG', data: { index: i }, context: 'background' },
+        })
+      );
     }
 
     // Wait for processing
@@ -273,12 +301,14 @@ describe('Bridge E2E Scenarios', () => {
       });
     });
 
-    client.send(JSON.stringify({
-      type: 'HEARTBEAT',
-      id: 'test-heartbeat',
-      timestamp: Date.now(),
-      payload: { clientId: 'background' },
-    }));
+    client.send(
+      JSON.stringify({
+        type: 'HEARTBEAT',
+        id: 'test-heartbeat',
+        timestamp: Date.now(),
+        payload: { clientId: 'background' },
+      })
+    );
 
     await ackReceived;
     await close(client);
@@ -289,36 +319,44 @@ describe('Bridge E2E Scenarios', () => {
     let batchCount = 0;
 
     const { token, port } = await createServer({
-      onEvent: () => { eventCount++; },
-      onBatch: (batch) => { batchCount += batch.payload.events.length; },
+      onEvent: () => {
+        eventCount++;
+      },
+      onBatch: (batch) => {
+        batchCount += batch.payload.events.length;
+      },
     });
 
     const client = await connect({ token, port });
 
     // Send individual events
     for (let i = 0; i < 5; i++) {
-      client.send(JSON.stringify({
-        type: 'EVENT',
-        id: `event-${i}`,
-        timestamp: Date.now(),
-        payload: { eventType: 'LOG', data: { i }, context: 'background' },
-      }));
+      client.send(
+        JSON.stringify({
+          type: 'EVENT',
+          id: `event-${i}`,
+          timestamp: Date.now(),
+          payload: { eventType: 'LOG', data: { i }, context: 'background' },
+        })
+      );
     }
 
     // Send batch
-    client.send(JSON.stringify({
-      type: 'BATCH',
-      id: 'batch-1',
-      timestamp: Date.now(),
-      payload: {
-        events: [
-          { eventType: 'LOG', data: { i: 5 }, timestamp: Date.now() },
-          { eventType: 'LOG', data: { i: 6 }, timestamp: Date.now() },
-          { eventType: 'LOG', data: { i: 7 }, timestamp: Date.now() },
-        ],
-        context: 'background',
-      },
-    }));
+    client.send(
+      JSON.stringify({
+        type: 'BATCH',
+        id: 'batch-1',
+        timestamp: Date.now(),
+        payload: {
+          events: [
+            { eventType: 'LOG', data: { i: 5 }, timestamp: Date.now() },
+            { eventType: 'LOG', data: { i: 6 }, timestamp: Date.now() },
+            { eventType: 'LOG', data: { i: 7 }, timestamp: Date.now() },
+          ],
+          context: 'background',
+        },
+      })
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 50));
 

@@ -28,6 +28,7 @@ ai-pocket-recorder start --extension-id <chrome-extension-id>
 ```
 
 Options:
+
 - `--extension-id <id>` - Chrome extension ID to monitor
 - `--extension-version <version>` - Extension version
 - `--chrome-version <version>` - Chrome version
@@ -39,6 +40,7 @@ Options:
 - `--port <port>` - Port for WebSocket bridge server (default: 9229)
 
 The interactive UI shows:
+
 - **Live state** (recording/paused/stopped)
 - **Session clock** with accurate uptime tracking
 - **Connected contexts** from the extension
@@ -47,6 +49,7 @@ The interactive UI shows:
 #### Interactive Controls
 
 While recording:
+
 - **Ctrl+P** - Pause recording
 - **Ctrl+R** - Resume recording (when paused)
 - **Ctrl+C** - Stop and exit gracefully
@@ -54,6 +57,7 @@ While recording:
 ### Session State Commands
 
 The CLI manages session state through an internal state machine with the following transitions:
+
 - `idle → recording` (start)
 - `recording → paused` (pause)
 - `paused → recording` (resume)
@@ -80,6 +84,7 @@ ai-pocket-recorder stop [session-id]
 If no session ID is provided, the most recent session will be used.
 
 Options:
+
 - `-o, --output <path>` - Custom output path for the report (default: `reports/<session-id>.md`)
 - `--max-tokens <number>` - Maximum tokens for report (default: 10000)
 - `--include-assets` - Include base64 screenshots in report
@@ -96,6 +101,7 @@ ai-pocket-recorder capture path/to/capture.json
 ```
 
 Options:
+
 - `-o, --output <path>` - Custom output path
 - `--max-tokens <number>` - Maximum tokens for report
 - `--include-assets` - Include base64 screenshots
@@ -213,12 +219,15 @@ See `tests/fixtures/sample-capture.json` for a complete example.
 Generated reports include:
 
 ### 1. Session Metadata
+
 - Session ID, timestamps, duration
 - Extension version and platform info
 - Recording options
 
 ### 2. Session Summary
+
 Timeline table with:
+
 - Interaction number and type
 - Status (✅ Success, ❌ Error, ⚠️ Warning, ⏳ Pending)
 - Timestamps and relative time deltas
@@ -226,13 +235,16 @@ Timeline table with:
 - Description
 
 ### 3. Detailed Interaction Chronology
+
 Collapsible `<details>` blocks for each interaction:
+
 - Interaction ID and metadata
 - Context data (JSON)
 - Associated logs (collapsed if large)
 - Errors with recovery status
 
 ### 4. Error Digests
+
 - Timestamp and message
 - Source location
 - Error code
@@ -240,12 +252,14 @@ Collapsible `<details>` blocks for each interaction:
 - Stack trace (fenced code block)
 
 ### 5. State Snapshots
+
 - Storage usage (IndexedDB, localStorage, chrome.storage)
 - AI state (active models, pending requests, token usage)
 - Performance metrics (memory, CPU)
 - Breadcrumbs trail
 
 ### 6. Captured Assets (optional)
+
 Collapsible sections with base64-encoded screenshots
 
 ## LLM Optimization
@@ -253,6 +267,7 @@ Collapsible sections with base64-encoded screenshots
 Reports are optimized for LLM consumption:
 
 ### Token Budget Allocation
+
 - **Metadata**: 5% (500 tokens for 10K budget)
 - **Summary**: 10% (1,000 tokens)
 - **Interactions**: 30% (3,000 tokens)
@@ -262,6 +277,7 @@ Reports are optimized for LLM consumption:
 - **Assets**: 5% (500 tokens)
 
 ### Optimizations
+
 - **Timestamp normalization**: ISO 8601 format
 - **Redundant line trimming**: Removes duplicate log entries
 - **Token-aware truncation**: Chunks long content with continuation markers
@@ -359,7 +375,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       errors: capturedErrors,
       snapshots: stateSnapshots,
     };
-    
+
     // Download as JSON
     const blob = new Blob([JSON.stringify(capture, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

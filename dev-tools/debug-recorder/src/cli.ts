@@ -41,6 +41,7 @@ program
   .action(async (options) => {
     const controller = new SessionController(sessionStore);
     let bridgeServer: BridgeServer | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let uiInstance: any = null;
 
     const cleanup = async () => {
@@ -84,16 +85,16 @@ program
         bridgeServer = new BridgeServer({
           port: parseInt(options.port, 10),
           sessionId,
-          onEvent: (event) => {
+          onEvent: (_event) => {
             // Events are processed in background
           },
-          onBatch: (batch) => {
+          onBatch: (_batch) => {
             // Batches are processed in background
           },
-          onClientConnected: (clientId, context) => {
+          onClientConnected: (_clientId, _context) => {
             // Connection events handled by UI
           },
-          onClientDisconnected: (clientId) => {
+          onClientDisconnected: (_clientId) => {
             // Disconnection events handled by UI
           },
         });
@@ -145,7 +146,7 @@ program
   .command('pause')
   .description('Pause the current recording session')
   .argument('[session-id]', 'Session ID to pause (uses latest if omitted)')
-  .action(async (sessionIdArg) => {
+  .action(async (_sessionIdArg) => {
     console.log('⏸️  Pause command - session control via start command UI');
     console.log('Use Ctrl+P within the interactive session to pause');
   });
@@ -154,7 +155,7 @@ program
   .command('resume')
   .description('Resume a paused recording session')
   .argument('[session-id]', 'Session ID to resume (uses latest if omitted)')
-  .action(async (sessionIdArg) => {
+  .action(async (_sessionIdArg) => {
     console.log('▶️  Resume command - session control via start command UI');
     console.log('Use Ctrl+R within the interactive session to resume');
   });

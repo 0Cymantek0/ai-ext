@@ -27,7 +27,12 @@ export function formatErrorDigests(errors: ErrorEntry[], maxTokens = 3000): stri
       lines.push('- **Context**:');
       lines.push('');
       lines.push('```json');
-      lines.push(truncateToTokenLimit(JSON.stringify(error.context, null, 2), Math.floor(tokensPerError * 0.3)));
+      lines.push(
+        truncateToTokenLimit(
+          JSON.stringify(error.context, null, 2),
+          Math.floor(tokensPerError * 0.3)
+        )
+      );
       lines.push('```');
     }
     if (error.stack) {

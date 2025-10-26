@@ -37,9 +37,7 @@ export class SessionStore {
   async list(): Promise<string[]> {
     await this.ensureDir();
     const files = await fs.readdir(this.baseDir);
-    return files
-      .filter((f) => f.endsWith('.json'))
-      .map((f) => f.replace(/\.json$/, ''));
+    return files.filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
   }
 
   async delete(sessionId: string): Promise<void> {

@@ -18,6 +18,7 @@ Report ID: c8d4f1e9-7b2a-4a3c-9e11-8f5d9c6ea123
 - Errors: ⚠️ 12 timeouts in last hour
 
 **Immediate Actions:**
+
 1. Check network connectivity
 2. Verify API key validity
 3. Switch to Gemini Nano (on-device) temporarily
@@ -27,6 +28,7 @@ Report ID: c8d4f1e9-7b2a-4a3c-9e11-8f5d9c6ea123
 ## AI Performance
 
 ### Gemini Nano — ✅ Healthy
+
 - Status: Available (v1.5.0)
 - Latency:
   - p50: 1.4s
@@ -35,6 +37,7 @@ Report ID: c8d4f1e9-7b2a-4a3c-9e11-8f5d9c6ea123
 - Errors: 0
 
 ### Cloud AI (Gemini Flash) — 🚨 Slow
+
 - Status: API key valid
 - Latency:
   - p50: 4.2s (expected: 0.8s) 🚨
@@ -51,6 +54,7 @@ Report ID: c8d4f1e9-7b2a-4a3c-9e11-8f5d9c6ea123
 ## Root Cause Analysis
 
 **Probable Issues:**
+
 1. **Network latency**: ISP throttling or regional server issues
 2. **API overload**: Google AI API experiencing high load
 3. **Configuration**: Possibly using distant region endpoint

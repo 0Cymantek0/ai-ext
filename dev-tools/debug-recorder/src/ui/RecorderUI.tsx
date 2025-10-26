@@ -156,14 +156,14 @@ export const RecorderUI: React.FC<RecorderUIProps> = ({ controller, bridgeServer
         <Text dimColor>Commands:</Text>
         {state === 'recording' && (
           <>
-            <Text dimColor>  • Press Ctrl+P to pause recording</Text>
-            <Text dimColor>  • Press Ctrl+C to stop and exit</Text>
+            <Text dimColor> • Press Ctrl+P to pause recording</Text>
+            <Text dimColor> • Press Ctrl+C to stop and exit</Text>
           </>
         )}
         {state === 'paused' && (
           <>
-            <Text dimColor>  • Press Ctrl+R to resume recording</Text>
-            <Text dimColor>  • Press Ctrl+C to stop and exit</Text>
+            <Text dimColor> • Press Ctrl+R to resume recording</Text>
+            <Text dimColor> • Press Ctrl+C to stop and exit</Text>
           </>
         )}
       </Box>
