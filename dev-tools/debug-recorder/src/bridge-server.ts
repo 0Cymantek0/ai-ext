@@ -188,7 +188,7 @@ export class BridgeServer {
    */
   getStatus(): ServerStatus {
     return {
-      running: this.wss !== null,
+      running: this.wss !== null && this.wss.address() !== null,
       port: this.port,
       sessionId: this.sessionId,
       connectedClients: this.clients.size,
@@ -306,7 +306,6 @@ export class BridgeServer {
           existingClient.sessionId === sessionId) {
         console.warn(`[BridgeServer] Duplicate connection from ${context}, closing old connection`);
         existingClient.ws.close();
-        this.clients.delete(existingClient.id);
       }
     }
 
