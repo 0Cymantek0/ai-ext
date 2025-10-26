@@ -20,11 +20,53 @@ if (typeof window === 'undefined') {
 import { logger, performanceMonitor } from "./monitoring.js";
 import { getQuotaManager } from "./quota-manager.js";
 import { AIManager } from "./ai-manager.js";
+import { initializeRuntimeLogging } from "../shared/runtime-logging.js";
+import { getLogBridgeClient, type LogBatch } from "../shared/log-bridge-client.js";
+import { attachLoggerBridge } from "./logger-wrapper.js";
+import { getLogCollector } from "./log-collector.js";
 import { CloudAIManager } from "./cloud-ai-manager.js";
 import { getStreamingHandler } from "./streaming-handler.js";
 import { indexedDBManager } from "./indexeddb-manager.js";
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
+
+// Initialize runtime logging (disabled by default until debug recording is enabled)
+initializeRuntimeLogging({
+  origin: "background",
+  tags: ["service-worker"],
+  category: "background",
+  bridge: {
+    enabled: false,
+    batchSize: 25,
+    flushIntervalMs: 2000,
+    maxQueueSize: 5000,
+  },
+});
+
+const logBridgeClient = getLogBridgeClient();
+attachLoggerBridge(logger, logBridgeClient, { tags: ["service-worker", "logger"] });
+const logCollector = getLogCollector();
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !Object.prototype.hasOwnProperty.call(changes, "debugRecorderEnabled")) {
+    return;
+  }
+
+  const change = changes.debugRecorderEnabled;
+  const enabled = change?.newValue === true;
+
+  if (enabled) {
+    logBridgeClient.enable();
+    void logCollector.startSession().catch((error) => {
+      logger.error("ServiceWorker", "Failed to start log session", error);
+    });
+  } else {
+    logBridgeClient.disable();
+    void logCollector.stopSession().catch((error) => {
+      logger.error("ServiceWorker", "Failed to stop log session", error);
+    });
+  }
+});
 import * as abbreviationStorage from "./abbreviation-storage.js";
 import { aiManager as aiManagerInstance } from "./ai-manager.js";
 import { ChromeLocalStorage } from "./storage-wrapper.js";
@@ -708,6 +750,18 @@ class ServiceWorkerLifecycle {
         logger.error("ServiceWorker", "Failed to start background processor", error);
       });
 
+      // Enable runtime logging if debug recorder is enabled
+      const debugRecorderEnabled = await chrome.storage.local.get('debugRecorderEnabled');
+      if (debugRecorderEnabled.debugRecorderEnabled === true) {
+        try {
+          logBridgeClient.enable();
+          await logCollector.startSession();
+          logger.info("ServiceWorker", "Debug recorder enabled - logs will be captured");
+        } catch (error) {
+          logger.error("ServiceWorker", "Failed to enable debug recorder", error);
+        }
+      }
+
       const initTime = performance.now() - startTime;
       performanceMonitor.recordMetric(
         "service-worker-init-time",
@@ -1223,6 +1277,17 @@ class MessageRouter {
 
 // Create singleton instance
 const messageRouter = new MessageRouter();
+
+// Register LOG_BATCH handler for collecting logs from all runtimes
+messageRouter.registerHandler("LOG_BATCH", async (payload: LogBatch) => {
+  try {
+    await logCollector.collectBatch(payload);
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "LOG_BATCH error", error);
+    return { success: false, error: "Failed to collect log batch" };
+  }
+});
 
 // Register content capture handler
 messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {

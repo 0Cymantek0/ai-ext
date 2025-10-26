@@ -97,3 +97,52 @@ export interface ReportOptions {
   collapseLogs?: boolean;
   collapseAssets?: boolean;
 }
+
+/**
+ * Structured log envelope with enhanced metadata
+ */
+export interface StructuredLogEnvelope {
+  timestamp: number;
+  level: 'debug' | 'log' | 'info' | 'warn' | 'error';
+  message: string;
+  data?: unknown[];
+  stack?: string;
+  origin: LogOrigin;
+  tags?: string[];
+  category?: string;
+}
+
+export type LogOrigin = 'background' | 'content-script' | 'side-panel' | 'offscreen';
+
+/**
+ * Log filtering configuration
+ */
+export interface LogFilterConfig {
+  allowPatterns?: RegExp[];
+  denyPatterns?: RegExp[];
+  minLevel?: StructuredLogEnvelope['level'];
+  origins?: LogOrigin[];
+  categories?: string[];
+  maxDuplicates?: number;
+  throttleMs?: number;
+  temporalWindowMs?: number;
+}
+
+/**
+ * Temporal correlation configuration
+ */
+export interface TemporalCorrelationConfig {
+  windowMs: Record<InteractionType, number>;
+}
+
+/**
+ * Network request entry for correlation
+ */
+export interface NetworkRequestEntry {
+  timestamp: number;
+  url: string;
+  method: string;
+  status?: number;
+  duration?: number;
+  interactionId?: string;
+}
