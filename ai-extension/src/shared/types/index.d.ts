@@ -32,6 +32,7 @@ export type MessageKind =
   | "CONTENT_GET"
   | "CONTENT_DELETE"
   | "CONTENT_SEARCH"
+  | "CONTENT_IMPORT"
   | "CONTENT_CREATED"
   | "CONTENT_UPDATED"
   | "CONTENT_DELETED"

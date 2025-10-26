@@ -22,7 +22,7 @@ import { getQuotaManager } from "./quota-manager.js";
 import { AIManager } from "./ai-manager.js";
 import { CloudAIManager } from "./cloud-ai-manager.js";
 import { getStreamingHandler } from "./streaming-handler.js";
-import { indexedDBManager } from "./indexeddb-manager.js";
+import { indexedDBManager, ContentType, ProcessingStatus } from "./indexeddb-manager.js";
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import * as abbreviationStorage from "./abbreviation-storage.js";
@@ -1996,6 +1996,69 @@ messageRouter.registerHandler("ERROR", async (payload) => {
   logger.error("Handler", "ERROR", payload);
   // Log error for debugging
   return { acknowledged: true };
+});
+
+// Register content import handler for pocket import feature
+messageRouter.registerHandler("CONTENT_IMPORT", async (payload) => {
+  logger.info("Handler", "CONTENT_IMPORT", payload);
+
+  try {
+    const { pocketId, content, sourceUrl, metadata } = payload as {
+      pocketId: string;
+      content: any;
+      sourceUrl: string;
+      metadata: any;
+    };
+
+    if (!pocketId) {
+      throw new Error("Missing required field: pocketId");
+    }
+
+    await indexedDBManager.init();
+
+    // Save content directly to IndexedDB
+    const contentId = await indexedDBManager.saveContent({
+      pocketId,
+      type: metadata.type || ContentType.TEXT,
+      content,
+      metadata: {
+        ...metadata,
+        timestamp: metadata.timestamp || Date.now(),
+        updatedAt: Date.now(),
+      },
+      sourceUrl: sourceUrl || "",
+      processingStatus: ProcessingStatus.COMPLETED,
+    });
+
+    logger.info("Handler", "Content imported successfully", {
+      contentId,
+      pocketId,
+      type: metadata.type,
+    });
+
+    // Enqueue vector indexing (non-blocking)
+    vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.CREATE).catch((error) => {
+      logger.error("Handler", "Failed to enqueue vector indexing for imported content", { contentId, error });
+    });
+
+    // Broadcast content created event
+    try {
+      const createdRecord = await indexedDBManager.getContent(contentId);
+      if (createdRecord) {
+        await messageRouter.sendToSidePanel({
+          kind: "CONTENT_CREATED",
+          payload: { content: createdRecord },
+        } as any);
+      }
+    } catch (broadcastError) {
+      logger.warn("Handler", "Failed to broadcast CONTENT_CREATED for import", broadcastError);
+    }
+
+    return { contentId, status: "success" };
+  } catch (error) {
+    logger.error("Handler", "CONTENT_IMPORT error", error);
+    throw error;
+  }
 });
 
 // Initialize AI managers for streaming

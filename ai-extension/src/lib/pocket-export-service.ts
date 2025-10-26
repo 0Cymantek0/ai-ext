@@ -106,9 +106,14 @@ async function fetchPocketContents(pocketId: string): Promise<ContentItem[]> {
       payload: { pocketId },
     });
 
-    if (response.success && response.data?.contents) {
-      return response.data.contents;
+    console.log("CONTENT_LIST response:", response);
+
+    // The response structure is { success: true, data: { content: [...] } }
+    if (response.success && response.data?.content) {
+      console.log(`Fetched ${response.data.content.length} content items for pocket ${pocketId}`);
+      return response.data.content;
     }
+    console.warn("No content found or invalid response structure");
     return [];
   } catch (error) {
     console.error("Error fetching pocket contents:", error);
@@ -235,20 +240,39 @@ export async function importPocket(file: File): Promise<void> {
     const contentsFile = zip.file("contents.json");
     if (contentsFile) {
       const contentsText = await contentsFile.async("text");
-      const contents: ContentItem[] = JSON.parse(contentsText);
+      const contents: any[] = JSON.parse(contentsText);
+
+      console.log(`Importing ${contents.length} content items...`);
 
       for (const content of contents) {
-        await chrome.runtime.sendMessage({
-          kind: "CONTENT_CREATE",
-          requestId: crypto.randomUUID(),
-          payload: {
-            pocketId: newPocketId,
-            type: content.type,
-            data: content.data,
-            metadata: content.metadata,
-          },
-        });
+        try {
+          // Use CONTENT_IMPORT to directly save content to IndexedDB
+          const response = await chrome.runtime.sendMessage({
+            kind: "CONTENT_IMPORT",
+            requestId: crypto.randomUUID(),
+            payload: {
+              pocketId: newPocketId,
+              content: content.content,
+              sourceUrl: content.sourceUrl || "",
+              metadata: {
+                type: content.type,
+                ...content.metadata,
+                timestamp: content.metadata?.timestamp || content.capturedAt || Date.now(),
+              },
+            },
+          });
+
+          if (response.success) {
+            console.log(`✅ Imported content item: ${response.data.contentId} (type: ${content.type})`);
+          } else {
+            console.error(`❌ Failed to import content item:`, response.error);
+          }
+        } catch (error) {
+          console.error(`❌ Error importing content item:`, error);
+        }
       }
+
+      console.log(`✅ Finished importing ${contents.length} content items`);
     }
 
     // 5. Import vector chunks
