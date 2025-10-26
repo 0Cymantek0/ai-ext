@@ -29,6 +29,7 @@ import { getStreamingHandler } from "./streaming-handler.js";
 import { indexedDBManager } from "./indexeddb-manager.js";
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
+import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
 
 // Initialize runtime logging (disabled by default until debug recording is enabled)
 initializeRuntimeLogging({
@@ -46,6 +47,15 @@ initializeRuntimeLogging({
 const logBridgeClient = getLogBridgeClient();
 attachLoggerBridge(logger, logBridgeClient, { tags: ["service-worker", "logger"] });
 const logCollector = getLogCollector();
+const backgroundDevtools = initializeDevInstrumentation("background", {
+  logger,
+});
+
+if (import.meta.env?.VITE_DEBUG_RECORDER && backgroundDevtools) {
+  backgroundDevtools.recordEvent("lifecycle:service_worker_loaded", {
+    timestamp: Date.now(),
+  });
+}
 
 // Listen for debug recorder toggle and manage log collection sessions
 // Note: The bridge client enable/disable is already handled by runtime-logging autoToggle

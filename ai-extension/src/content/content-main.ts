@@ -13,12 +13,19 @@ import {
  import { contentCapture } from "./content-capture.js";
  import { selectionPreviewUI } from "./selection-preview-ui.js";
  import { buildSnippetCapturePayload, type SnippetOptions } from "./snippet-utils.js";
+ import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
  import "./content-logging-setup.js";
 
-interface ContentScriptState {
-  initialized: boolean;
-  pageUrl: string;
-  pageTitle: string;
+ const documentRef = typeof document !== "undefined" ? document : null;
+ const contentDevtools = initializeDevInstrumentation("content", {
+   domTarget: documentRef,
+  rootElement: documentRef?.body ?? null,
+ });
+
+ interface ContentScriptState {
+   initialized: boolean;
+   pageUrl: string;
+
   initTime: number;
 }
 
@@ -29,6 +36,81 @@ class ContentScriptManager {
     pageTitle: document.title,
     initTime: Date.now(),
   };
+  private readonly devtools = contentDevtools;
+
+  private recordEvent(event: string, detail?: any): void {
+    if (import.meta.env?.VITE_DEBUG_RECORDER && this.devtools) {
+      this.devtools.recordEvent(event, detail);
+    }
+  }
+
+  private captureSnapshot(key: string, snapshot: any): void {
+    if (import.meta.env?.VITE_DEBUG_RECORDER && this.devtools) {
+      this.devtools.recordSnapshot(key, snapshot);
+    }
+  }
+
+  private getCaptureTextLength(result: any): number | undefined {
+    if (!result) {
+      return undefined;
+    }
+
+    const textNode = (result?.content?.text ?? result?.content) as any;
+
+    if (!textNode) {
+      return undefined;
+    }
+
+    if (typeof textNode === "string") {
+      return textNode.length;
+    }
+
+    if (typeof textNode?.characterCount === "number") {
+      return textNode.characterCount;
+    }
+
+    if (typeof textNode?.content === "string") {
+      return textNode.content.length;
+    }
+
+    if (Array.isArray(textNode)) {
+      return textNode.join("").length;
+    }
+
+    if (typeof textNode?.length === "number") {
+      return textNode.length;
+    }
+
+    return undefined;
+  }
+
+  private recordCaptureSuccess(mode: string, result: any, detail: Record<string, any> = {}): void {
+    const summary: Record<string, any> = {
+      mode,
+      timestamp: Date.now(),
+      ...detail,
+    };
+
+    const textLength = this.getCaptureTextLength(result);
+    if (typeof textLength === "number") {
+      summary.textLength = textLength;
+    }
+
+    const entryCount = Array.isArray(result?.entries) ? result.entries.length : undefined;
+    if (typeof entryCount === "number") {
+      summary.entryCount = entryCount;
+    }
+
+    this.recordEvent("capture:success", summary);
+    this.captureSnapshot("capture:last", summary);
+  }
+
+  private recordCaptureError(mode: string, error: unknown): void {
+    this.recordEvent("capture:error", {
+      mode,
+      error,
+    });
+  }
 
   /**
    * Initialize the content script
@@ -39,6 +121,9 @@ class ContentScriptManager {
 
     try {
       console.info("[ContentScript] Initializing on", this.state.pageUrl);
+
+      this.recordEvent("initialize:start", { url: this.state.pageUrl });
+      this.captureSnapshot("contentScriptState", this.state);
 
       // Initialize message listener
       initializeMessageListener();
@@ -60,8 +145,10 @@ class ContentScriptManager {
         title: this.state.pageTitle,
         initTime: `${initTime.toFixed(2)}ms`,
       });
+      this.recordEvent("initialize:complete", { initTime });
     } catch (error) {
       console.error("[ContentScript] Initialization failed", error);
+      this.recordEvent("initialize:error", { error });
       throw error;
     }
   }
@@ -73,6 +160,11 @@ class ContentScriptManager {
     // Handler for capture requests from service worker
     messageHandler.on("CAPTURE_REQUEST", async (payload) => {
       console.debug("[ContentScript] Received CAPTURE_REQUEST", payload);
+      this.recordEvent("message:CAPTURE_REQUEST:received", {
+        mode: payload?.mode,
+        showPreview: payload?.showPreview !== false,
+        pocketId: payload?.pocketId,
+      });
 
       try {
         // For selection mode, show preview UI if requested
@@ -87,6 +179,11 @@ class ContentScriptManager {
           sanitize: true,
         });
 
+        this.recordCaptureSuccess(payload?.mode ?? "unknown", result, {
+          pocketId: payload?.pocketId,
+          mode: payload?.mode,
+        });
+
         return {
           status: "success",
           result,
@@ -94,6 +191,7 @@ class ContentScriptManager {
         };
       } catch (error) {
         console.error("[ContentScript] Capture failed", error);
+        this.recordCaptureError(payload?.mode ?? "unknown", error);
         return {
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",
@@ -104,9 +202,16 @@ class ContentScriptManager {
     // Handler for multi-selection capture
     messageHandler.on("CAPTURE_MULTI_SELECTION", async (payload) => {
       console.debug("[ContentScript] Received CAPTURE_MULTI_SELECTION", payload);
+      this.recordEvent("message:CAPTURE_MULTI_SELECTION:received", {
+        pocketId: payload?.pocketId,
+      });
 
       try {
         const result = await contentCapture.captureMultipleSelections(true);
+
+        this.recordCaptureSuccess("multi-selection", result, {
+          selectionCount: Array.isArray(result?.items) ? result.items.length : undefined,
+        });
 
         return {
           status: "success",
@@ -115,6 +220,7 @@ class ContentScriptManager {
         };
       } catch (error) {
         console.error("[ContentScript] Multi-selection capture failed", error);
+        this.recordCaptureError("multi-selection", error);
         return {
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",
@@ -125,24 +231,39 @@ class ContentScriptManager {
     // Handler for AI processing updates
     messageHandler.on("AI_PROCESS_UPDATE", async (payload) => {
       console.debug("[ContentScript] Received AI_PROCESS_UPDATE", payload);
+      this.recordEvent("message:AI_PROCESS_UPDATE", {
+        status: payload?.status,
+        stage: payload?.stage,
+      });
       // Will be implemented in AI processing tasks
       return { acknowledged: true };
     });
 
     // Handler for PING (health check)
     messageHandler.on("PING", async () => {
+      this.recordEvent("message:PING", {
+        timestamp: Date.now(),
+      });
       return { status: "ready", timestamp: Date.now() };
     });
 
     // Handler for capturing image data
     messageHandler.on("CAPTURE_IMAGE_DATA", async (payload) => {
       console.debug("[ContentScript] Received CAPTURE_IMAGE_DATA", payload);
+      this.recordEvent("message:CAPTURE_IMAGE_DATA:received", {
+        srcUrl: payload?.srcUrl,
+        pageUrl: payload?.pageUrl,
+      });
 
       try {
         const srcUrl = payload?.srcUrl as string | undefined;
         const pageUrl = payload?.pageUrl as string | undefined;
 
         if (!srcUrl) {
+          this.recordEvent("capture:image:error", {
+            reason: "missing_src",
+            pageUrl,
+          });
           return {
             status: "error",
             error: "No image source URL provided",
@@ -150,11 +271,14 @@ class ContentScriptManager {
           };
         }
 
-        // Find the image element on the page
         const images = Array.from(document.querySelectorAll("img"));
         const targetImage = images.find((img) => img.src === srcUrl || img.currentSrc === srcUrl);
 
         if (!targetImage) {
+          this.recordEvent("capture:image:error", {
+            reason: "not_found",
+            srcUrl,
+          });
           return {
             status: "error",
             error: "Image element not found on page",
@@ -162,7 +286,6 @@ class ContentScriptManager {
           };
         }
 
-        // Extract image data
         const imageData = {
           src: targetImage.src || targetImage.currentSrc,
           alt: targetImage.alt || "",
@@ -176,6 +299,13 @@ class ContentScriptManager {
           dimensions: `${imageData.width}x${imageData.height}`,
         });
 
+        this.recordEvent("capture:image:success", {
+          srcPreview: imageData.src?.substring(0, 80),
+          altPresent: Boolean(imageData.alt),
+          width: imageData.width,
+          height: imageData.height,
+        });
+
         return {
           status: "success",
           imageData,
@@ -183,6 +313,7 @@ class ContentScriptManager {
         };
       } catch (error) {
         console.error("[ContentScript] CAPTURE_IMAGE_DATA failed", error);
+        this.recordEvent("capture:image:error", { error });
         return {
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",
@@ -194,6 +325,10 @@ class ContentScriptManager {
     // Handler for capturing selection snippet without UI
     messageHandler.on("CAPTURE_SELECTION_SNIPPET", async (payload) => {
       console.debug("[ContentScript] Received CAPTURE_SELECTION_SNIPPET", payload);
+      this.recordEvent("message:CAPTURE_SELECTION_SNIPPET:received", {
+        providedText: Boolean(payload?.selectionText),
+        sourceUrl: payload?.sourceUrl,
+      });
 
       try {
         const providedText = payload?.selectionText as string | undefined;
@@ -207,6 +342,10 @@ class ContentScriptManager {
 
         if (!selectionText) {
           console.error("[ContentScript] No text selected for snippet capture");
+          this.recordEvent("capture:snippet:error", {
+            reason: "no_selection",
+            sourceUrl: sourceUrl || window.location.href,
+          });
           return {
             status: "error",
             error: "No text was selected",
@@ -223,6 +362,9 @@ class ContentScriptManager {
           });
         } catch (error) {
           console.warn("[ContentScript] Selection capture failed, falling back to basic snippet", error);
+          this.recordEvent("capture:snippet:fallback", {
+            reason: error instanceof Error ? error.message : String(error ?? "unknown"),
+          });
         }
 
         let sanitizedText = selectionText;
@@ -264,7 +406,6 @@ class ContentScriptManager {
               before: detailedSelection.beforeContext || "",
               after: detailedSelection.afterContext || "",
             };
-            // Capture HTML content for formatted display
             htmlContent = detailedSelection.htmlContent || "";
           }
         }
@@ -291,6 +432,11 @@ class ContentScriptManager {
           wordCount: snippet.content.text.wordCount,
         });
 
+        this.recordCaptureSuccess("selection-snippet", snippet, {
+          sanitized: Boolean(sanitizationInfo),
+          contextIncluded: Boolean(contextInfo),
+        });
+
         return {
           status: "success",
           snippet,
@@ -298,6 +444,7 @@ class ContentScriptManager {
         };
       } catch (error) {
         console.error("[ContentScript] CAPTURE_SELECTION_SNIPPET failed", error);
+        this.recordEvent("capture:snippet:error", { error });
         return {
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",

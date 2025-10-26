@@ -7,8 +7,9 @@
     "test": "tests"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "dev": "vite --mode development",
+    "build": "tsc --noEmit && vite build --mode production",
+    "build:dev": "vite build --mode development",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "format": "prettier --write .",
     "test": "vitest",

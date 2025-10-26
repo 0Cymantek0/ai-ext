@@ -33,9 +33,10 @@ import {
   exportMessageToPDF
 } from "@/lib/export-utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { getDevInstrumentation } from "@/devtools/instrumentation";
 
 interface ChatMessage {
-  id: string;
+
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: number;
@@ -112,11 +113,19 @@ export function ChatApp() {
     overscan: 8,
   });
 
+  const devtools = React.useMemo(
+    () =>
+      import.meta.env?.VITE_DEBUG_RECORDER
+        ? getDevInstrumentation("sidepanel")
+        : null,
+    [],
+  );
+
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<
     "auto" | "nano" | "flash-lite" | "flash" | "pro"
   >("auto");
-  
+
   // Indexing status hook
   const indexingStatus = useIndexingStatus();
 
