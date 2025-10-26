@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import { crx } from "@crxjs/vite-plugin";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
@@ -6,10 +6,14 @@ import { copyFileSync, mkdirSync } from "node:fs";
 
 import manifest from "./manifest.config";
 
-export default defineConfig({
-  plugins: [
-    react(),
-    crx({ manifest }),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const debugRecorderFlag = env.VITE_DEBUG_RECORDER === "true" ? "true" : "false";
+  
+  return {
+    plugins: [
+      react(),
+      crx({ manifest }),
     {
       name: "copy-pdfjs-worker",
       closeBundle() {
@@ -57,6 +61,9 @@ export default defineConfig({
       },
     },
   ],
+  define: {
+    "import.meta.env.VITE_DEBUG_RECORDER": debugRecorderFlag,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
@@ -67,11 +74,23 @@ export default defineConfig({
       "@components": path.resolve(__dirname, "src/components"),
       "@lib": path.resolve(__dirname, "src/lib"),
       "@hooks": path.resolve(__dirname, "src/hooks"),
+      "@devtools-shared": path.resolve(__dirname, "../dev-tools/shared"),
+    },
+    preserveSymlinks: true,
+  },
+  server: {
+    fs: {
+      allow: [
+        path.resolve(__dirname, "../dev-tools/shared"),
+        path.resolve(__dirname, "src"),
+      ],
     },
   },
   build: {
     outDir: "dist",
     // CRXJS handles all entry points from manifest.config.ts
     // Do not manually specify rollupOptions.input as it interferes with TypeScript transformation
+    minify: mode === "production" ? "esbuild" : false,
   },
+  };
 });

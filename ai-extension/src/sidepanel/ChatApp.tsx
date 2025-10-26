@@ -35,6 +35,7 @@ import {
 } from "@/lib/export-utils";
 import { importPocket } from "@/lib/pocket-export-service";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { getDevInstrumentation } from "@/devtools/instrumentation";
 
 interface ChatMessage {
   id: string;
@@ -116,6 +117,14 @@ export function ChatApp() {
     estimateSize: () => 96,
     overscan: 8,
   });
+
+  const devtools = React.useMemo(
+    () =>
+      import.meta.env?.VITE_DEBUG_RECORDER
+        ? getDevInstrumentation("sidepanel")
+        : null,
+    [],
+  );
 
   // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
   const [selectedModel, setSelectedModel] = React.useState<

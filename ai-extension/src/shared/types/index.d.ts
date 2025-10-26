@@ -57,6 +57,7 @@ export type MessageKind =
   | "ABBREVIATION_EXPAND"
   | "VECTOR_INDEXING_RETRY"
   | "VECTOR_INDEXING_PROGRESS"
+  | "LOG_BATCH"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {

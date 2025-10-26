@@ -2,6 +2,13 @@ import * as React from "react";
 import * as ReactDOM from "react-dom/client";
 import { ChatApp } from "./ChatApp";
 import "../styles/globals.css";
+import "./sidepanel-logging-setup.js";
+import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
+
+const sidepanelDevtools = initializeDevInstrumentation("sidepanel", {
+  domTarget: typeof document !== "undefined" ? document : null,
+  rootElement: typeof document !== "undefined" ? document.body : null,
+});
 
 console.log("[SidePanel React] Initializing React app...");
 
@@ -19,19 +26,47 @@ function initReactApp() {
     console.error(
       "[SidePanel React] Container #chat-interface-container not found!",
     );
+    if (import.meta.env?.VITE_DEBUG_RECORDER && sidepanelDevtools) {
+      sidepanelDevtools.recordEvent("init:error", {
+        reason: "container_not_found",
+      });
+    }
     return;
   }
 
   console.log("[SidePanel React] Mounting React app...");
 
+  if (import.meta.env?.VITE_DEBUG_RECORDER && sidepanelDevtools) {
+    sidepanelDevtools.recordEvent("init:mounting", {
+      containerId: container.id,
+    });
+  }
+
   const root = ReactDOM.createRoot(container);
+  const profilerCallback =
+    import.meta.env?.VITE_DEBUG_RECORDER && sidepanelDevtools
+      ? sidepanelDevtools.getProfilerCallback("ChatAppRoot")
+      : null;
+
   root.render(
     <React.StrictMode>
-      <ChatApp />
+      {profilerCallback ? (
+        <React.Profiler id="ChatAppRoot" onRender={profilerCallback}>
+          <ChatApp />
+        </React.Profiler>
+      ) : (
+        <ChatApp />
+      )}
     </React.StrictMode>,
   );
 
   console.log("[SidePanel React] React app mounted successfully!");
+
+  if (import.meta.env?.VITE_DEBUG_RECORDER && sidepanelDevtools) {
+    sidepanelDevtools.recordEvent("init:mounted", {
+      containerId: container.id,
+    });
+  }
 }
 
 // Export for debugging

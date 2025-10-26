@@ -1,0 +1,130 @@
+{
+  "session": {
+    "sessionId": "large-session",
+    "startTime": 1704470400000,
+    "endTime": 1704474000000,
+    "extensionId": "large-ext",
+    "extensionVersion": "1.0.0"
+  },
+  "timeline": [
+    {
+      "id": "int-1",
+      "timestamp": 1704470410000,
+      "type": "navigation",
+      "description": "Load homepage",
+      "status": "success",
+      "duration": 500
+    },
+    {
+      "id": "int-2",
+      "timestamp": 1704470420000,
+      "type": "ai_request",
+      "description": "Generate summary with very long text that should be truncated in the table view because it exceeds reasonable display limits",
+      "status": "success",
+      "duration": 2000,
+      "context": {
+        "model": "gemini-nano",
+        "inputTokens": 1500,
+        "outputTokens": 800
+      }
+    },
+    {
+      "id": "int-3",
+      "timestamp": 1704470430000,
+      "type": "storage_operation",
+      "description": "Save to IndexedDB",
+      "status": "error",
+      "duration": 100
+    }
+  ],
+  "logs": [
+    {
+      "interactionId": "int-2",
+      "entries": [
+        {
+          "timestamp": 1704470420100,
+          "level": "info",
+          "source": "ai-manager",
+          "message": "Starting AI request with model gemini-nano"
+        },
+        {
+          "timestamp": 1704470420500,
+          "level": "debug",
+          "source": "ai-manager",
+          "message": "Tokenizing input"
+        },
+        {
+          "timestamp": 1704470422000,
+          "level": "info",
+          "source": "ai-manager",
+          "message": "Request completed successfully"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "interactionId": "int-3",
+      "timestamp": 1704470430050,
+      "message": "QuotaExceededError: Storage quota exceeded",
+      "source": "indexeddb-manager.ts:145",
+      "code": "QUOTA_EXCEEDED",
+      "stack": "QuotaExceededError: Storage quota exceeded\n    at IDBManager.save (indexeddb-manager.ts:145:15)\n    at async StorageService.persist (storage-service.ts:89:7)\n    at async ContentManager.saveContent (content-manager.ts:234:5)",
+      "context": {
+        "used": 298000000,
+        "total": 300000000,
+        "percentUsed": 99.33
+      },
+      "recovered": false
+    }
+  ],
+  "snapshots": [
+    {
+      "timestamp": 1704470400000,
+      "storageUsage": {
+        "indexedDB": 250000000,
+        "localStorage": 5000000,
+        "chromeStorage": 100000
+      },
+      "aiState": {
+        "activeModels": ["gemini-nano"],
+        "pendingRequests": 0,
+        "tokenUsage": 0
+      },
+      "performance": {
+        "memory": 150000000,
+        "cpu": 15.5
+      },
+      "breadcrumbs": [
+        "Extension loaded",
+        "Service worker activated",
+        "Idle state"
+      ]
+    },
+    {
+      "timestamp": 1704473990000,
+      "storageUsage": {
+        "indexedDB": 298000000,
+        "localStorage": 5200000,
+        "chromeStorage": 110000
+      },
+      "aiState": {
+        "activeModels": ["gemini-nano"],
+        "pendingRequests": 0,
+        "tokenUsage": 2300
+      },
+      "performance": {
+        "memory": 175000000,
+        "cpu": 8.2
+      },
+      "breadcrumbs": [
+        "Extension loaded",
+        "Service worker activated",
+        "Idle state",
+        "Navigated to homepage",
+        "Generated AI summary",
+        "Storage operation attempted"
+      ]
+    }
+  ]
+}
