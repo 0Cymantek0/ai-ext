@@ -33,6 +33,7 @@ import {
   exportMessageToJSON,
   exportMessageToPDF
 } from "@/lib/export-utils";
+import { importPocket } from "@/lib/pocket-export-service";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface ChatMessage {
@@ -696,6 +697,37 @@ export function ChatApp() {
     }
   };
 
+  const handleImportPocket = () => {
+    // Create a file input element
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".zip";
+    fileInput.multiple = false;
+
+    fileInput.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        console.log("Importing pocket from:", file.name);
+        await importPocket(file);
+        
+        // Reload pocket list
+        if (pocketManagerRef.current) {
+          pocketManagerRef.current.reload();
+        }
+        
+        alert(`Successfully imported pocket from ${file.name}`);
+      } catch (error) {
+        console.error("Import failed:", error);
+        alert(`Failed to import pocket: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
+    };
+
+    // Trigger file selection
+    fileInput.click();
+  };
+
   const handleInsidePocketChange = (isInside: boolean) => {
     setIsInsidePocket(isInside);
   };
@@ -1026,6 +1058,7 @@ export function ChatApp() {
           onOpenHistory={() => setIsHistoryOpen(true)}
           onNewChat={handleNewChat}
           onNewPocket={handleNewPocket}
+          onImportPocket={handleImportPocket}
           onAddNote={handleAddNote}
           onAddFile={handleAddFile}
           onExportChat={handleExportAll}

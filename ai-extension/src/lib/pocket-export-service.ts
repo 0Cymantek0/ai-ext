@@ -123,19 +123,19 @@ async function fetchVectorChunks(pocketId: string): Promise<VectorChunk[]> {
   try {
     // Open IndexedDB
     const db = await openVectorDB();
-    
+
     // Get all vector chunks for this pocket
     const transaction = db.transaction(["vectorChunks"], "readonly");
     const store = transaction.objectStore("vectorChunks");
     const index = store.index("pocketId");
-    
+
     return new Promise((resolve, reject) => {
       const request = index.getAll(pocketId);
-      
+
       request.onsuccess = () => {
         resolve(request.result || []);
       };
-      
+
       request.onerror = () => {
         console.error("Error fetching vector chunks:", request.error);
         reject(request.error);
@@ -153,11 +153,11 @@ async function fetchVectorChunks(pocketId: string): Promise<VectorChunk[]> {
 function openVectorDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("aiPocketVectorDB", 2);
-    
+
     request.onsuccess = () => {
       resolve(request.result);
     };
-    
+
     request.onerror = () => {
       reject(request.error);
     };
@@ -271,7 +271,7 @@ async function importVectorChunks(newPocketId: string, chunks: VectorChunk[]): P
         pocketId: newPocketId,
         id: crypto.randomUUID(), // Generate new ID
       };
-      
+
       store.add(newChunk);
     }
 
