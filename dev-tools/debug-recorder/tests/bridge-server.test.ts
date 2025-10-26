@@ -16,7 +16,9 @@ function nextPort(): number {
   return lastPort;
 }
 
-async function startServer(config: Partial<ConstructorParameters<typeof BridgeServer>[0]> = {}): Promise<{ token: string; port: number; }> {
+async function startServer(
+  config: Partial<ConstructorParameters<typeof BridgeServer>[0]> = {}
+): Promise<{ token: string; port: number }> {
   if (server) {
     await server.stop();
     server = null;
@@ -28,7 +30,17 @@ async function startServer(config: Partial<ConstructorParameters<typeof BridgeSe
   return { token, port };
 }
 
-async function connectClient({ token, port, context = 'background', session = sessionId }: { token: string; port: number; context?: 'background' | 'content-script' | 'side-panel' | 'offscreen'; session?: string; }): Promise<WebSocket> {
+async function connectClient({
+  token,
+  port,
+  context = 'background',
+  session = sessionId,
+}: {
+  token: string;
+  port: number;
+  context?: 'background' | 'content-script' | 'side-panel' | 'offscreen';
+  session?: string;
+}): Promise<WebSocket> {
   return new Promise<WebSocket>((resolve, reject) => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}`);
 
@@ -38,17 +50,19 @@ async function connectClient({ token, port, context = 'background', session = se
     }, 3000);
 
     ws.on('open', () => {
-      ws.send(JSON.stringify({
-        type: 'HANDSHAKE',
-        id: 'handshake-1',
-        timestamp: Date.now(),
-        payload: {
-          token,
-          context,
-          extensionId: 'test-extension',
-          sessionId: session,
-        },
-      }));
+      ws.send(
+        JSON.stringify({
+          type: 'HANDSHAKE',
+          id: 'handshake-1',
+          timestamp: Date.now(),
+          payload: {
+            token,
+            context,
+            extensionId: 'test-extension',
+            sessionId: session,
+          },
+        })
+      );
     });
 
     ws.on('message', (data) => {
@@ -134,7 +148,9 @@ describe('BridgeServer', () => {
     it('rejects invalid token', async () => {
       const { token, port } = await startServer();
 
-      await expect(connectClient({ token: `${token}-invalid`, port })).rejects.toThrow('Invalid token');
+      await expect(connectClient({ token: `${token}-invalid`, port })).rejects.toThrow(
+        'Invalid token'
+      );
     });
 
     it('rejects invalid session', async () => {
@@ -176,16 +192,18 @@ describe('BridgeServer', () => {
         });
       });
 
-      client.send(JSON.stringify({
-        type: 'EVENT',
-        id: 'event-1',
-        timestamp: Date.now(),
-        payload: {
-          eventType: 'LOG',
-          data: { msg: 'hello' },
-          context: 'background',
-        },
-      }));
+      client.send(
+        JSON.stringify({
+          type: 'EVENT',
+          id: 'event-1',
+          timestamp: Date.now(),
+          payload: {
+            eventType: 'LOG',
+            data: { msg: 'hello' },
+            context: 'background',
+          },
+        })
+      );
 
       await ack;
       expect(onEvent).toHaveBeenCalledTimes(1);
@@ -208,18 +226,20 @@ describe('BridgeServer', () => {
         });
       });
 
-      client.send(JSON.stringify({
-        type: 'BATCH',
-        id: 'batch-1',
-        timestamp: Date.now(),
-        payload: {
-          events: [
-            { eventType: 'LOG', data: { id: 1 }, timestamp: Date.now() },
-            { eventType: 'LOG', data: { id: 2 }, timestamp: Date.now() },
-          ],
-          context: 'background',
-        },
-      }));
+      client.send(
+        JSON.stringify({
+          type: 'BATCH',
+          id: 'batch-1',
+          timestamp: Date.now(),
+          payload: {
+            events: [
+              { eventType: 'LOG', data: { id: 1 }, timestamp: Date.now() },
+              { eventType: 'LOG', data: { id: 2 }, timestamp: Date.now() },
+            ],
+            context: 'background',
+          },
+        })
+      );
 
       await ack;
       expect(onBatch).toHaveBeenCalledTimes(1);
@@ -306,12 +326,14 @@ describe('BridgeServer', () => {
         });
       });
 
-      client.send(JSON.stringify({
-        type: 'HEARTBEAT',
-        id: 'ping-1',
-        timestamp: Date.now(),
-        payload: { clientId: 'background' },
-      }));
+      client.send(
+        JSON.stringify({
+          type: 'HEARTBEAT',
+          id: 'ping-1',
+          timestamp: Date.now(),
+          payload: { clientId: 'background' },
+        })
+      );
 
       await ack;
       await closeClient(client);

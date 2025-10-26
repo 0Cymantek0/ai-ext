@@ -60,9 +60,9 @@ const DEFAULT_CATEGORY_WEIGHTS: Record<string, number> = {
   'storage-operation': 4,
   'vector-operation': 4,
   'message-passing': 3,
-  'navigation': 3,
-  'performance': 2,
-  'debug': 1,
+  navigation: 3,
+  performance: 2,
+  debug: 1,
 };
 
 /**
@@ -79,7 +79,7 @@ export class LogFilterPipeline {
   constructor(
     config: LogFilterConfig = {},
     temporalConfig?: Partial<TemporalCorrelationConfig>,
-    categoryWeights?: Record<string, number>,
+    categoryWeights?: Record<string, number>
   ) {
     this.config = {
       denyPatterns: DEFAULT_DENY_PATTERNS,
@@ -111,8 +111,11 @@ export class LogFilterPipeline {
    */
   filterAndCorrelate(
     logs: StructuredLogEnvelope[],
-    interactions: Interaction[],
-  ): { filteredLogs: StructuredLogEnvelope[]; correlatedLogs: Map<string, StructuredLogEnvelope[]> } {
+    interactions: Interaction[]
+  ): {
+    filteredLogs: StructuredLogEnvelope[];
+    correlatedLogs: Map<string, StructuredLogEnvelope[]>;
+  } {
     // Step 1: Apply semantic filtering
     const semanticallyFiltered = logs.filter((log) => this.applySemanticFilter(log));
 
@@ -243,7 +246,7 @@ export class LogFilterPipeline {
    */
   private correlateWithInteractions(
     logs: StructuredLogEnvelope[],
-    interactions: Interaction[],
+    interactions: Interaction[]
   ): Map<string, StructuredLogEnvelope[]> {
     const correlatedLogs = new Map<string, StructuredLogEnvelope[]>();
 
@@ -267,9 +270,7 @@ export class LogFilterPipeline {
         if (timeDiff <= window) {
           // Calculate score based on time proximity and category weight
           const timeScore = 1 - timeDiff / window;
-          const categoryScore = log.category
-            ? this.categoryWeights[log.category] ?? 1
-            : 1;
+          const categoryScore = log.category ? (this.categoryWeights[log.category] ?? 1) : 1;
           const levelScore = LOG_LEVEL_WEIGHTS[log.level];
 
           const score = timeScore * categoryScore * levelScore;
@@ -299,17 +300,13 @@ export class LogFilterPipeline {
 
     // Keep only recent requests (last 5 minutes)
     const fiveMinutesAgo = Date.now() - 300000;
-    this.networkRequests = this.networkRequests.filter(
-      (req) => req.timestamp > fiveMinutesAgo,
-    );
+    this.networkRequests = this.networkRequests.filter((req) => req.timestamp > fiveMinutesAgo);
   }
 
   /**
    * Correlate network requests with interactions
    */
-  correlateNetworkRequests(
-    interactions: Interaction[],
-  ): Map<string, NetworkRequestEntry[]> {
+  correlateNetworkRequests(interactions: Interaction[]): Map<string, NetworkRequestEntry[]> {
     const correlatedRequests = new Map<string, NetworkRequestEntry[]>();
 
     for (const interaction of interactions) {
@@ -341,9 +338,7 @@ export class LogFilterPipeline {
    */
   getPriority(log: StructuredLogEnvelope): number {
     const levelScore = LOG_LEVEL_WEIGHTS[log.level];
-    const categoryScore = log.category
-      ? this.categoryWeights[log.category] ?? 1
-      : 1;
+    const categoryScore = log.category ? (this.categoryWeights[log.category] ?? 1) : 1;
     return levelScore * categoryScore;
   }
 

@@ -5,6 +5,7 @@
 ### Unit Tests (60 tests passing)
 
 #### Token-Aware Utilities (8 tests)
+
 - ✅ Token estimation from text
 - ✅ Token-aware truncation
 - ✅ Chunking by tokens
@@ -12,17 +13,20 @@
 - ✅ Token budget allocation
 
 #### Text Utilities (4 tests)
+
 - ✅ Text truncation with ellipsis
 - ✅ Chunking into equal parts
 - ✅ Markdown special character sanitization
 
 #### Timestamp Utilities (7 tests)
+
 - ✅ Timestamp normalization to ISO format
 - ✅ Duration formatting (ms, seconds, minutes, hours)
 - ✅ Relative time calculation
 - ✅ Time-only formatting
 
 #### Report Generator (7 tests)
+
 - ✅ Complete report generation with all sections
 - ✅ Token budget enforcement
 - ✅ Asset inclusion/exclusion
@@ -32,11 +36,13 @@
 - ✅ Redundant line trimming
 
 #### Normalizer (3 tests)
+
 - ✅ Raw capture to session model normalization
 - ✅ Error handling for missing metadata
 - ✅ Orphan log handling with synthetic interactions
 
 #### Session Store (12 tests)
+
 - ✅ Saving sessions to disk
 - ✅ Creating directories as needed
 - ✅ Overwriting existing sessions
@@ -51,6 +57,7 @@
 - ✅ Concurrent operations
 
 #### Capture Utilities (4 tests)
+
 - ✅ Reading valid capture files
 - ✅ File not found error handling
 - ✅ Invalid JSON error handling
@@ -59,32 +66,39 @@
 ### Edge Case Tests (15 tests)
 
 #### Empty Data
+
 - ✅ Empty session with no interactions, errors, or snapshots
 - ✅ Interactions without logs or errors
 - ✅ Errors without stack traces
 - ✅ Empty context objects
 
 #### Large Data
+
 - ✅ Sessions with 100+ interactions
 - ✅ Very long log messages (10,000+ characters)
 - ✅ Very long error stacks (100+ frames)
 
 #### Malformed Data
+
 - ✅ Missing optional fields
 - ✅ Minimal capture data
 
 #### Special Characters
+
 - ✅ Markdown special character escaping in messages
 - ✅ Newline handling in descriptions (table-safe)
 
 #### Timestamp Edge Cases
+
 - ✅ Sessions without end time (in progress)
 - ✅ Zero duration
 
 #### Context and Snapshots
+
 - ✅ Snapshots with partial data
 
 #### Assets
+
 - ✅ Asset exclusion when disabled
 - ✅ Asset inclusion when enabled
 
@@ -101,12 +115,14 @@
 ### Commands Tested
 
 #### `start`
+
 - ✅ Creates new session with ID
 - ✅ Accepts extension-id parameter
 - ✅ Accepts optional flags (--screenshots, --storage, --metrics)
 - ✅ Saves session to storage
 
 #### `stop`
+
 - ✅ Stops session by ID
 - ✅ Uses latest session if no ID provided
 - ✅ Accepts --capture flag to load raw JSON
@@ -116,6 +132,7 @@
 - ✅ Error handling for invalid capture files
 
 #### `capture`
+
 - ✅ Loads capture from JSON file
 - ✅ Normalizes and persists session
 - ✅ Generates report with options
@@ -125,19 +142,23 @@
 - ✅ Error handling for invalid JSON
 
 #### `list`
+
 - ✅ Lists all stored sessions
 - ✅ Handles empty session list
 
 #### `show`
+
 - ✅ Displays session details
 - ✅ Shows metadata, counts, duration
 - ✅ Error handling for non-existent sessions
 
 #### `delete`
+
 - ✅ Deletes session from storage
 - ✅ Graceful handling of non-existent sessions
 
 #### `--help`
+
 - ✅ Displays usage information
 - ✅ Shows available commands and options
 
@@ -183,7 +204,7 @@
 
 ### LLM Optimization
 
-- ✅ **Token budget allocation**: 
+- ✅ **Token budget allocation**:
   - Metadata: 5%
   - Summary: 10%
   - Interactions: 30%
@@ -210,6 +231,7 @@
 ### Error Message Quality
 
 All errors provide:
+
 - Clear, actionable messages
 - Appropriate exit codes
 - No stack traces exposed to users

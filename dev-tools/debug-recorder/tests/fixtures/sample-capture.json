@@ -135,10 +135,7 @@
         "memory": 145000000,
         "cpu": 12.5
       },
-      "breadcrumbs": [
-        "Extension started",
-        "Service worker activated"
-      ]
+      "breadcrumbs": ["Extension started", "Service worker activated"]
     },
     {
       "timestamp": 1704471500000,

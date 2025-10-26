@@ -1,0 +1,4 @@
+packages:
+  - 'ai-extension'
+  - 'playground'
+  - 'dev-tools/debug-recorder'

@@ -95,11 +95,7 @@
         "memory": 150000000,
         "cpu": 15.5
       },
-      "breadcrumbs": [
-        "Extension loaded",
-        "Service worker activated",
-        "Idle state"
-      ]
+      "breadcrumbs": ["Extension loaded", "Service worker activated", "Idle state"]
     },
     {
       "timestamp": 1704473990000,

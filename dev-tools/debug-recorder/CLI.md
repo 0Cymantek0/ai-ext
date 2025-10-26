@@ -1,4 +1,4 @@
-# Debug Recorder CLI
+# AI Pocket Debug Recorder CLI
 
 Command-line tool for capturing runtime state and generating diagnostic markdown reports for the AI Pocket extension.
 
@@ -10,33 +10,81 @@ npm install
 npm run build
 ```
 
+Or using pnpm from the project root:
+
+```bash
+pnpm install
+pnpm --filter @ai-pocket/debug-recorder build
+```
+
 ## Usage
 
 ### Start Recording
 
-Start a new recording session:
+Start a new recording session with interactive UI:
 
 ```bash
-node dist/cli.js start --extension-id <chrome-extension-id>
+ai-pocket-recorder start --extension-id <chrome-extension-id>
 ```
 
 Options:
+
 - `--extension-id <id>` - Chrome extension ID to monitor
+- `--extension-version <version>` - Extension version
+- `--chrome-version <version>` - Chrome version
+- `--chrome-profile <profile>` - Chrome profile name
 - `--screenshots` - Enable screenshot capture
 - `--storage` - Include storage data
 - `--metrics` - Include performance metrics
+- `--bridge` - Enable WebSocket bridge for real-time event streaming
+- `--port <port>` - Port for WebSocket bridge server (default: 9229)
+
+The interactive UI shows:
+
+- **Live state** (recording/paused/stopped)
+- **Session clock** with accurate uptime tracking
+- **Connected contexts** from the extension
+- **Events received** counter
+
+#### Interactive Controls
+
+While recording:
+
+- **Ctrl+P** - Pause recording
+- **Ctrl+R** - Resume recording (when paused)
+- **Ctrl+C** - Stop and exit gracefully
+
+### Session State Commands
+
+The CLI manages session state through an internal state machine with the following transitions:
+
+- `idle → recording` (start)
+- `recording → paused` (pause)
+- `paused → recording` (resume)
+- `recording/paused → stopped` (stop)
+
+#### Status
+
+Check the status of a session:
+
+```bash
+ai-pocket-recorder status [session-id]
+```
+
+Shows detailed session information including state, uptime, statistics, and metadata.
 
 ### Stop Recording and Generate Report
 
 Stop recording and generate a markdown report:
 
 ```bash
-node dist/cli.js stop [session-id]
+ai-pocket-recorder stop [session-id]
 ```
 
 If no session ID is provided, the most recent session will be used.
 
 Options:
+
 - `-o, --output <path>` - Custom output path for the report (default: `reports/<session-id>.md`)
 - `--max-tokens <number>` - Maximum tokens for report (default: 10000)
 - `--include-assets` - Include base64 screenshots in report
@@ -49,10 +97,11 @@ Options:
 Generate a report directly from a capture JSON file:
 
 ```bash
-node dist/cli.js capture path/to/capture.json
+ai-pocket-recorder capture path/to/capture.json
 ```
 
 Options:
+
 - `-o, --output <path>` - Custom output path
 - `--max-tokens <number>` - Maximum tokens for report
 - `--include-assets` - Include base64 screenshots
@@ -62,7 +111,7 @@ Options:
 List all recorded sessions:
 
 ```bash
-node dist/cli.js list
+ai-pocket-recorder list
 ```
 
 ### Show Session Details
@@ -70,7 +119,7 @@ node dist/cli.js list
 Display details about a specific session:
 
 ```bash
-node dist/cli.js show <session-id>
+ai-pocket-recorder show <session-id>
 ```
 
 ### Delete Session
@@ -78,7 +127,7 @@ node dist/cli.js show <session-id>
 Delete a recorded session:
 
 ```bash
-node dist/cli.js delete <session-id>
+ai-pocket-recorder delete <session-id>
 ```
 
 ## Capture JSON Format
@@ -170,12 +219,15 @@ See `tests/fixtures/sample-capture.json` for a complete example.
 Generated reports include:
 
 ### 1. Session Metadata
+
 - Session ID, timestamps, duration
 - Extension version and platform info
 - Recording options
 
 ### 2. Session Summary
+
 Timeline table with:
+
 - Interaction number and type
 - Status (✅ Success, ❌ Error, ⚠️ Warning, ⏳ Pending)
 - Timestamps and relative time deltas
@@ -183,13 +235,16 @@ Timeline table with:
 - Description
 
 ### 3. Detailed Interaction Chronology
+
 Collapsible `<details>` blocks for each interaction:
+
 - Interaction ID and metadata
 - Context data (JSON)
 - Associated logs (collapsed if large)
 - Errors with recovery status
 
 ### 4. Error Digests
+
 - Timestamp and message
 - Source location
 - Error code
@@ -197,12 +252,14 @@ Collapsible `<details>` blocks for each interaction:
 - Stack trace (fenced code block)
 
 ### 5. State Snapshots
+
 - Storage usage (IndexedDB, localStorage, chrome.storage)
 - AI state (active models, pending requests, token usage)
 - Performance metrics (memory, CPU)
 - Breadcrumbs trail
 
 ### 6. Captured Assets (optional)
+
 Collapsible sections with base64-encoded screenshots
 
 ## LLM Optimization
@@ -210,6 +267,7 @@ Collapsible sections with base64-encoded screenshots
 Reports are optimized for LLM consumption:
 
 ### Token Budget Allocation
+
 - **Metadata**: 5% (500 tokens for 10K budget)
 - **Summary**: 10% (1,000 tokens)
 - **Interactions**: 30% (3,000 tokens)
@@ -219,6 +277,7 @@ Reports are optimized for LLM consumption:
 - **Assets**: 5% (500 tokens)
 
 ### Optimizations
+
 - **Timestamp normalization**: ISO 8601 format
 - **Redundant line trimming**: Removes duplicate log entries
 - **Token-aware truncation**: Chunks long content with continuation markers
@@ -230,13 +289,14 @@ Reports are optimized for LLM consumption:
 ### Basic Workflow
 
 ```bash
-# Start recording
-node dist/cli.js start --extension-id abc123
+# Start recording with interactive UI
+ai-pocket-recorder start --extension-id abc123 --bridge
 
 # ... perform actions in the extension ...
+# Use Ctrl+P to pause, Ctrl+R to resume, Ctrl+C to stop
 
-# Stop and generate report
-node dist/cli.js stop
+# Or stop separately
+ai-pocket-recorder stop
 ```
 
 ### Generate Report from Capture
@@ -244,14 +304,14 @@ node dist/cli.js stop
 ```bash
 # Capture data from extension (implement in extension code)
 # Then generate report
-node dist/cli.js capture my-session-data.json -o reports/bug-report.md
+ai-pocket-recorder capture my-session-data.json -o reports/bug-report.md
 ```
 
 ### Stop with Inline Capture
 
 ```bash
 # Stop and persist raw capture data in one command
-node dist/cli.js stop --capture ./raw-data.json -o reports/debug-session.md
+ai-pocket-recorder stop --capture ./raw-data.json -o reports/debug-session.md
 ```
 
 ## Development
@@ -260,25 +320,38 @@ node dist/cli.js stop --capture ./raw-data.json -o reports/debug-session.md
 
 ```bash
 npm run build
+# or with pnpm
+pnpm --filter @ai-pocket/debug-recorder build
 ```
 
 ### Watch Mode
 
 ```bash
 npm run dev
+# or with tsx directly
+tsx watch src/cli.ts
 ```
 
 ### Run Tests
 
 ```bash
 npm test
+# or with watch mode
+npm run test:watch
+```
+
+### Linting and Formatting
+
+```bash
+npm run lint
+npm run format
 ```
 
 ### Test with Fixture
 
 ```bash
 npm run build
-node dist/cli.js capture tests/fixtures/sample-capture.json
+ai-pocket-recorder capture tests/fixtures/sample-capture.json
 ```
 
 ## Integration with Extension
@@ -302,7 +375,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       errors: capturedErrors,
       snapshots: stateSnapshots,
     };
-    
+
     // Download as JSON
     const blob = new Blob([JSON.stringify(capture, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

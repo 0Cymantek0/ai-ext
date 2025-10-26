@@ -18,6 +18,7 @@ Report ID: 3f7a6c2b-4d9e-41c8-8f21-5a328c9012ab
 - Errors: 🚨 Frequent `QuotaExceededError`
 
 **Immediate Actions:**
+
 1. Export and archive old pockets
 2. Delete unused vector chunks >90 days old
 3. Enable automatic storage cleanup
@@ -27,6 +28,7 @@ Report ID: 3f7a6c2b-4d9e-41c8-8f21-5a328c9012ab
 ## Storage Status
 
 ### IndexedDB — 🚨 Critical
+
 - Size: **291 MB / 300 MB (97%)**
 - Projected full in: **2 days** at current growth
 - Largest stores:
@@ -35,6 +37,7 @@ Report ID: 3f7a6c2b-4d9e-41c8-8f21-5a328c9012ab
   - `conversations`: 18 MB (6%)
 
 ### Chrome Storage
+
 - Local: 2.7 MB / 10 MB (27%)
 - Sync: 82 KB / 100 KB (82%) ⚠️
 

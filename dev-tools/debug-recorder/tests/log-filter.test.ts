@@ -441,9 +441,7 @@ describe('LogFilterPipeline', () => {
       const secondClickLogs = correlatedLogs.get('interaction-2');
 
       // Only one should have the log
-      expect(
-        (firstClickLogs?.length ?? 0) + (secondClickLogs?.length ?? 0),
-      ).toBe(1);
+      expect((firstClickLogs?.length ?? 0) + (secondClickLogs?.length ?? 0)).toBe(1);
     });
   });
 
@@ -592,9 +590,7 @@ describe('LogFilterPipeline', () => {
       const { filteredLogs } = strictFilter.filterAndCorrelate(logs, []);
 
       expect(filteredLogs.length).toBeLessThanOrEqual(2);
-      expect(filteredLogs.every((log) => log.level === 'warn' || log.level === 'error')).toBe(
-        true,
-      );
+      expect(filteredLogs.every((log) => log.level === 'warn' || log.level === 'error')).toBe(true);
     });
 
     it('should create a verbose filter with minimal filtering', () => {

@@ -25,9 +25,13 @@ export class ReportGenerator {
 
     sections.push(formatMetadata(this.session.metadata));
 
-    sections.push(summarizeInteractions(this.session.interactions, this.session.metadata.startTime));
+    sections.push(
+      summarizeInteractions(this.session.interactions, this.session.metadata.startTime)
+    );
 
-    sections.push(formatDetailedInteractions(this.session.interactions, budget.interactions, collapseLogs));
+    sections.push(
+      formatDetailedInteractions(this.session.interactions, budget.interactions, collapseLogs)
+    );
 
     sections.push(formatErrorDigests(this.session.errors, budget.errors));
 
