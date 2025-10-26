@@ -1,3 +1,5 @@
+import "./offscreen-logging-setup.js";
+
 console.info("AI Pocket offscreen document ready");
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

@@ -2,6 +2,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom/client";
 import { ChatApp } from "./ChatApp";
 import "../styles/globals.css";
+import "./sidepanel-logging-setup.js";
 
 console.log("[SidePanel React] Initializing React app...");
 
