@@ -22,10 +22,10 @@ import {
   rootElement: documentRef?.body ?? null,
  });
 
- interface ContentScriptState {
-   initialized: boolean;
-   pageUrl: string;
-
+interface ContentScriptState {
+  initialized: boolean;
+  pageUrl: string;
+  pageTitle: string;
   initTime: number;
 }
 

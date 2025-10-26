@@ -36,7 +36,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { getDevInstrumentation } from "@/devtools/instrumentation";
 
 interface ChatMessage {
-
+  id: string;
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: number;

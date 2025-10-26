@@ -43,21 +43,13 @@ export interface InstrumentationEvent {
   detail?: any;
 }
 
-type SnapshotRegistry = Record<string, string>;
+type SnapshotRegistry = Record<string, string | undefined>;
 
 type Cleanup = () => void;
 
 type ReactProfilerPhase = "mount" | "update" | "nested-update";
 
-type ReactProfilerCallback = (
-  id: string,
-  phase: ReactProfilerPhase,
-  actualDuration: number,
-  baseDuration: number,
-  startTime: number,
-  commitTime: number,
-  interactions: Set<unknown>,
-) => void;
+type ReactProfilerCallback = NonNullable<import("react").ProfilerProps["onRender"]>;
 
 interface SurfaceState {
   initialized: boolean;
@@ -124,7 +116,7 @@ function createHandle(surface: InstrumentationSurface, state: SurfaceState): Dev
       return;
     }
 
-    state.snapshotHashes[key] = serialized;
+    state.snapshotHashes[key] = serialized ?? undefined;
     recordEvent(`snapshot:${key}`, sanitized);
   };
 
@@ -132,14 +124,13 @@ function createHandle(surface: InstrumentationSurface, state: SurfaceState): Dev
   const getSnapshotKeys = () => Object.keys(state.snapshotHashes);
 
   const getProfilerCallback = (id: string): ReactProfilerCallback => {
-    return (
+    const callback: ReactProfilerCallback = (
       profilerId,
       phase,
       actualDuration,
       baseDuration,
       startTime,
       commitTime,
-      interactions,
     ) => {
       recordEvent(`react:${id}`, {
         profilerId,
@@ -150,9 +141,10 @@ function createHandle(surface: InstrumentationSurface, state: SurfaceState): Dev
           startTime,
           commitTime,
         },
-        interactionCount: interactions?.size ?? 0,
       });
     };
+
+    return callback;
   };
 
   return {
