@@ -691,9 +691,15 @@ export function serializeContextBundle(
       "You have access to the user's captured content and can provide contextual responses based on their research.",
     );
   } else {
-    parts.push("# Ask Mode - General Assistant");
+    parts.push("# Ask Mode - Context-Aware Assistant");
     parts.push(
-      "You are a helpful AI assistant providing general conversational support.",
+      "IMPORTANT: You have been provided with relevant context below (conversation history, page context, and/or saved content).",
+    );
+    parts.push(
+      "Use this context to answer questions directly. Do NOT ask the user for information that is already present in the context sections below.",
+    );
+    parts.push(
+      "If the user asks about something mentioned in the context, reference it immediately without requesting clarification.",
     );
   }
 

@@ -644,9 +644,26 @@ export class IndexedDBManager {
             IndexedDBErrorType.NOT_FOUND,
             `Conversation ${id} not found`,
           );
+        
+        // Check if message with same ID already exists
+        const messageExists = existing.messages.some((m: Message) => m.id === message.id);
+        
+        logger.info("IndexedDBManager", "updateConversation check", {
+          conversationId: id,
+          messageId: message.id,
+          messageExists,
+          existingMessageCount: existing.messages.length,
+          messageRole: message.role
+        });
+        
+        // Only add message if it doesn't already exist
+        const updatedMessages = messageExists 
+          ? existing.messages.map((m: Message) => m.id === message.id ? message : m) // Update existing message
+          : [...existing.messages, message]; // Add new message
+        
         const updated: Conversation = {
           ...existing,
-          messages: [...existing.messages, message],
+          messages: updatedMessages,
           updatedAt: Date.now(),
           tokensUsed: existing.tokensUsed + (message.metadata?.tokensUsed || 0),
         };

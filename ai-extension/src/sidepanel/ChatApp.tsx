@@ -227,7 +227,7 @@ export function ChatApp() {
   // Streaming handlers with useCallback to prevent stale closures
   const handleStreamStart = React.useCallback((payload: any) => {
     const newMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: payload.messageId || crypto.randomUUID(), // Use messageId from backend if available
       role: "assistant",
       content: "",
       timestamp: Date.now(),

@@ -37,6 +37,7 @@ interface StreamingSession {
   startTime: number;
   totalChunks: number;
   conversationId?: string | undefined;
+  messageId?: string; // ID of the assistant message being created
 }
 
 /**
@@ -136,6 +137,10 @@ export class StreamingHandler {
       preferLocal: payload.preferLocal,
     });
 
+    // Generate message ID for the assistant response
+    const messageId = crypto.randomUUID();
+    session.messageId = messageId;
+    
     // Send stream start message
     this.sendToSidePanel({
       kind: "AI_PROCESS_STREAM_START",
@@ -143,6 +148,7 @@ export class StreamingHandler {
       payload: {
         requestId,
         conversationId: payload.conversationId,
+        messageId, // Send the message ID to the UI
       },
     });
 
@@ -267,11 +273,11 @@ export class StreamingHandler {
 
       // Persist final assistant message to conversation history if available
       try {
-        if (payload.conversationId) {
+        if (payload.conversationId && session.messageId) {
           const { indexedDBManager } = await import("./indexeddb-manager.js");
           await indexedDBManager.init();
           const message = {
-            id: crypto.randomUUID(),
+            id: session.messageId, // Use the same ID that was sent to the UI
             role: "assistant" as const,
             content: fullResponse,
             timestamp: Date.now(),
