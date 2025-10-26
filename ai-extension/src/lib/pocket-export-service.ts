@@ -152,7 +152,7 @@ async function fetchVectorChunks(pocketId: string): Promise<VectorChunk[]> {
  */
 function openVectorDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("aiPocketVectorDB", 2);
+    const request = indexedDB.open("ai-pocket-db", 2);
 
     request.onsuccess = () => {
       resolve(request.result);
@@ -160,6 +160,19 @@ function openVectorDB(): Promise<IDBDatabase> {
 
     request.onerror = () => {
       reject(request.error);
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+
+      // Create vectorChunks object store if it doesn't exist
+      if (!db.objectStoreNames.contains("vectorChunks")) {
+        const store = db.createObjectStore("vectorChunks", { keyPath: "id" });
+        store.createIndex("pocketId", "pocketId", { unique: false });
+        store.createIndex("contentId", "contentId", { unique: false });
+        store.createIndex("pocketId_contentId", ["pocketId", "contentId"], { unique: false });
+        store.createIndex("createdAt", "createdAt", { unique: false });
+      }
     };
   });
 }
@@ -265,11 +278,12 @@ async function importVectorChunks(newPocketId: string, chunks: VectorChunk[]): P
     const store = transaction.objectStore("vectorChunks");
 
     for (const chunk of chunks) {
-      // Update pocketId to new pocket
+      // Update pocketId to new pocket and ensure createdAt is set
       const newChunk = {
         ...chunk,
         pocketId: newPocketId,
         id: crypto.randomUUID(), // Generate new ID
+        createdAt: chunk.createdAt || Date.now(), // Preserve or set createdAt
       };
 
       store.add(newChunk);
