@@ -28,6 +28,7 @@ export interface PocketManagerRef {
   handleNewPocket: () => void;
   openAnalytics: () => void;
   openExportImport: (mode?: "export" | "import") => void;
+  reload: () => void;
 }
 
 export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerProps>(
@@ -391,6 +392,7 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
     handleNewPocket,
     openAnalytics: () => setShowAnalytics(true),
     openExportImport: (_mode?: "export" | "import") => setShowExportImport(true),
+    reload: loadPockets,
   }));
 
   // If a pocket is selected, show the content list

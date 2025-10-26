@@ -24,9 +24,12 @@ export class MetadataQueueManager {
   private maxRetries: number = 3;
   private processingInterval: number = 2000; // 2 seconds between jobs
   private scanInterval: number = 5 * 60 * 1000; // 5 minutes
-  private scanTimer: NodeJS.Timeout | null = null;
+  private scanTimer: number | null = null;
 
   constructor(aiManager: AIManager) {
+    if (!aiManager) {
+      throw new Error("AIManager is required for MetadataQueueManager");
+    }
     this.aiManager = aiManager;
     this.generator = new ConversationMetadataGenerator(aiManager);
   }
@@ -35,15 +38,26 @@ export class MetadataQueueManager {
    * Start the background metadata generation system
    */
   start() {
-    logger.info("MetadataQueue", "Starting background metadata generation");
-    
-    // Initial scan for missing metadata
-    this.scanForMissingMetadata();
-    
-    // Set up periodic scanning
-    this.scanTimer = setInterval(() => {
-      this.scanForMissingMetadata();
-    }, this.scanInterval);
+    try {
+      logger.info("MetadataQueue", "Starting background metadata generation");
+      
+      // Initial scan for missing metadata
+      this.scanForMissingMetadata().catch((error) => {
+        logger.error("MetadataQueue", "Initial scan failed", { error });
+      });
+      
+      // Set up periodic scanning
+      this.scanTimer = setInterval(() => {
+        this.scanForMissingMetadata().catch((error) => {
+          logger.error("MetadataQueue", "Periodic scan failed", { error });
+        });
+      }, this.scanInterval) as unknown as number;
+      
+      logger.info("MetadataQueue", "Background metadata generation started successfully");
+    } catch (error) {
+      logger.error("MetadataQueue", "Failed to start background metadata generation", { error });
+      throw error;
+    }
   }
 
   /**

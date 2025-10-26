@@ -26,7 +26,7 @@ import { attachLoggerBridge } from "./logger-wrapper.js";
 import { getLogCollector } from "./log-collector.js";
 import { CloudAIManager } from "./cloud-ai-manager.js";
 import { getStreamingHandler } from "./streaming-handler.js";
-import { indexedDBManager } from "./indexeddb-manager.js";
+import { indexedDBManager, ContentType, ProcessingStatus } from "./indexeddb-manager.js";
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
@@ -724,6 +724,26 @@ class ServiceWorkerLifecycle {
   private heartbeatTimer: number | null = null;
 
   /**
+   * Preload embedding model in background
+   * This ensures the model is ready when users first use RAG search
+   */
+  private preloadEmbeddingModel(): void {
+    // Import and preload in background (don't await)
+    import("./local-embedding-engine.js").then(({ localEmbeddingEngine }) => {
+      logger.info("ServiceWorker", "Preloading embedding model in background...");
+      
+      // Generate a dummy embedding to trigger model loading
+      localEmbeddingEngine.generateEmbedding("preload").then(() => {
+        logger.info("ServiceWorker", "Embedding model preloaded successfully");
+      }).catch((error) => {
+        logger.warn("ServiceWorker", "Failed to preload embedding model (will load on first use)", { error });
+      });
+    }).catch((error) => {
+      logger.warn("ServiceWorker", "Failed to import embedding engine for preload", { error });
+    });
+  }
+
+  /**
    * Initialize the service worker
    * Restores state from storage and sets up event listeners
    */
@@ -760,6 +780,8 @@ class ServiceWorkerLifecycle {
         logger.error("ServiceWorker", "Failed to start background processor", error);
       });
 
+      // Preload embedding model in background (don't block initialization)
+      this.preloadEmbeddingModel();
       // Enable runtime logging if debug recorder is enabled
       const debugRecorderEnabled = await chrome.storage.local.get('debugRecorderEnabled');
       if (debugRecorderEnabled.debugRecorderEnabled === true) {
@@ -1824,6 +1846,19 @@ messageRouter.registerHandler("POCKET_UPDATE", async (payload: any) => {
   }
 });
 
+messageRouter.registerHandler("POCKET_GET", async (payload: any) => {
+  logger.info("Handler", "POCKET_GET", payload);
+  try {
+    await indexedDBManager.init();
+    const pocket = await indexedDBManager.getPocket(payload.pocketId);
+    logger.info("Handler", "POCKET_GET success", { pocketId: payload.pocketId });
+    return { pocket };
+  } catch (error) {
+    logger.error("Handler", "POCKET_GET error", error);
+    throw error;
+  }
+});
+
 messageRouter.registerHandler("POCKET_LIST", async (payload) => {
   logger.info("Handler", "POCKET_LIST", payload);
   try {
@@ -2036,6 +2071,69 @@ messageRouter.registerHandler("ERROR", async (payload) => {
   return { acknowledged: true };
 });
 
+// Register content import handler for pocket import feature
+messageRouter.registerHandler("CONTENT_IMPORT", async (payload) => {
+  logger.info("Handler", "CONTENT_IMPORT", payload);
+
+  try {
+    const { pocketId, content, sourceUrl, metadata } = payload as {
+      pocketId: string;
+      content: any;
+      sourceUrl: string;
+      metadata: any;
+    };
+
+    if (!pocketId) {
+      throw new Error("Missing required field: pocketId");
+    }
+
+    await indexedDBManager.init();
+
+    // Save content directly to IndexedDB
+    const contentId = await indexedDBManager.saveContent({
+      pocketId,
+      type: metadata.type || ContentType.TEXT,
+      content,
+      metadata: {
+        ...metadata,
+        timestamp: metadata.timestamp || Date.now(),
+        updatedAt: Date.now(),
+      },
+      sourceUrl: sourceUrl || "",
+      processingStatus: ProcessingStatus.COMPLETED,
+    });
+
+    logger.info("Handler", "Content imported successfully", {
+      contentId,
+      pocketId,
+      type: metadata.type,
+    });
+
+    // Enqueue vector indexing (non-blocking)
+    vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.CREATE).catch((error) => {
+      logger.error("Handler", "Failed to enqueue vector indexing for imported content", { contentId, error });
+    });
+
+    // Broadcast content created event
+    try {
+      const createdRecord = await indexedDBManager.getContent(contentId);
+      if (createdRecord) {
+        await messageRouter.sendToSidePanel({
+          kind: "CONTENT_CREATED",
+          payload: { content: createdRecord },
+        } as any);
+      }
+    } catch (broadcastError) {
+      logger.warn("Handler", "Failed to broadcast CONTENT_CREATED for import", broadcastError);
+    }
+
+    return { contentId, status: "success" };
+  } catch (error) {
+    logger.error("Handler", "CONTENT_IMPORT error", error);
+    throw error;
+  }
+});
+
 // Initialize AI managers for streaming
 const aiManager = new AIManager();
 const cloudAIManager = new CloudAIManager();
@@ -2047,12 +2145,26 @@ let metadataQueueManager: import("./metadata-queue-manager.js").MetadataQueueMan
 // Initialize metadata queue manager after a short delay to avoid blocking startup
 setTimeout(async () => {
   try {
+    logger.info("ServiceWorker", "Initializing metadata queue manager...");
+    
+    if (!aiManager) {
+      throw new Error("AIManager not available for metadata queue manager");
+    }
+    
     const { MetadataQueueManager } = await import("./metadata-queue-manager.js");
+    logger.info("ServiceWorker", "MetadataQueueManager module loaded");
+    
     metadataQueueManager = new MetadataQueueManager(aiManager);
+    logger.info("ServiceWorker", "MetadataQueueManager instance created");
+    
     metadataQueueManager.start();
-    logger.info("ServiceWorker", "Metadata queue manager started");
+    logger.info("ServiceWorker", "Metadata queue manager started successfully");
   } catch (error) {
-    logger.error("ServiceWorker", "Failed to start metadata queue manager", { error });
+    logger.error("ServiceWorker", "Failed to start metadata queue manager", { 
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined
+    });
   }
 }, 2000); // 2 second delay
 
@@ -2280,6 +2392,97 @@ messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
     return { success: true };
   } catch (error) {
     logger.error("Handler", "CONVERSATION_DELETE error", error);
+    throw error;
+  }
+});
+
+// Register conversation pocket attachment handlers
+messageRouter.registerHandler("CONVERSATION_ATTACH_POCKET", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_ATTACH_POCKET", payload);
+  try {
+    await indexedDBManager.init();
+    await indexedDBManager.attachPocketToConversation(
+      payload.conversationId,
+      payload.pocketId
+    );
+    
+    // Get pocket details for response
+    const pocket = await indexedDBManager.getPocket(payload.pocketId);
+    
+    logger.info("Handler", "CONVERSATION_ATTACH_POCKET success", {
+      conversationId: payload.conversationId,
+      pocketId: payload.pocketId,
+      pocketName: pocket?.name,
+    });
+    
+    return {
+      success: true,
+      conversationId: payload.conversationId,
+      attachedPocketId: payload.pocketId,
+      pocketName: pocket?.name,
+      pocketDescription: pocket?.description,
+    };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_ATTACH_POCKET error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("CONVERSATION_DETACH_POCKET", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_DETACH_POCKET", payload);
+  try {
+    await indexedDBManager.init();
+    await indexedDBManager.detachPocketFromConversation(
+      payload.conversationId,
+      payload.pocketId // Optional: detach specific pocket or all if undefined
+    );
+    
+    logger.info("Handler", "CONVERSATION_DETACH_POCKET success", {
+      conversationId: payload.conversationId,
+      pocketId: payload.pocketId || "all",
+    });
+    
+    return {
+      success: true,
+      conversationId: payload.conversationId,
+      attachedPocketId: null,
+      attachedPocketIds: [],
+    };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_DETACH_POCKET error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("CONVERSATION_GET_ATTACHED_POCKET", async (payload: any) => {
+  logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET", payload);
+  try {
+    await indexedDBManager.init();
+    const pockets = await indexedDBManager.getAttachedPockets(payload.conversationId);
+    const pocketIds = await indexedDBManager.getAttachedPocketIds(payload.conversationId);
+    
+    logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET success", {
+      conversationId: payload.conversationId,
+      found: pockets.length > 0,
+      pocketCount: pockets.length,
+    });
+    
+    return {
+      success: true,
+      conversationId: payload.conversationId,
+      attachedPocketId: pockets.length > 0 ? pockets[0]?.id : null, // For backward compatibility
+      attachedPocketIds: pocketIds,
+      pockets: pockets.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        color: p.color,
+      })),
+      pocketName: pockets.length > 0 ? pockets[0]?.name : undefined,
+      pocketDescription: pockets.length > 0 ? pockets[0]?.description : undefined,
+    };
+  } catch (error) {
+    logger.error("Handler", "CONVERSATION_GET_ATTACHED_POCKET error", error);
     throw error;
   }
 });

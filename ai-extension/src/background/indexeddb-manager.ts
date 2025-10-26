@@ -124,6 +124,8 @@ export interface ConversationMetadata {
 export interface Conversation {
   id: string;
   pocketId?: string;
+  attachedPocketId?: string; // Legacy: single pocket (for migration)
+  attachedPocketIds?: string[]; // Multiple pockets attached for RAG context retrieval
   messages: Message[];
   createdAt: number;
   updatedAt: number;
@@ -940,6 +942,257 @@ export class IndexedDBManager {
         return await this.promisifyRequest(
           tx.objectStore(StoreName.VECTOR_CHUNKS).getAll(),
         );
+      },
+    );
+  }
+
+  // Conversation Pocket Attachment Operations
+
+  /**
+   * Attach a pocket to a conversation for RAG context retrieval
+   * @param conversationId - ID of the conversation
+   * @param pocketId - ID of the pocket to attach
+   * @throws IndexedDBError if conversation or pocket not found
+   */
+  async attachPocketToConversation(conversationId: string, pocketId: string): Promise<void> {
+    await this.executeTransaction(
+      [StoreName.CONVERSATIONS, StoreName.POCKETS],
+      "readwrite",
+      async (tx) => {
+        // Verify conversation exists
+        const conversationStore = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(conversationStore.get(conversationId));
+        
+        if (!conversation) {
+          throw new IndexedDBError(
+            IndexedDBErrorType.NOT_FOUND,
+            `Conversation ${conversationId} not found`,
+          );
+        }
+
+        // Verify pocket exists
+        const pocketStore = tx.objectStore(StoreName.POCKETS);
+        const pocket = await this.promisifyRequest(pocketStore.get(pocketId));
+        
+        if (!pocket) {
+          throw new IndexedDBError(
+            IndexedDBErrorType.NOT_FOUND,
+            `Pocket ${pocketId} not found`,
+          );
+        }
+
+        // Migrate legacy attachedPocketId to attachedPocketIds if needed
+        let attachedPocketIds = conversation.attachedPocketIds || [];
+        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+          attachedPocketIds.push(conversation.attachedPocketId);
+        }
+
+        // Add new pocket if not already attached
+        if (!attachedPocketIds.includes(pocketId)) {
+          attachedPocketIds.push(pocketId);
+        }
+
+        // Update conversation with attached pockets
+        const updated: Conversation = {
+          ...conversation,
+          attachedPocketIds,
+          attachedPocketId: undefined, // Clear legacy field
+          updatedAt: Date.now(),
+        };
+
+        await this.promisifyRequest(conversationStore.put(updated));
+      },
+    );
+
+    logger.info("IndexedDBManager", "Pocket attached to conversation", {
+      conversationId,
+      pocketId,
+    });
+  }
+
+  /**
+   * Detach a specific pocket from a conversation
+   * @param conversationId - ID of the conversation
+   * @param pocketId - ID of the pocket to detach (optional, if not provided detaches all)
+   * @throws IndexedDBError if conversation not found
+   */
+  async detachPocketFromConversation(conversationId: string, pocketId?: string): Promise<void> {
+    await this.executeTransaction(
+      StoreName.CONVERSATIONS,
+      "readwrite",
+      async (tx) => {
+        const store = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(store.get(conversationId));
+        
+        if (!conversation) {
+          throw new IndexedDBError(
+            IndexedDBErrorType.NOT_FOUND,
+            `Conversation ${conversationId} not found`,
+          );
+        }
+
+        // Migrate legacy attachedPocketId to attachedPocketIds if needed
+        let attachedPocketIds = conversation.attachedPocketIds || [];
+        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+          attachedPocketIds.push(conversation.attachedPocketId);
+        }
+
+        // Remove specific pocket or all pockets
+        if (pocketId) {
+          attachedPocketIds = attachedPocketIds.filter(id => id !== pocketId);
+        } else {
+          attachedPocketIds = [];
+        }
+
+        // Update conversation
+        const updated: Conversation = {
+          ...conversation,
+          attachedPocketIds,
+          attachedPocketId: undefined, // Clear legacy field
+          updatedAt: Date.now(),
+        };
+
+        await this.promisifyRequest(store.put(updated));
+      },
+    );
+
+    logger.info("IndexedDBManager", "Pocket detached from conversation", {
+      conversationId,
+      pocketId: pocketId || "all",
+    });
+  }
+
+  /**
+   * Get all pockets attached to a conversation
+   * @param conversationId - ID of the conversation
+   * @returns Array of attached pockets or empty array if no pockets attached
+   */
+  async getAttachedPockets(conversationId: string): Promise<Pocket[]> {
+    return this.executeTransaction(
+      [StoreName.CONVERSATIONS, StoreName.POCKETS],
+      "readonly",
+      async (tx) => {
+        const conversationStore = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(conversationStore.get(conversationId));
+        
+        if (!conversation) {
+          return [];
+        }
+
+        // Migrate legacy attachedPocketId to attachedPocketIds if needed
+        let attachedPocketIds = conversation.attachedPocketIds || [];
+        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+          attachedPocketIds.push(conversation.attachedPocketId);
+        }
+
+        if (attachedPocketIds.length === 0) {
+          return [];
+        }
+
+        // Fetch all attached pockets
+        const pocketStore = tx.objectStore(StoreName.POCKETS);
+        const pockets: Pocket[] = [];
+        
+        for (const pocketId of attachedPocketIds) {
+          const pocket = await this.promisifyRequest(pocketStore.get(pocketId));
+          if (pocket) {
+            pockets.push(pocket);
+          }
+        }
+
+        return pockets;
+      },
+    );
+  }
+
+  /**
+   * Get the first pocket attached to a conversation (for backward compatibility)
+   * @param conversationId - ID of the conversation
+   * @returns Attached pocket or null if no pocket attached or conversation not found
+   */
+  async getAttachedPocket(conversationId: string): Promise<Pocket | null> {
+    return this.executeTransaction(
+      [StoreName.CONVERSATIONS, StoreName.POCKETS],
+      "readonly",
+      async (tx) => {
+        const conversationStore = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(conversationStore.get(conversationId));
+        
+        if (!conversation) {
+          return null;
+        }
+
+        // Migrate legacy attachedPocketId to attachedPocketIds if needed
+        let attachedPocketIds = conversation.attachedPocketIds || [];
+        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+          attachedPocketIds.push(conversation.attachedPocketId);
+        }
+
+        if (attachedPocketIds.length === 0) {
+          return null;
+        }
+
+        // Return the first attached pocket for backward compatibility
+        const pocketStore = tx.objectStore(StoreName.POCKETS);
+        const pocket = await this.promisifyRequest(pocketStore.get(attachedPocketIds[0]));
+        
+        return pocket || null;
+      },
+    );
+  }
+
+  /**
+   * Get all attached pocket IDs for a conversation (lightweight version)
+   * @param conversationId - ID of the conversation
+   * @returns Array of attached pocket IDs or empty array
+   */
+  async getAttachedPocketIds(conversationId: string): Promise<string[]> {
+    return this.executeTransaction(
+      StoreName.CONVERSATIONS,
+      "readonly",
+      async (tx) => {
+        const store = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(store.get(conversationId));
+        
+        if (!conversation) {
+          return [];
+        }
+
+        // Migrate legacy attachedPocketId to attachedPocketIds if needed
+        let attachedPocketIds = conversation.attachedPocketIds || [];
+        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+          attachedPocketIds.push(conversation.attachedPocketId);
+        }
+
+        return attachedPocketIds;
+      },
+    );
+  }
+
+  /**
+   * Get the first attached pocket ID for a conversation (for backward compatibility)
+   * @param conversationId - ID of the conversation
+   * @returns Attached pocket ID or null
+   */
+  async getAttachedPocketId(conversationId: string): Promise<string | null> {
+    return this.executeTransaction(
+      StoreName.CONVERSATIONS,
+      "readonly",
+      async (tx) => {
+        const store = tx.objectStore(StoreName.CONVERSATIONS);
+        const conversation = await this.promisifyRequest(store.get(conversationId));
+        
+        if (!conversation) {
+          return null;
+        }
+
+        // Migrate legacy attachedPocketId to attachedPocketIds if needed
+        let attachedPocketIds = conversation.attachedPocketIds || [];
+        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+          attachedPocketIds.push(conversation.attachedPocketId);
+        }
+
+        return attachedPocketIds.length > 0 ? attachedPocketIds[0] : null;
       },
     );
   }
