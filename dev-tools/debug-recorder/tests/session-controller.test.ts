@@ -50,7 +50,7 @@ describe('SessionController', () => {
       await controller.start();
       const session = await controller.stop();
 
-      expect(controller.getState()).toBe('idle');
+      expect(controller.getState()).toBe('stopped');
       expect(session.metadata.endTime).toBeDefined();
     });
 
@@ -59,8 +59,17 @@ describe('SessionController', () => {
       await controller.pause();
       const session = await controller.stop();
 
-      expect(controller.getState()).toBe('idle');
+      expect(controller.getState()).toBe('stopped');
       expect(session.metadata.endTime).toBeDefined();
+    });
+
+    it('should allow starting a new session after stop', async () => {
+      await controller.start();
+      await controller.stop();
+
+      const newSessionId = await controller.start();
+      expect(controller.getState()).toBe('recording');
+      expect(newSessionId).toBeDefined();
     });
 
     it('should throw error when starting from non-idle state', async () => {
@@ -84,6 +93,12 @@ describe('SessionController', () => {
     });
 
     it('should throw error when stopping from idle state', async () => {
+      await expect(controller.stop()).rejects.toThrow('Cannot stop session: no active session');
+    });
+
+    it('should throw error when stopping from stopped state', async () => {
+      await controller.start();
+      await controller.stop();
       await expect(controller.stop()).rejects.toThrow('Cannot stop session: no active session');
     });
   });
@@ -248,7 +263,7 @@ describe('SessionController', () => {
       await controller.start();
       await controller.shutdown();
 
-      expect(controller.getState()).toBe('idle');
+      expect(controller.getState()).toBe('stopped');
       expect(mockStore.save).toHaveBeenCalled();
     });
 
@@ -257,7 +272,7 @@ describe('SessionController', () => {
       await controller.pause();
       await controller.shutdown();
 
-      expect(controller.getState()).toBe('idle');
+      expect(controller.getState()).toBe('stopped');
     });
 
     it('should handle shutdown in idle state', async () => {

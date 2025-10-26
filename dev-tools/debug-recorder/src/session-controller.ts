@@ -67,8 +67,13 @@ export class SessionController extends EventEmitter {
   }
 
   async start(config: SessionConfig = {}): Promise<string> {
-    if (this.state !== 'idle') {
+    if (this.state !== 'idle' && this.state !== 'stopped') {
       throw new Error(`Cannot start session: current state is ${this.state}`);
+    }
+
+    // Reset state if starting from stopped state
+    if (this.state === 'stopped') {
+      this.reset();
     }
 
     this.config = config;
@@ -150,7 +155,7 @@ export class SessionController extends EventEmitter {
   }
 
   async stop(): Promise<Session> {
-    if (this.state === 'idle') {
+    if (this.state === 'idle' || this.state === 'stopped') {
       throw new Error('Cannot stop session: no active session');
     }
 
@@ -174,7 +179,8 @@ export class SessionController extends EventEmitter {
     this.emit('stateChange', this.state, previousState);
     this.emit('sessionStop');
 
-    this.reset();
+    // Note: reset() is now called in start() to allow inspection of stopped state
+    // The controller can be reused by calling start() again
 
     return session;
   }

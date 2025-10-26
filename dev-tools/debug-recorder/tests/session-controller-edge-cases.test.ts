@@ -30,7 +30,7 @@ describe('SessionController Edge Cases', () => {
       const session = await controller.stop();
 
       expect(session).toBeDefined();
-      expect(controller.getState()).toBe('idle');
+      expect(controller.getState()).toBe('stopped');
     });
 
     it('should handle rapid pause-resume cycles', async () => {
@@ -64,7 +64,7 @@ describe('SessionController Edge Cases', () => {
       const session = await controller.stop();
 
       expect(session.metadata.endTime).toBeDefined();
-      expect(controller.getState()).toBe('idle');
+      expect(controller.getState()).toBe('stopped');
     });
 
     it('should calculate uptime correctly with multiple pause cycles', async () => {
@@ -196,11 +196,11 @@ describe('SessionController Edge Cases', () => {
       await controller.shutdown();
       await controller.shutdown();
 
-      expect(controller.getState()).toBe('idle');
+      expect(controller.getState()).toBe('stopped');
     });
 
-    it('should reset all state on shutdown', async () => {
-      await controller.start({
+    it('should preserve stopped session data after shutdown', async () => {
+      const sessionId = await controller.start({
         extensionId: 'test-id',
         flags: { test: true },
       });
@@ -208,9 +208,18 @@ describe('SessionController Edge Cases', () => {
       await controller.shutdown();
 
       const status = controller.getStatus();
-      expect(status.sessionId).toBeNull();
-      expect(status.uptime).toBe(0);
-      expect(status.config).toEqual({});
+      expect(controller.getState()).toBe('stopped');
+      expect(status.sessionId).toBe(sessionId);
+      expect(status.session).toBeDefined();
+    });
+
+    it('should allow starting new session after shutdown', async () => {
+      await controller.start();
+      await controller.shutdown();
+
+      const newSessionId = await controller.start();
+      expect(controller.getState()).toBe('recording');
+      expect(newSessionId).toBeDefined();
     });
   });
 });
