@@ -9,6 +9,8 @@ import { ReportGenerator } from './report-generator.js';
 import { normalizeSession } from './normalizer.js';
 import type { Session } from './types.js';
 import { CaptureReadError, readCaptureFile } from './utils/capture.js';
+import { BridgeServer } from './bridge-server.js';
+import type { CommandType } from './protocol.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,6 +19,18 @@ const REPORTS_DIR = join(__dirname, '..', 'reports');
 
 const program = new Command();
 const sessionStore = new SessionStore();
+
+// Global bridge server instance
+let bridgeServer: BridgeServer | null = null;
+
+process.on('SIGINT', async () => {
+  if (bridgeServer) {
+    console.log('\n🛑 Stopping WebSocket bridge...');
+    await bridgeServer.stop();
+    bridgeServer = null;
+  }
+  process.exit(0);
+});
 
 program
   .name('debug-recorder')
@@ -30,6 +44,8 @@ program
   .option('--screenshots', 'Enable screenshot capture', false)
   .option('--storage', 'Include storage data', false)
   .option('--metrics', 'Include performance metrics', false)
+  .option('--bridge', 'Enable WebSocket bridge for real-time event streaming', false)
+  .option('--port <port>', 'Port for WebSocket bridge server', '9229')
   .action(async (options) => {
     const sessionId = generateSessionId();
 
@@ -54,6 +70,43 @@ program
 
     console.log(`✅ Recording started`);
     console.log(`Session ID: ${sessionId}`);
+
+    // Start WebSocket bridge if enabled
+    if (options.bridge) {
+      try {
+        bridgeServer = new BridgeServer({
+          port: parseInt(options.port, 10),
+          sessionId,
+          onEvent: (event) => {
+            console.log(`📨 Event received: ${event.payload.eventType} from ${event.payload.context}`);
+          },
+          onBatch: (batch) => {
+            console.log(`📦 Batch received: ${batch.payload.events.length} events from ${batch.payload.context}`);
+          },
+          onClientConnected: (clientId, context) => {
+            console.log(`✅ Client connected: ${clientId} (${context})`);
+          },
+          onClientDisconnected: (clientId) => {
+            console.log(`❌ Client disconnected: ${clientId}`);
+          },
+        });
+
+        const token = await bridgeServer.start();
+        
+        console.log(`\n🌐 WebSocket bridge started`);
+        console.log(`   Port: ${options.port}`);
+        console.log(`   Session Token: ${token}`);
+        console.log(`\n📋 To connect extension, run in browser console:`);
+        console.log(`   chrome.storage.session.set({`);
+        console.log(`     debug_bridge_session_token: "${token}",`);
+        console.log(`     debug_bridge_session_id: "${sessionId}"`);
+        console.log(`   })`);
+      } catch (error) {
+        console.error(`❌ Failed to start WebSocket bridge:`, error);
+        process.exit(1);
+      }
+    }
+
     console.log(`\nTo stop recording and generate report:`);
     console.log(`  debug-recorder stop ${sessionId}`);
   });
@@ -229,6 +282,43 @@ program
   .action(async (sessionId) => {
     await sessionStore.delete(sessionId);
     console.log(`✅ Session deleted: ${sessionId}`);
+  });
+
+program
+  .command('bridge')
+  .description('Control WebSocket bridge server')
+  .argument('<action>', 'Command to send (pause|resume|stop|status)')
+  .action(async (action) => {
+    if (!bridgeServer) {
+      console.error('❌ No active bridge server. Start a session with --bridge option first.');
+      process.exit(1);
+    }
+
+    const normalized = action.toLowerCase();
+
+    switch (normalized) {
+      case 'pause':
+        bridgeServer.broadcastCommand('PAUSE');
+        console.log('⏸️  Sent PAUSE command to all clients');
+        break;
+      case 'resume':
+        bridgeServer.broadcastCommand('RESUME');
+        console.log('▶️  Sent RESUME command to all clients');
+        break;
+      case 'stop':
+        bridgeServer.broadcastCommand('STOP');
+        console.log('🛑 Sent STOP command to all clients');
+        break;
+      case 'status': {
+        const status = bridgeServer.getStatus();
+        console.log('📡 Bridge Status:');
+        console.table(status);
+        break;
+      }
+      default:
+        console.error(`❌ Unknown action: ${action}`);
+        process.exit(1);
+    }
   });
 
 function generateSessionId(): string {
