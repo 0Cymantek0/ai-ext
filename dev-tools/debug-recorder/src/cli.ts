@@ -1,16 +1,17 @@
-#!/usr/bin/env node
-
 import { Command } from 'commander';
 import { promises as fs } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import React from 'react';
+import { render } from 'ink';
 import { SessionStore } from './session-store.js';
+import { SessionController } from './session-controller.js';
 import { ReportGenerator } from './report-generator.js';
 import { normalizeSession } from './normalizer.js';
 import type { Session } from './types.js';
 import { CaptureReadError, readCaptureFile } from './utils/capture.js';
 import { BridgeServer } from './bridge-server.js';
-import type { CommandType } from './protocol.js';
+import { RecorderUI } from './ui/RecorderUI.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -20,79 +21,85 @@ const REPORTS_DIR = join(__dirname, '..', 'reports');
 const program = new Command();
 const sessionStore = new SessionStore();
 
-// Global bridge server instance
-let bridgeServer: BridgeServer | null = null;
-
-process.on('SIGINT', async () => {
-  if (bridgeServer) {
-    console.log('\n🛑 Stopping WebSocket bridge...');
-    await bridgeServer.stop();
-    bridgeServer = null;
-  }
-  process.exit(0);
-});
-
 program
-  .name('debug-recorder')
+  .name('ai-pocket-recorder')
   .description('CLI tool for capturing runtime state and generating diagnostic reports')
   .version('0.1.0');
 
 program
   .command('start')
-  .description('Start a new recording session')
+  .description('Start a new recording session with interactive UI')
   .option('--extension-id <id>', 'Chrome extension ID to monitor')
+  .option('--extension-version <version>', 'Extension version')
+  .option('--chrome-version <version>', 'Chrome version')
+  .option('--chrome-profile <profile>', 'Chrome profile name')
   .option('--screenshots', 'Enable screenshot capture', false)
   .option('--storage', 'Include storage data', false)
   .option('--metrics', 'Include performance metrics', false)
   .option('--bridge', 'Enable WebSocket bridge for real-time event streaming', false)
   .option('--port <port>', 'Port for WebSocket bridge server', '9229')
   .action(async (options) => {
-    const sessionId = generateSessionId();
+    const controller = new SessionController(sessionStore);
+    let bridgeServer: BridgeServer | null = null;
+    let uiInstance: any = null;
 
-    const session: Session = {
-      metadata: {
-        sessionId,
-        startTime: Date.now(),
-        extensionId: options.extensionId || 'unknown',
-        recordingOptions: {
-          includeScreenshots: options.screenshots,
-          includeStorage: options.storage,
-          includeMetrics: options.metrics,
-          includePII: false,
-        },
-      },
-      interactions: [],
-      errors: [],
-      snapshots: [],
+    const cleanup = async () => {
+      if (uiInstance) {
+        uiInstance.unmount();
+      }
+      if (bridgeServer) {
+        await bridgeServer.stop();
+      }
+      await controller.shutdown();
     };
 
-    await sessionStore.save(session);
+    process.on('SIGINT', async () => {
+      console.log('\n🛑 Shutting down gracefully...');
+      await cleanup();
+      process.exit(0);
+    });
 
-    console.log(`✅ Recording started`);
-    console.log(`Session ID: ${sessionId}`);
+    process.on('SIGTERM', async () => {
+      console.log('\n🛑 Received SIGTERM, shutting down...');
+      await cleanup();
+      process.exit(0);
+    });
 
-    // Start WebSocket bridge if enabled
-    if (options.bridge) {
-      try {
+    try {
+      const sessionId = await controller.start({
+        extensionId: options.extensionId,
+        extensionVersion: options.extensionVersion,
+        chromeVersion: options.chromeVersion,
+        chromeProfile: options.chromeProfile,
+        includeScreenshots: options.screenshots,
+        includeStorage: options.storage,
+        includeMetrics: options.metrics,
+        flags: {
+          bridge: options.bridge,
+          port: options.port,
+        },
+      });
+
+      if (options.bridge) {
         bridgeServer = new BridgeServer({
           port: parseInt(options.port, 10),
           sessionId,
           onEvent: (event) => {
-            console.log(`📨 Event received: ${event.payload.eventType} from ${event.payload.context}`);
+            // Events are processed in background
           },
           onBatch: (batch) => {
-            console.log(`📦 Batch received: ${batch.payload.events.length} events from ${batch.payload.context}`);
+            // Batches are processed in background
           },
           onClientConnected: (clientId, context) => {
-            console.log(`✅ Client connected: ${clientId} (${context})`);
+            // Connection events handled by UI
           },
           onClientDisconnected: (clientId) => {
-            console.log(`❌ Client disconnected: ${clientId}`);
+            // Disconnection events handled by UI
           },
         });
 
         const token = await bridgeServer.start();
-        
+
         console.log(`\n🌐 WebSocket bridge started`);
         console.log(`   Port: ${options.port}`);
         console.log(`   Session Token: ${token}`);
@@ -100,15 +107,56 @@ program
         console.log(`   chrome.storage.session.set({`);
         console.log(`     debug_bridge_session_token: "${token}",`);
         console.log(`     debug_bridge_session_id: "${sessionId}"`);
-        console.log(`   })`);
-      } catch (error) {
-        console.error(`❌ Failed to start WebSocket bridge:`, error);
-        process.exit(1);
+        console.log(`   })\n`);
       }
-    }
 
-    console.log(`\nTo stop recording and generate report:`);
-    console.log(`  debug-recorder stop ${sessionId}`);
+      uiInstance = render(
+        React.createElement(RecorderUI, {
+          controller,
+          bridgeServer,
+          port: parseInt(options.port, 10),
+        })
+      );
+
+      const stdin = process.stdin;
+      if (stdin.isTTY) {
+        stdin.setRawMode(true);
+        stdin.on('data', async (key) => {
+          const char = key.toString();
+
+          if (char === '\u0003') {
+            await cleanup();
+            process.exit(0);
+          } else if (char === '\u0010' && controller.getState() === 'recording') {
+            await controller.pause();
+          } else if (char === '\u0012' && controller.getState() === 'paused') {
+            await controller.resume();
+          }
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Failed to start session:`, error);
+      await cleanup();
+      process.exit(1);
+    }
+  });
+
+program
+  .command('pause')
+  .description('Pause the current recording session')
+  .argument('[session-id]', 'Session ID to pause (uses latest if omitted)')
+  .action(async (sessionIdArg) => {
+    console.log('⏸️  Pause command - session control via start command UI');
+    console.log('Use Ctrl+P within the interactive session to pause');
+  });
+
+program
+  .command('resume')
+  .description('Resume a paused recording session')
+  .argument('[session-id]', 'Session ID to resume (uses latest if omitted)')
+  .action(async (sessionIdArg) => {
+    console.log('▶️  Resume command - session control via start command UI');
+    console.log('Use Ctrl+R within the interactive session to resume');
   });
 
 program
@@ -180,6 +228,60 @@ program
     console.log(`✅ Report generated`);
     console.log(`Session ID: ${session.metadata.sessionId}`);
     console.log(`Output: ${outputPath}`);
+  });
+
+program
+  .command('status')
+  .description('Show status of the current recording session')
+  .argument('[session-id]', 'Session ID to check (uses latest if omitted)')
+  .action(async (sessionIdArg) => {
+    let sessionId = sessionIdArg;
+
+    if (!sessionId) {
+      const sessions = await sessionStore.list();
+      if (!sessions.length) {
+        console.error('❌ No sessions found');
+        process.exit(1);
+      }
+      sessionId = sessions[sessions.length - 1];
+    }
+
+    const session = await sessionStore.load(sessionId);
+    if (!session) {
+      console.error(`❌ Session not found: ${sessionId}`);
+      process.exit(1);
+    }
+
+    console.log(`\n📊 Session Status`);
+    console.log(`Session ID: ${session.metadata.sessionId}`);
+    console.log(`Start: ${new Date(session.metadata.startTime).toISOString()}`);
+
+    if (session.metadata.endTime) {
+      console.log(`End: ${new Date(session.metadata.endTime).toISOString()}`);
+      const duration = session.metadata.endTime - session.metadata.startTime;
+      console.log(`Duration: ${Math.floor(duration / 1000)}s`);
+      console.log(`State: ⏹️  STOPPED`);
+    } else {
+      const duration = Date.now() - session.metadata.startTime;
+      console.log(`Duration: ${Math.floor(duration / 1000)}s`);
+      console.log(`State: 🔴 RECORDING`);
+    }
+
+    console.log(`\nExtension ID: ${session.metadata.extensionId}`);
+    if (session.metadata.extensionVersion) {
+      console.log(`Extension Version: ${session.metadata.extensionVersion}`);
+    }
+    if (session.metadata.chromeVersion) {
+      console.log(`Chrome Version: ${session.metadata.chromeVersion}`);
+    }
+    if (session.metadata.platform) {
+      console.log(`Platform: ${session.metadata.platform}`);
+    }
+
+    console.log(`\n📈 Statistics`);
+    console.log(`Interactions: ${session.interactions.length}`);
+    console.log(`Errors: ${session.errors.length}`);
+    console.log(`Snapshots: ${session.snapshots.length}`);
   });
 
 program
@@ -283,48 +385,5 @@ program
     await sessionStore.delete(sessionId);
     console.log(`✅ Session deleted: ${sessionId}`);
   });
-
-program
-  .command('bridge')
-  .description('Control WebSocket bridge server')
-  .argument('<action>', 'Command to send (pause|resume|stop|status)')
-  .action(async (action) => {
-    if (!bridgeServer) {
-      console.error('❌ No active bridge server. Start a session with --bridge option first.');
-      process.exit(1);
-    }
-
-    const normalized = action.toLowerCase();
-
-    switch (normalized) {
-      case 'pause':
-        bridgeServer.broadcastCommand('PAUSE');
-        console.log('⏸️  Sent PAUSE command to all clients');
-        break;
-      case 'resume':
-        bridgeServer.broadcastCommand('RESUME');
-        console.log('▶️  Sent RESUME command to all clients');
-        break;
-      case 'stop':
-        bridgeServer.broadcastCommand('STOP');
-        console.log('🛑 Sent STOP command to all clients');
-        break;
-      case 'status': {
-        const status = bridgeServer.getStatus();
-        console.log('📡 Bridge Status:');
-        console.table(status);
-        break;
-      }
-      default:
-        console.error(`❌ Unknown action: ${action}`);
-        process.exit(1);
-    }
-  });
-
-function generateSessionId(): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 8);
-  return `session-${timestamp}-${random}`;
-}
 
 program.parse();
