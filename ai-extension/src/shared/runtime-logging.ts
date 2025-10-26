@@ -13,6 +13,11 @@ export interface RuntimeLoggingOptions {
   tags?: string[];
   category?: string;
   bridge?: LogBridgeConfig;
+  /**
+   * Whether to automatically enable/disable the bridge client based on
+   * the debugRecorderEnabled storage flag. Defaults to true.
+   */
+  autoToggle?: boolean;
 }
 
 /**
@@ -27,10 +32,43 @@ export function initializeRuntimeLogging(options: RuntimeLoggingOptions): void {
     maxQueueSize: options.bridge?.maxQueueSize ?? 2000,
   });
 
-  if (options.bridge?.enabled) {
-    bridgeClient.enable();
-  } else {
-    bridgeClient.disable();
+  const applyEnabledState = (enabled: boolean) => {
+    if (enabled) {
+      bridgeClient.enable();
+    } else {
+      bridgeClient.disable();
+    }
+  };
+
+  // Apply initial state from options (if provided)
+  if (options.bridge?.enabled !== undefined) {
+    applyEnabledState(options.bridge.enabled);
+  }
+
+  const shouldAutoToggle = options.autoToggle !== false;
+
+  if (shouldAutoToggle && typeof chrome !== "undefined" && chrome.storage?.local) {
+    // Initialize based on current storage value
+    void chrome.storage.local
+      .get("debugRecorderEnabled")
+      .then((result) => {
+        const enabled = result?.debugRecorderEnabled === true;
+        applyEnabledState(enabled);
+      })
+      .catch(() => {
+        // Ignore storage access errors
+      });
+
+    // Listen for changes to debugRecorderEnabled
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "local" || !Object.prototype.hasOwnProperty.call(changes, "debugRecorderEnabled")) {
+        return;
+      }
+
+      const change = changes.debugRecorderEnabled;
+      const enabled = change?.newValue === true;
+      applyEnabledState(enabled);
+    });
   }
 
   wrapConsole({

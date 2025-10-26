@@ -5,14 +5,15 @@
  */
 
 import {
-  initializeMessageListener,
-  messageHandler,
-  sendMessage,
-} from "../shared/message-client.js";
-import { domAnalyzer } from "./dom-analyzer.js";
-import { contentCapture } from "./content-capture.js";
-import { selectionPreviewUI } from "./selection-preview-ui.js";
-import { buildSnippetCapturePayload, type SnippetOptions } from "./snippet-utils.js";
+   initializeMessageListener,
+   messageHandler,
+   sendMessage,
+ } from "../shared/message-client.js";
+ import { domAnalyzer } from "./dom-analyzer.js";
+ import { contentCapture } from "./content-capture.js";
+ import { selectionPreviewUI } from "./selection-preview-ui.js";
+ import { buildSnippetCapturePayload, type SnippetOptions } from "./snippet-utils.js";
+ import "./content-logging-setup.js";
 
 interface ContentScriptState {
   initialized: boolean;

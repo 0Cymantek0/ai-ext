@@ -47,6 +47,8 @@ const logBridgeClient = getLogBridgeClient();
 attachLoggerBridge(logger, logBridgeClient, { tags: ["service-worker", "logger"] });
 const logCollector = getLogCollector();
 
+// Listen for debug recorder toggle and manage log collection sessions
+// Note: The bridge client enable/disable is already handled by runtime-logging autoToggle
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local" || !Object.prototype.hasOwnProperty.call(changes, "debugRecorderEnabled")) {
     return;
@@ -56,12 +58,10 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   const enabled = change?.newValue === true;
 
   if (enabled) {
-    logBridgeClient.enable();
     void logCollector.startSession().catch((error) => {
       logger.error("ServiceWorker", "Failed to start log session", error);
     });
   } else {
-    logBridgeClient.disable();
     void logCollector.stopSession().catch((error) => {
       logger.error("ServiceWorker", "Failed to stop log session", error);
     });
@@ -754,7 +754,6 @@ class ServiceWorkerLifecycle {
       const debugRecorderEnabled = await chrome.storage.local.get('debugRecorderEnabled');
       if (debugRecorderEnabled.debugRecorderEnabled === true) {
         try {
-          logBridgeClient.enable();
           await logCollector.startSession();
           logger.info("ServiceWorker", "Debug recorder enabled - logs will be captured");
         } catch (error) {
