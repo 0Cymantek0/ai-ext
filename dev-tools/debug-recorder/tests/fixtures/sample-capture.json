@@ -1,0 +1,176 @@
+{
+  "session": {
+    "sessionId": "test-session-001",
+    "startTime": 1704470400000,
+    "endTime": 1704471600000,
+    "extensionId": "test-extension-id",
+    "extensionVersion": "1.0.0",
+    "chromeVersion": "122.0.0",
+    "platform": "darwin-arm64",
+    "recordingOptions": {
+      "includeScreenshots": true,
+      "includeStorage": true,
+      "includeMetrics": true,
+      "includePII": false
+    }
+  },
+  "timeline": [
+    {
+      "id": "interaction-1",
+      "timestamp": 1704470410000,
+      "type": "navigation",
+      "description": "User navigated to https://example.com",
+      "status": "success",
+      "duration": 1200,
+      "context": {
+        "url": "https://example.com",
+        "title": "Example Domain"
+      }
+    },
+    {
+      "id": "interaction-2",
+      "timestamp": 1704470425000,
+      "type": "click",
+      "description": "Clicked 'Save to Pocket' button",
+      "status": "success",
+      "duration": 350
+    },
+    {
+      "id": "interaction-3",
+      "timestamp": 1704470450000,
+      "type": "ai_request",
+      "description": "Generated summary using Gemini Nano",
+      "status": "success",
+      "duration": 2400,
+      "context": {
+        "model": "gemini-nano",
+        "inputTokens": 1234,
+        "outputTokens": 456
+      }
+    },
+    {
+      "id": "interaction-4",
+      "timestamp": 1704470480000,
+      "type": "storage_operation",
+      "description": "Saved content to IndexedDB",
+      "status": "warning",
+      "duration": 180,
+      "context": {
+        "store": "content",
+        "size": 45678
+      }
+    }
+  ],
+  "logs": [
+    {
+      "interactionId": "interaction-1",
+      "entries": [
+        {
+          "timestamp": 1704470410500,
+          "level": "info",
+          "source": "content-script",
+          "message": "Page load detected"
+        },
+        {
+          "timestamp": 1704470411200,
+          "level": "info",
+          "source": "content-script",
+          "message": "Navigation completed successfully"
+        }
+      ]
+    },
+    {
+      "interactionId": "interaction-3",
+      "entries": [
+        {
+          "timestamp": 1704470450100,
+          "level": "info",
+          "source": "ai-manager",
+          "message": "Requesting AI summary"
+        },
+        {
+          "timestamp": 1704470450200,
+          "level": "debug",
+          "source": "ai-manager",
+          "message": "Using Gemini Nano model"
+        },
+        {
+          "timestamp": 1704470452600,
+          "level": "info",
+          "source": "ai-manager",
+          "message": "Summary generated successfully"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "interactionId": "interaction-4",
+      "timestamp": 1704470480150,
+      "message": "Storage quota warning: approaching limit",
+      "source": "indexeddb-manager",
+      "code": "QUOTA_WARNING",
+      "context": {
+        "used": 285000000,
+        "total": 300000000,
+        "percentUsed": 95
+      },
+      "recovered": true
+    }
+  ],
+  "snapshots": [
+    {
+      "timestamp": 1704470400000,
+      "storageUsage": {
+        "indexedDB": 250000000,
+        "localStorage": 5000000,
+        "chromeStorage": 1200000
+      },
+      "aiState": {
+        "activeModels": ["gemini-nano"],
+        "pendingRequests": 0,
+        "tokenUsage": 0
+      },
+      "performance": {
+        "memory": 145000000,
+        "cpu": 12.5
+      },
+      "breadcrumbs": [
+        "Extension started",
+        "Service worker activated"
+      ]
+    },
+    {
+      "timestamp": 1704471500000,
+      "storageUsage": {
+        "indexedDB": 285000000,
+        "localStorage": 5100000,
+        "chromeStorage": 1210000
+      },
+      "aiState": {
+        "activeModels": ["gemini-nano"],
+        "pendingRequests": 0,
+        "tokenUsage": 1690
+      },
+      "performance": {
+        "memory": 167000000,
+        "cpu": 8.2
+      },
+      "breadcrumbs": [
+        "Extension started",
+        "Service worker activated",
+        "Navigated to example.com",
+        "Captured content",
+        "Generated AI summary",
+        "Saved to storage"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "interactionId": "interaction-1",
+      "timestamp": 1704470411200,
+      "screenshot": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    }
+  ]
+}
