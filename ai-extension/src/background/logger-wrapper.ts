@@ -61,6 +61,8 @@ export function attachLoggerBridge(
       origin: "background",
       category,
       tags,
+      ...(data !== undefined && { data: [data] }),
+      ...(stack && { stack }),
     };
 
     try {
