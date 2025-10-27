@@ -56,6 +56,8 @@ export function attachLoggerBridge(
       timestamp: Date.now(),
       level: mapLogLevel(level),
       message,
+      ...(data !== undefined && { data: [data] }),
+      ...(stack !== undefined && { stack }),
       origin: "background",
       category,
       tags,
