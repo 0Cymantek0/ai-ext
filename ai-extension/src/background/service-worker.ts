@@ -1987,6 +1987,28 @@ messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
   }
 });
 
+messageRouter.registerHandler("GENERATE_REPORT", async (payload: any) => {
+  logger.info("Handler", "GENERATE_REPORT", payload);
+  try {
+    const { PocketReportGenerator } = await import("./pocket-report-generator.js");
+    const reportGenerator = new PocketReportGenerator();
+    const reportData = await reportGenerator.generateReport(payload.pocketId);
+    
+    logger.info("Handler", "GENERATE_REPORT success", {
+      pocketId: payload.pocketId,
+      totalItems: reportData.metadata.totalItems,
+    });
+    
+    return { success: true, data: reportData };
+  } catch (error) {
+    logger.error("Handler", "GENERATE_REPORT error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to generate report",
+    };
+  }
+});
+
 messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
   logger.info("Handler", "CONTENT_DELETE", payload);
   try {

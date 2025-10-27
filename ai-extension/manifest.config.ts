@@ -50,6 +50,7 @@ export default defineManifest({
     {
       resources: [
         "src/sidepanel/*",
+        "src/reports/*",
         "assets/*",
         "styles/*",
         "pdfjs-dist/build/*",

@@ -387,6 +387,12 @@ export const PocketManager = React.forwardRef<PocketManagerRef, PocketManagerPro
 
 
 
+  // Handle report generation
+  const handleGenerateReport = (pocketId?: string) => {
+    const url = chrome.runtime.getURL(`src/reports/report-viewer.html${pocketId ? `?pocketId=${pocketId}` : ''}`);
+    chrome.tabs.create({ url });
+  };
+
   // Expose imperative methods via ref
   React.useImperativeHandle(ref, () => ({
     handleNewPocket,

@@ -57,6 +57,7 @@ export type MessageKind =
   | "ABBREVIATION_EXPAND"
   | "VECTOR_INDEXING_RETRY"
   | "VECTOR_INDEXING_PROGRESS"
+  | "GENERATE_REPORT"
   | "LOG_BATCH"
   | "ERROR";
 
