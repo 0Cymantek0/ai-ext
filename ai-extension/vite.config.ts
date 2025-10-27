@@ -76,6 +76,7 @@ export default defineConfig(({ mode }) => {
       "@hooks": path.resolve(__dirname, "src/hooks"),
       "@devtools-shared": path.resolve(__dirname, "../dev-tools/shared"),
     },
+    dedupe: ['react', 'react-dom'],
     preserveSymlinks: true,
   },
   server: {
