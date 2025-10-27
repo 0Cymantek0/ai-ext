@@ -73,8 +73,8 @@ export function initializeRuntimeLogging(options: RuntimeLoggingOptions): void {
 
   wrapConsole({
     origin: options.origin,
-    tags: options.tags,
-    category: options.category,
+    ...(options.tags && { tags: options.tags }),
+    ...(options.category && { category: options.category }),
     collector: (envelope) => bridgeClient.collect(envelope),
     enabled: true,
   });

@@ -107,15 +107,17 @@ export function wrapConsole(options: ConsoleWrapperOptions): void {
       // Emit structured log if enabled
       if (isEnabled && globalCollector) {
         const message = formatConsoleArgs(args);
+        const stack = level === 'error' || level === 'warn' ? captureStackTrace() : undefined;
+        
         const envelope: StructuredLogEnvelope = {
           timestamp: Date.now(),
           level,
           message,
           data: args,
-          stack: level === 'error' || level === 'warn' ? captureStackTrace() : undefined,
           origin: globalOrigin,
-          category: globalCategory,
-          tags: globalTags,
+          ...(stack && { stack }),
+          ...(globalCategory && { category: globalCategory }),
+          ...(globalTags && { tags: globalTags }),
         };
 
         try {
@@ -179,6 +181,6 @@ export function getConsoleWrapperStatus(): {
     wrapped: isWrapped,
     enabled: isEnabled,
     origin: globalOrigin,
-    category: globalCategory,
+    ...(globalCategory && { category: globalCategory }),
   };
 }
