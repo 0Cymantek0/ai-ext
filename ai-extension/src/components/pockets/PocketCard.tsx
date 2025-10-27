@@ -63,7 +63,11 @@ export function PocketCard({
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`Delete pocket "${pocket.name}"? This will also delete all content inside.`)) {
+    if (
+      confirm(
+        `Delete pocket "${pocket.name}"? This will also delete all content inside.`,
+      )
+    ) {
       onDelete(pocket.id);
     }
   };
@@ -83,7 +87,9 @@ export function PocketCard({
       // Success feedback could be added here
     } catch (error) {
       console.error("Export failed:", error);
-      alert(`Failed to export pocket: ${error instanceof Error ? error.message : "Unknown error"}`);
+      alert(
+        `Failed to export pocket: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     } finally {
       setIsExporting(false);
     }
@@ -101,7 +107,7 @@ export function PocketCard({
         className={cn(
           "group relative flex items-center gap-4 p-4 rounded-lg border",
           "hover:bg-accent/50 cursor-pointer transition-colors",
-          "bg-card"
+          "bg-card",
         )}
         onClick={() => onClick(pocket)}
         onMouseEnter={() => setShowActions(true)}
@@ -154,16 +160,14 @@ export function PocketCard({
               </>
             )}
           </div>
-          {indexingStatus && (
-            <div className="mt-2">{indexingStatus}</div>
-          )}
+          {indexingStatus && <div className="mt-2">{indexingStatus}</div>}
         </div>
 
         {/* Actions */}
         <div
           className={cn(
             "flex items-center gap-2 transition-opacity",
-            showActions ? "opacity-100" : "opacity-0"
+            showActions ? "opacity-100" : "opacity-0",
           )}
         >
           {onShare && (
@@ -239,7 +243,10 @@ export function PocketCard({
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuContent
+              align="end"
+              onClick={(e) => e.stopPropagation()}
+            >
               <DropdownMenuItem onClick={handleExport} disabled={isExporting}>
                 <Download className="w-4 h-4 mr-2" />
                 {isExporting ? "Exporting..." : "Export"}
@@ -261,7 +268,7 @@ export function PocketCard({
       className={cn(
         "group relative flex flex-col p-3 rounded-lg border",
         "hover:bg-accent/50 cursor-pointer transition-colors",
-        "bg-card h-full"
+        "bg-card h-full",
       )}
       onClick={() => onClick(pocket)}
       onMouseEnter={() => setShowActions(true)}
@@ -297,16 +304,14 @@ export function PocketCard({
             ))}
           </div>
         )}
-        {indexingStatus && (
-          <div className="mt-3">{indexingStatus}</div>
-        )}
+        {indexingStatus && <div className="mt-3">{indexingStatus}</div>}
       </div>
 
       {/* Actions */}
       <div
         className={cn(
           "mt-2 flex gap-1 justify-end transition-opacity",
-          showActions ? "opacity-100" : "opacity-0"
+          showActions ? "opacity-100" : "opacity-0",
         )}
       >
         {onShare && (

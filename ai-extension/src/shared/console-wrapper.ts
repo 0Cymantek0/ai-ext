@@ -4,8 +4,12 @@
  * to the debug recorder bridge client.
  */
 
-export type LogLevel = 'debug' | 'log' | 'info' | 'warn' | 'error';
-export type LogOrigin = 'background' | 'content-script' | 'side-panel' | 'offscreen';
+export type LogLevel = "debug" | "log" | "info" | "warn" | "error";
+export type LogOrigin =
+  | "background"
+  | "content-script"
+  | "side-panel"
+  | "offscreen";
 
 export interface StructuredLogEnvelope {
   timestamp: number;
@@ -37,8 +41,8 @@ function captureStackTrace(): string | undefined {
     if (!stack) return undefined;
 
     // Remove the first lines (this function and the wrapper)
-    const lines = stack.split('\n').slice(3);
-    return lines.join('\n').trim();
+    const lines = stack.split("\n").slice(3);
+    return lines.join("\n").trim();
   } catch {
     return undefined;
   }
@@ -50,7 +54,7 @@ function captureStackTrace(): string | undefined {
 function formatConsoleArgs(args: unknown[]): string {
   return args
     .map((arg) => {
-      if (typeof arg === 'string') return arg;
+      if (typeof arg === "string") return arg;
       if (arg instanceof Error) return arg.message;
       try {
         return JSON.stringify(arg);
@@ -58,7 +62,7 @@ function formatConsoleArgs(args: unknown[]): string {
         return String(arg);
       }
     })
-    .join(' ');
+    .join(" ");
 }
 
 /**
@@ -74,7 +78,7 @@ const originalConsole = {
 
 let isWrapped = false;
 let globalCollector: LogCollector | undefined;
-let globalOrigin: LogOrigin = 'background';
+let globalOrigin: LogOrigin = "background";
 let globalCategory: string | undefined;
 let globalTags: string[] | undefined;
 let isEnabled = false;
@@ -107,7 +111,10 @@ export function wrapConsole(options: ConsoleWrapperOptions): void {
       // Emit structured log if enabled
       if (isEnabled && globalCollector) {
         const message = formatConsoleArgs(args);
-        const stack = level === 'error' || level === 'warn' ? captureStackTrace() : undefined;
+        const stack =
+          level === "error" || level === "warn"
+            ? captureStackTrace()
+            : undefined;
         const envelope: StructuredLogEnvelope = {
           timestamp: Date.now(),
           level,
@@ -128,11 +135,11 @@ export function wrapConsole(options: ConsoleWrapperOptions): void {
     };
   };
 
-  console.debug = wrapMethod('debug', originalConsole.debug);
-  console.log = wrapMethod('log', originalConsole.log);
-  console.info = wrapMethod('info', originalConsole.info);
-  console.warn = wrapMethod('warn', originalConsole.warn);
-  console.error = wrapMethod('error', originalConsole.error);
+  console.debug = wrapMethod("debug", originalConsole.debug);
+  console.log = wrapMethod("log", originalConsole.log);
+  console.info = wrapMethod("info", originalConsole.info);
+  console.warn = wrapMethod("warn", originalConsole.warn);
+  console.error = wrapMethod("error", originalConsole.error);
 
   isWrapped = true;
 }

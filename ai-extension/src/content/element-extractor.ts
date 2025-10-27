@@ -220,7 +220,10 @@ export class ElementExtractor {
           }
         } catch (error) {
           // Skip stylesheets that can't be accessed (CORS)
-          console.debug("[ElementExtractor] Skipping stylesheet due to CORS", error);
+          console.debug(
+            "[ElementExtractor] Skipping stylesheet due to CORS",
+            error,
+          );
         }
       }
     } catch (error) {

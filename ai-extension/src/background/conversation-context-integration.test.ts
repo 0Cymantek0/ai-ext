@@ -1,6 +1,6 @@
 /**
  * Integration Tests for Conversation Context Loading
- * 
+ *
  * Tests the integration between ConversationContextLoader and StreamingHandler
  */
 
@@ -53,7 +53,8 @@ describe("Conversation Context Integration", () => {
         {
           id: "msg-2",
           role: "assistant",
-          content: "Machine learning is a subset of AI that enables systems to learn from data.",
+          content:
+            "Machine learning is a subset of AI that enables systems to learn from data.",
           timestamp: Date.now() - 4000,
           source: "gemini-nano",
         },
@@ -74,8 +75,10 @@ describe("Conversation Context Integration", () => {
     mockConversations.set(conversationId, conversation);
 
     // Act: Build context as streaming handler would
-    const context = await conversationContextLoader.buildConversationContext(conversationId);
-    const contextString = conversationContextLoader.formatContextAsString(context);
+    const context =
+      await conversationContextLoader.buildConversationContext(conversationId);
+    const contextString =
+      conversationContextLoader.formatContextAsString(context);
 
     // Assert: Context is properly formatted
     expect(context.conversationId).toBe(conversationId);
@@ -84,7 +87,9 @@ describe("Conversation Context Integration", () => {
 
     // Verify string format matches expected AI input format
     expect(contextString).toContain("user: What is machine learning?");
-    expect(contextString).toContain("assistant: Machine learning is a subset of AI");
+    expect(contextString).toContain(
+      "assistant: Machine learning is a subset of AI",
+    );
     expect(contextString).toContain("user: Can you give me an example?");
 
     // Verify chronological order is maintained
@@ -140,8 +145,10 @@ describe("Conversation Context Integration", () => {
     });
 
     // Act
-    const context = await conversationContextLoader.buildConversationContext(conversationId);
-    const contextString = conversationContextLoader.formatContextAsString(context);
+    const context =
+      await conversationContextLoader.buildConversationContext(conversationId);
+    const contextString =
+      conversationContextLoader.formatContextAsString(context);
 
     // Assert: Context is truncated but includes recent messages
     expect(context.truncated).toBe(true);
@@ -154,7 +161,9 @@ describe("Conversation Context Integration", () => {
     expect(contextContent).toContain("topic 18"); // Second most recent
 
     // Verify truncation notice
-    expect(contextString).toContain("[Earlier messages truncated to fit context window]");
+    expect(contextString).toContain(
+      "[Earlier messages truncated to fit context window]",
+    );
 
     // Reset config for other tests
     conversationContextLoader.updateConfig({
@@ -165,7 +174,10 @@ describe("Conversation Context Integration", () => {
 
   it("should gracefully handle missing conversation", async () => {
     // Act: Try to load non-existent conversation
-    const context = await conversationContextLoader.buildConversationContext("non-existent-id");
+    const context =
+      await conversationContextLoader.buildConversationContext(
+        "non-existent-id",
+      );
 
     // Assert: Returns empty context without throwing
     expect(context.messages).toHaveLength(0);
@@ -174,7 +186,8 @@ describe("Conversation Context Integration", () => {
     expect(context.conversationId).toBe("non-existent-id");
 
     // Verify it can be formatted without errors
-    const contextString = conversationContextLoader.formatContextAsString(context);
+    const contextString =
+      conversationContextLoader.formatContextAsString(context);
     expect(contextString).toBe("");
   });
 
@@ -229,7 +242,8 @@ describe("Conversation Context Integration", () => {
     mockConversations.set(conversationId, conversation);
 
     // Act
-    const context = await conversationContextLoader.buildConversationContext(conversationId);
+    const context =
+      await conversationContextLoader.buildConversationContext(conversationId);
 
     // Assert: Messages are in chronological order
     expect(context.messages[0]?.content).toBe("You are a helpful assistant.");
@@ -249,14 +263,15 @@ describe("Conversation Context Integration", () => {
       timestamp: number;
       source: "gemini-nano";
     }> = [
-        {
-          id: "msg-system",
-          role: "system" as const,
-          content: "IMPORTANT: You are a specialized assistant for medical queries.",
-          timestamp: Date.now() - 10000,
-          source: "gemini-nano" as const,
-        },
-      ];
+      {
+        id: "msg-system",
+        role: "system" as const,
+        content:
+          "IMPORTANT: You are a specialized assistant for medical queries.",
+        timestamp: Date.now() - 10000,
+        source: "gemini-nano" as const,
+      },
+    ];
 
     // Add many user/assistant messages
     for (let i = 0; i < 15; i++) {
@@ -294,10 +309,11 @@ describe("Conversation Context Integration", () => {
     });
 
     // Act
-    const context = await conversationContextLoader.buildConversationContext(conversationId);
+    const context =
+      await conversationContextLoader.buildConversationContext(conversationId);
 
     // Assert: System message is included despite being old
-    const systemMessage = context.messages.find(m => m.role === "system");
+    const systemMessage = context.messages.find((m) => m.role === "system");
     expect(systemMessage).toBeDefined();
     expect(systemMessage?.content).toContain("IMPORTANT");
 

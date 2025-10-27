@@ -70,5 +70,5 @@ function initReactApp() {
 }
 
 // Export for debugging
-(window as any).React = React;
-(window as any).ReactDOM = ReactDOM;
+(window as unknown as Record<string, unknown>).React = React;
+(window as unknown as Record<string, unknown>).ReactDOM = ReactDOM;

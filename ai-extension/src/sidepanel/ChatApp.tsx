@@ -19,19 +19,27 @@ import { HistoryPanel } from "@/components/HistoryPanel";
 import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
-import { PocketManager, type PocketManagerRef, PocketSelectionModal } from "@/components/pockets";
+import {
+  PocketManager,
+  type PocketManagerRef,
+  PocketSelectionModal,
+} from "@/components/pockets";
 import { NoteEditorPage } from "@/components/notes/NoteEditorPage";
 import { ShareModal } from "@/components/ShareModal";
 import { useIndexingStatus } from "@/hooks/useIndexingStatus";
 import { IndexingWarningBanner } from "@/components/IndexingWarningBanner";
-import { attachPocketToConversation, detachPocketFromConversation, getAttachedPocket } from "@/shared/conversation-pocket-api";
+import {
+  attachPocketToConversation,
+  detachPocketFromConversation,
+  getAttachedPocket,
+} from "@/shared/conversation-pocket-api";
 import {
   exportToMarkdown,
   exportToJSON,
   exportToPDF,
   exportMessageToMarkdown,
   exportMessageToJSON,
-  exportMessageToPDF
+  exportMessageToPDF,
 } from "@/lib/export-utils";
 import { importPocket } from "@/lib/pocket-export-service";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -66,7 +74,12 @@ interface ConversationData {
 
 interface PocketSelectionRequestState {
   requestId: string;
-  pockets: Array<{ id: string; name: string; description?: string; color?: string }>;
+  pockets: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+  }>;
   selectionText?: string;
   preview?: string;
   sourceUrl?: string;
@@ -96,21 +109,29 @@ export function ChatApp() {
   // Track if user is inside a pocket
   const [isInsidePocket, setIsInsidePocket] = React.useState(false);
   // Store current pocket ID for add actions
-  const [currentPocketId, setCurrentPocketId] = React.useState<string | null>(null);
+  const [currentPocketId, setCurrentPocketId] = React.useState<string | null>(
+    null,
+  );
   // Pending pocket selection request from background
-  const [pendingSelectionRequest, setPendingSelectionRequest] = React.useState<PocketSelectionRequestState | null>(null);
+  const [pendingSelectionRequest, setPendingSelectionRequest] =
+    React.useState<PocketSelectionRequestState | null>(null);
   // Note editor state
   const [showNoteEditor, setShowNoteEditor] = React.useState(false);
   const [isSavingNote, setIsSavingNote] = React.useState(false);
   // Share modal state
   const [showShareModal, setShowShareModal] = React.useState(false);
   // Export menu state - track which message's export menu is open
-  const [exportMenuOpenForMessage, setExportMenuOpenForMessage] = React.useState<string | null>(null);
+  const [exportMenuOpenForMessage, setExportMenuOpenForMessage] =
+    React.useState<string | null>(null);
   // Virtual scroll activation threshold and setup
   const useVirtualizedMessages = messages.length > 50;
   // Attached pockets for current conversation
-  const [attachedPocketIds, setAttachedPocketIds] = React.useState<string[]>([]);
-  const [attachedPockets, setAttachedPockets] = React.useState<Array<{id: string; name: string; description?: string; color?: string}>>([]);
+  const [attachedPocketIds, setAttachedPocketIds] = React.useState<string[]>(
+    [],
+  );
+  const [attachedPockets, setAttachedPockets] = React.useState<
+    Array<{ id: string; name: string; description?: string; color?: string }>
+  >([]);
   const rowVirtualizer = useVirtualizer({
     count: useVirtualizedMessages ? messages.length : 0,
     getScrollElement: () => conversationContentRef.current,
@@ -200,10 +221,11 @@ export function ChatApp() {
               title,
               timestamp: conv.updatedAt || conv.createdAt,
               messageCount: conv.messages?.length || 0,
-              messages: conv.messages?.map((m: any) => ({
-                role: m.role,
-                content: m.content,
-              })) || [],
+              messages:
+                conv.messages?.map((m: any) => ({
+                  role: m.role,
+                  content: m.content,
+                })) || [],
               metadata: conv.metadata,
             };
           });
@@ -397,7 +419,11 @@ export function ChatApp() {
 
   const handleSubmit = async (text: string, files?: File[]) => {
     // Consent check for cloud models
-    if (selectedModel === "flash" || selectedModel === "flash-lite" || selectedModel === "pro") {
+    if (
+      selectedModel === "flash" ||
+      selectedModel === "flash-lite" ||
+      selectedModel === "pro"
+    ) {
       const confirmed = confirm(
         `This will use a cloud model (${selectedModel === "pro" ? "Gemini 2.5 Pro" : selectedModel === "flash" ? "Gemini 2.5 Flash" : "Gemini 2.5 Flash Lite"}). Your data may be sent to the cloud. Continue?`,
       );
@@ -494,10 +520,15 @@ export function ChatApp() {
             try {
               for (const pocketId of attachedPocketIds) {
                 await attachPocketToConversation(conversationId, pocketId);
-                console.log(`✅ Pocket ${pocketId} attached to new conversation`);
+                console.log(
+                  `✅ Pocket ${pocketId} attached to new conversation`,
+                );
               }
             } catch (error) {
-              console.error("Failed to attach pockets to new conversation:", error);
+              console.error(
+                "Failed to attach pockets to new conversation:",
+                error,
+              );
             }
           }
         }
@@ -602,7 +633,10 @@ export function ChatApp() {
     }
   };
 
-  const handleExportMessage = (message: ChatMessage, format: "markdown" | "json" | "pdf") => {
+  const handleExportMessage = (
+    message: ChatMessage,
+    format: "markdown" | "json" | "pdf",
+  ) => {
     try {
       switch (format) {
         case "markdown":
@@ -644,12 +678,15 @@ export function ChatApp() {
           if (response.success && response.data?.pocket) {
             const pocket = response.data.pocket;
             setAttachedPocketIds([...attachedPocketIds, pocketId]);
-            setAttachedPockets([...attachedPockets, {
-              id: pocket.id,
-              name: pocket.name,
-              description: pocket.description,
-              color: pocket.color,
-            }]);
+            setAttachedPockets([
+              ...attachedPockets,
+              {
+                id: pocket.id,
+                name: pocket.name,
+                description: pocket.description,
+                color: pocket.color,
+              },
+            ]);
           }
         } catch (error) {
           console.error("Failed to fetch pocket details:", error);
@@ -660,13 +697,15 @@ export function ChatApp() {
 
     try {
       await attachPocketToConversation(currentConversationId, pocketId);
-      
+
       // Reload attached pockets
       const result = await getAttachedPocket(currentConversationId);
       setAttachedPocketIds(result.attachedPocketIds || []);
       setAttachedPockets(result.pockets || []);
-      
-      console.log(`✅ Pocket ${pocketId} attached to conversation ${currentConversationId}`);
+
+      console.log(
+        `✅ Pocket ${pocketId} attached to conversation ${currentConversationId}`,
+      );
     } catch (error) {
       console.error("Failed to attach pocket:", error);
       alert("Failed to attach pocket. Please try again.");
@@ -676,8 +715,8 @@ export function ChatApp() {
   const handleDetachPocket = async (pocketId?: string) => {
     if (!currentConversationId) {
       if (pocketId) {
-        setAttachedPocketIds(attachedPocketIds.filter(id => id !== pocketId));
-        setAttachedPockets(attachedPockets.filter(p => p.id !== pocketId));
+        setAttachedPocketIds(attachedPocketIds.filter((id) => id !== pocketId));
+        setAttachedPockets(attachedPockets.filter((p) => p.id !== pocketId));
       } else {
         setAttachedPocketIds([]);
         setAttachedPockets([]);
@@ -687,13 +726,15 @@ export function ChatApp() {
 
     try {
       await detachPocketFromConversation(currentConversationId, pocketId);
-      
+
       // Reload attached pockets
       const result = await getAttachedPocket(currentConversationId);
       setAttachedPocketIds(result.attachedPocketIds || []);
       setAttachedPockets(result.pockets || []);
-      
-      console.log(`✅ Pocket ${pocketId || 'all'} detached from conversation ${currentConversationId}`);
+
+      console.log(
+        `✅ Pocket ${pocketId || "all"} detached from conversation ${currentConversationId}`,
+      );
     } catch (error) {
       console.error("Failed to detach pocket:", error);
       alert("Failed to detach pocket. Please try again.");
@@ -720,16 +761,18 @@ export function ChatApp() {
       try {
         console.log("Importing pocket from:", file.name);
         await importPocket(file);
-        
+
         // Reload pocket list
         if (pocketManagerRef.current) {
           pocketManagerRef.current.reload();
         }
-        
+
         alert(`Successfully imported pocket from ${file.name}`);
       } catch (error) {
         console.error("Import failed:", error);
-        alert(`Failed to import pocket: ${error instanceof Error ? error.message : "Unknown error"}`);
+        alert(
+          `Failed to import pocket: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
       }
     };
 
@@ -848,8 +891,6 @@ export function ChatApp() {
     fileInput.click();
   };
 
-
-
   const handleSelectConversation = async (id: string) => {
     try {
       // Load full conversation with messages from IndexedDB
@@ -881,8 +922,13 @@ export function ChatApp() {
           const pocketResult = await getAttachedPocket(id);
           setAttachedPocketIds(pocketResult.attachedPocketIds || []);
           setAttachedPockets(pocketResult.pockets || []);
-          if (pocketResult.attachedPocketIds && pocketResult.attachedPocketIds.length > 0) {
-            console.log(`📎 Loaded ${pocketResult.attachedPocketIds.length} attached pocket(s)`);
+          if (
+            pocketResult.attachedPocketIds &&
+            pocketResult.attachedPocketIds.length > 0
+          ) {
+            console.log(
+              `📎 Loaded ${pocketResult.attachedPocketIds.length} attached pocket(s)`,
+            );
           }
         } catch (error) {
           console.error("Failed to load attached pockets:", error);
@@ -1057,7 +1103,7 @@ export function ChatApp() {
   };
 
   const selectionPreviewText = pendingSelectionRequest
-    ? pendingSelectionRequest.preview ?? pendingSelectionRequest.selectionText
+    ? (pendingSelectionRequest.preview ?? pendingSelectionRequest.selectionText)
     : undefined;
 
   return (
@@ -1105,28 +1151,43 @@ export function ChatApp() {
             ) : (
               <>
                 {/* Indexing Warning Banner for Ask mode */}
-                {currentMode === "ask" && (indexingStatus.status.isAnyIndexing || indexingStatus.status.failedContentIds.size > 0) && (
-                  <div className="px-4 pt-20 pb-2">
-                    <IndexingWarningBanner
-                      indexingCount={indexingStatus.status.indexingContentIds.size}
-                      failedCount={indexingStatus.status.failedContentIds.size}
-                      onRetry={() => {
-                        indexingStatus.status.failedContentIds.forEach((contentId) => {
-                          indexingStatus.retryFailedIndexing(contentId);
-                        });
-                      }}
-                    />
-                  </div>
-                )}
+                {currentMode === "ask" &&
+                  (indexingStatus.status.isAnyIndexing ||
+                    indexingStatus.status.failedContentIds.size > 0) && (
+                    <div className="px-4 pt-20 pb-2">
+                      <IndexingWarningBanner
+                        indexingCount={
+                          indexingStatus.status.indexingContentIds.size
+                        }
+                        failedCount={
+                          indexingStatus.status.failedContentIds.size
+                        }
+                        onRetry={() => {
+                          indexingStatus.status.failedContentIds.forEach(
+                            (contentId) => {
+                              indexingStatus.retryFailedIndexing(contentId);
+                            },
+                          );
+                        }}
+                      />
+                    </div>
+                  )}
                 <Conversation className="overflow-hidden">
                   <ConversationContent
                     ref={conversationContentRef}
                     onScroll={handleScroll}
                     className={cn("pt-16")}
-                    forceAutoScroll={messages[messages.length - 1]?.isStreaming ?? false}
+                    forceAutoScroll={
+                      messages[messages.length - 1]?.isStreaming ?? false
+                    }
                   >
                     {useVirtualizedMessages ? (
-                      <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
+                      <div
+                        style={{
+                          height: rowVirtualizer.getTotalSize(),
+                          position: "relative",
+                        }}
+                      >
                         {rowVirtualizer.getVirtualItems().map((vi) => {
                           const message = messages[vi.index];
                           if (!message) return null;
@@ -1138,7 +1199,13 @@ export function ChatApp() {
                                 if (el) rowVirtualizer.measureElement(el);
                               }}
                               className="pb-4"
-                              style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vi.start}px)` }}
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                transform: `translateY(${vi.start}px)`,
+                              }}
                             >
                               <Message key={message.id} from={message.role}>
                                 <MessageAvatar
@@ -1153,63 +1220,65 @@ export function ChatApp() {
                                 />
                                 <MessageContent>
                                   {/* Display file attachments if present */}
-                                  {message.files && message.files.length > 0 && (
-                                    <div
-                                      className={cn(
-                                        "mb-2 flex flex-wrap gap-2",
-                                        message.role === "user" && "justify-end",
-                                      )}
-                                    >
-                                      {message.files.map((file, idx) => (
-                                        <div
-                                          key={idx}
-                                          className={cn(
-                                            "flex items-center gap-2 rounded-md border bg-muted px-3 py-2 text-sm",
-                                            message.role === "user" &&
-                                            "bg-gray-100 border-gray-300 dark:bg-gray-800 dark:border-gray-600",
-                                          )}
-                                        >
-                                          {file.type?.startsWith("image/") ? (
-                                            <svg
-                                              className="h-4 w-4"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              viewBox="0 0 24 24"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                              />
-                                            </svg>
-                                          ) : (
-                                            <svg
-                                              className="h-4 w-4"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              viewBox="0 0 24 24"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                              />
-                                            </svg>
-                                          )}
-                                          <span className="truncate max-w-[150px]">
-                                            {file.name || "File"}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
+                                  {message.files &&
+                                    message.files.length > 0 && (
+                                      <div
+                                        className={cn(
+                                          "mb-2 flex flex-wrap gap-2",
+                                          message.role === "user" &&
+                                            "justify-end",
+                                        )}
+                                      >
+                                        {message.files.map((file, idx) => (
+                                          <div
+                                            key={idx}
+                                            className={cn(
+                                              "flex items-center gap-2 rounded-md border bg-muted px-3 py-2 text-sm",
+                                              message.role === "user" &&
+                                                "bg-gray-100 border-gray-300 dark:bg-gray-800 dark:border-gray-600",
+                                            )}
+                                          >
+                                            {file.type?.startsWith("image/") ? (
+                                              <svg
+                                                className="h-4 w-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                />
+                                              </svg>
+                                            ) : (
+                                              <svg
+                                                className="h-4 w-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                />
+                                              </svg>
+                                            )}
+                                            <span className="truncate max-w-[150px]">
+                                              {file.name || "File"}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   <div
                                     className={cn(
                                       "inline-block max-w-[85%] break-words",
                                       message.role === "user" &&
-                                      "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 ml-auto text-right dark:bg-gray-700 dark:text-gray-100",
+                                        "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 ml-auto text-right dark:bg-gray-700 dark:text-gray-100",
                                     )}
                                     style={{ overflowWrap: "anywhere" }}
                                   >
@@ -1218,53 +1287,20 @@ export function ChatApp() {
                                         "prose prose-sm dark:prose-invert max-w-full",
                                         "prose-p:leading-relaxed prose-pre:p-0",
                                         message.role === "user" &&
-                                        "prose-p:text-gray-900 prose-p:m-0 prose-p:text-right prose-headings:text-gray-900 prose-code:text-gray-900 prose-pre:text-gray-900 dark:prose-p:text-gray-100 dark:prose-headings:text-gray-100 dark:prose-code:text-gray-100 dark:prose-pre:text-gray-100",
+                                          "prose-p:text-gray-900 prose-p:m-0 prose-p:text-right prose-headings:text-gray-900 prose-code:text-gray-900 prose-pre:text-gray-900 dark:prose-p:text-gray-100 dark:prose-headings:text-gray-100 dark:prose-code:text-gray-100 dark:prose-pre:text-gray-100",
                                       )}
                                     >
                                       {message.content}
                                     </Response>
                                   </div>
-                                  {message.role === "assistant" && !message.isStreaming && (
-                                    <Actions>
-
-                                      <ActionButton onClick={() => handleCopy(message.content)} title="Copy to clipboard">
-                                        <svg
-                                          className="size-3"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2M8 16h8a2 2 0 002-2V8m-6 8h2m-2 0V6"
-                                          />
-                                        </svg>
-                                        Copy
-                                      </ActionButton>
-                                      <ActionButton onClick={() => handleRegenerate(message.id)} title="Regenerate this response">
-                                        <svg
-                                          className="size-3"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                          />
-                                        </svg>
-                                        Regenerate
-                                      </ActionButton>
-                                      <div className="relative">
+                                  {message.role === "assistant" &&
+                                    !message.isStreaming && (
+                                      <Actions>
                                         <ActionButton
-                                          onClick={() => setExportMenuOpenForMessage(
-                                            exportMenuOpenForMessage === message.id ? null : message.id
-                                          )}
-                                          title="Export this response"
+                                          onClick={() =>
+                                            handleCopy(message.content)
+                                          }
+                                          title="Copy to clipboard"
                                         >
                                           <svg
                                             className="size-3"
@@ -1276,56 +1312,148 @@ export function ChatApp() {
                                               strokeLinecap="round"
                                               strokeLinejoin="round"
                                               strokeWidth={2}
-                                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2M8 16h8a2 2 0 002-2V8m-6 8h2m-2 0V6"
                                             />
                                           </svg>
-                                          Export
+                                          Copy
                                         </ActionButton>
-                                        {exportMenuOpenForMessage === message.id && (
-                                          <div
-                                            className="absolute bottom-full left-0 mb-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
+                                        <ActionButton
+                                          onClick={() =>
+                                            handleRegenerate(message.id)
+                                          }
+                                          title="Regenerate this response"
+                                        >
+                                          <svg
+                                            className="size-3"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
                                           >
-                                            <button
-                                              className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
-                                              onClick={() => {
-                                                handleExportMessage(message, "markdown");
-                                                setExportMenuOpenForMessage(null);
-                                              }}
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                            />
+                                          </svg>
+                                          Regenerate
+                                        </ActionButton>
+                                        <div className="relative">
+                                          <ActionButton
+                                            onClick={() =>
+                                              setExportMenuOpenForMessage(
+                                                exportMenuOpenForMessage ===
+                                                  message.id
+                                                  ? null
+                                                  : message.id,
+                                              )
+                                            }
+                                            title="Export this response"
+                                          >
+                                            <svg
+                                              className="size-3"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              viewBox="0 0 24 24"
                                             >
-                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                              </svg>
-                                              Markdown
-                                            </button>
-                                            <button
-                                              className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
-                                              onClick={() => {
-                                                handleExportMessage(message, "json");
-                                                setExportMenuOpenForMessage(null);
-                                              }}
-                                            >
-                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                                              </svg>
-                                              JSON
-                                            </button>
-                                            <button
-                                              className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
-                                              onClick={() => {
-                                                handleExportMessage(message, "pdf");
-                                                setExportMenuOpenForMessage(null);
-                                              }}
-                                            >
-                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                              </svg>
-                                              PDF
-                                            </button>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </Actions>
-                                  )}
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                              />
+                                            </svg>
+                                            Export
+                                          </ActionButton>
+                                          {exportMenuOpenForMessage ===
+                                            message.id && (
+                                            <div className="absolute bottom-full left-0 mb-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50">
+                                              <button
+                                                className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                                onClick={() => {
+                                                  handleExportMessage(
+                                                    message,
+                                                    "markdown",
+                                                  );
+                                                  setExportMenuOpenForMessage(
+                                                    null,
+                                                  );
+                                                }}
+                                              >
+                                                <svg
+                                                  className="w-3 h-3"
+                                                  fill="none"
+                                                  stroke="currentColor"
+                                                  viewBox="0 0 24 24"
+                                                >
+                                                  <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                                  />
+                                                </svg>
+                                                Markdown
+                                              </button>
+                                              <button
+                                                className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                                onClick={() => {
+                                                  handleExportMessage(
+                                                    message,
+                                                    "json",
+                                                  );
+                                                  setExportMenuOpenForMessage(
+                                                    null,
+                                                  );
+                                                }}
+                                              >
+                                                <svg
+                                                  className="w-3 h-3"
+                                                  fill="none"
+                                                  stroke="currentColor"
+                                                  viewBox="0 0 24 24"
+                                                >
+                                                  <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                                                  />
+                                                </svg>
+                                                JSON
+                                              </button>
+                                              <button
+                                                className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                                onClick={() => {
+                                                  handleExportMessage(
+                                                    message,
+                                                    "pdf",
+                                                  );
+                                                  setExportMenuOpenForMessage(
+                                                    null,
+                                                  );
+                                                }}
+                                              >
+                                                <svg
+                                                  className="w-3 h-3"
+                                                  fill="none"
+                                                  stroke="currentColor"
+                                                  viewBox="0 0 24 24"
+                                                >
+                                                  <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                                  />
+                                                </svg>
+                                                PDF
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </Actions>
+                                    )}
                                   {message.isStreaming && (
                                     <div className="mt-2">
                                       <Loader />
@@ -1365,7 +1493,7 @@ export function ChatApp() {
                                     className={cn(
                                       "flex items-center gap-2 rounded-md border bg-muted px-3 py-2 text-sm",
                                       message.role === "user" &&
-                                      "bg-gray-100 border-gray-300 dark:bg-gray-800 dark:border-gray-600",
+                                        "bg-gray-100 border-gray-300 dark:bg-gray-800 dark:border-gray-600",
                                     )}
                                   >
                                     {file.type?.startsWith("image/") ? (
@@ -1408,7 +1536,7 @@ export function ChatApp() {
                               className={cn(
                                 "inline-block max-w-[85%] break-words",
                                 message.role === "user" &&
-                                "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 ml-auto text-right dark:bg-gray-700 dark:text-gray-100",
+                                  "bg-gray-200 text-gray-900 rounded-2xl rounded-br-sm px-4 py-2 ml-auto text-right dark:bg-gray-700 dark:text-gray-100",
                               )}
                               style={{ overflowWrap: "anywhere" }}
                             >
@@ -1417,58 +1545,18 @@ export function ChatApp() {
                                   "prose prose-sm dark:prose-invert max-w-full",
                                   "prose-p:leading-relaxed prose-pre:p-0",
                                   message.role === "user" &&
-                                  "prose-p:text-gray-900 prose-p:m-0 prose-p:text-right prose-headings:text-gray-900 prose-code:text-gray-900 prose-pre:text-gray-900 dark:prose-p:text-gray-100 dark:prose-headings:text-gray-100 dark:prose-code:text-gray-100 dark:prose-pre:text-gray-100",
+                                    "prose-p:text-gray-900 prose-p:m-0 prose-p:text-right prose-headings:text-gray-900 prose-code:text-gray-900 prose-pre:text-gray-900 dark:prose-p:text-gray-100 dark:prose-headings:text-gray-100 dark:prose-code:text-gray-100 dark:prose-pre:text-gray-100",
                                 )}
                               >
                                 {message.content}
                               </Response>
                             </div>
-                            {message.role === "assistant" && !message.isStreaming && (
-                              <Actions>
-                                <ActionButton
-                                  onClick={() => handleCopy(message.content)}
-                                  title="Copy to clipboard"
-                                >
-                                  <svg
-                                    className="size-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                    />
-                                  </svg>
-                                  Copy
-                                </ActionButton>
-                                <ActionButton
-                                  onClick={() => handleRegenerate(message.id)}
-                                  title="Regenerate response"
-                                >
-                                  <svg
-                                    className="size-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                    />
-                                  </svg>
-                                  Regenerate
-                                </ActionButton>
-                                <div className="relative">
+                            {message.role === "assistant" &&
+                              !message.isStreaming && (
+                                <Actions>
                                   <ActionButton
-                                    onClick={() => setExportMenuOpenForMessage(
-                                      exportMenuOpenForMessage === message.id ? null : message.id
-                                    )}
-                                    title="Export this response"
+                                    onClick={() => handleCopy(message.content)}
+                                    title="Copy to clipboard"
                                   >
                                     <svg
                                       className="size-3"
@@ -1480,56 +1568,137 @@ export function ChatApp() {
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         strokeWidth={2}
-                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                                       />
                                     </svg>
-                                    Export
+                                    Copy
                                   </ActionButton>
-                                  {exportMenuOpenForMessage === message.id && (
-                                    <div
-                                      className="absolute bottom-full left-0 mb-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
+                                  <ActionButton
+                                    onClick={() => handleRegenerate(message.id)}
+                                    title="Regenerate response"
+                                  >
+                                    <svg
+                                      className="size-3"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
                                     >
-                                      <button
-                                        className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
-                                        onClick={() => {
-                                          handleExportMessage(message, "markdown");
-                                          setExportMenuOpenForMessage(null);
-                                        }}
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                      />
+                                    </svg>
+                                    Regenerate
+                                  </ActionButton>
+                                  <div className="relative">
+                                    <ActionButton
+                                      onClick={() =>
+                                        setExportMenuOpenForMessage(
+                                          exportMenuOpenForMessage ===
+                                            message.id
+                                            ? null
+                                            : message.id,
+                                        )
+                                      }
+                                      title="Export this response"
+                                    >
+                                      <svg
+                                        className="size-3"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
                                       >
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                        </svg>
-                                        Markdown
-                                      </button>
-                                      <button
-                                        className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
-                                        onClick={() => {
-                                          handleExportMessage(message, "json");
-                                          setExportMenuOpenForMessage(null);
-                                        }}
-                                      >
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                                        </svg>
-                                        JSON
-                                      </button>
-                                      <button
-                                        className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
-                                        onClick={() => {
-                                          handleExportMessage(message, "pdf");
-                                          setExportMenuOpenForMessage(null);
-                                        }}
-                                      >
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                        </svg>
-                                        PDF
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </Actions>
-                            )}
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                        />
+                                      </svg>
+                                      Export
+                                    </ActionButton>
+                                    {exportMenuOpenForMessage ===
+                                      message.id && (
+                                      <div className="absolute bottom-full left-0 mb-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50">
+                                        <button
+                                          className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                          onClick={() => {
+                                            handleExportMessage(
+                                              message,
+                                              "markdown",
+                                            );
+                                            setExportMenuOpenForMessage(null);
+                                          }}
+                                        >
+                                          <svg
+                                            className="w-3 h-3"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                            />
+                                          </svg>
+                                          Markdown
+                                        </button>
+                                        <button
+                                          className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                          onClick={() => {
+                                            handleExportMessage(
+                                              message,
+                                              "json",
+                                            );
+                                            setExportMenuOpenForMessage(null);
+                                          }}
+                                        >
+                                          <svg
+                                            className="w-3 h-3"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                                            />
+                                          </svg>
+                                          JSON
+                                        </button>
+                                        <button
+                                          className="w-full text-left px-4 py-2 text-xs text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 transition-colors flex items-center gap-2"
+                                          onClick={() => {
+                                            handleExportMessage(message, "pdf");
+                                            setExportMenuOpenForMessage(null);
+                                          }}
+                                        >
+                                          <svg
+                                            className="w-3 h-3"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                            />
+                                          </svg>
+                                          PDF
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </Actions>
+                              )}
                             {message.isStreaming && (
                               <div className="mt-2">
                                 <Loader />
@@ -1605,7 +1774,16 @@ export function ChatApp() {
         {showNoteEditor && (
           <div className="fixed inset-0 z-[100]">
             <NoteEditorPage
-              {...(currentPocketId ? { note: { pocketId: currentPocketId, title: "", content: "", tags: [] } } : {})}
+              {...(currentPocketId
+                ? {
+                    note: {
+                      pocketId: currentPocketId,
+                      title: "",
+                      content: "",
+                      tags: [],
+                    },
+                  }
+                : {})}
               onSave={handleSaveNote}
               onCancel={() => setShowNoteEditor(false)}
               isLoading={isSavingNote}

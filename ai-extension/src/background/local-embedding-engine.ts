@@ -1,15 +1,15 @@
 /**
  * Local Embedding Engine
- * 
+ *
  * Provides 100% local, on-device semantic embeddings using TensorFlow.js
  * Universal Sentence Encoder. No cloud API required.
- * 
+ *
  * Requirements: 7.2 (Local-first embedding generation)
  */
 
 import { logger } from "./monitoring.js";
-import * as tf from '@tensorflow/tfjs';
-import * as use from '@tensorflow-models/universal-sentence-encoder';
+import * as tf from "@tensorflow/tfjs";
+import * as use from "@tensorflow-models/universal-sentence-encoder";
 
 export interface LocalEmbeddingOptions {
   batchSize?: number;
@@ -22,13 +22,13 @@ export class LocalEmbeddingEngine {
   private embeddingCache = new Map<string, number[]>();
   private readonly MAX_CACHE_SIZE = 1000;
   private readonly EMBEDDING_DIM = 512; // USE outputs 512-dim vectors
-  
+
   /**
    * Check if we're running in a service worker context
    */
   private isServiceWorker(): boolean {
     // Check if we're in a service worker by checking for service worker specific APIs
-    return 'ServiceWorkerGlobalScope' in self;
+    return "ServiceWorkerGlobalScope" in self;
   }
 
   /**
@@ -49,66 +49,88 @@ export class LocalEmbeddingEngine {
     // Start loading the model
     this.modelLoading = (async () => {
       try {
-        logger.info("LocalEmbeddingEngine", "Loading Universal Sentence Encoder model...", {
-          isServiceWorker: this.isServiceWorker(),
-          availableBackends: tf.engine().registryFactory,
-        });
-        
+        logger.info(
+          "LocalEmbeddingEngine",
+          "Loading Universal Sentence Encoder model...",
+          {
+            isServiceWorker: this.isServiceWorker(),
+            availableBackends: tf.engine().registryFactory,
+          },
+        );
+
         // Set TensorFlow.js backend for service worker compatibility
         // WebGPU and WASM don't work in service workers due to:
         // - WebGPU: requires rendering context (not available in service workers)
         // - WASM: URL.createObjectURL not available in service workers
         // WebGL works well in service workers and provides good performance
-        
+
         // Try backends in order: webgl > cpu
-        const backendsToTry = ['webgl', 'cpu'];
+        const backendsToTry = ["webgl", "cpu"];
         let backendSet = false;
-        
+
         for (const backend of backendsToTry) {
           try {
-            logger.info("LocalEmbeddingEngine", `Attempting to initialize ${backend} backend...`);
-            
+            logger.info(
+              "LocalEmbeddingEngine",
+              `Attempting to initialize ${backend} backend...`,
+            );
+
             await tf.setBackend(backend);
             await tf.ready();
             backendSet = true;
-            
-            logger.info("LocalEmbeddingEngine", `Successfully initialized TensorFlow.js backend: ${backend}`, {
-              backend: tf.getBackend(),
-              numTensors: tf.memory().numTensors,
-            });
+
+            logger.info(
+              "LocalEmbeddingEngine",
+              `Successfully initialized TensorFlow.js backend: ${backend}`,
+              {
+                backend: tf.getBackend(),
+                numTensors: tf.memory().numTensors,
+              },
+            );
             break;
           } catch (error) {
-            logger.warn("LocalEmbeddingEngine", `Backend ${backend} initialization failed, trying next`, { 
-              error: error instanceof Error ? error.message : String(error),
-              backend,
-            });
+            logger.warn(
+              "LocalEmbeddingEngine",
+              `Backend ${backend} initialization failed, trying next`,
+              {
+                error: error instanceof Error ? error.message : String(error),
+                backend,
+              },
+            );
           }
         }
-        
+
         if (!backendSet) {
-          throw new Error("No TensorFlow.js backend available. Tried: " + backendsToTry.join(", "));
+          throw new Error(
+            "No TensorFlow.js backend available. Tried: " +
+              backendsToTry.join(", "),
+          );
         }
-        
+
         // Load the Universal Sentence Encoder model
-        logger.info("LocalEmbeddingEngine", "Downloading Universal Sentence Encoder model (~50MB)...");
+        logger.info(
+          "LocalEmbeddingEngine",
+          "Downloading Universal Sentence Encoder model (~50MB)...",
+        );
         const loadedModel = await use.load();
-        
+
         this.model = loadedModel;
         this.modelLoading = null;
-        
+
         logger.info("LocalEmbeddingEngine", "Model loaded successfully", {
           backend: tf.getBackend(),
           embeddingDim: this.EMBEDDING_DIM,
           memoryInfo: tf.memory(),
         });
-        
+
         return loadedModel;
       } catch (error) {
         this.modelLoading = null;
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
-        
-        logger.error("LocalEmbeddingEngine", "Failed to load model", { 
+
+        logger.error("LocalEmbeddingEngine", "Failed to load model", {
           error: errorMessage,
           stack: errorStack,
           backend: tf.getBackend(),
@@ -124,7 +146,10 @@ export class LocalEmbeddingEngine {
   /**
    * Generate embedding for a single text using Universal Sentence Encoder
    */
-  async generateEmbedding(text: string, options: LocalEmbeddingOptions = {}): Promise<number[]> {
+  async generateEmbedding(
+    text: string,
+    options: LocalEmbeddingOptions = {},
+  ): Promise<number[]> {
     // Check cache first
     if (this.embeddingCache.has(text)) {
       logger.debug("LocalEmbeddingEngine", "Cache hit", {
@@ -136,36 +161,38 @@ export class LocalEmbeddingEngine {
     try {
       // Load model if not already loaded
       const model = await this.loadModel();
-      
+
       // Generate embedding
       const embeddings = await model.embed([text]);
       const embeddingArray = await embeddings.array();
-      
+
       // Extract the embedding vector
       const embedding = embeddingArray[0] as number[];
-      
+
       // Clean up tensor to prevent memory leaks
       embeddings.dispose();
-      
+
       // Validate embedding
       if (!embedding || embedding.length !== this.EMBEDDING_DIM) {
-        throw new Error(`Invalid embedding dimension: ${embedding?.length}, expected ${this.EMBEDDING_DIM}`);
+        throw new Error(
+          `Invalid embedding dimension: ${embedding?.length}, expected ${this.EMBEDDING_DIM}`,
+        );
       }
-      
+
       // Cache the result
       this.embeddingCache.set(text, embedding);
-      
+
       // Limit cache size (LRU eviction)
       if (this.embeddingCache.size > this.MAX_CACHE_SIZE) {
         const firstKey = this.embeddingCache.keys().next().value;
         this.embeddingCache.delete(firstKey);
       }
-      
+
       logger.debug("LocalEmbeddingEngine", "Generated embedding", {
         textLength: text.length,
         embeddingDim: embedding.length,
       });
-      
+
       return embedding;
     } catch (error) {
       logger.error("LocalEmbeddingEngine", "Failed to generate embedding", {
@@ -181,7 +208,7 @@ export class LocalEmbeddingEngine {
    */
   async generateEmbeddingsBatch(
     texts: string[],
-    options: LocalEmbeddingOptions = {}
+    options: LocalEmbeddingOptions = {},
   ): Promise<number[][]> {
     const { batchSize = 32 } = options;
     const embeddings: number[][] = [];
@@ -189,16 +216,18 @@ export class LocalEmbeddingEngine {
     try {
       // Load model if not already loaded
       const model = await this.loadModel();
-      
+
       // Process in batches to avoid memory issues
       for (let i = 0; i < texts.length; i += batchSize) {
         const batch = texts.slice(i, i + batchSize);
-        
+
         // Check cache for each text
         const uncachedTexts: string[] = [];
         const uncachedIndices: number[] = [];
-        const batchEmbeddings: (number[] | null)[] = new Array(batch.length).fill(null);
-        
+        const batchEmbeddings: (number[] | null)[] = new Array(
+          batch.length,
+        ).fill(null);
+
         batch.forEach((text, idx) => {
           if (this.embeddingCache.has(text)) {
             batchEmbeddings[idx] = this.embeddingCache.get(text)!;
@@ -207,29 +236,29 @@ export class LocalEmbeddingEngine {
             uncachedIndices.push(idx);
           }
         });
-        
+
         // Generate embeddings for uncached texts
         if (uncachedTexts.length > 0) {
           const embeddingsTensor = await model.embed(uncachedTexts);
           const embeddingsArray = await embeddingsTensor.array();
-          
+
           // Clean up tensor
           embeddingsTensor.dispose();
-          
+
           // Store in cache and batch results
           uncachedIndices.forEach((idx, arrayIdx) => {
             const embedding = embeddingsArray[arrayIdx] as number[];
             const text = uncachedTexts[arrayIdx]!;
-            
+
             // Cache the embedding
             this.embeddingCache.set(text, embedding);
             batchEmbeddings[idx] = embedding;
           });
         }
-        
+
         // Add batch results to final embeddings
         embeddings.push(...(batchEmbeddings as number[][]));
-        
+
         logger.info("LocalEmbeddingEngine", "Batch processed", {
           batchIndex: Math.floor(i / batchSize),
           batchSize: batch.length,
@@ -238,13 +267,13 @@ export class LocalEmbeddingEngine {
           totalTexts: texts.length,
         });
       }
-      
+
       // Limit cache size
       while (this.embeddingCache.size > this.MAX_CACHE_SIZE) {
         const firstKey = this.embeddingCache.keys().next().value;
         this.embeddingCache.delete(firstKey);
       }
-      
+
       return embeddings;
     } catch (error) {
       logger.error("LocalEmbeddingEngine", "Batch embedding failed", {
@@ -271,10 +300,10 @@ export class LocalEmbeddingEngine {
       // TensorFlow.js models don't have explicit dispose, but we can clear the reference
       this.model = null;
       this.modelLoading = null;
-      
+
       // Dispose all tensors
       tf.disposeVariables();
-      
+
       logger.info("LocalEmbeddingEngine", "Model unloaded");
     }
   }

@@ -1,11 +1,11 @@
 /**
  * Vector Indexing Queue Manager
- * 
+ *
  * Manages background generation of embeddings for content.
  * Handles batch processing, rate limiting, and retries.
- * 
+ *
  * Requirements: 7.2, 7.3 (Vector search and semantic indexing)
- * 
+ *
  * TODO: Consider migrating to established libraries like BullMQ for more robust
  * queue management with better concurrency control, persistence, and monitoring.
  */
@@ -61,7 +61,7 @@ export class VectorIndexingQueue {
   private batchSize: number = 20; // Process 20 embeddings at a time (optimized from 5)
   private rateLimitDelay: number = 1000; // 1 second delay on rate limit
   private maxRateLimitRetries: number = 5;
-  
+
   // Stats
   private jobsProcessed: number = 0;
   private jobsFailed: number = 0;
@@ -73,13 +73,13 @@ export class VectorIndexingQueue {
   async enqueueContent(
     contentId: string,
     operation: IndexingOperation,
-    priority: "high" | "normal" | "low" = "normal"
+    priority: "high" | "normal" | "low" = "normal",
   ): Promise<string> {
     // Check if already in queue
     const exists = this.queue.find(
-      job => job.contentId === contentId && job.operation === operation
+      (job) => job.contentId === contentId && job.operation === operation,
     );
-    
+
     if (exists) {
       logger.debug("VectorIndexingQueue", "Content already in queue", {
         contentId,
@@ -139,25 +139,25 @@ export class VectorIndexingQueue {
     while (this.queue.length > 0) {
       // Get next batch of jobs
       const batch = this.getNextBatch();
-      
+
       if (batch.length === 0) {
         // Check if we have scheduled jobs
         const hasScheduledJobs = this.queue.some(
-          job => job.scheduledFor && job.scheduledFor > Date.now()
+          (job) => job.scheduledFor && job.scheduledFor > Date.now(),
         );
-        
+
         if (hasScheduledJobs) {
           // Wait a bit and continue
           await this.sleep(100);
           continue;
         }
-        
+
         break;
       }
 
       // Process batch in parallel
       const results = await Promise.allSettled(
-        batch.map(job => this.processJob(job))
+        batch.map((job) => this.processJob(job)),
       );
 
       // Handle results
@@ -184,7 +184,7 @@ export class VectorIndexingQueue {
             job.priority = "low"; // Lower priority for retries
             this.queue.push(job);
             this.sortQueue();
-            
+
             logger.info("VectorIndexingQueue", "Job requeued for retry", {
               jobId: job.id,
               retries: job.retries,
@@ -219,7 +219,11 @@ export class VectorIndexingQueue {
     const batch: IndexingJob[] = [];
     const now = Date.now();
 
-    for (let i = 0; i < this.queue.length && batch.length < this.batchSize; i++) {
+    for (
+      let i = 0;
+      i < this.queue.length && batch.length < this.batchSize;
+      i++
+    ) {
       const job = this.queue[i];
       if (!job) continue;
 
@@ -289,12 +293,11 @@ export class VectorIndexingQueue {
       if (this.processingTimes.length > 100) {
         this.processingTimes.shift(); // Keep last 100
       }
-
     } catch (error: any) {
       // Handle rate limiting
       if (this.isRateLimitError(error)) {
         const rateLimitRetries = (job.rateLimitRetries || 0) + 1;
-        
+
         logger.warn("VectorIndexingQueue", "Rate limit hit, rescheduling", {
           jobId: job.id,
           rateLimitRetries,
@@ -302,7 +305,8 @@ export class VectorIndexingQueue {
 
         // Reschedule if not exceeded max rate limit retries
         if (rateLimitRetries <= this.maxRateLimitRetries) {
-          job.scheduledFor = Date.now() + this.rateLimitDelay * rateLimitRetries;
+          job.scheduledFor =
+            Date.now() + this.rateLimitDelay * rateLimitRetries;
           job.rateLimitRetries = rateLimitRetries;
           this.queue.push(job);
           this.sortQueue();
@@ -331,7 +335,11 @@ export class VectorIndexingQueue {
     if (typeof content.content === "string") {
       try {
         const parsed = JSON.parse(content.content);
-        text = parsed.text?.content || parsed.text || parsed.formattedContent || content.content;
+        text =
+          parsed.text?.content ||
+          parsed.text ||
+          parsed.formattedContent ||
+          content.content;
       } catch {
         text = content.content;
       }
@@ -371,10 +379,13 @@ export class VectorIndexingQueue {
     const vectorChunks: VectorChunk[] = [];
 
     // Generate embeddings for all chunks
-    const chunkTexts = textChunks.map(c => c.text);
-    const embeddings = await embeddingEngine.generateEmbeddingsBatch(chunkTexts, {
-      batchSize: this.batchSize,
-    });
+    const chunkTexts = textChunks.map((c) => c.text);
+    const embeddings = await embeddingEngine.generateEmbeddingsBatch(
+      chunkTexts,
+      {
+        batchSize: this.batchSize,
+      },
+    );
 
     // Create vector chunks with metadata
     for (let i = 0; i < textChunks.length; i++) {
@@ -436,13 +447,17 @@ export class VectorIndexingQueue {
     try {
       // Delete vector chunks (new storage)
       await vectorStoreService.deleteChunksByContent(job.contentId);
-      
+
       // Delete old embeddings (legacy storage)
       await indexedDBManager.deleteEmbeddingByContentId(job.contentId);
 
-      logger.info("VectorIndexingQueue", "Content vectors and embeddings deleted", {
-        contentId: job.contentId,
-      });
+      logger.info(
+        "VectorIndexingQueue",
+        "Content vectors and embeddings deleted",
+        {
+          contentId: job.contentId,
+        },
+      );
     } catch (error) {
       logger.error("VectorIndexingQueue", "Failed to delete content vectors", {
         contentId: job.contentId,
@@ -472,9 +487,10 @@ export class VectorIndexingQueue {
     const priorityOrder = { high: 0, normal: 1, low: 2 };
     this.queue.sort((a, b) => {
       // First by priority
-      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      const priorityDiff =
+        priorityOrder[a.priority] - priorityOrder[b.priority];
       if (priorityDiff !== 0) return priorityDiff;
-      
+
       // Then by creation time (older first)
       return a.createdAt - b.createdAt;
     });
@@ -493,14 +509,16 @@ export class VectorIndexingQueue {
   private emitProgressEvent(progress: IndexingProgress): void {
     // Emit event via chrome runtime messaging
     try {
-      chrome.runtime.sendMessage({
-        kind: "VECTOR_INDEXING_PROGRESS",
-        payload: progress,
-      }).catch(error => {
-        logger.debug("VectorIndexingQueue", "Failed to send progress event", {
-          error,
+      chrome.runtime
+        .sendMessage({
+          kind: "VECTOR_INDEXING_PROGRESS",
+          payload: progress,
+        })
+        .catch((error) => {
+          logger.debug("VectorIndexingQueue", "Failed to send progress event", {
+            error,
+          });
         });
-      });
     } catch (error) {
       // Silently fail if chrome runtime is not available (e.g., in tests)
       logger.debug("VectorIndexingQueue", "Runtime not available for event", {
@@ -513,16 +531,18 @@ export class VectorIndexingQueue {
    * Sleep utility
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
    * Get queue statistics
    */
   getStats(): QueueStats {
-    const avgTime = this.processingTimes.length > 0
-      ? this.processingTimes.reduce((a, b) => a + b, 0) / this.processingTimes.length
-      : 0;
+    const avgTime =
+      this.processingTimes.length > 0
+        ? this.processingTimes.reduce((a, b) => a + b, 0) /
+          this.processingTimes.length
+        : 0;
 
     return {
       queueLength: this.queue.length,

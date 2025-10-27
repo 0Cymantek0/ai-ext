@@ -9,7 +9,7 @@ import type { StructuredLogEnvelope } from "./console-wrapper.js";
 export interface LogBatch {
   logs: StructuredLogEnvelope[];
   timestamp: number;
-  origin: StructuredLogEnvelope['origin'];
+  origin: StructuredLogEnvelope["origin"];
 }
 
 export interface LogBridgeConfig {
@@ -73,7 +73,7 @@ export class LogBridgeClient {
     const batch: LogBatch = {
       logs: [...this.queue],
       timestamp: Date.now(),
-      origin: this.queue[0]?.origin || 'background',
+      origin: this.queue[0]?.origin || "background",
     };
 
     this.queue = [];
@@ -88,13 +88,19 @@ export class LogBridgeClient {
   private sendBatch(batch: LogBatch): void {
     try {
       // Check if chrome.runtime is available
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-        chrome.runtime.sendMessage({
-          kind: "LOG_BATCH",
-          payload: batch,
-        }).catch(() => {
-          // Silently swallow errors to avoid recursive logging
-        });
+      if (
+        typeof chrome !== "undefined" &&
+        chrome.runtime &&
+        chrome.runtime.sendMessage
+      ) {
+        chrome.runtime
+          .sendMessage({
+            kind: "LOG_BATCH",
+            payload: batch,
+          })
+          .catch(() => {
+            // Silently swallow errors to avoid recursive logging
+          });
       }
     } catch {
       // Silently swallow errors to avoid recursive logging

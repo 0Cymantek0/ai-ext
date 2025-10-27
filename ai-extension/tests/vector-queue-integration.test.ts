@@ -1,6 +1,6 @@
 /**
  * Vector Queue Integration Tests
- * 
+ *
  * Tests for vector indexing queue integration into content ingestion lifecycle.
  * Verifies that:
  * - Content creation enqueues CREATE jobs
@@ -10,9 +10,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { 
-  VectorIndexingQueue, 
-  IndexingOperation 
+import {
+  VectorIndexingQueue,
+  IndexingOperation,
 } from "../src/background/vector-indexing-queue.js";
 import {
   indexedDBManager,
@@ -32,14 +32,16 @@ vi.mock("../src/background/monitoring.js", () => ({
 
 vi.mock("../src/background/hybrid-ai-engine.js", () => ({
   hybridAIEngine: {
-    generateEmbedding: vi.fn().mockResolvedValue(
-      Array.from({ length: 768 }, () => Math.random())
-    ),
+    generateEmbedding: vi
+      .fn()
+      .mockResolvedValue(Array.from({ length: 768 }, () => Math.random())),
   },
 }));
 
 vi.mock("../src/background/indexeddb-manager.js", async () => {
-  const actual = await vi.importActual("../src/background/indexeddb-manager.js");
+  const actual = await vi.importActual(
+    "../src/background/indexeddb-manager.js",
+  );
   return {
     ...actual,
     indexedDBManager: {
@@ -80,21 +82,24 @@ describe("Vector Queue Integration", () => {
   describe("Content Creation Flow", () => {
     it("should enqueue CREATE job when content is created", async () => {
       const contentId = "test-content-123";
-      
+
       // Mock content to prevent actual processing
-      vi.mocked(indexedDBManager.getContent).mockImplementation(() => 
-        new Promise(() => {}) // Never resolves to keep job in queue
+      vi.mocked(indexedDBManager.getContent).mockImplementation(
+        () => new Promise(() => {}), // Never resolves to keep job in queue
       );
-      
+
       // Simulate content creation by enqueuing
-      const jobId = await queue.enqueueContent(contentId, IndexingOperation.CREATE);
-      
+      const jobId = await queue.enqueueContent(
+        contentId,
+        IndexingOperation.CREATE,
+      );
+
       expect(jobId).toBeDefined();
       expect(typeof jobId).toBe("string");
-      
+
       // Give a moment for queue to update
-      await new Promise(resolve => setTimeout(resolve, 20));
-      
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
       const stats = queue.getStats();
       expect(stats.queueLength).toBeGreaterThanOrEqual(0); // May be processing
       expect(stats.isProcessing).toBe(true);
@@ -118,14 +123,17 @@ describe("Vector Queue Integration", () => {
 
       vi.mocked(indexedDBManager.getContent).mockResolvedValue(mockContent);
 
-      const jobId = await queue.enqueueContent(contentId, IndexingOperation.CREATE);
-      
+      const jobId = await queue.enqueueContent(
+        contentId,
+        IndexingOperation.CREATE,
+      );
+
       // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Verify embedding was saved
       expect(indexedDBManager.saveEmbedding).toHaveBeenCalled();
-      
+
       const stats = queue.getStats();
       expect(stats.jobsProcessed).toBe(1);
       expect(stats.queueLength).toBe(0);
@@ -133,11 +141,11 @@ describe("Vector Queue Integration", () => {
 
     it("should handle duplicate enqueueing gracefully", async () => {
       const contentId = "test-content-789";
-      
+
       // Clear mocks and queue
       vi.clearAllMocks();
       queue.clear();
-      
+
       const mockContent = {
         id: contentId,
         pocketId: "pocket-123",
@@ -150,18 +158,24 @@ describe("Vector Queue Integration", () => {
       };
 
       vi.mocked(indexedDBManager.getContent).mockResolvedValue(mockContent);
-      
+
       // Enqueue same content twice
-      const jobId1 = await queue.enqueueContent(contentId, IndexingOperation.CREATE);
-      const jobId2 = await queue.enqueueContent(contentId, IndexingOperation.CREATE);
-      
+      const jobId1 = await queue.enqueueContent(
+        contentId,
+        IndexingOperation.CREATE,
+      );
+      const jobId2 = await queue.enqueueContent(
+        contentId,
+        IndexingOperation.CREATE,
+      );
+
       // Should get valid job IDs
       expect(jobId1).toBeDefined();
       expect(jobId2).toBeDefined();
-      
+
       // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // Should process successfully without errors
       const stats = queue.getStats();
       expect(stats.jobsFailed).toBe(0);
@@ -185,10 +199,10 @@ describe("Vector Queue Integration", () => {
       vi.mocked(indexedDBManager.getContent).mockResolvedValue(mockContent);
 
       await queue.enqueueContent(contentId, IndexingOperation.CREATE);
-      
+
       // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Should complete without error
       const stats = queue.getStats();
       expect(stats.jobsProcessed).toBe(1);
@@ -199,18 +213,21 @@ describe("Vector Queue Integration", () => {
   describe("Content Update Flow", () => {
     it("should enqueue UPDATE job when content is updated", async () => {
       const contentId = "test-content-update-123";
-      
+
       // Mock content to prevent actual processing
-      vi.mocked(indexedDBManager.getContent).mockImplementation(() => 
-        new Promise(() => {}) // Never resolves to keep job in queue
+      vi.mocked(indexedDBManager.getContent).mockImplementation(
+        () => new Promise(() => {}), // Never resolves to keep job in queue
       );
-      
-      const jobId = await queue.enqueueContent(contentId, IndexingOperation.UPDATE);
-      
+
+      const jobId = await queue.enqueueContent(
+        contentId,
+        IndexingOperation.UPDATE,
+      );
+
       expect(jobId).toBeDefined();
-      
-      await new Promise(resolve => setTimeout(resolve, 20));
-      
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
       const stats = queue.getStats();
       expect(stats.queueLength).toBeGreaterThanOrEqual(0);
       expect(stats.isProcessing).toBe(true);
@@ -236,24 +253,24 @@ describe("Vector Queue Integration", () => {
       vi.mocked(indexedDBManager.getContent).mockResolvedValue(mockContent);
 
       await queue.enqueueContent(contentId, IndexingOperation.UPDATE);
-      
+
       // Wait for processing with longer timeout
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // Should delete old embeddings and create new ones
       expect(indexedDBManager.saveEmbedding).toHaveBeenCalled();
-      
+
       const stats = queue.getStats();
       expect(stats.jobsProcessed).toBeGreaterThanOrEqual(1);
     });
 
     it("should handle multiple updates for same content gracefully", async () => {
       const contentId = "test-content-multiple-updates";
-      
+
       // Clear mocks and queue
       vi.clearAllMocks();
       queue.clear();
-      
+
       const mockContent = {
         id: contentId,
         pocketId: "pocket-123",
@@ -269,18 +286,24 @@ describe("Vector Queue Integration", () => {
       };
 
       vi.mocked(indexedDBManager.getContent).mockResolvedValue(mockContent);
-      
+
       // Enqueue multiple updates
-      const jobId1 = await queue.enqueueContent(contentId, IndexingOperation.UPDATE);
-      const jobId2 = await queue.enqueueContent(contentId, IndexingOperation.UPDATE);
-      
+      const jobId1 = await queue.enqueueContent(
+        contentId,
+        IndexingOperation.UPDATE,
+      );
+      const jobId2 = await queue.enqueueContent(
+        contentId,
+        IndexingOperation.UPDATE,
+      );
+
       // Should get valid job IDs
       expect(jobId1).toBeDefined();
       expect(jobId2).toBeDefined();
-      
+
       // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // Should process successfully without errors
       const stats = queue.getStats();
       expect(stats.jobsFailed).toBe(0);
@@ -290,18 +313,21 @@ describe("Vector Queue Integration", () => {
   describe("Content Deletion Flow", () => {
     it("should enqueue DELETE job when content is deleted", async () => {
       const contentId = "test-content-delete-123";
-      
+
       // Mock to delay processing
-      vi.mocked(indexedDBManager.deleteEmbeddingByContentId).mockImplementation(() => 
-        new Promise(() => {}) // Never resolves to keep job in queue
+      vi.mocked(indexedDBManager.deleteEmbeddingByContentId).mockImplementation(
+        () => new Promise(() => {}), // Never resolves to keep job in queue
       );
-      
-      const jobId = await queue.enqueueContent(contentId, IndexingOperation.DELETE);
-      
+
+      const jobId = await queue.enqueueContent(
+        contentId,
+        IndexingOperation.DELETE,
+      );
+
       expect(jobId).toBeDefined();
-      
-      await new Promise(resolve => setTimeout(resolve, 20));
-      
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
       const stats = queue.getStats();
       expect(stats.queueLength).toBeGreaterThanOrEqual(0);
       expect(stats.isProcessing).toBe(true);
@@ -309,31 +335,37 @@ describe("Vector Queue Integration", () => {
 
     it("should process DELETE job and remove embeddings", async () => {
       const contentId = "test-content-delete-456";
-      
-      vi.mocked(indexedDBManager.deleteEmbeddingByContentId).mockResolvedValue();
+
+      vi.mocked(
+        indexedDBManager.deleteEmbeddingByContentId,
+      ).mockResolvedValue();
 
       await queue.enqueueContent(contentId, IndexingOperation.DELETE);
-      
+
       // Wait for processing with longer timeout
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // Should delete embeddings
-      expect(indexedDBManager.deleteEmbeddingByContentId).toHaveBeenCalledWith(contentId);
-      
+      expect(indexedDBManager.deleteEmbeddingByContentId).toHaveBeenCalledWith(
+        contentId,
+      );
+
       const stats = queue.getStats();
       expect(stats.jobsProcessed).toBeGreaterThanOrEqual(1);
     });
 
     it("should handle deletion of non-existent content gracefully", async () => {
       const contentId = "non-existent-content";
-      
-      vi.mocked(indexedDBManager.deleteEmbeddingByContentId).mockResolvedValue();
+
+      vi.mocked(
+        indexedDBManager.deleteEmbeddingByContentId,
+      ).mockResolvedValue();
 
       await queue.enqueueContent(contentId, IndexingOperation.DELETE);
-      
+
       // Wait for processing with longer timeout
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // Should complete without error
       const stats = queue.getStats();
       expect(stats.jobsProcessed).toBeGreaterThanOrEqual(1);
@@ -346,7 +378,7 @@ describe("Vector Queue Integration", () => {
       // Clear queue for a clean test
       queue.clear();
       queue.setBatchSize(3); // Process all at once
-      
+
       const mockContent = {
         pocketId: "pocket-123",
         type: ContentType.TEXT,
@@ -363,13 +395,25 @@ describe("Vector Queue Integration", () => {
       }));
 
       // Enqueue with different priorities
-      await queue.enqueueContent("low-priority", IndexingOperation.CREATE, "low");
-      await queue.enqueueContent("high-priority", IndexingOperation.CREATE, "high");
-      await queue.enqueueContent("normal-priority", IndexingOperation.CREATE, "normal");
-      
+      await queue.enqueueContent(
+        "low-priority",
+        IndexingOperation.CREATE,
+        "low",
+      );
+      await queue.enqueueContent(
+        "high-priority",
+        IndexingOperation.CREATE,
+        "high",
+      );
+      await queue.enqueueContent(
+        "normal-priority",
+        IndexingOperation.CREATE,
+        "normal",
+      );
+
       // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       // All jobs should be processed
       const stats = queue.getStats();
       expect(stats.jobsProcessed).toBeGreaterThanOrEqual(3);
@@ -377,35 +421,39 @@ describe("Vector Queue Integration", () => {
 
     it("should handle mixed operations with correct priority", async () => {
       const contentId = "mixed-ops-content";
-      
+
       // Mock to prevent processing
-      vi.mocked(indexedDBManager.getContent).mockImplementation(() => 
-        new Promise(() => {})
+      vi.mocked(indexedDBManager.getContent).mockImplementation(
+        () => new Promise(() => {}),
       );
-      
+
       // Enqueue different operations
       await queue.enqueueContent(contentId, IndexingOperation.CREATE, "normal");
       await queue.enqueueContent(contentId, IndexingOperation.UPDATE, "high");
-      
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       const stats = queue.getStats();
       // Should have at least 1 job, operations for same content can coexist
-      expect(stats.queueLength + (stats.isProcessing ? 1 : 0)).toBeGreaterThanOrEqual(1);
+      expect(
+        stats.queueLength + (stats.isProcessing ? 1 : 0),
+      ).toBeGreaterThanOrEqual(1);
     });
   });
 
   describe("Error Handling", () => {
     it("should retry failed jobs up to max retries", async () => {
       const contentId = "failing-content";
-      
-      vi.mocked(indexedDBManager.getContent).mockRejectedValueOnce(new Error("Database error"));
+
+      vi.mocked(indexedDBManager.getContent).mockRejectedValueOnce(
+        new Error("Database error"),
+      );
 
       await queue.enqueueContent(contentId, IndexingOperation.CREATE);
-      
+
       // Wait for processing and retry
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       // Job should be retried
       const stats = queue.getStats();
       expect(stats.jobsFailed).toBeGreaterThanOrEqual(0); // Depends on retry completion
@@ -413,14 +461,14 @@ describe("Vector Queue Integration", () => {
 
     it("should handle content not found error", async () => {
       const contentId = "missing-content";
-      
+
       vi.mocked(indexedDBManager.getContent).mockResolvedValue(null);
 
       await queue.enqueueContent(contentId, IndexingOperation.CREATE);
-      
+
       // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Should fail and eventually give up
       const stats = queue.getStats();
       expect(stats.jobsFailed).toBeGreaterThanOrEqual(0);
@@ -430,13 +478,13 @@ describe("Vector Queue Integration", () => {
   describe("Non-blocking Behavior", () => {
     it("should not block main thread during enqueue", async () => {
       const startTime = Date.now();
-      
+
       await queue.enqueueContent("content-1", IndexingOperation.CREATE);
       await queue.enqueueContent("content-2", IndexingOperation.CREATE);
       await queue.enqueueContent("content-3", IndexingOperation.CREATE);
-      
+
       const enqueueTime = Date.now() - startTime;
-      
+
       // Enqueuing should be fast (< 50ms)
       expect(enqueueTime).toBeLessThan(50);
     });
@@ -456,16 +504,21 @@ describe("Vector Queue Integration", () => {
       vi.mocked(indexedDBManager.getContent).mockResolvedValue(mockContent);
 
       // Enqueue should return immediately
-      const jobId = await queue.enqueueContent("bg-content", IndexingOperation.CREATE);
+      const jobId = await queue.enqueueContent(
+        "bg-content",
+        IndexingOperation.CREATE,
+      );
       expect(jobId).toBeDefined();
-      
+
       // Processing happens in background
       const initialStats = queue.getStats();
-      expect(initialStats.isProcessing || initialStats.queueLength > 0).toBe(true);
-      
+      expect(initialStats.isProcessing || initialStats.queueLength > 0).toBe(
+        true,
+      );
+
       // Wait for background processing
-      await new Promise(resolve => setTimeout(resolve, 150));
-      
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
       const finalStats = queue.getStats();
       expect(finalStats.jobsProcessed).toBeGreaterThan(0);
     });
@@ -488,10 +541,10 @@ describe("Vector Queue Integration", () => {
       vi.mocked(indexedDBManager.getContent).mockResolvedValue(mockContent);
 
       await queue.enqueueContent(contentId, IndexingOperation.CREATE);
-      
+
       // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Should have emitted events via chrome.runtime.sendMessage
       expect(chrome.runtime.sendMessage).toHaveBeenCalled();
     });
@@ -500,7 +553,7 @@ describe("Vector Queue Integration", () => {
   describe("Batch Processing", () => {
     it("should process multiple jobs in batches", async () => {
       queue.setBatchSize(3);
-      
+
       const mockContent = {
         pocketId: "pocket-123",
         type: ContentType.TEXT,
@@ -524,10 +577,10 @@ describe("Vector Queue Integration", () => {
         queue.enqueueContent("batch-4", IndexingOperation.CREATE),
         queue.enqueueContent("batch-5", IndexingOperation.CREATE),
       ]);
-      
+
       // Wait for batch processing
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       const stats = queue.getStats();
       expect(stats.jobsProcessed).toBe(5);
     });

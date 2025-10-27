@@ -33,7 +33,7 @@ import {
   Image,
   Keyboard,
   Save,
-  ChevronDown
+  ChevronDown,
 } from "lucide-react";
 
 export interface NoteData {
@@ -77,7 +77,10 @@ export function NoteEditorPage({
 
   // Calculate word and character count
   React.useEffect(() => {
-    const words = content.trim().split(/\s+/).filter(w => w.length > 0).length;
+    const words = content
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length > 0).length;
     const chars = content.length;
     setWordCount(words);
     setCharCount(chars);
@@ -89,14 +92,17 @@ export function NoteEditorPage({
       if (!hasAutoFormatted && content.trim() && !note?.id) {
         setHasAutoFormatted(true);
         setIsAutoFormatting(true);
-        console.log("[NoteEditor] Starting auto-format on mount", { contentLength: content.length });
+        console.log("[NoteEditor] Starting auto-format on mount", {
+          contentLength: content.length,
+        });
         try {
           const response = await chrome.runtime.sendMessage({
             kind: "AI_FORMAT_REQUEST",
             requestId: crypto.randomUUID(),
             payload: {
               content: content,
-              instructions: "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting.",
+              instructions:
+                "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting.",
               preferLocal: true,
             },
           });
@@ -107,7 +113,7 @@ export function NoteEditorPage({
             console.log("[NoteEditor] ✓ Content formatted", {
               usedAI: response.data.usedAI,
               originalLength: content.length,
-              formattedLength: response.data.formattedContent.length
+              formattedLength: response.data.formattedContent.length,
             });
             setContent(response.data.formattedContent);
           } else {
@@ -155,14 +161,14 @@ export function NoteEditorPage({
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
+    setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
   const insertMarkdown = (
     before: string,
     after: string = "",
     placeholder: string = "",
-    newLine: boolean = false
+    newLine: boolean = false,
   ) => {
     if (!textareaRef.current) return;
 
@@ -177,13 +183,20 @@ export function NoteEditorPage({
     if (selectedText) {
       // Wrap selected text
       const insertion = before + selectedText + (after || before);
-      newText = content.substring(0, start) + insertion + content.substring(end);
+      newText =
+        content.substring(0, start) + insertion + content.substring(end);
       newCursorPos = start + insertion.length;
     } else {
       // Insert syntax with placeholder
       const insertion = before + placeholder + (after || before);
-      newText = content.substring(0, start) + (newLine ? "\n" : "") + insertion + (newLine ? "\n" : "") + content.substring(end);
-      newCursorPos = start + (newLine ? 1 : 0) + before.length + placeholder.length;
+      newText =
+        content.substring(0, start) +
+        (newLine ? "\n" : "") +
+        insertion +
+        (newLine ? "\n" : "") +
+        content.substring(end);
+      newCursorPos =
+        start + (newLine ? 1 : 0) + before.length + placeholder.length;
     }
 
     setContent(newText);
@@ -215,7 +228,12 @@ export function NoteEditorPage({
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
-    const newText = content.substring(0, start) + "\n" + boilerplate + "\n" + content.substring(start);
+    const newText =
+      content.substring(0, start) +
+      "\n" +
+      boilerplate +
+      "\n" +
+      content.substring(start);
     setContent(newText);
 
     setTimeout(() => {
@@ -236,7 +254,8 @@ export function NoteEditorPage({
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
-    const newText = content.substring(0, start) + table + content.substring(start);
+    const newText =
+      content.substring(0, start) + table + content.substring(start);
     setContent(newText);
 
     setTimeout(() => {
@@ -259,7 +278,8 @@ export function NoteEditorPage({
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
-    const newText = content.substring(0, start) + nestedList + content.substring(start);
+    const newText =
+      content.substring(0, start) + nestedList + content.substring(start);
     setContent(newText);
 
     setTimeout(() => {
@@ -277,7 +297,8 @@ export function NoteEditorPage({
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
-    const newText = content.substring(0, start) + "\n---\n" + content.substring(start);
+    const newText =
+      content.substring(0, start) + "\n---\n" + content.substring(start);
     setContent(newText);
 
     setTimeout(() => {
@@ -302,33 +323,33 @@ export function NoteEditorPage({
 
       const isMod = e.ctrlKey || e.metaKey;
 
-      if (isMod && e.key === 'b') {
+      if (isMod && e.key === "b") {
         e.preventDefault();
         insertMarkdown("**", "**", "bold");
-      } else if (isMod && e.key === 'i') {
+      } else if (isMod && e.key === "i") {
         e.preventDefault();
         insertMarkdown("*", "*", "italic");
-      } else if (isMod && e.key === 'u') {
+      } else if (isMod && e.key === "u") {
         e.preventDefault();
         insertMarkdown("<u>", "</u>", "underline");
-      } else if (isMod && e.shiftKey && e.key === 'K') {
+      } else if (isMod && e.shiftKey && e.key === "K") {
         e.preventDefault();
         insertLink();
-      } else if (isMod && e.key === 's') {
+      } else if (isMod && e.key === "s") {
         e.preventDefault();
         handleSave();
-      } else if (isMod && e.key === 'p') {
+      } else if (isMod && e.key === "p") {
         e.preventDefault();
         setIsPreviewMode(!isPreviewMode);
-      } else if (e.key === 'Escape') {
+      } else if (e.key === "Escape") {
         if (showShortcuts) {
           setShowShortcuts(false);
         }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPreviewMode, showShortcuts, content, title, tags]);
 
   const handleAutoFormat = async () => {
@@ -338,7 +359,9 @@ export function NoteEditorPage({
     }
 
     setIsAutoFormatting(true);
-    console.log("[NoteEditor] Manual format triggered", { contentLength: content.length });
+    console.log("[NoteEditor] Manual format triggered", {
+      contentLength: content.length,
+    });
     try {
       // Send to AI for formatting
       const response = await chrome.runtime.sendMessage({
@@ -346,7 +369,8 @@ export function NoteEditorPage({
         requestId: crypto.randomUUID(),
         payload: {
           content: content,
-          instructions: "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting.",
+          instructions:
+            "Format this markdown content to be well-structured, properly indented, and easy to read. Fix any markdown syntax issues and improve the overall formatting.",
           preferLocal: true,
         },
       });
@@ -357,17 +381,17 @@ export function NoteEditorPage({
         console.log("[NoteEditor] ✓ Manual format successful", {
           usedAI: response.data.usedAI,
           originalLength: content.length,
-          formattedLength: response.data.formattedContent.length
+          formattedLength: response.data.formattedContent.length,
         });
         setContent(response.data.formattedContent);
       } else {
         console.warn("[NoteEditor] Format unsuccessful, using fallback");
         // Fallback: Basic formatting
         const formatted = content
-          .split('\n')
-          .map(line => line.trim())
-          .join('\n')
-          .replace(/\n{3,}/g, '\n\n'); // Remove excessive line breaks
+          .split("\n")
+          .map((line) => line.trim())
+          .join("\n")
+          .replace(/\n{3,}/g, "\n\n"); // Remove excessive line breaks
         setContent(formatted);
       }
     } catch (error) {
@@ -379,7 +403,12 @@ export function NoteEditorPage({
   };
 
   return (
-    <div className={cn("flex flex-col h-screen bg-zinc-950 text-zinc-100", className)}>
+    <div
+      className={cn(
+        "flex flex-col h-screen bg-zinc-950 text-zinc-100",
+        className,
+      )}
+    >
       {/* Auto-formatting overlay */}
       {isAutoFormatting && !note?.id && (
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
@@ -426,7 +455,11 @@ export function NoteEditorPage({
             className="h-9 w-9 hover:bg-zinc-800"
             title={isPreviewMode ? "Edit Mode" : "Preview Mode"}
           >
-            {isPreviewMode ? <Edit3 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {isPreviewMode ? (
+              <Edit3 className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
           </Button>
           <Button
             size="sm"
@@ -508,21 +541,30 @@ export function NoteEditorPage({
                     className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
                   >
                     <Bold className="h-4 w-4 mr-2" />
-                    Bold <span className="ml-auto text-xs text-zinc-500">Ctrl+B</span>
+                    Bold{" "}
+                    <span className="ml-auto text-xs text-zinc-500">
+                      Ctrl+B
+                    </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => insertMarkdown("*", "*", "italic")}
                     className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
                   >
                     <Italic className="h-4 w-4 mr-2" />
-                    Italic <span className="ml-auto text-xs text-zinc-500">Ctrl+I</span>
+                    Italic{" "}
+                    <span className="ml-auto text-xs text-zinc-500">
+                      Ctrl+I
+                    </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => insertMarkdown("<u>", "</u>", "underline")}
                     className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
                   >
                     <Underline className="h-4 w-4 mr-2" />
-                    Underline <span className="ml-auto text-xs text-zinc-500">Ctrl+U</span>
+                    Underline{" "}
+                    <span className="ml-auto text-xs text-zinc-500">
+                      Ctrl+U
+                    </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => insertMarkdown("~~", "~~", "strikethrough")}
@@ -646,7 +688,10 @@ export function NoteEditorPage({
                     className="hover:bg-zinc-800 text-zinc-300 cursor-pointer"
                   >
                     <Link className="h-4 w-4 mr-2" />
-                    Link <span className="ml-auto text-xs text-zinc-500">Ctrl+Shift+K</span>
+                    Link{" "}
+                    <span className="ml-auto text-xs text-zinc-500">
+                      Ctrl+Shift+K
+                    </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={insertImage}
@@ -684,11 +729,13 @@ export function NoteEditorPage({
                 disabled={isAutoFormatting}
                 className={cn(
                   "h-8 w-8 shrink-0 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 hover:from-purple-600 hover:via-pink-600 hover:to-purple-600 text-white border-0 shadow-lg shadow-purple-500/20",
-                  isAutoFormatting && "animate-shimmer bg-[length:200%_100%]"
+                  isAutoFormatting && "animate-shimmer bg-[length:200%_100%]",
                 )}
                 title="AI Auto-format"
               >
-                <Sparkles className={cn("h-4 w-4", isAutoFormatting && "animate-pulse")} />
+                <Sparkles
+                  className={cn("h-4 w-4", isAutoFormatting && "animate-pulse")}
+                />
               </Button>
             </div>
 
@@ -700,7 +747,7 @@ export function NoteEditorPage({
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 className="w-full h-full min-h-[500px] resize-none border-none bg-transparent px-6 py-4 focus-visible:ring-0 font-mono text-[15px] leading-relaxed text-zinc-200 placeholder:text-zinc-700"
-                style={{ caretColor: '#a855f7' }}
+                style={{ caretColor: "#a855f7" }}
               />
             </div>
           </>
@@ -716,10 +763,18 @@ export function NoteEditorPage({
 
       {/* Keyboard Shortcuts Panel */}
       {showShortcuts && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowShortcuts(false)}>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setShowShortcuts(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-zinc-100">Keyboard Shortcuts</h3>
+              <h3 className="text-lg font-semibold text-zinc-100">
+                Keyboard Shortcuts
+              </h3>
               <Button
                 variant="ghost"
                 size="icon"
@@ -732,31 +787,45 @@ export function NoteEditorPage({
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-zinc-400">Bold</span>
-                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">Ctrl+B</kbd>
+                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">
+                  Ctrl+B
+                </kbd>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-zinc-400">Italic</span>
-                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">Ctrl+I</kbd>
+                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">
+                  Ctrl+I
+                </kbd>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-zinc-400">Underline</span>
-                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">Ctrl+U</kbd>
+                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">
+                  Ctrl+U
+                </kbd>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-zinc-400">Insert Link</span>
-                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">Ctrl+Shift+K</kbd>
+                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">
+                  Ctrl+Shift+K
+                </kbd>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-zinc-400">Save Note</span>
-                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">Ctrl+S</kbd>
+                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">
+                  Ctrl+S
+                </kbd>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-zinc-400">Toggle Preview</span>
-                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">Ctrl+P</kbd>
+                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">
+                  Ctrl+P
+                </kbd>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-zinc-400">Close Dialog</span>
-                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">Esc</kbd>
+                <kbd className="px-2 py-1 bg-zinc-800 rounded text-zinc-300 font-mono text-xs">
+                  Esc
+                </kbd>
               </div>
             </div>
           </div>

@@ -10,7 +10,11 @@ import { NoteEditorPage } from "@/components/notes/NoteEditorPage";
 import { SearchBar } from "@/components/SearchBar";
 import { SearchResultsPanel } from "@/components/pockets/SearchResultsPanel";
 import { AnimatePresence, motion } from "framer-motion";
-import { GlassSelector, GlassSort, FloatingPanel } from "@/components/FloatingControls";
+import {
+  GlassSelector,
+  GlassSort,
+  FloatingPanel,
+} from "@/components/FloatingControls";
 import type { CapturedContent } from "@/background/indexeddb-manager";
 import type { PocketData } from "./PocketCard";
 
@@ -34,9 +38,16 @@ const getDomain = (content: CapturedContent): string => {
   }
 };
 
-export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentListProps) {
+export function ContentList({
+  pocket,
+  onBack,
+  onAddNote,
+  onAddFile,
+}: ContentListProps) {
   const [contents, setContents] = React.useState<CapturedContent[]>([]);
-  const [filteredContents, setFilteredContents] = React.useState<CapturedContent[]>([]);
+  const [filteredContents, setFilteredContents] = React.useState<
+    CapturedContent[]
+  >([]);
   const [viewMode, setViewMode] = React.useState<ViewMode>("list");
   const [sortBy, setSortBy] = React.useState<SortBy>("date");
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -44,11 +55,14 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [isResultsOpen, setIsResultsOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [previewContent, setPreviewContent] = React.useState<CapturedContent | null>(null);
+  const [previewContent, setPreviewContent] =
+    React.useState<CapturedContent | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [showAddMenu, setShowAddMenu] = React.useState(false);
   const [showNoteTemplates, setShowNoteTemplates] = React.useState(false);
-  const [contentView, setContentView] = React.useState<"files" | "notes">("files");
+  const [contentView, setContentView] = React.useState<"files" | "notes">(
+    "files",
+  );
   const [editingNote, setEditingNote] = React.useState<any>(null);
   const [isEditorOpen, setIsEditorOpen] = React.useState(false);
 
@@ -68,29 +82,48 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
     const onMessage = (message: any) => {
       try {
         if (!message || !message.kind) return;
-        
-        console.log("ContentList received message:", message.kind, message.payload);
-        
+
+        console.log(
+          "ContentList received message:",
+          message.kind,
+          message.payload,
+        );
+
         if (message.kind === "CONTENT_CREATED" && message.payload?.content) {
           const created = message.payload.content as CapturedContent;
-          console.log("Content created:", created.id, "for pocket:", created.pocketId, "current pocket:", pocket.id);
+          console.log(
+            "Content created:",
+            created.id,
+            "for pocket:",
+            created.pocketId,
+            "current pocket:",
+            pocket.id,
+          );
           if (created.pocketId === pocket.id) {
             setContents((prev) => {
               // Check if content already exists to avoid duplicates
-              const exists = prev.some(c => c.id === created.id);
+              const exists = prev.some((c) => c.id === created.id);
               if (exists) {
-                return prev.map(c => c.id === created.id ? created : c);
+                return prev.map((c) => (c.id === created.id ? created : c));
               }
               return [created, ...prev];
             });
             console.log("Content added to list");
           }
-        } else if (message.kind === "CONTENT_UPDATED" && message.payload?.content) {
+        } else if (
+          message.kind === "CONTENT_UPDATED" &&
+          message.payload?.content
+        ) {
           const updated = message.payload.content as CapturedContent;
           if (updated.pocketId === pocket.id) {
-            setContents((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+            setContents((prev) =>
+              prev.map((c) => (c.id === updated.id ? updated : c)),
+            );
           }
-        } else if (message.kind === "CONTENT_DELETED" && message.payload?.contentId) {
+        } else if (
+          message.kind === "CONTENT_DELETED" &&
+          message.payload?.contentId
+        ) {
           const deletedId = message.payload.contentId as string;
           setContents((prev) => prev.filter((c) => c.id !== deletedId));
         }
@@ -136,10 +169,11 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
       filtered = filtered.filter((content) => {
         const title = content.metadata.title?.toLowerCase() || "";
         const domain = getDomain(content).toLowerCase();
-        const contentText = typeof content.content === "string" 
-          ? content.content.toLowerCase() 
-          : "";
-        
+        const contentText =
+          typeof content.content === "string"
+            ? content.content.toLowerCase()
+            : "";
+
         return (
           title.includes(query) ||
           domain.includes(query) ||
@@ -199,7 +233,10 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
         let fallback = contents.filter((content) => {
           const title = content.metadata.title?.toLowerCase() || "";
           const domain = getDomain(content).toLowerCase();
-          const contentText = typeof content.content === "string" ? content.content.toLowerCase() : "";
+          const contentText =
+            typeof content.content === "string"
+              ? content.content.toLowerCase()
+              : "";
           return (
             title.includes(q) ||
             domain.includes(q) ||
@@ -230,7 +267,10 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
       let fallback = contents.filter((content) => {
         const title = content.metadata.title?.toLowerCase() || "";
         const domain = getDomain(content).toLowerCase();
-        const contentText = typeof content.content === "string" ? content.content.toLowerCase() : "";
+        const contentText =
+          typeof content.content === "string"
+            ? content.content.toLowerCase()
+            : "";
         return (
           title.includes(q) ||
           domain.includes(q) ||
@@ -309,7 +349,7 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
 
   // Get all images from the current pocket for navigation
   const allImages = React.useMemo(() => {
-    return filteredContents.filter(c => c.type === "image");
+    return filteredContents.filter((c) => c.type === "image");
   }, [filteredContents]);
 
   const handleEditNote = () => {
@@ -318,11 +358,15 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
       const noteData = {
         id: previewContent.id,
         title: previewContent.metadata?.title || "Untitled Note",
-        content: typeof previewContent.content === "string" ? previewContent.content : "",
+        content:
+          typeof previewContent.content === "string"
+            ? previewContent.content
+            : "",
         tags: previewContent.metadata?.tags || [],
         category: previewContent.metadata?.category,
         createdAt: previewContent.capturedAt,
-        updatedAt: previewContent.metadata?.updatedAt || previewContent.capturedAt,
+        updatedAt:
+          previewContent.metadata?.updatedAt || previewContent.capturedAt,
         pocketId: previewContent.pocketId,
       };
       setEditingNote(noteData);
@@ -341,7 +385,7 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
   const handleSaveNote = async (noteData: any) => {
     try {
       const targetPocketId = noteData.pocketId || pocket.id;
-      
+
       if (editingNote?.id) {
         // Update existing note
         const response = await chrome.runtime.sendMessage({
@@ -362,7 +406,11 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
         });
 
         if (!response.success) {
-          throw new Error(response.error?.message || response.error || "Failed to update note");
+          throw new Error(
+            response.error?.message ||
+              response.error ||
+              "Failed to update note",
+          );
         }
       }
 
@@ -383,7 +431,7 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
 
   const handleAddFileClick = async () => {
     setShowAddMenu(false);
-    
+
     // Create a file input element
     const fileInput = document.createElement("input");
     fileInput.type = "file";
@@ -444,302 +492,345 @@ export function ContentList({ pocket, onBack, onAddNote, onAddFile }: ContentLis
     fileInput.click();
   };
 
-
-
   // Close add menu when clicking outside
   React.useEffect(() => {
     if (!showAddMenu) return;
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('[data-add-menu]')) {
+      if (!target.closest("[data-add-menu]")) {
         setShowAddMenu(false);
       }
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, [showAddMenu]);
 
   return (
     <>
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Floating Controls */}
-      <FloatingPanel className="top-16">
-        <div className="flex flex-col items-stretch gap-2">
-          {/* Back button and pocket info */}
-          <div className="flex items-center gap-2 mb-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              className="shrink-0"
-            >
-              <svg
-                className="w-4 h-4 mr-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+      <div className="flex flex-col h-full overflow-hidden">
+        {/* Floating Controls */}
+        <FloatingPanel className="top-16">
+          <div className="flex flex-col items-stretch gap-2">
+            {/* Back button and pocket info */}
+            <div className="flex items-center gap-2 mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBack}
+                className="shrink-0"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Back
-            </Button>
-            <div className="flex-1 min-w-0">
-              <h2 className="font-semibold text-sm truncate">{pocket.name}</h2>
-              <p className="text-xs text-muted-foreground truncate">
-                {pocket.contentIds.length} items
-              </p>
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+                Back
+              </Button>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-semibold text-sm truncate">
+                  {pocket.name}
+                </h2>
+                <p className="text-xs text-muted-foreground truncate">
+                  {pocket.contentIds.length} items
+                </p>
+              </div>
             </div>
-          </div>
 
-
-          <AnimatePresence initial={false}>
-            {!isResultsOpen && (
-              <motion.div
-                key="searchbar"
-                layout
-                initial={{ opacity: 0, y: -6, scale: 0.98, filter: "blur(8px)" }}
-                animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -8, scale: 0.98, filter: "blur(8px)" }}
-                transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.6 }}
-                style={{ willChange: "transform, filter" }}
-              >
-                <SearchBar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  onSearch={handleSearch}
-                  isSearching={isSearching}
-                  placeholder="Search within this pocket..."
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <div className="flex items-center gap-2">
-            <GlassSelector
-              label="View"
-              value={viewMode}
-              onChange={(v) => setViewMode(v as ViewMode)}
-              options={[
-                {
-                  value: "list",
-                  label: "List",
-                  icon: (
-                    <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  ),
-                },
-                {
-                  value: "grid",
-                  label: "Grid",
-                  icon: (
-                    <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h4v4H4V5zm10 0h4v4h-4V5zM4 15h4v4H4v-4zm10 0h4v4h-4v-4z" />
-                    </svg>
-                  ),
-                },
-              ]}
-            />
-            <div className="ml-auto">
-              <GlassSort
-                value={sortBy}
-                onChange={(v) => setSortBy(v as SortBy)}
+            <AnimatePresence initial={false}>
+              {!isResultsOpen && (
+                <motion.div
+                  key="searchbar"
+                  layout
+                  initial={{
+                    opacity: 0,
+                    y: -6,
+                    scale: 0.98,
+                    filter: "blur(8px)",
+                  }}
+                  animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, y: -8, scale: 0.98, filter: "blur(8px)" }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 420,
+                    damping: 28,
+                    mass: 0.6,
+                  }}
+                  style={{ willChange: "transform, filter" }}
+                >
+                  <SearchBar
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    onSearch={handleSearch}
+                    isSearching={isSearching}
+                    placeholder="Search within this pocket..."
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <div className="flex items-center gap-2">
+              <GlassSelector
+                label="View"
+                value={viewMode}
+                onChange={(v) => setViewMode(v as ViewMode)}
                 options={[
-                  { value: "date", label: "Date" },
-                  { value: "title", label: "Title" },
-                  { value: "type", label: "Type" },
+                  {
+                    value: "list",
+                    label: "List",
+                    icon: (
+                      <svg
+                        className="size-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 6h16M4 12h16M4 18h16"
+                        />
+                      </svg>
+                    ),
+                  },
+                  {
+                    value: "grid",
+                    label: "Grid",
+                    icon: (
+                      <svg
+                        className="size-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 5h4v4H4V5zm10 0h4v4h-4V5zM4 15h4v4H4v-4zm10 0h4v4h-4v-4z"
+                        />
+                      </svg>
+                    ),
+                  },
                 ]}
               />
+              <div className="ml-auto">
+                <GlassSort
+                  value={sortBy}
+                  onChange={(v) => setSortBy(v as SortBy)}
+                  options={[
+                    { value: "date", label: "Date" },
+                    { value: "title", label: "Title" },
+                    { value: "type", label: "Type" },
+                  ]}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </FloatingPanel>
+        </FloatingPanel>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 pt-52 sm:pt-56 md:pt-60">
-        {contentView === "notes" ? (
-          <NoteManager 
-            pocketId={pocket.id} 
-            onBack={() => {
-              setContentView("files");
-              setShowNoteTemplates(false);
-              setEditingNote(null);
-            }}
-            initialShowTemplates={showNoteTemplates}
-            onTemplateSelectionComplete={() => setShowNoteTemplates(false)}
-            initialEditNote={editingNote}
-          />
-        ) : isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <svg
-                className="w-8 h-8 animate-spin mx-auto mb-2 text-muted-foreground"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              <p className="text-sm text-muted-foreground">Loading contents...</p>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 pt-52 sm:pt-56 md:pt-60">
+          {contentView === "notes" ? (
+            <NoteManager
+              pocketId={pocket.id}
+              onBack={() => {
+                setContentView("files");
+                setShowNoteTemplates(false);
+                setEditingNote(null);
+              }}
+              initialShowTemplates={showNoteTemplates}
+              onTemplateSelectionComplete={() => setShowNoteTemplates(false)}
+              initialEditNote={editingNote}
+            />
+          ) : isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <svg
+                  className="w-8 h-8 animate-spin mx-auto mb-2 text-muted-foreground"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <p className="text-sm text-muted-foreground">
+                  Loading contents...
+                </p>
+              </div>
             </div>
-          </div>
-        ) : filteredContents.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center max-w-sm">
-              {searchQuery ? (
-                <>
-                  <svg
-                    className="w-12 h-12 mx-auto mb-4 text-muted-foreground"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-semibold mb-2">No results found</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Try adjusting your search query
-                  </p>
-                  <Button onClick={() => setSearchQuery("")} variant="outline">
-                    Clear Search
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-12 h-12 mx-auto mb-4 text-muted-foreground"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-semibold mb-2">No content yet</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Start capturing content to see it here
-                  </p>
-                </>
+          ) : filteredContents.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center max-w-sm">
+                {searchQuery ? (
+                  <>
+                    <svg
+                      className="w-12 h-12 mx-auto mb-4 text-muted-foreground"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    <h3 className="text-lg font-semibold mb-2">
+                      No results found
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Try adjusting your search query
+                    </p>
+                    <Button
+                      onClick={() => setSearchQuery("")}
+                      variant="outline"
+                    >
+                      Clear Search
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-12 h-12 mx-auto mb-4 text-muted-foreground"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                      />
+                    </svg>
+                    <h3 className="text-lg font-semibold mb-2">
+                      No content yet
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Start capturing content to see it here
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div
+              className={cn(
+                viewMode === "grid"
+                  ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"
+                  : "space-y-3",
               )}
+            >
+              {filteredContents.map((content) => (
+                <ContentCard
+                  key={content.id}
+                  content={content}
+                  viewMode={viewMode}
+                  onPreview={handlePreview}
+                  onDelete={handleDeleteContent}
+                />
+              ))}
             </div>
-          </div>
-        ) : (
-          <div
-            className={cn(
-              viewMode === "grid"
-                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"
-                : "space-y-3"
-            )}
-          >
-            {filteredContents.map((content) => (
-              <ContentCard
-                key={content.id}
-                content={content}
-                viewMode={viewMode}
-                onPreview={handlePreview}
-                onDelete={handleDeleteContent}
+          )}
+        </div>
+
+        {/* Preview Modal - Show appropriate preview based on content type */}
+        {isPreviewOpen &&
+          previewContent &&
+          (previewContent.type === "note" ? (
+            <div className="fixed inset-0 z-50 bg-[#1A1A1A]">
+              <NotePreview
+                content={previewContent}
+                onBack={handleClosePreview}
+                onEdit={handleEditNote}
               />
-            ))}
+            </div>
+          ) : previewContent.type === "text" ||
+            previewContent.type === "snippet" ? (
+            <SelectionPreview
+              content={previewContent}
+              onClose={handleClosePreview}
+            />
+          ) : (
+            <ContentPreview
+              content={previewContent}
+              isOpen={isPreviewOpen}
+              onClose={handleClosePreview}
+              allImages={allImages}
+              onNavigate={handleNavigateImage}
+            />
+          ))}
+
+        {/* Note Editor - Full Screen Overlay */}
+        {isEditorOpen && editingNote && (
+          <div className="fixed inset-0 z-50">
+            <NoteEditorPage
+              note={editingNote}
+              onSave={handleSaveNote}
+              onCancel={handleCloseEditor}
+              isLoading={false}
+            />
           </div>
         )}
       </div>
 
-
-      {/* Preview Modal - Show appropriate preview based on content type */}
-      {isPreviewOpen && previewContent && (
-        previewContent.type === "note" ? (
-          <div className="fixed inset-0 z-50 bg-[#1A1A1A]">
-            <NotePreview
-              content={previewContent}
-              onBack={handleClosePreview}
-              onEdit={handleEditNote}
+      {/* Search Results Overlay with animation */}
+      <AnimatePresence>
+        {isResultsOpen && (
+          <motion.div
+            key="results"
+            layout
+            initial={{ opacity: 0, y: -8, scale: 0.98, filter: "blur(10px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -8, scale: 0.98, filter: "blur(10px)" }}
+            transition={{
+              type: "spring",
+              stiffness: 460,
+              damping: 30,
+              mass: 0.65,
+            }}
+            style={{ willChange: "transform, filter" }}
+          >
+            <SearchResultsPanel
+              kind="content"
+              open
+              query={searchQuery}
+              loading={isSearching}
+              results={searchResults}
+              onSelectContent={(content) => {
+                setPreviewContent(content);
+                setIsPreviewOpen(true);
+              }}
+              onClose={() => {
+                setSearchQuery("");
+                setSearchResults([]);
+                setIsResultsOpen(false);
+                filterAndSortContents();
+              }}
             />
-          </div>
-        ) : (previewContent.type === "text" || previewContent.type === "snippet") ? (
-          <SelectionPreview
-            content={previewContent}
-            onClose={handleClosePreview}
-          />
-        ) : (
-          <ContentPreview
-            content={previewContent}
-            isOpen={isPreviewOpen}
-            onClose={handleClosePreview}
-            allImages={allImages}
-            onNavigate={handleNavigateImage}
-          />
-        )
-      )}
-
-      {/* Note Editor - Full Screen Overlay */}
-      {isEditorOpen && editingNote && (
-        <div className="fixed inset-0 z-50">
-          <NoteEditorPage
-            note={editingNote}
-            onSave={handleSaveNote}
-            onCancel={handleCloseEditor}
-            isLoading={false}
-          />
-        </div>
-      )}
-    </div>
-
-    {/* Search Results Overlay with animation */}
-    <AnimatePresence>
-      {isResultsOpen && (
-        <motion.div
-          key="results"
-          layout
-          initial={{ opacity: 0, y: -8, scale: 0.98, filter: "blur(10px)" }}
-          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-          exit={{ opacity: 0, y: -8, scale: 0.98, filter: "blur(10px)" }}
-          transition={{ type: "spring", stiffness: 460, damping: 30, mass: 0.65 }}
-          style={{ willChange: "transform, filter" }}
-        >
-          <SearchResultsPanel
-            kind="content"
-            open
-            query={searchQuery}
-            loading={isSearching}
-            results={searchResults}
-            onSelectContent={(content) => {
-              setPreviewContent(content);
-              setIsPreviewOpen(true);
-            }}
-            onClose={() => {
-              setSearchQuery("");
-              setSearchResults([]);
-              setIsResultsOpen(false);
-              filterAndSortContents();
-            }}
-          />
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

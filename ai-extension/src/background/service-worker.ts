@@ -6,14 +6,19 @@
 
 // Polyfill for Vite's preload helper in service worker context
 // Service workers don't have access to document or window, so we provide minimal polyfills
-if (typeof document === 'undefined') {
+if (typeof document === "undefined") {
   (globalThis as any).document = {
-    createElement: () => ({ rel: '', href: '' }),
-    head: { appendChild: () => { } },
+    createElement: () => ({ rel: "", href: "" }),
+    head: { appendChild: () => {} },
+    getElementsByTagName: () => [],
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    getElementById: () => null,
+    body: null,
   };
 }
 
-if (typeof window === 'undefined') {
+if (typeof window === "undefined") {
   (globalThis as any).window = globalThis;
 }
 
@@ -21,12 +26,19 @@ import { logger, performanceMonitor } from "./monitoring.js";
 import { getQuotaManager } from "./quota-manager.js";
 import { AIManager } from "./ai-manager.js";
 import { initializeRuntimeLogging } from "../shared/runtime-logging.js";
-import { getLogBridgeClient, type LogBatch } from "../shared/log-bridge-client.js";
+import {
+  getLogBridgeClient,
+  type LogBatch,
+} from "../shared/log-bridge-client.js";
 import { attachLoggerBridge } from "./logger-wrapper.js";
 import { getLogCollector } from "./log-collector.js";
 import { CloudAIManager } from "./cloud-ai-manager.js";
 import { getStreamingHandler } from "./streaming-handler.js";
-import { indexedDBManager, ContentType, ProcessingStatus } from "./indexeddb-manager.js";
+import {
+  indexedDBManager,
+  ContentType,
+  ProcessingStatus,
+} from "./indexeddb-manager.js";
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
@@ -45,7 +57,9 @@ initializeRuntimeLogging({
 });
 
 const logBridgeClient = getLogBridgeClient();
-attachLoggerBridge(logger, logBridgeClient, { tags: ["service-worker", "logger"] });
+attachLoggerBridge(logger, logBridgeClient, {
+  tags: ["service-worker", "logger"],
+});
 const logCollector = getLogCollector();
 const backgroundDevtools = initializeDevInstrumentation("background", {
   logger,
@@ -60,7 +74,10 @@ if (import.meta.env?.VITE_DEBUG_RECORDER && backgroundDevtools) {
 // Listen for debug recorder toggle and manage log collection sessions
 // Note: The bridge client enable/disable is already handled by runtime-logging autoToggle
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local" || !Object.prototype.hasOwnProperty.call(changes, "debugRecorderEnabled")) {
+  if (
+    areaName !== "local" ||
+    !Object.prototype.hasOwnProperty.call(changes, "debugRecorderEnabled")
+  ) {
     return;
   }
 
@@ -82,11 +99,17 @@ import { aiManager as aiManagerInstance } from "./ai-manager.js";
 import { ChromeLocalStorage } from "./storage-wrapper.js";
 import { GeminiNanoFormatter } from "./gemini-nano-formatter.js";
 import { ContentProcessorBackground } from "./content-processor-background.js";
-import { vectorIndexingQueue, IndexingOperation } from "./vector-indexing-queue.js";
+import {
+  vectorIndexingQueue,
+  IndexingOperation,
+} from "./vector-indexing-queue.js";
 
 // Initialize formatter and background processor
 const storageWrapper = new ChromeLocalStorage();
-const geminiFormatter = new GeminiNanoFormatter(aiManagerInstance, storageWrapper);
+const geminiFormatter = new GeminiNanoFormatter(
+  aiManagerInstance,
+  storageWrapper,
+);
 const backgroundProcessor = new ContentProcessorBackground(geminiFormatter);
 
 /**
@@ -129,13 +152,16 @@ async function ensureContentScriptLoaded(tabId: number): Promise<boolean> {
   } catch (error) {
     // Content script not responding, it might be loading or the page doesn't support it
     // Wait a bit and try again
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     try {
       await chrome.tabs.sendMessage(tabId, { kind: "PING", payload: {} });
       return true;
     } catch (retryError) {
-      logger.error("ServiceWorker", "Content script not responding", { tabId, error: retryError });
+      logger.error("ServiceWorker", "Content script not responding", {
+        tabId,
+        error: retryError,
+      });
       return false;
     }
   }
@@ -147,7 +173,7 @@ async function ensureContentScriptLoaded(tabId: number): Promise<boolean> {
 async function sendMessageWithRetry(
   tabId: number,
   message: any,
-  maxRetries: number = 3
+  maxRetries: number = 3,
 ): Promise<any> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -156,34 +182,47 @@ async function sendMessageWithRetry(
       // Check for chrome.runtime.lastError
       if (chrome.runtime.lastError) {
         const errorMsg = chrome.runtime.lastError.message || "";
-        logger.warn("ServiceWorker", "chrome.runtime.lastError detected", errorMsg);
+        logger.warn(
+          "ServiceWorker",
+          "chrome.runtime.lastError detected",
+          errorMsg,
+        );
 
         // If it's a message channel closed error, throw immediately
-        if (errorMsg.includes("message channel closed") ||
-          errorMsg.includes("message port closed")) {
+        if (
+          errorMsg.includes("message channel closed") ||
+          errorMsg.includes("message port closed")
+        ) {
           throw new Error(errorMsg);
         }
       }
 
       return response;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       // Don't retry if message channel closed - this is likely intentional (user cancelled)
-      if (errorMessage.includes("message channel closed") ||
-        errorMessage.includes("message port closed")) {
+      if (
+        errorMessage.includes("message channel closed") ||
+        errorMessage.includes("message port closed")
+      ) {
         logger.info("ServiceWorker", "Message channel closed, not retrying");
         throw error;
       }
 
-      logger.warn("ServiceWorker", `Send message attempt ${attempt} failed`, error);
+      logger.warn(
+        "ServiceWorker",
+        `Send message attempt ${attempt} failed`,
+        error,
+      );
 
       if (attempt < maxRetries) {
         // Try to ensure content script is loaded before retry
         await ensureContentScriptLoaded(tabId);
 
         // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+        await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
       } else {
         throw error;
       }
@@ -196,7 +235,10 @@ function delay(ms: number): Promise<void> {
 }
 
 type PocketSelectionResolver = {
-  resolve: (response: { pocketId: string; editedTitle?: string | undefined }) => void;
+  resolve: (response: {
+    pocketId: string;
+    editedTitle?: string | undefined;
+  }) => void;
   reject: (error: Error) => void;
   timeoutId: number;
 };
@@ -211,7 +253,12 @@ const pocketSelectionRequests = new Map<string, PocketSelectionResolver>();
 
 async function dispatchPocketSelectionRequest(request: {
   requestId: string;
-  pockets: Array<{ id: string; name: string; description?: string; color?: string }>;
+  pockets: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+  }>;
   selectionText?: string;
   preview?: string;
   sourceUrl?: string;
@@ -227,7 +274,10 @@ async function dispatchPocketSelectionRequest(request: {
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("Receiving end does not exist") && attempt < maxAttempts) {
+      if (
+        message.includes("Receiving end does not exist") &&
+        attempt < maxAttempts
+      ) {
         await delay(200 * attempt);
         continue;
       }
@@ -240,7 +290,12 @@ async function dispatchPocketSelectionRequest(request: {
 
 async function requestPocketSelection(
   tabId: number,
-  pockets: Array<{ id: string; name: string; description?: string; color?: string }>,
+  pockets: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+  }>,
   context: PocketSelectionContext,
 ): Promise<{ pocketId: string; editedTitle?: string | undefined }> {
   if (pockets.length === 1) {
@@ -253,7 +308,11 @@ async function requestPocketSelection(
     await chrome.sidePanel.open({ tabId });
     logger.info("ServiceWorker", "Side panel opened for pocket selection");
   } catch (error) {
-    logger.warn("ServiceWorker", "Failed to open side panel before pocket selection", error);
+    logger.warn(
+      "ServiceWorker",
+      "Failed to open side panel before pocket selection",
+      error,
+    );
   }
 
   const normalizedPockets = pockets.map((pocket) => ({
@@ -271,7 +330,10 @@ async function requestPocketSelection(
     ...(context.sourceUrl ? { sourceUrl: context.sourceUrl } : {}),
   });
 
-  return await new Promise<{ pocketId: string; editedTitle?: string | undefined }>((resolve, reject) => {
+  return await new Promise<{
+    pocketId: string;
+    editedTitle?: string | undefined;
+  }>((resolve, reject) => {
     const timeoutId = setTimeout(async () => {
       pocketSelectionRequests.delete(requestId);
       try {
@@ -284,7 +346,11 @@ async function requestPocketSelection(
           },
         });
       } catch (error) {
-        logger.warn("ServiceWorker", "Failed to notify pocket selection timeout", error);
+        logger.warn(
+          "ServiceWorker",
+          "Failed to notify pocket selection timeout",
+          error,
+        );
       }
       reject(new Error("POCKET_SELECTION_TIMEOUT"));
     }, 45000) as unknown as number;
@@ -305,7 +371,6 @@ async function requestPocketSelection(
   });
 }
 
-
 // Context menu click handler (registered once at module level)
 let contextMenuHandlerRegistered = false;
 let isProcessingSaveToPocket = false;
@@ -316,7 +381,10 @@ if (!contextMenuHandlerRegistered) {
     if (info.menuItemId === "save-to-pocket" && tab?.id) {
       // Prevent multiple simultaneous operations
       if (isProcessingSaveToPocket) {
-        logger.warn("ServiceWorker", "Save to pocket already in progress, ignoring duplicate click");
+        logger.warn(
+          "ServiceWorker",
+          "Save to pocket already in progress, ignoring duplicate click",
+        );
         return;
       }
 
@@ -337,7 +405,8 @@ if (!contextMenuHandlerRegistered) {
             type: "basic",
             iconUrl: "icons/48.png",
             title: "Save to Pocket Failed",
-            message: "Could not load content script. Please refresh the page and try again.",
+            message:
+              "Could not load content script. Please refresh the page and try again.",
           });
           return;
         }
@@ -347,7 +416,10 @@ if (!contextMenuHandlerRegistered) {
         let pockets = await indexedDBManager.listPockets();
 
         if (pockets.length === 0) {
-          logger.info("ServiceWorker", "No pockets found, creating default pocket");
+          logger.info(
+            "ServiceWorker",
+            "No pockets found, creating default pocket",
+          );
           await indexedDBManager.createPocket({
             name: "My Pocket",
             description: "Default pocket for saved content",
@@ -368,15 +440,29 @@ if (!contextMenuHandlerRegistered) {
         });
 
         const snippetEnvelope = snippetResponse?.data || snippetResponse;
-        if (!snippetEnvelope || snippetEnvelope.status !== "success" || !snippetEnvelope.snippet) {
-          const captureError = snippetEnvelope?.error || "Failed to capture selected text";
-          logger.error("ServiceWorker", "Snippet capture failed", { captureError, snippetEnvelope });
-          throw new Error(typeof captureError === "string" ? captureError : JSON.stringify(captureError));
+        if (
+          !snippetEnvelope ||
+          snippetEnvelope.status !== "success" ||
+          !snippetEnvelope.snippet
+        ) {
+          const captureError =
+            snippetEnvelope?.error || "Failed to capture selected text";
+          logger.error("ServiceWorker", "Snippet capture failed", {
+            captureError,
+            snippetEnvelope,
+          });
+          throw new Error(
+            typeof captureError === "string"
+              ? captureError
+              : JSON.stringify(captureError),
+          );
         }
 
         const snippet = snippetEnvelope.snippet;
-        const snippetTextRaw = snippet?.content?.text?.content || info.selectionText || "";
-        const snippetText = typeof snippetTextRaw === "string" ? snippetTextRaw.trim() : "";
+        const snippetTextRaw =
+          snippet?.content?.text?.content || info.selectionText || "";
+        const snippetText =
+          typeof snippetTextRaw === "string" ? snippetTextRaw.trim() : "";
 
         if (!snippetText) {
           throw new Error("Captured selection was empty");
@@ -389,7 +475,9 @@ if (!contextMenuHandlerRegistered) {
         let targetPocketId: string;
         if (pockets.length === 1) {
           targetPocketId = pockets[0]!.id;
-          logger.info("ServiceWorker", "Auto-selecting sole pocket", { pocketId: targetPocketId });
+          logger.info("ServiceWorker", "Auto-selecting sole pocket", {
+            pocketId: targetPocketId,
+          });
         } else {
           try {
             const response = await requestPocketSelection(tab.id, pockets, {
@@ -401,7 +489,10 @@ if (!contextMenuHandlerRegistered) {
           } catch (selectionError) {
             if (selectionError instanceof Error) {
               if (selectionError.message === "POCKET_SELECTION_CANCELLED") {
-                logger.info("ServiceWorker", "User cancelled pocket selection from side panel");
+                logger.info(
+                  "ServiceWorker",
+                  "User cancelled pocket selection from side panel",
+                );
                 return;
               }
               if (selectionError.message === "POCKET_SELECTION_TIMEOUT") {
@@ -412,7 +503,8 @@ if (!contextMenuHandlerRegistered) {
           }
         }
 
-        const targetPocket = pockets.find((p) => p.id === targetPocketId) || null;
+        const targetPocket =
+          pockets.find((p) => p.id === targetPocketId) || null;
 
         // Normalize metadata before saving
         snippet.metadata = {
@@ -423,8 +515,11 @@ if (!contextMenuHandlerRegistered) {
 
         if (!snippet.metadata.title) {
           try {
-            const source = snippet.metadata.url ? new URL(snippet.metadata.url) : null;
-            snippet.metadata.title = snippetTitleCandidate || source?.hostname || "Saved snippet";
+            const source = snippet.metadata.url
+              ? new URL(snippet.metadata.url)
+              : null;
+            snippet.metadata.title =
+              snippetTitleCandidate || source?.hostname || "Saved snippet";
           } catch {
             snippet.metadata.title = snippetTitleCandidate || "Saved snippet";
           }
@@ -449,7 +544,9 @@ if (!contextMenuHandlerRegistered) {
           type: processed.type,
         });
 
-        const savedContent = await indexedDBManager.getContent(processed.contentId);
+        const savedContent = await indexedDBManager.getContent(
+          processed.contentId,
+        );
 
         // Broadcast content created event (will be received if side panel is open)
         if (savedContent) {
@@ -461,7 +558,11 @@ if (!contextMenuHandlerRegistered) {
             logger.info("ServiceWorker", "Broadcasted CONTENT_CREATED event");
           } catch (broadcastError) {
             // This is expected if side panel is not open - user will see content when they open it
-            logger.debug("ServiceWorker", "Broadcast not received (side panel may be closed)", broadcastError);
+            logger.debug(
+              "ServiceWorker",
+              "Broadcast not received (side panel may be closed)",
+              broadcastError,
+            );
           }
         }
 
@@ -479,7 +580,8 @@ if (!contextMenuHandlerRegistered) {
           contentId: processed.contentId,
         });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
         logger.error("ServiceWorker", "Context menu handler error", {
           message: errorMessage,
@@ -492,18 +594,24 @@ if (!contextMenuHandlerRegistered) {
           type: "basic",
           iconUrl: "icons/48.png",
           title: "Save to Pocket Failed",
-          message: error instanceof Error ? error.message : "An unknown error occurred",
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred",
         });
       } finally {
         isProcessingSaveToPocket = false;
       }
     }
-    
+
     // Handle image save
     if (info.menuItemId === "save-image-to-pocket" && tab?.id) {
       // Prevent multiple simultaneous operations
       if (isProcessingSaveToPocket) {
-        logger.warn("ServiceWorker", "Save to pocket already in progress, ignoring duplicate click");
+        logger.warn(
+          "ServiceWorker",
+          "Save to pocket already in progress, ignoring duplicate click",
+        );
         return;
       }
 
@@ -523,7 +631,8 @@ if (!contextMenuHandlerRegistered) {
             type: "basic",
             iconUrl: "icons/48.png",
             title: "Save to Pocket Failed",
-            message: "Could not load content script. Please refresh the page and try again.",
+            message:
+              "Could not load content script. Please refresh the page and try again.",
           });
           return;
         }
@@ -533,7 +642,10 @@ if (!contextMenuHandlerRegistered) {
         let pockets = await indexedDBManager.listPockets();
 
         if (pockets.length === 0) {
-          logger.info("ServiceWorker", "No pockets found, creating default pocket");
+          logger.info(
+            "ServiceWorker",
+            "No pockets found, creating default pocket",
+          );
           await indexedDBManager.createPocket({
             name: "My Pocket",
             description: "Default pocket for saved content",
@@ -554,26 +666,43 @@ if (!contextMenuHandlerRegistered) {
         });
 
         const imageEnvelope = imageResponse?.data || imageResponse;
-        if (!imageEnvelope || imageEnvelope.status !== "success" || !imageEnvelope.imageData) {
-          const captureError = imageEnvelope?.error || "Failed to capture image";
-          logger.error("ServiceWorker", "Image capture failed", { captureError, imageEnvelope });
-          throw new Error(typeof captureError === "string" ? captureError : JSON.stringify(captureError));
+        if (
+          !imageEnvelope ||
+          imageEnvelope.status !== "success" ||
+          !imageEnvelope.imageData
+        ) {
+          const captureError =
+            imageEnvelope?.error || "Failed to capture image";
+          logger.error("ServiceWorker", "Image capture failed", {
+            captureError,
+            imageEnvelope,
+          });
+          throw new Error(
+            typeof captureError === "string"
+              ? captureError
+              : JSON.stringify(captureError),
+          );
         }
 
         const imageData = imageEnvelope.imageData;
-        const defaultImageTitle = imageData.alt || imageData.title || "Saved Image";
+        const defaultImageTitle =
+          imageData.alt || imageData.title || "Saved Image";
         const imagePreview = `Image: ${imageData.width}x${imageData.height}`;
 
         // Open side panel to allow user to edit title and select pocket
         try {
           await chrome.sidePanel.open({ tabId: tab.id });
         } catch (error) {
-          logger.warn("ServiceWorker", "Failed to open side panel for image save", error);
+          logger.warn(
+            "ServiceWorker",
+            "Failed to open side panel for image save",
+            error,
+          );
         }
 
         // Request pocket selection with editable title
         const requestId = crypto.randomUUID();
-        
+
         await dispatchPocketSelectionRequest({
           requestId,
           pockets: pockets.map((pocket) => ({
@@ -588,7 +717,10 @@ if (!contextMenuHandlerRegistered) {
         });
 
         // Wait for user response with edited title and selected pocket
-        const response = await new Promise<{ pocketId: string; editedTitle?: string | undefined }>((resolve, reject) => {
+        const response = await new Promise<{
+          pocketId: string;
+          editedTitle?: string | undefined;
+        }>((resolve, reject) => {
           const timeoutId = setTimeout(async () => {
             pocketSelectionRequests.delete(requestId);
             try {
@@ -601,7 +733,11 @@ if (!contextMenuHandlerRegistered) {
                 },
               });
             } catch (error) {
-              logger.warn("ServiceWorker", "Failed to notify pocket selection timeout", error);
+              logger.warn(
+                "ServiceWorker",
+                "Failed to notify pocket selection timeout",
+                error,
+              );
             }
             reject(new Error("POCKET_SELECTION_TIMEOUT"));
           }, 45000) as unknown as number;
@@ -623,7 +759,8 @@ if (!contextMenuHandlerRegistered) {
 
         const targetPocketId = response.pocketId;
         const finalImageTitle = response.editedTitle || defaultImageTitle;
-        const targetPocket = pockets.find((p) => p.id === targetPocketId) || null;
+        const targetPocket =
+          pockets.find((p) => p.id === targetPocketId) || null;
 
         // Process and save image
         const processed = await contentProcessor.processContent({
@@ -653,7 +790,9 @@ if (!contextMenuHandlerRegistered) {
           type: processed.type,
         });
 
-        const savedContent = await indexedDBManager.getContent(processed.contentId);
+        const savedContent = await indexedDBManager.getContent(
+          processed.contentId,
+        );
 
         if (savedContent) {
           try {
@@ -663,7 +802,11 @@ if (!contextMenuHandlerRegistered) {
             });
             logger.info("ServiceWorker", "Broadcasted CONTENT_CREATED event");
           } catch (broadcastError) {
-            logger.warn("ServiceWorker", "Failed to broadcast CONTENT_CREATED", broadcastError);
+            logger.warn(
+              "ServiceWorker",
+              "Failed to broadcast CONTENT_CREATED",
+              broadcastError,
+            );
           }
         }
 
@@ -681,7 +824,8 @@ if (!contextMenuHandlerRegistered) {
           contentId: processed.contentId,
         });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
         logger.error("ServiceWorker", "Image context menu handler error", {
           message: errorMessage,
@@ -693,7 +837,10 @@ if (!contextMenuHandlerRegistered) {
           type: "basic",
           iconUrl: "icons/48.png",
           title: "Save to Pocket Failed",
-          message: error instanceof Error ? error.message : "An unknown error occurred",
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred",
         });
       } finally {
         isProcessingSaveToPocket = false;
@@ -729,18 +876,37 @@ class ServiceWorkerLifecycle {
    */
   private preloadEmbeddingModel(): void {
     // Import and preload in background (don't await)
-    import("./local-embedding-engine.js").then(({ localEmbeddingEngine }) => {
-      logger.info("ServiceWorker", "Preloading embedding model in background...");
-      
-      // Generate a dummy embedding to trigger model loading
-      localEmbeddingEngine.generateEmbedding("preload").then(() => {
-        logger.info("ServiceWorker", "Embedding model preloaded successfully");
-      }).catch((error) => {
-        logger.warn("ServiceWorker", "Failed to preload embedding model (will load on first use)", { error });
+    import("./local-embedding-engine.js")
+      .then(({ localEmbeddingEngine }) => {
+        logger.info(
+          "ServiceWorker",
+          "Preloading embedding model in background...",
+        );
+
+        // Generate a dummy embedding to trigger model loading
+        localEmbeddingEngine
+          .generateEmbedding("preload")
+          .then(() => {
+            logger.info(
+              "ServiceWorker",
+              "Embedding model preloaded successfully",
+            );
+          })
+          .catch((error) => {
+            logger.warn(
+              "ServiceWorker",
+              "Failed to preload embedding model (will load on first use)",
+              { error },
+            );
+          });
+      })
+      .catch((error) => {
+        logger.warn(
+          "ServiceWorker",
+          "Failed to import embedding engine for preload",
+          { error },
+        );
       });
-    }).catch((error) => {
-      logger.warn("ServiceWorker", "Failed to import embedding engine for preload", { error });
-    });
   }
 
   /**
@@ -777,19 +943,32 @@ class ServiceWorkerLifecycle {
 
       // Start background processor for Gemini Nano formatting
       backgroundProcessor.start().catch((error) => {
-        logger.error("ServiceWorker", "Failed to start background processor", error);
+        logger.error(
+          "ServiceWorker",
+          "Failed to start background processor",
+          error,
+        );
       });
 
       // Preload embedding model in background (don't block initialization)
       this.preloadEmbeddingModel();
       // Enable runtime logging if debug recorder is enabled
-      const debugRecorderEnabled = await chrome.storage.local.get('debugRecorderEnabled');
+      const debugRecorderEnabled = await chrome.storage.local.get(
+        "debugRecorderEnabled",
+      );
       if (debugRecorderEnabled.debugRecorderEnabled === true) {
         try {
           await logCollector.startSession();
-          logger.info("ServiceWorker", "Debug recorder enabled - logs will be captured");
+          logger.info(
+            "ServiceWorker",
+            "Debug recorder enabled - logs will be captured",
+          );
         } catch (error) {
-          logger.error("ServiceWorker", "Failed to enable debug recorder", error);
+          logger.error(
+            "ServiceWorker",
+            "Failed to enable debug recorder",
+            error,
+          );
         }
       }
 
@@ -1347,7 +1526,7 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
       logger.info("Handler", "Processing direct note creation", {
         hasContentId: !!metadata?.contentId,
         contentLength: content?.length,
-        pocketId: pocketId || "(empty)"
+        pocketId: pocketId || "(empty)",
       });
 
       await indexedDBManager.init();
@@ -1355,11 +1534,16 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
       // Ensure we have a valid pocketId - create default "Notes" pocket if needed
       let targetPocketId = pocketId;
       if (!targetPocketId || targetPocketId === "") {
-        logger.info("Handler", "No pocketId provided, checking for default Notes pocket");
+        logger.info(
+          "Handler",
+          "No pocketId provided, checking for default Notes pocket",
+        );
 
         // Check if a "Notes" pocket exists
         const pockets = await indexedDBManager.listPockets();
-        let notesPocket = pockets.find(p => p.name === "Notes" || p.name === "My Notes");
+        let notesPocket = pockets.find(
+          (p) => p.name === "Notes" || p.name === "My Notes",
+        );
 
         if (!notesPocket) {
           // Create default Notes pocket
@@ -1371,17 +1555,23 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
             color: "#3b82f6",
             contentIds: [],
           });
-          logger.info("Handler", "Default Notes pocket created", { pocketId: targetPocketId });
+          logger.info("Handler", "Default Notes pocket created", {
+            pocketId: targetPocketId,
+          });
         } else {
           targetPocketId = notesPocket.id;
-          logger.info("Handler", "Using existing Notes pocket", { pocketId: targetPocketId });
+          logger.info("Handler", "Using existing Notes pocket", {
+            pocketId: targetPocketId,
+          });
         }
       }
 
       // Check if this is an update (contentId in metadata)
       if (metadata?.contentId) {
         // Update existing note
-        logger.info("Handler", "Updating existing note", { contentId: metadata.contentId });
+        logger.info("Handler", "Updating existing note", {
+          contentId: metadata.contentId,
+        });
 
         await indexedDBManager.updateContent(metadata.contentId, {
           content: content,
@@ -1395,12 +1585,19 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
         });
 
         // Enqueue vector indexing UPDATE job (non-blocking)
-        vectorIndexingQueue.enqueueContent(metadata.contentId, IndexingOperation.UPDATE).catch((error) => {
-          logger.error("Handler", "Failed to enqueue vector update job", { contentId: metadata.contentId, error });
-        });
+        vectorIndexingQueue
+          .enqueueContent(metadata.contentId, IndexingOperation.UPDATE)
+          .catch((error) => {
+            logger.error("Handler", "Failed to enqueue vector update job", {
+              contentId: metadata.contentId,
+              error,
+            });
+          });
 
         // Fetch updated record for ACK/broadcast
-        const updatedRecord = await indexedDBManager.getContent(metadata.contentId);
+        const updatedRecord = await indexedDBManager.getContent(
+          metadata.contentId,
+        );
         if (updatedRecord) {
           // Broadcast update event so UI refreshes instantly
           await messageRouter.sendToSidePanel({
@@ -1409,7 +1606,9 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           } as any);
         }
 
-        logger.info("Handler", "Note updated successfully", { contentId: metadata.contentId });
+        logger.info("Handler", "Note updated successfully", {
+          contentId: metadata.contentId,
+        });
 
         return {
           status: "success",
@@ -1420,7 +1619,9 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
         };
       } else {
         // Create new note
-        logger.info("Handler", "Creating new note", { pocketId: targetPocketId });
+        logger.info("Handler", "Creating new note", {
+          pocketId: targetPocketId,
+        });
 
         const processed = await contentProcessor.processContent({
           pocketId: targetPocketId,
@@ -1437,7 +1638,9 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
         });
 
         // Fetch created record for ACK/broadcast
-        const createdRecord = await indexedDBManager.getContent(processed.contentId);
+        const createdRecord = await indexedDBManager.getContent(
+          processed.contentId,
+        );
         if (createdRecord) {
           await messageRouter.sendToSidePanel({
             kind: "CONTENT_CREATED",
@@ -1482,27 +1685,30 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
     // Process and store the captured content
 
     // Use enhanced processing for full-page captures
-    const processed = captureResult.mode === "full-page"
-      ? await contentProcessor.processFullPageCapture({
-        pocketId,
-        mode: captureResult.mode,
-        content: captureResult.content,
-        metadata: captureResult.metadata,
-        sourceUrl: sender.tab?.url || "",
-        sanitize: true,
-      })
-      : await contentProcessor.processContent({
-        pocketId,
-        mode: captureResult.mode,
-        content: captureResult.content,
-        metadata: captureResult.metadata,
-        sourceUrl: sender.tab?.url || "",
-        sanitize: true,
-      });
+    const processed =
+      captureResult.mode === "full-page"
+        ? await contentProcessor.processFullPageCapture({
+            pocketId,
+            mode: captureResult.mode,
+            content: captureResult.content,
+            metadata: captureResult.metadata,
+            sourceUrl: sender.tab?.url || "",
+            sanitize: true,
+          })
+        : await contentProcessor.processContent({
+            pocketId,
+            mode: captureResult.mode,
+            content: captureResult.content,
+            metadata: captureResult.metadata,
+            sourceUrl: sender.tab?.url || "",
+            sanitize: true,
+          });
 
     // Fetch created record and broadcast event for UI live updates
     try {
-      const createdRecord = await indexedDBManager.getContent(processed.contentId);
+      const createdRecord = await indexedDBManager.getContent(
+        processed.contentId,
+      );
       if (createdRecord) {
         logger.info("Handler", "Broadcasting CONTENT_CREATED event", {
           contentId: createdRecord.id,
@@ -1516,7 +1722,9 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
 
         logger.info("Handler", "Broadcast result", broadcastResult);
       } else {
-        logger.warn("Handler", "Created record not found", { contentId: processed.contentId });
+        logger.warn("Handler", "Created record not found", {
+          contentId: processed.contentId,
+        });
       }
     } catch (e) {
       logger.error("Handler", "Failed to broadcast content created event", e);
@@ -1557,7 +1765,6 @@ messageRouter.registerHandler("FILE_UPLOAD", async (payload, sender) => {
   });
 
   try {
-
     // Validate payload
     if (!pocketId || !fileName || !fileData) {
       throw new Error("Missing required fields for file upload");
@@ -1567,11 +1774,16 @@ messageRouter.registerHandler("FILE_UPLOAD", async (payload, sender) => {
 
     // Determine file extension and type
     const fileExtension = fileName.split(".").pop()?.toLowerCase() || "";
-    const contentType = fileExtension === "pdf" ? "pdf"
-      : ["doc", "docx"].includes(fileExtension) ? "document"
-        : ["xls", "xlsx"].includes(fileExtension) ? "spreadsheet"
-          : ["txt", "md"].includes(fileExtension) ? "text"
-            : "file";
+    const contentType =
+      fileExtension === "pdf"
+        ? "pdf"
+        : ["doc", "docx"].includes(fileExtension)
+          ? "document"
+          : ["xls", "xlsx"].includes(fileExtension)
+            ? "spreadsheet"
+            : ["txt", "md"].includes(fileExtension)
+              ? "text"
+              : "file";
 
     // Create content record for the file
     const processed = await contentProcessor.processContent({
@@ -1596,7 +1808,9 @@ messageRouter.registerHandler("FILE_UPLOAD", async (payload, sender) => {
     });
 
     // Fetch created record and broadcast event
-    const createdRecord = await indexedDBManager.getContent(processed.contentId);
+    const createdRecord = await indexedDBManager.getContent(
+      processed.contentId,
+    );
     if (createdRecord) {
       logger.info("Handler", "Broadcasting FILE_UPLOAD CONTENT_CREATED event", {
         contentId: createdRecord.id,
@@ -1667,14 +1881,19 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
     };
 
     // For text enhancement tasks
-    if (task === 'enhance') {
-      logger.info("Handler", "Processing text enhancement", { style, textLength: originalText?.length });
+    if (task === "enhance") {
+      logger.info("Handler", "Processing text enhancement", {
+        style,
+        textLength: originalText?.length,
+      });
 
       // Check if Gemini Nano is available
       const availability = await aiManager.checkModelAvailability();
 
-      if (availability === 'no' && preferLocal) {
-        throw new Error('Gemini Nano is not available on this device. Please enable on-device AI in Chrome settings.');
+      if (availability === "no" && preferLocal) {
+        throw new Error(
+          "Gemini Nano is not available on this device. Please enable on-device AI in Chrome settings.",
+        );
       }
 
       // Initialize or get session
@@ -1695,11 +1914,9 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
 
       // Process the enhancement prompt
       const startTime = performance.now();
-      const enhancedText = await aiManager.processPrompt(
-        sessionId,
-        prompt,
-        { operation: 'enhance' as any }
-      );
+      const enhancedText = await aiManager.processPrompt(sessionId, prompt, {
+        operation: "enhance" as any,
+      });
       const processingTime = performance.now() - startTime;
 
       logger.info("Handler", "Enhancement completed", {
@@ -1716,14 +1933,13 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
         enhancedText,
         processingTime,
         tokensUsed: usage.used,
-        source: 'gemini-nano',
+        source: "gemini-nano",
       };
     }
 
     // For other AI tasks (summarize, embed, etc.)
     logger.warn("Handler", "Unsupported AI task type", { task });
     return { status: "processing", taskId: crypto.randomUUID() };
-
   } catch (error) {
     logger.error("Handler", "AI_PROCESS_REQUEST error", error);
     throw error;
@@ -1746,9 +1962,10 @@ messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
     throw new Error("Content is required for formatting");
   }
 
-  const userInstructions = instructions && instructions.trim().length > 0
-    ? instructions.trim()
-    : "Improve the formatting of the provided markdown note. Ensure headings, lists, and code blocks are well structured. Fix indentation and whitespace issues. Preserve the original meaning and return valid markdown only.";
+  const userInstructions =
+    instructions && instructions.trim().length > 0
+      ? instructions.trim()
+      : "Improve the formatting of the provided markdown note. Ensure headings, lists, and code blocks are well structured. Fix indentation and whitespace issues. Preserve the original meaning and return valid markdown only.";
 
   const preferLocalProcessing = preferLocal !== false;
   let formattedContent: string | null = null;
@@ -1776,7 +1993,9 @@ messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
         const aiResult = await aiManager.processPrompt(sessionId, prompt);
         let trimmed = aiResult.trim();
 
-        const fencedMarkdownMatch = trimmed.match(/^```(?:markdown)?\s*\n([\s\S]*?)```$/i);
+        const fencedMarkdownMatch = trimmed.match(
+          /^```(?:markdown)?\s*\n([\s\S]*?)```$/i,
+        );
         if (fencedMarkdownMatch && typeof fencedMarkdownMatch[1] === "string") {
           trimmed = fencedMarkdownMatch[1].trimEnd();
         }
@@ -1787,7 +2006,11 @@ messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
         }
       }
     } catch (error) {
-      logger.warn("Handler", "AI_FORMAT_REQUEST local formatting failed", error);
+      logger.warn(
+        "Handler",
+        "AI_FORMAT_REQUEST local formatting failed",
+        error,
+      );
     } finally {
       if (sessionId) {
         aiManager.destroySession(sessionId);
@@ -1851,7 +2074,9 @@ messageRouter.registerHandler("POCKET_GET", async (payload: any) => {
   try {
     await indexedDBManager.init();
     const pocket = await indexedDBManager.getPocket(payload.pocketId);
-    logger.info("Handler", "POCKET_GET success", { pocketId: payload.pocketId });
+    logger.info("Handler", "POCKET_GET success", {
+      pocketId: payload.pocketId,
+    });
     return { pocket };
   } catch (error) {
     logger.error("Handler", "POCKET_GET error", error);
@@ -1885,33 +2110,43 @@ messageRouter.registerHandler("POCKET_DELETE", async (payload: any) => {
   }
 });
 
-messageRouter.registerHandler("POCKET_SELECTION_RESPONSE", async (payload: any) => {
-  const { requestId, status, pocketId, editedTitle, error } = payload as {
-    requestId: string;
-    status: "success" | "cancelled" | "error";
-    pocketId?: string;
-    editedTitle?: string;
-    error?: string;
-  };
+messageRouter.registerHandler(
+  "POCKET_SELECTION_RESPONSE",
+  async (payload: any) => {
+    const { requestId, status, pocketId, editedTitle, error } = payload as {
+      requestId: string;
+      status: "success" | "cancelled" | "error";
+      pocketId?: string;
+      editedTitle?: string;
+      error?: string;
+    };
 
-  logger.info("Handler", "POCKET_SELECTION_RESPONSE", { requestId, status, editedTitle });
+    logger.info("Handler", "POCKET_SELECTION_RESPONSE", {
+      requestId,
+      status,
+      editedTitle,
+    });
 
-  const pending = pocketSelectionRequests.get(requestId);
-  if (!pending) {
-    logger.warn("Handler", "No pending pocket selection request", { requestId, status });
-    return { acknowledged: false };
-  }
+    const pending = pocketSelectionRequests.get(requestId);
+    if (!pending) {
+      logger.warn("Handler", "No pending pocket selection request", {
+        requestId,
+        status,
+      });
+      return { acknowledged: false };
+    }
 
-  if (status === "success" && pocketId) {
-    pending.resolve({ pocketId, editedTitle });
-  } else if (status === "cancelled") {
-    pending.reject(new Error("POCKET_SELECTION_CANCELLED"));
-  } else {
-    pending.reject(new Error(error || "Pocket selection failed"));
-  }
+    if (status === "success" && pocketId) {
+      pending.resolve({ pocketId, editedTitle });
+    } else if (status === "cancelled") {
+      pending.reject(new Error("POCKET_SELECTION_CANCELLED"));
+    } else {
+      pending.reject(new Error(error || "Pocket selection failed"));
+    }
 
-  return { acknowledged: true };
-});
+    return { acknowledged: true };
+  },
+);
 
 // Register content handlers (Requirement 2.6, 7.6)
 messageRouter.registerHandler("CONTENT_LIST", async (payload: any) => {
@@ -1950,10 +2185,9 @@ messageRouter.registerHandler("CONTENT_GET", async (payload: any) => {
 messageRouter.registerHandler("POCKET_SEARCH", async (payload: any) => {
   logger.info("Handler", "POCKET_SEARCH", payload);
   try {
-
     const results = await vectorSearchService.searchPockets(
       payload.query,
-      payload.limit || 10
+      payload.limit || 10,
     );
     logger.info("Handler", "POCKET_SEARCH result", {
       query: payload.query,
@@ -1969,11 +2203,10 @@ messageRouter.registerHandler("POCKET_SEARCH", async (payload: any) => {
 messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
   logger.info("Handler", "CONTENT_SEARCH", payload);
   try {
-
     const results = await vectorSearchService.searchContent(
       payload.query,
       payload.pocketId,
-      payload.limit || 20
+      payload.limit || 20,
     );
     logger.info("Handler", "CONTENT_SEARCH result", {
       query: payload.query,
@@ -2029,7 +2262,11 @@ messageRouter.registerHandler("VECTOR_INDEXING_RETRY", async (payload: any) => {
       throw new Error(`Content not found: ${contentId}`);
     }
 
-    await vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.UPDATE, "high");
+    await vectorIndexingQueue.enqueueContent(
+      contentId,
+      IndexingOperation.UPDATE,
+      "high",
+    );
 
     logger.info("Handler", "VECTOR_INDEXING_RETRY enqueued", { contentId });
     return { enqueued: true };
@@ -2110,9 +2347,15 @@ messageRouter.registerHandler("CONTENT_IMPORT", async (payload) => {
     });
 
     // Enqueue vector indexing (non-blocking)
-    vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.CREATE).catch((error) => {
-      logger.error("Handler", "Failed to enqueue vector indexing for imported content", { contentId, error });
-    });
+    vectorIndexingQueue
+      .enqueueContent(contentId, IndexingOperation.CREATE)
+      .catch((error) => {
+        logger.error(
+          "Handler",
+          "Failed to enqueue vector indexing for imported content",
+          { contentId, error },
+        );
+      });
 
     // Broadcast content created event
     try {
@@ -2124,7 +2367,11 @@ messageRouter.registerHandler("CONTENT_IMPORT", async (payload) => {
         } as any);
       }
     } catch (broadcastError) {
-      logger.warn("Handler", "Failed to broadcast CONTENT_CREATED for import", broadcastError);
+      logger.warn(
+        "Handler",
+        "Failed to broadcast CONTENT_CREATED for import",
+        broadcastError,
+      );
     }
 
     return { contentId, status: "success" };
@@ -2140,30 +2387,34 @@ const cloudAIManager = new CloudAIManager();
 const streamingHandler = getStreamingHandler(aiManager, cloudAIManager);
 
 // Initialize metadata queue manager for background metadata generation
-let metadataQueueManager: import("./metadata-queue-manager.js").MetadataQueueManager | null = null;
+let metadataQueueManager:
+  | import("./metadata-queue-manager.js").MetadataQueueManager
+  | null = null;
 
 // Initialize metadata queue manager after a short delay to avoid blocking startup
 setTimeout(async () => {
   try {
     logger.info("ServiceWorker", "Initializing metadata queue manager...");
-    
+
     if (!aiManager) {
       throw new Error("AIManager not available for metadata queue manager");
     }
-    
-    const { MetadataQueueManager } = await import("./metadata-queue-manager.js");
+
+    const { MetadataQueueManager } = await import(
+      "./metadata-queue-manager.js"
+    );
     logger.info("ServiceWorker", "MetadataQueueManager module loaded");
-    
+
     metadataQueueManager = new MetadataQueueManager(aiManager);
     logger.info("ServiceWorker", "MetadataQueueManager instance created");
-    
+
     metadataQueueManager.start();
     logger.info("ServiceWorker", "Metadata queue manager started successfully");
   } catch (error) {
-    logger.error("ServiceWorker", "Failed to start metadata queue manager", { 
+    logger.error("ServiceWorker", "Failed to start metadata queue manager", {
       error,
       errorMessage: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined
+      errorStack: error instanceof Error ? error.stack : undefined,
     });
   }
 }, 2000); // 2 second delay
@@ -2186,51 +2437,55 @@ messageRouter.registerHandler("AI_PROCESS_CANCEL", async (payload) => {
 });
 
 // Register text correction handler for voice input post-processing
-messageRouter.registerHandler("AI_PROCESS_TEXT_CORRECTION", async (payload: any) => {
-  logger.info("Handler", "AI_PROCESS_TEXT_CORRECTION", payload);
-  try {
-    const { text } = payload;
+messageRouter.registerHandler(
+  "AI_PROCESS_TEXT_CORRECTION",
+  async (payload: any) => {
+    logger.info("Handler", "AI_PROCESS_TEXT_CORRECTION", payload);
+    try {
+      const { text } = payload;
 
-    if (!text || typeof text !== 'string') {
-      throw new Error("Invalid text provided for correction");
+      if (!text || typeof text !== "string") {
+        throw new Error("Invalid text provided for correction");
+      }
+
+      // Check if Nano is available
+      const availability = await aiManager.checkModelAvailability();
+      if (availability === "no") {
+        logger.warn("Handler", "Nano not available, returning original text");
+        return { correctedText: text };
+      }
+
+      // Create a session for text correction
+      const sessionId = await aiManager.initializeGeminiNano({
+        temperature: 0.3,
+        initialPrompts: [
+          {
+            role: "system",
+            content:
+              "You are a text correction assistant. Fix grammar, spelling, remove filler words (um, uh, like, you know, etc.), and slightly improve clarity while preserving the original meaning and intent. Return only the corrected text without explanations or quotes.",
+          },
+        ],
+      });
+
+      // Process the text
+      const correctedText = await aiManager.processPrompt(sessionId, text);
+
+      // Clean up session
+      aiManager.destroySession(sessionId);
+
+      logger.info("Handler", "Text correction complete", {
+        original: text,
+        corrected: correctedText,
+      });
+
+      return { correctedText };
+    } catch (error) {
+      logger.error("Handler", "AI_PROCESS_TEXT_CORRECTION error", error);
+      // Return original text on error
+      return { correctedText: payload.text };
     }
-
-    // Check if Nano is available
-    const availability = await aiManager.checkModelAvailability();
-    if (availability === "no") {
-      logger.warn("Handler", "Nano not available, returning original text");
-      return { correctedText: text };
-    }
-
-    // Create a session for text correction
-    const sessionId = await aiManager.initializeGeminiNano({
-      temperature: 0.3,
-      initialPrompts: [
-        {
-          role: "system",
-          content: "You are a text correction assistant. Fix grammar, spelling, remove filler words (um, uh, like, you know, etc.), and slightly improve clarity while preserving the original meaning and intent. Return only the corrected text without explanations or quotes."
-        }
-      ]
-    });
-
-    // Process the text
-    const correctedText = await aiManager.processPrompt(sessionId, text);
-
-    // Clean up session
-    aiManager.destroySession(sessionId);
-
-    logger.info("Handler", "Text correction complete", {
-      original: text,
-      corrected: correctedText
-    });
-
-    return { correctedText };
-  } catch (error) {
-    logger.error("Handler", "AI_PROCESS_TEXT_CORRECTION error", error);
-    // Return original text on error
-    return { correctedText: payload.text };
-  }
-});
+  },
+);
 
 // Register conversation handlers (Requirement 8.8, 7.6)
 messageRouter.registerHandler("CONVERSATION_LIST", async (payload) => {
@@ -2287,11 +2542,19 @@ messageRouter.registerHandler("CONVERSATION_CREATE", async (payload: any) => {
     });
 
     // Trigger background metadata generation
-    if (metadataQueueManager && conversation && conversation.messages.length > 0) {
+    if (
+      metadataQueueManager &&
+      conversation &&
+      conversation.messages.length > 0
+    ) {
       metadataQueueManager.enqueueConversation(conversationId, "normal");
-      logger.info("Handler", "Queued metadata generation for new conversation", {
-        conversationId,
-      });
+      logger.info(
+        "Handler",
+        "Queued metadata generation for new conversation",
+        {
+          conversationId,
+        },
+      );
     }
 
     return { conversation };
@@ -2317,38 +2580,48 @@ messageRouter.registerHandler("CONVERSATION_UPDATE", async (payload: any) => {
   }
 });
 
-messageRouter.registerHandler("CONVERSATION_GENERATE_METADATA", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_GENERATE_METADATA", payload);
-  try {
-    const { ConversationMetadataGenerator } = await import("./conversation-metadata-generator.js");
-    const generator = new ConversationMetadataGenerator(aiManager);
-    const metadata = await generator.generateMetadata(payload.messages);
-    logger.info("Handler", "CONVERSATION_GENERATE_METADATA success");
-    return { metadata };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_GENERATE_METADATA error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "CONVERSATION_GENERATE_METADATA",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_GENERATE_METADATA", payload);
+    try {
+      const { ConversationMetadataGenerator } = await import(
+        "./conversation-metadata-generator.js"
+      );
+      const generator = new ConversationMetadataGenerator(aiManager);
+      const metadata = await generator.generateMetadata(payload.messages);
+      logger.info("Handler", "CONVERSATION_GENERATE_METADATA success");
+      return { metadata };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_GENERATE_METADATA error", error);
+      throw error;
+    }
+  },
+);
 
-messageRouter.registerHandler("CONVERSATION_SEMANTIC_SEARCH", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH", payload);
-  try {
-    const { SemanticSearchService } = await import("./semantic-search-service.js");
-    const searchService = new SemanticSearchService(aiManager);
-    const results = await searchService.searchConversations(
-      payload.query,
-      payload.conversations
-    );
-    logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH success", {
-      resultsCount: results.length,
-    });
-    return { results };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_SEMANTIC_SEARCH error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "CONVERSATION_SEMANTIC_SEARCH",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH", payload);
+    try {
+      const { SemanticSearchService } = await import(
+        "./semantic-search-service.js"
+      );
+      const searchService = new SemanticSearchService(aiManager);
+      const results = await searchService.searchConversations(
+        payload.query,
+        payload.conversations,
+      );
+      logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH success", {
+        resultsCount: results.length,
+      });
+      return { results };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_SEMANTIC_SEARCH error", error);
+      throw error;
+    }
+  },
+);
 
 messageRouter.registerHandler("METADATA_QUEUE_STATUS", async (payload: any) => {
   logger.info("Handler", "METADATA_QUEUE_STATUS", payload);
@@ -2366,7 +2639,9 @@ messageRouter.registerHandler("METADATA_QUEUE_STATUS", async (payload: any) => {
     // Count conversations without metadata
     await indexedDBManager.init();
     const conversations = await indexedDBManager.listConversations();
-    const conversationsWithoutMetadata = conversations.filter(c => !c.metadata).length;
+    const conversationsWithoutMetadata = conversations.filter(
+      (c) => !c.metadata,
+    ).length;
 
     logger.info("Handler", "METADATA_QUEUE_STATUS success", status);
     return {
@@ -2397,95 +2672,109 @@ messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
 });
 
 // Register conversation pocket attachment handlers
-messageRouter.registerHandler("CONVERSATION_ATTACH_POCKET", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_ATTACH_POCKET", payload);
-  try {
-    await indexedDBManager.init();
-    await indexedDBManager.attachPocketToConversation(
-      payload.conversationId,
-      payload.pocketId
-    );
-    
-    // Get pocket details for response
-    const pocket = await indexedDBManager.getPocket(payload.pocketId);
-    
-    logger.info("Handler", "CONVERSATION_ATTACH_POCKET success", {
-      conversationId: payload.conversationId,
-      pocketId: payload.pocketId,
-      pocketName: pocket?.name,
-    });
-    
-    return {
-      success: true,
-      conversationId: payload.conversationId,
-      attachedPocketId: payload.pocketId,
-      pocketName: pocket?.name,
-      pocketDescription: pocket?.description,
-    };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_ATTACH_POCKET error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "CONVERSATION_ATTACH_POCKET",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_ATTACH_POCKET", payload);
+    try {
+      await indexedDBManager.init();
+      await indexedDBManager.attachPocketToConversation(
+        payload.conversationId,
+        payload.pocketId,
+      );
 
-messageRouter.registerHandler("CONVERSATION_DETACH_POCKET", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_DETACH_POCKET", payload);
-  try {
-    await indexedDBManager.init();
-    await indexedDBManager.detachPocketFromConversation(
-      payload.conversationId,
-      payload.pocketId // Optional: detach specific pocket or all if undefined
-    );
-    
-    logger.info("Handler", "CONVERSATION_DETACH_POCKET success", {
-      conversationId: payload.conversationId,
-      pocketId: payload.pocketId || "all",
-    });
-    
-    return {
-      success: true,
-      conversationId: payload.conversationId,
-      attachedPocketId: null,
-      attachedPocketIds: [],
-    };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_DETACH_POCKET error", error);
-    throw error;
-  }
-});
+      // Get pocket details for response
+      const pocket = await indexedDBManager.getPocket(payload.pocketId);
 
-messageRouter.registerHandler("CONVERSATION_GET_ATTACHED_POCKET", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET", payload);
-  try {
-    await indexedDBManager.init();
-    const pockets = await indexedDBManager.getAttachedPockets(payload.conversationId);
-    const pocketIds = await indexedDBManager.getAttachedPocketIds(payload.conversationId);
-    
-    logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET success", {
-      conversationId: payload.conversationId,
-      found: pockets.length > 0,
-      pocketCount: pockets.length,
-    });
-    
-    return {
-      success: true,
-      conversationId: payload.conversationId,
-      attachedPocketId: pockets.length > 0 ? pockets[0]?.id : null, // For backward compatibility
-      attachedPocketIds: pocketIds,
-      pockets: pockets.map(p => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        color: p.color,
-      })),
-      pocketName: pockets.length > 0 ? pockets[0]?.name : undefined,
-      pocketDescription: pockets.length > 0 ? pockets[0]?.description : undefined,
-    };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_GET_ATTACHED_POCKET error", error);
-    throw error;
-  }
-});
+      logger.info("Handler", "CONVERSATION_ATTACH_POCKET success", {
+        conversationId: payload.conversationId,
+        pocketId: payload.pocketId,
+        pocketName: pocket?.name,
+      });
+
+      return {
+        success: true,
+        conversationId: payload.conversationId,
+        attachedPocketId: payload.pocketId,
+        pocketName: pocket?.name,
+        pocketDescription: pocket?.description,
+      };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_ATTACH_POCKET error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "CONVERSATION_DETACH_POCKET",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_DETACH_POCKET", payload);
+    try {
+      await indexedDBManager.init();
+      await indexedDBManager.detachPocketFromConversation(
+        payload.conversationId,
+        payload.pocketId, // Optional: detach specific pocket or all if undefined
+      );
+
+      logger.info("Handler", "CONVERSATION_DETACH_POCKET success", {
+        conversationId: payload.conversationId,
+        pocketId: payload.pocketId || "all",
+      });
+
+      return {
+        success: true,
+        conversationId: payload.conversationId,
+        attachedPocketId: null,
+        attachedPocketIds: [],
+      };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_DETACH_POCKET error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "CONVERSATION_GET_ATTACHED_POCKET",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET", payload);
+    try {
+      await indexedDBManager.init();
+      const pockets = await indexedDBManager.getAttachedPockets(
+        payload.conversationId,
+      );
+      const pocketIds = await indexedDBManager.getAttachedPocketIds(
+        payload.conversationId,
+      );
+
+      logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET success", {
+        conversationId: payload.conversationId,
+        found: pockets.length > 0,
+        pocketCount: pockets.length,
+      });
+
+      return {
+        success: true,
+        conversationId: payload.conversationId,
+        attachedPocketId: pockets.length > 0 ? pockets[0]?.id : null, // For backward compatibility
+        attachedPocketIds: pocketIds,
+        pockets: pockets.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          color: p.color,
+        })),
+        pocketName: pockets.length > 0 ? pockets[0]?.name : undefined,
+        pocketDescription:
+          pockets.length > 0 ? pockets[0]?.description : undefined,
+      };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_GET_ATTACHED_POCKET error", error);
+      throw error;
+    }
+  },
+);
 
 // Register abbreviation handlers (Requirement 10.1, 10.2, 10.3, 10.5)
 messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
@@ -2494,9 +2783,11 @@ messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
     const abbreviation = await abbreviationStorage.createAbbreviation(
       payload.shortcut,
       payload.expansion,
-      payload.category
+      payload.category,
     );
-    logger.info("Handler", "ABBREVIATION_CREATE success", { shortcut: abbreviation.shortcut });
+    logger.info("Handler", "ABBREVIATION_CREATE success", {
+      shortcut: abbreviation.shortcut,
+    });
     return { success: true, data: abbreviation };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_CREATE error", error);
@@ -2507,8 +2798,12 @@ messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_GET", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_GET", payload);
   try {
-    const abbreviation = await abbreviationStorage.getAbbreviation(payload.shortcut);
-    logger.info("Handler", "ABBREVIATION_GET success", { found: !!abbreviation });
+    const abbreviation = await abbreviationStorage.getAbbreviation(
+      payload.shortcut,
+    );
+    logger.info("Handler", "ABBREVIATION_GET success", {
+      found: !!abbreviation,
+    });
     return { success: true, data: abbreviation };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_GET error", error);
@@ -2519,11 +2814,16 @@ messageRouter.registerHandler("ABBREVIATION_GET", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_UPDATE", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_UPDATE", payload);
   try {
-    const abbreviation = await abbreviationStorage.updateAbbreviation(payload.shortcut, {
-      expansion: payload.expansion,
-      category: payload.category
+    const abbreviation = await abbreviationStorage.updateAbbreviation(
+      payload.shortcut,
+      {
+        expansion: payload.expansion,
+        category: payload.category,
+      },
+    );
+    logger.info("Handler", "ABBREVIATION_UPDATE success", {
+      shortcut: abbreviation.shortcut,
     });
-    logger.info("Handler", "ABBREVIATION_UPDATE success", { shortcut: abbreviation.shortcut });
     return { success: true, data: abbreviation };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_UPDATE error", error);
@@ -2535,7 +2835,9 @@ messageRouter.registerHandler("ABBREVIATION_DELETE", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_DELETE", payload);
   try {
     await abbreviationStorage.deleteAbbreviation(payload.shortcut);
-    logger.info("Handler", "ABBREVIATION_DELETE success", { shortcut: payload.shortcut });
+    logger.info("Handler", "ABBREVIATION_DELETE success", {
+      shortcut: payload.shortcut,
+    });
     return { success: true };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_DELETE error", error);
@@ -2546,8 +2848,12 @@ messageRouter.registerHandler("ABBREVIATION_DELETE", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_LIST", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_LIST", payload);
   try {
-    const abbreviations = await abbreviationStorage.listAbbreviations(payload?.category);
-    logger.info("Handler", "ABBREVIATION_LIST success", { count: abbreviations.length });
+    const abbreviations = await abbreviationStorage.listAbbreviations(
+      payload?.category,
+    );
+    logger.info("Handler", "ABBREVIATION_LIST success", {
+      count: abbreviations.length,
+    });
     return { success: true, data: abbreviations };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_LIST error", error);
@@ -2558,10 +2864,12 @@ messageRouter.registerHandler("ABBREVIATION_LIST", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_EXPAND", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_EXPAND", payload);
   try {
-    const result = await abbreviationStorage.expandAbbreviation(payload.shortcut);
+    const result = await abbreviationStorage.expandAbbreviation(
+      payload.shortcut,
+    );
     logger.info("Handler", "ABBREVIATION_EXPAND success", {
       shortcut: payload.shortcut,
-      expansion: result.expansion
+      expansion: result.expansion,
     });
     return { success: true, data: result };
   } catch (error) {
@@ -2695,4 +3003,11 @@ async function performCleanup(): Promise<void> {
 }
 
 // Export for use in other modules
-export { lifecycle, messageRouter, logger, performanceMonitor, geminiFormatter, backgroundProcessor };
+export {
+  lifecycle,
+  messageRouter,
+  logger,
+  performanceMonitor,
+  geminiFormatter,
+  backgroundProcessor,
+};

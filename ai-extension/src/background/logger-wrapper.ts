@@ -84,7 +84,13 @@ export function attachLoggerBridge(
 
   logger.warn = ((category: string, message: string, data?: unknown) => {
     originalWarn(category, message, data);
-    emit(2, category, message, data, data instanceof Error ? data.stack : undefined);
+    emit(
+      2,
+      category,
+      message,
+      data,
+      data instanceof Error ? data.stack : undefined,
+    );
   }) as typeof logger.warn;
 
   logger.error = ((category: string, message: string, error?: unknown) => {

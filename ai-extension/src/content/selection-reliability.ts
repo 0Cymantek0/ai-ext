@@ -8,7 +8,7 @@ export interface DOMStabilityCheck {
   isStable: boolean;
   mutationCount: number;
   checkDuration: number;
-  recommendation: 'proceed' | 'retry' | 'abort';
+  recommendation: "proceed" | "retry" | "abort";
 }
 
 export interface RetryConfig {
@@ -37,7 +37,7 @@ export interface SelectionValidation {
 }
 
 export interface RecoveryStrategy {
-  type: 'retry' | 'fallback' | 'user-prompt' | 'abort';
+  type: "retry" | "fallback" | "user-prompt" | "abort";
   message: string;
   action?: () => Promise<any>;
 }
@@ -56,7 +56,7 @@ export class DOMStabilityMonitor {
    */
   async checkStability(
     element: HTMLElement | Document = document,
-    duration: number = 500
+    duration: number = 500,
   ): Promise<DOMStabilityCheck> {
     const startTime = performance.now();
     this.mutationCount = 0;
@@ -69,7 +69,7 @@ export class DOMStabilityMonitor {
       });
 
       const target = element instanceof Document ? document.body : element;
-      
+
       this.mutationObserver.observe(target, {
         childList: true,
         subtree: true,
@@ -84,14 +84,14 @@ export class DOMStabilityMonitor {
 
         // Determine stability
         const mutationsPerSecond = (this.mutationCount / checkDuration) * 1000;
-        let recommendation: 'proceed' | 'retry' | 'abort';
+        let recommendation: "proceed" | "retry" | "abort";
 
         if (mutationsPerSecond < 5) {
-          recommendation = 'proceed';
+          recommendation = "proceed";
         } else if (mutationsPerSecond < 20) {
-          recommendation = 'retry';
+          recommendation = "retry";
         } else {
-          recommendation = 'abort';
+          recommendation = "abort";
         }
 
         resolve({
@@ -118,7 +118,10 @@ export class DOMStabilityMonitor {
   /**
    * Check if element is being actively mutated
    */
-  isElementMutating(element: HTMLElement, threshold: number = 100): Promise<boolean> {
+  isElementMutating(
+    element: HTMLElement,
+    threshold: number = 100,
+  ): Promise<boolean> {
     return new Promise((resolve) => {
       let mutationCount = 0;
       const observer = new MutationObserver(() => {
@@ -157,7 +160,7 @@ export class RetryManager {
    */
   async executeWithRetry<T>(
     operation: () => Promise<T>,
-    config: Partial<RetryConfig> = {}
+    config: Partial<RetryConfig> = {},
   ): Promise<T> {
     const finalConfig = { ...this.defaultConfig, ...config };
     let lastError: Error | null = null;
@@ -168,17 +171,23 @@ export class RetryManager {
         return await operation();
       } catch (error) {
         lastError = error as Error;
-        
+
         if (attempt < finalConfig.maxRetries) {
-          console.warn(`[RetryManager] Attempt ${attempt + 1} failed, retrying in ${delay}ms`, error);
+          console.warn(
+            `[RetryManager] Attempt ${attempt + 1} failed, retrying in ${delay}ms`,
+            error,
+          );
           await this.sleep(delay);
-          delay = Math.min(delay * finalConfig.backoffMultiplier, finalConfig.maxDelay);
+          delay = Math.min(
+            delay * finalConfig.backoffMultiplier,
+            finalConfig.maxDelay,
+          );
         }
       }
     }
 
     throw new Error(
-      `Operation failed after ${finalConfig.maxRetries + 1} attempts: ${lastError?.message}`
+      `Operation failed after ${finalConfig.maxRetries + 1} attempts: ${lastError?.message}`,
     );
   }
 
@@ -194,7 +203,9 @@ export class RetryManager {
    */
   calculateDelay(attempt: number, config: Partial<RetryConfig> = {}): number {
     const finalConfig = { ...this.defaultConfig, ...config };
-    const delay = finalConfig.initialDelay * Math.pow(finalConfig.backoffMultiplier, attempt);
+    const delay =
+      finalConfig.initialDelay *
+      Math.pow(finalConfig.backoffMultiplier, attempt);
     return Math.min(delay, finalConfig.maxDelay);
   }
 }
@@ -215,7 +226,7 @@ export class SelectionValidator {
 
     // Check if selection exists
     if (!selection || selection.rangeCount === 0) {
-      errors.push('No selection found');
+      errors.push("No selection found");
       isEmpty = true;
       return {
         isValid: false,
@@ -230,7 +241,7 @@ export class SelectionValidator {
     // Check if selection is empty
     const text = selection.toString().trim();
     if (text.length === 0) {
-      errors.push('Selection is empty');
+      errors.push("Selection is empty");
       isEmpty = true;
     }
 
@@ -238,9 +249,9 @@ export class SelectionValidator {
     try {
       const range = selection.getRangeAt(0);
       const container = range.commonAncestorContainer;
-      
+
       if (!document.contains(container)) {
-        errors.push('Selection contains detached elements');
+        errors.push("Selection contains detached elements");
         isDetached = true;
       }
 
@@ -248,12 +259,12 @@ export class SelectionValidator {
       if (container.nodeType === Node.ELEMENT_NODE) {
         const element = container as HTMLElement;
         if (!element.isConnected) {
-          errors.push('Selection element is not connected to DOM');
+          errors.push("Selection element is not connected to DOM");
           isDetached = true;
         }
       }
     } catch (error) {
-      errors.push('Failed to access selection range');
+      errors.push("Failed to access selection range");
       isDetached = true;
     }
 
@@ -265,11 +276,11 @@ export class SelectionValidator {
 
       // Check if containers are in different documents
       if (startContainer.ownerDocument !== endContainer.ownerDocument) {
-        errors.push('Selection spans multiple frames');
+        errors.push("Selection spans multiple frames");
         isCrossFrame = true;
       }
     } catch (error) {
-      errors.push('Failed to validate cross-frame selection');
+      errors.push("Failed to validate cross-frame selection");
       isCrossFrame = true;
     }
 
@@ -296,7 +307,7 @@ export class SelectionValidator {
     const isCrossFrame = false;
 
     if (!element) {
-      errors.push('Element is null');
+      errors.push("Element is null");
       isEmpty = true;
       return {
         isValid: false,
@@ -310,20 +321,20 @@ export class SelectionValidator {
 
     // Check if element is connected
     if (!element.isConnected) {
-      errors.push('Element is not connected to DOM');
+      errors.push("Element is not connected to DOM");
       isDetached = true;
     }
 
     // Check if element is in document
     if (!document.contains(element)) {
-      errors.push('Element is not in document');
+      errors.push("Element is not in document");
       isDetached = true;
     }
 
     // Check if element has content
-    const text = element.textContent?.trim() || '';
+    const text = element.textContent?.trim() || "";
     if (text.length === 0) {
-      errors.push('Element has no text content');
+      errors.push("Element has no text content");
       isEmpty = true;
     }
 
@@ -354,16 +365,16 @@ export class PerformanceMonitor {
    */
   async monitorCapture<T>(
     operation: () => Promise<T>,
-    textLength: number
+    textLength: number,
   ): Promise<{ result: T; metrics: PerformanceMetrics }> {
     const startTime = performance.now();
     const warnings: string[] = [];
 
     // Add warnings for large selections
     if (textLength > this.VERY_LARGE_SELECTION_THRESHOLD) {
-      warnings.push('Very large selection (>100KB) - may impact performance');
+      warnings.push("Very large selection (>100KB) - may impact performance");
     } else if (textLength > this.LARGE_SELECTION_THRESHOLD) {
-      warnings.push('Large selection (>10KB) - processing may take longer');
+      warnings.push("Large selection (>10KB) - processing may take longer");
     }
 
     try {
@@ -374,7 +385,9 @@ export class PerformanceMonitor {
 
       // Add performance warnings
       if (duration > 1000) {
-        warnings.push(`Capture took ${Math.round(duration)}ms - consider optimizing`);
+        warnings.push(
+          `Capture took ${Math.round(duration)}ms - consider optimizing`,
+        );
       }
 
       const metrics: PerformanceMetrics = {
@@ -405,8 +418,13 @@ export class PerformanceMonitor {
       return text;
     }
 
-    console.warn(`[PerformanceMonitor] Text truncated from ${text.length} to ${maxLength} characters`);
-    return text.substring(0, maxLength) + '\n\n[... content truncated for performance ...]';
+    console.warn(
+      `[PerformanceMonitor] Text truncated from ${text.length} to ${maxLength} characters`,
+    );
+    return (
+      text.substring(0, maxLength) +
+      "\n\n[... content truncated for performance ...]"
+    );
   }
 
   /**
@@ -428,21 +446,22 @@ export class ErrorRecoveryManager {
   determineRecoveryStrategy(
     error: Error,
     validation: SelectionValidation,
-    attemptCount: number
+    attemptCount: number,
   ): RecoveryStrategy {
     // Empty selection - prompt user
     if (validation.isEmpty) {
       return {
-        type: 'user-prompt',
-        message: 'No text is selected. Please select some text and try again.',
+        type: "user-prompt",
+        message: "No text is selected. Please select some text and try again.",
       };
     }
 
     // Cross-frame selection - not supported
     if (validation.isCrossFrame) {
       return {
-        type: 'abort',
-        message: 'Selections spanning multiple frames are not supported. Please select content within a single frame.',
+        type: "abort",
+        message:
+          "Selections spanning multiple frames are not supported. Please select content within a single frame.",
       };
     }
 
@@ -450,17 +469,18 @@ export class ErrorRecoveryManager {
     if (validation.isDetached) {
       if (attemptCount < 2) {
         return {
-          type: 'retry',
-          message: 'The selected content has changed. Retrying capture...',
+          type: "retry",
+          message: "The selected content has changed. Retrying capture...",
         };
       } else {
         return {
-          type: 'fallback',
-          message: 'Unable to capture selection. Falling back to basic text extraction.',
+          type: "fallback",
+          message:
+            "Unable to capture selection. Falling back to basic text extraction.",
           action: async () => {
             // Fallback to window.getSelection()
             const selection = window.getSelection();
-            return selection?.toString() || '';
+            return selection?.toString() || "";
           },
         };
       }
@@ -469,18 +489,19 @@ export class ErrorRecoveryManager {
     // Generic error - retry if possible
     if (validation.canRetry && attemptCount < 3) {
       return {
-        type: 'retry',
+        type: "retry",
         message: `Capture failed: ${error.message}. Retrying...`,
       };
     }
 
     // Final fallback
     return {
-      type: 'fallback',
-      message: 'Unable to capture selection with full context. Capturing basic text only.',
+      type: "fallback",
+      message:
+        "Unable to capture selection with full context. Capturing basic text only.",
       action: async () => {
         const selection = window.getSelection();
-        return selection?.toString() || '';
+        return selection?.toString() || "";
       },
     };
   }
@@ -489,53 +510,58 @@ export class ErrorRecoveryManager {
    * Execute recovery strategy
    */
   async executeRecovery(strategy: RecoveryStrategy): Promise<any> {
-    console.info(`[ErrorRecovery] Executing ${strategy.type} strategy: ${strategy.message}`);
+    console.info(
+      `[ErrorRecovery] Executing ${strategy.type} strategy: ${strategy.message}`,
+    );
 
     switch (strategy.type) {
-      case 'retry':
+      case "retry":
         // Caller should handle retry
-        throw new Error('RETRY_REQUESTED');
+        throw new Error("RETRY_REQUESTED");
 
-      case 'fallback':
+      case "fallback":
         if (strategy.action) {
           return await strategy.action();
         }
-        throw new Error('No fallback action provided');
+        throw new Error("No fallback action provided");
 
-      case 'user-prompt':
+      case "user-prompt":
         // Show user-friendly message
-        this.showUserMessage(strategy.message, 'warning');
+        this.showUserMessage(strategy.message, "warning");
         throw new Error(strategy.message);
 
-      case 'abort':
-        this.showUserMessage(strategy.message, 'error');
+      case "abort":
+        this.showUserMessage(strategy.message, "error");
         throw new Error(strategy.message);
 
       default:
-        throw new Error('Unknown recovery strategy');
+        throw new Error("Unknown recovery strategy");
     }
   }
 
   /**
    * Show user-friendly message
    */
-  private showUserMessage(message: string, type: 'info' | 'warning' | 'error'): void {
+  private showUserMessage(
+    message: string,
+    type: "info" | "warning" | "error",
+  ): void {
     // Create toast notification
-    const toast = document.createElement('div');
+    const toast = document.createElement("div");
     toast.style.cssText = `
       position: fixed;
       top: 20px;
       right: 20px;
       max-width: 400px;
       padding: 16px;
-      background: ${type === 'error' ? '#fee2e2' : type === 'warning' ? '#fef3c7' : '#dbeafe'};
-      border: 1px solid ${type === 'error' ? '#fca5a5' : type === 'warning' ? '#fde68a' : '#93c5fd'};
+      background: ${type === "error" ? "#fee2e2" : type === "warning" ? "#fef3c7" : "#dbeafe"};
+      border: 1px solid ${type === "error" ? "#fca5a5" : type === "warning" ? "#fde68a" : "#93c5fd"};
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       z-index: 999999;
       font-family: system-ui, -apple-system, sans-serif;
       font-size: 14px;
-      color: ${type === 'error' ? '#991b1b' : type === 'warning' ? '#92400e' : '#1e40af'};
+      color: ${type === "error" ? "#991b1b" : type === "warning" ? "#92400e" : "#1e40af"};
       animation: slideIn 0.3s ease;
     `;
 
@@ -544,7 +570,7 @@ export class ErrorRecoveryManager {
 
     // Auto-remove after 5 seconds
     setTimeout(() => {
-      toast.style.animation = 'slideOut 0.3s ease';
+      toast.style.animation = "slideOut 0.3s ease";
       setTimeout(() => toast.remove(), 300);
     }, 5000);
   }
@@ -570,7 +596,7 @@ export class ReliableSelectionCapture {
       checkStability?: boolean;
       enableRetry?: boolean;
       monitorPerformance?: boolean;
-    } = {}
+    } = {},
   ): Promise<any> {
     const {
       checkStability = true,
@@ -589,13 +615,13 @@ export class ReliableSelectionCapture {
 
       if (!validation.isValid) {
         const strategy = this.errorRecovery.determineRecoveryStrategy(
-          new Error(validation.errors.join(', ')),
+          new Error(validation.errors.join(", ")),
           validation,
-          attemptCount
+          attemptCount,
         );
 
-        if (strategy.type === 'retry' && enableRetry) {
-          throw new Error('RETRY_REQUESTED');
+        if (strategy.type === "retry" && enableRetry) {
+          throw new Error("RETRY_REQUESTED");
         }
 
         return await this.errorRecovery.executeRecovery(strategy);
@@ -603,16 +629,23 @@ export class ReliableSelectionCapture {
 
       // 2. Check DOM stability
       if (checkStability) {
-        const stability = await this.stabilityMonitor.checkStability(document, 300);
-        
-        if (stability.recommendation === 'abort') {
-          throw new Error('DOM is too unstable for reliable capture');
+        const stability = await this.stabilityMonitor.checkStability(
+          document,
+          300,
+        );
+
+        if (stability.recommendation === "abort") {
+          throw new Error("DOM is too unstable for reliable capture");
         }
 
-        if (stability.recommendation === 'retry' && enableRetry && attemptCount < 2) {
-          console.warn('[ReliableCapture] DOM unstable, retrying...');
-          await new Promise(resolve => setTimeout(resolve, 500));
-          throw new Error('RETRY_REQUESTED');
+        if (
+          stability.recommendation === "retry" &&
+          enableRetry &&
+          attemptCount < 2
+        ) {
+          console.warn("[ReliableCapture] DOM unstable, retrying...");
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          throw new Error("RETRY_REQUESTED");
         }
       }
 
@@ -620,13 +653,17 @@ export class ReliableSelectionCapture {
       const textLength = selection?.toString().length || 0;
 
       if (monitorPerformance) {
-        const { result, metrics } = await this.performanceMonitor.monitorCapture(
-          captureOperation,
-          textLength
-        );
+        const { result, metrics } =
+          await this.performanceMonitor.monitorCapture(
+            captureOperation,
+            textLength,
+          );
 
         if (metrics.warnings.length > 0) {
-          console.warn('[ReliableCapture] Performance warnings:', metrics.warnings);
+          console.warn(
+            "[ReliableCapture] Performance warnings:",
+            metrics.warnings,
+          );
         }
 
         return result;
@@ -656,7 +693,7 @@ export class ReliableSelectionCapture {
     options: {
       checkStability?: boolean;
       enableRetry?: boolean;
-    } = {}
+    } = {},
   ): Promise<any> {
     const { checkStability = true, enableRetry = true } = options;
 
@@ -670,13 +707,13 @@ export class ReliableSelectionCapture {
 
       if (!validation.isValid) {
         const strategy = this.errorRecovery.determineRecoveryStrategy(
-          new Error(validation.errors.join(', ')),
+          new Error(validation.errors.join(", ")),
           validation,
-          attemptCount
+          attemptCount,
         );
 
-        if (strategy.type === 'retry' && enableRetry) {
-          throw new Error('RETRY_REQUESTED');
+        if (strategy.type === "retry" && enableRetry) {
+          throw new Error("RETRY_REQUESTED");
         }
 
         return await this.errorRecovery.executeRecovery(strategy);
@@ -684,12 +721,13 @@ export class ReliableSelectionCapture {
 
       // 2. Check if element is being mutated
       if (checkStability) {
-        const isMutating = await this.stabilityMonitor.isElementMutating(element);
-        
+        const isMutating =
+          await this.stabilityMonitor.isElementMutating(element);
+
         if (isMutating && enableRetry && attemptCount < 2) {
-          console.warn('[ReliableCapture] Element is mutating, retrying...');
-          await new Promise(resolve => setTimeout(resolve, 300));
-          throw new Error('RETRY_REQUESTED');
+          console.warn("[ReliableCapture] Element is mutating, retrying...");
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          throw new Error("RETRY_REQUESTED");
         }
       }
 

@@ -24,7 +24,7 @@ export class SelectionPreviewUI {
   show(
     preview: EditablePreview,
     validation: ValidationResult,
-    options: PreviewUIOptions
+    options: PreviewUIOptions,
   ): void {
     this.preview = preview;
     this.validation = validation;
@@ -192,7 +192,10 @@ export class SelectionPreviewUI {
 
     // Show context (before)
     if (this.preview?.context?.before) {
-      const beforeContext = this.createContextSection("Before", this.preview.context.before);
+      const beforeContext = this.createContextSection(
+        "Before",
+        this.preview.context.before,
+      );
       content.appendChild(beforeContext);
     }
 
@@ -202,7 +205,10 @@ export class SelectionPreviewUI {
 
     // Show context (after)
     if (this.preview?.context?.after) {
-      const afterContext = this.createContextSection("After", this.preview.context.after);
+      const afterContext = this.createContextSection(
+        "After",
+        this.preview.context.after,
+      );
       content.appendChild(afterContext);
     }
 
@@ -304,7 +310,7 @@ export class SelectionPreviewUI {
     `;
 
     const url = document.createElement("div");
-    url.innerHTML = `<strong>Source:</strong> ${this.preview!.sourceLocation?.url || 'Unknown'}`;
+    url.innerHTML = `<strong>Source:</strong> ${this.preview!.sourceLocation?.url || "Unknown"}`;
     url.style.cssText = `
       margin-bottom: 4px;
       word-break: break-all;
@@ -514,7 +520,7 @@ export class SelectionPreviewUI {
    */
   private handleSave(): void {
     const textarea = document.getElementById(
-      "ai-pocket-preview-textarea"
+      "ai-pocket-preview-textarea",
     ) as HTMLTextAreaElement;
 
     if (textarea && this.options?.onSave) {

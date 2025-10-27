@@ -158,7 +158,12 @@ export interface PocketSearchPayload {
 
 export interface PocketSelectionRequestPayload {
   requestId: string;
-  pockets: Array<{ id: string; name: string; description?: string; color?: string }>;
+  pockets: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+  }>;
   selectionText?: string;
   preview?: string;
   sourceUrl?: string;

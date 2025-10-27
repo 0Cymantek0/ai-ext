@@ -124,10 +124,11 @@ export class ElementSelector {
       // Generate preview if requested
       if (this.options.generatePreview) {
         try {
-          selectedElement.preview = await elementPreviewGenerator.generatePreview(
-            element,
-            enhancedInfo
-          );
+          selectedElement.preview =
+            await elementPreviewGenerator.generatePreview(
+              element,
+              enhancedInfo,
+            );
         } catch (error) {
           console.warn("[ElementSelector] Failed to generate preview", error);
         }
@@ -142,11 +143,7 @@ export class ElementSelector {
             "react",
           ];
           selectedElement.snippets = formats.map((format) =>
-            codeSnippetGenerator.generateSnippet(
-              element,
-              enhancedInfo,
-              format
-            )
+            codeSnippetGenerator.generateSnippet(element, enhancedInfo, format),
           );
         } catch (error) {
           console.warn("[ElementSelector] Failed to generate snippets", error);
@@ -592,7 +589,7 @@ export class ElementSelector {
    */
   private hideLoadingIndicator(): void {
     const loading = document.getElementById(
-      "ai-pocket-element-selector-loading"
+      "ai-pocket-element-selector-loading",
     );
     if (loading) {
       loading.remove();

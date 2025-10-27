@@ -7,62 +7,69 @@
  * Message types for the bridge protocol
  */
 export const BridgeMessageTypes = {
-  HANDSHAKE: 'HANDSHAKE',
-  HANDSHAKE_ACK: 'HANDSHAKE_ACK',
-  HEARTBEAT: 'HEARTBEAT',
-  HEARTBEAT_ACK: 'HEARTBEAT_ACK',
-  DISCONNECT: 'DISCONNECT',
-  COMMAND: 'COMMAND',
-  COMMAND_ACK: 'COMMAND_ACK',
-  EVENT: 'EVENT',
-  EVENT_ACK: 'EVENT_ACK',
-  BATCH: 'BATCH',
-  BATCH_ACK: 'BATCH_ACK',
-  ERROR: 'ERROR',
+  HANDSHAKE: "HANDSHAKE",
+  HANDSHAKE_ACK: "HANDSHAKE_ACK",
+  HEARTBEAT: "HEARTBEAT",
+  HEARTBEAT_ACK: "HEARTBEAT_ACK",
+  DISCONNECT: "DISCONNECT",
+  COMMAND: "COMMAND",
+  COMMAND_ACK: "COMMAND_ACK",
+  EVENT: "EVENT",
+  EVENT_ACK: "EVENT_ACK",
+  BATCH: "BATCH",
+  BATCH_ACK: "BATCH_ACK",
+  ERROR: "ERROR",
 } as const;
 
-export type MessageType = typeof BridgeMessageTypes[keyof typeof BridgeMessageTypes];
+export type MessageType =
+  (typeof BridgeMessageTypes)[keyof typeof BridgeMessageTypes];
 
 /**
  * Command types that CLI can send to extension
  */
 export const BridgeCommandTypes = {
-  PAUSE: 'PAUSE',
-  RESUME: 'RESUME',
-  STOP: 'STOP',
-  STATUS: 'STATUS',
+  PAUSE: "PAUSE",
+  RESUME: "RESUME",
+  STOP: "STOP",
+  STATUS: "STATUS",
 } as const;
 
-export type CommandType = typeof BridgeCommandTypes[keyof typeof BridgeCommandTypes];
+export type CommandType =
+  (typeof BridgeCommandTypes)[keyof typeof BridgeCommandTypes];
 
 /**
  * Event types from extension to CLI
  */
 export const BridgeEventTypes = {
-  LOG: 'LOG',
-  INTERACTION: 'INTERACTION',
-  ERROR_ENTRY: 'ERROR_ENTRY',
-  STATE_SNAPSHOT: 'STATE_SNAPSHOT',
-  NETWORK_REQUEST: 'NETWORK_REQUEST',
+  LOG: "LOG",
+  INTERACTION: "INTERACTION",
+  ERROR_ENTRY: "ERROR_ENTRY",
+  STATE_SNAPSHOT: "STATE_SNAPSHOT",
+  NETWORK_REQUEST: "NETWORK_REQUEST",
 } as const;
 
-export type EventType = typeof BridgeEventTypes[keyof typeof BridgeEventTypes];
+export type EventType =
+  (typeof BridgeEventTypes)[keyof typeof BridgeEventTypes];
 
 /**
  * Connection status
  */
 export enum ConnectionStatus {
-  CONNECTING = 'CONNECTING',
-  CONNECTED = 'CONNECTED',
-  PAUSED = 'PAUSED',
-  DISCONNECTED = 'DISCONNECTED',
-  ERROR = 'ERROR',
+  CONNECTING = "CONNECTING",
+  CONNECTED = "CONNECTED",
+  PAUSED = "PAUSED",
+  DISCONNECTED = "DISCONNECTED",
+  ERROR = "ERROR",
 }
 
 /**
  * Context type for the client
  */
-export type ClientContext = 'background' | 'content-script' | 'side-panel' | 'offscreen';
+export type ClientContext =
+  | "background"
+  | "content-script"
+  | "side-panel"
+  | "offscreen";
 
 /**
  * Base message structure
@@ -77,7 +84,7 @@ export interface BaseMessage {
  * Handshake message from client to server
  */
 export interface HandshakeMessage extends BaseMessage {
-  type: 'HANDSHAKE';
+  type: "HANDSHAKE";
   payload: {
     token: string;
     context: ClientContext;
@@ -90,7 +97,7 @@ export interface HandshakeMessage extends BaseMessage {
  * Handshake acknowledgement from server to client
  */
 export interface HandshakeAckMessage extends BaseMessage {
-  type: 'HANDSHAKE_ACK';
+  type: "HANDSHAKE_ACK";
   payload: {
     accepted: boolean;
     sessionId: string;
@@ -103,7 +110,7 @@ export interface HandshakeAckMessage extends BaseMessage {
  * Heartbeat message (bidirectional)
  */
 export interface HeartbeatMessage extends BaseMessage {
-  type: 'HEARTBEAT';
+  type: "HEARTBEAT";
   payload: {
     clientId?: string;
     serverId?: string;
@@ -114,7 +121,7 @@ export interface HeartbeatMessage extends BaseMessage {
  * Heartbeat acknowledgement (bidirectional)
  */
 export interface HeartbeatAckMessage extends BaseMessage {
-  type: 'HEARTBEAT_ACK';
+  type: "HEARTBEAT_ACK";
   payload: {
     originalId: string;
   };
@@ -124,7 +131,7 @@ export interface HeartbeatAckMessage extends BaseMessage {
  * Command message from server to client
  */
 export interface CommandMessage extends BaseMessage {
-  type: 'COMMAND';
+  type: "COMMAND";
   payload: {
     command: CommandType;
     params?: Record<string, unknown>;
@@ -135,7 +142,7 @@ export interface CommandMessage extends BaseMessage {
  * Command acknowledgement from client to server
  */
 export interface CommandAckMessage extends BaseMessage {
-  type: 'COMMAND_ACK';
+  type: "COMMAND_ACK";
   payload: {
     commandId: string;
     success: boolean;
@@ -148,7 +155,7 @@ export interface CommandAckMessage extends BaseMessage {
  * Event message from client to server
  */
 export interface EventMessage extends BaseMessage {
-  type: 'EVENT';
+  type: "EVENT";
   payload: {
     eventType: EventType;
     data: unknown;
@@ -160,7 +167,7 @@ export interface EventMessage extends BaseMessage {
  * Event acknowledgement from server to client
  */
 export interface EventAckMessage extends BaseMessage {
-  type: 'EVENT_ACK';
+  type: "EVENT_ACK";
   payload: {
     eventId: string;
     received: boolean;
@@ -171,7 +178,7 @@ export interface EventAckMessage extends BaseMessage {
  * Batch message for buffered events
  */
 export interface BatchMessage extends BaseMessage {
-  type: 'BATCH';
+  type: "BATCH";
   payload: {
     events: Array<{
       eventType: EventType;
@@ -187,7 +194,7 @@ export interface BatchMessage extends BaseMessage {
  * Batch acknowledgement
  */
 export interface BatchAckMessage extends BaseMessage {
-  type: 'BATCH_ACK';
+  type: "BATCH_ACK";
   payload: {
     batchId: string;
     received: number;
@@ -199,7 +206,7 @@ export interface BatchAckMessage extends BaseMessage {
  * Error message
  */
 export interface ErrorMessage extends BaseMessage {
-  type: 'ERROR';
+  type: "ERROR";
   payload: {
     code: string;
     message: string;
@@ -212,7 +219,7 @@ export interface ErrorMessage extends BaseMessage {
  * Disconnect message
  */
 export interface DisconnectMessage extends BaseMessage {
-  type: 'DISCONNECT';
+  type: "DISCONNECT";
   payload: {
     reason: string;
     reconnect: boolean;
@@ -243,18 +250,18 @@ export interface BridgeConfig {
   // WebSocket configuration
   host: string;
   port: number;
-  
+
   // Timing configuration
   heartbeatIntervalMs: number;
   heartbeatTimeoutMs: number;
   reconnectDelayMs: number;
   maxReconnectDelayMs: number;
   reconnectBackoffMultiplier: number;
-  
+
   // Buffering configuration
   maxBufferSize: number;
   bufferFlushIntervalMs: number;
-  
+
   // Session configuration
   sessionTokenKey: string;
 }
@@ -263,7 +270,7 @@ export interface BridgeConfig {
  * Default bridge configuration
  */
 export const DEFAULT_BRIDGE_CONFIG: BridgeConfig = {
-  host: '127.0.0.1',
+  host: "127.0.0.1",
   port: 9229,
   heartbeatIntervalMs: 30000,
   heartbeatTimeoutMs: 10000,
@@ -272,7 +279,7 @@ export const DEFAULT_BRIDGE_CONFIG: BridgeConfig = {
   reconnectBackoffMultiplier: 2,
   maxBufferSize: 10000,
   bufferFlushIntervalMs: 5000,
-  sessionTokenKey: 'debug_bridge_session_token',
+  sessionTokenKey: "debug_bridge_session_token",
 };
 
 /**

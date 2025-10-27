@@ -1,54 +1,68 @@
 import { describe, it, expect, vi } from "vitest";
 import { ContentCapture, type CaptureOptions } from "../ContentCapture.js";
-import type { IDOMAnalyzer, IContentSanitizer, IMediaCapture, IReliableSelectionCapture } from "../ContentCapture.js";
+import type {
+  IDOMAnalyzer,
+  IContentSanitizer,
+  IMediaCapture,
+  IReliableSelectionCapture,
+} from "../ContentCapture.js";
 
 function createDeps() {
   const dom: IDOMAnalyzer = {
-    extractMetadata: () => ({ url: "https://example.com", timestamp: Date.now() }),
-    extractText: () => ({ 
-      content: "Full page content", 
-      wordCount: 3, 
-      characterCount: 17, 
-      paragraphs: [], 
-      headings: [], 
-      links: [], 
-      images: [], 
-      lists: [], 
-      tables: [] 
+    extractMetadata: () => ({
+      url: "https://example.com",
+      timestamp: Date.now(),
+    }),
+    extractText: () => ({
+      content: "Full page content",
+      wordCount: 3,
+      characterCount: 17,
+      paragraphs: [],
+      headings: [],
+      links: [],
+      images: [],
+      lists: [],
+      tables: [],
     }),
     extractStructuredData: () => [],
-    analyzeReadability: () => ({ textLength: 17, averageWordLength: 5, averageSentenceLength: 10, readingTimeMinutes: 1 }),
-    extractSelection: () => ({ 
-      content: "Selected text", 
-      wordCount: 2, 
-      characterCount: 13, 
-      paragraphs: [], 
-      headings: [], 
-      links: [], 
-      images: [], 
-      lists: [], 
-      tables: [] 
+    analyzeReadability: () => ({
+      textLength: 17,
+      averageWordLength: 5,
+      averageSentenceLength: 10,
+      readingTimeMinutes: 1,
+    }),
+    extractSelection: () => ({
+      content: "Selected text",
+      wordCount: 2,
+      characterCount: 13,
+      paragraphs: [],
+      headings: [],
+      links: [],
+      images: [],
+      lists: [],
+      tables: [],
     }),
     extractDetailedSelection: (n?: number) => null,
-    getSelectionContext: (b: number, a: number) => "before [Selected text] after" as any,
+    getSelectionContext: (b: number, a: number) =>
+      "before [Selected text] after" as any,
   };
 
   const sanitizer: IContentSanitizer = {
-    sanitize: (s: string) => ({ 
-      sanitizedContent: s.replace(/\S+@\S+/, "[EMAIL_REDACTED]"), 
-      redactionCount: /@/.test(s) ? 1 : 0, 
-      detectedPII: /@/.test(s) ? [{ type: "EMAIL" }] as any : [] 
-    })
+    sanitize: (s: string) => ({
+      sanitizedContent: s.replace(/\S+@\S+/, "[EMAIL_REDACTED]"),
+      redactionCount: /@/.test(s) ? 1 : 0,
+      detectedPII: /@/.test(s) ? ([{ type: "EMAIL" }] as any) : [],
+    }),
   };
 
   const media: IMediaCapture = {
-    captureAllMedia: async () => ({ 
-      images: [], 
-      audios: [], 
-      videos: [], 
-      totalSize: 0, 
-      capturedAt: Date.now() 
-    })
+    captureAllMedia: async () => ({
+      images: [],
+      audios: [],
+      videos: [],
+      totalSize: 0,
+      capturedAt: Date.now(),
+    }),
   };
 
   const selection: IReliableSelectionCapture = {
@@ -77,33 +91,37 @@ describe("ContentCapture.captureWithPreview - selection mode", () => {
       timestamp: Date.now(),
     });
 
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
-      messenger: deps.messenger 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
+      messenger: deps.messenger,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "selection", 
-      pocketId: "p1", 
-      sanitize: false 
+    const result = await cc.captureWithPreview({
+      mode: "selection",
+      pocketId: "p1",
+      sanitize: false,
     });
 
     // Check result structure
     expect(result.result.mode).toBe("selection");
     expect(result.result.content.text).toBe("This is a selected text");
-    
+
     // Check editable preview
     expect(result.editablePreview).not.toBeNull();
     expect(result.editablePreview?.text).toBe("This is a selected text");
-    expect(result.editablePreview?.htmlContent).toBe("<b>This is a selected text</b>");
+    expect(result.editablePreview?.htmlContent).toBe(
+      "<b>This is a selected text</b>",
+    );
     expect(result.editablePreview?.context?.before).toBe("Some text before");
     expect(result.editablePreview?.context?.after).toBe("Some text after");
-    expect(result.editablePreview?.sourceLocation?.url).toBe("https://example.com");
+    expect(result.editablePreview?.sourceLocation?.url).toBe(
+      "https://example.com",
+    );
     expect(result.editablePreview?.editable).toBe(true);
-    
+
     // Check validation
     expect(result.validation.isValid).toBe(true);
     expect(result.validation.errors).toHaveLength(0);
@@ -124,18 +142,18 @@ describe("ContentCapture.captureWithPreview - selection mode", () => {
       timestamp: Date.now(),
     });
 
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
-      messenger: deps.messenger 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
+      messenger: deps.messenger,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "selection", 
-      pocketId: "p1", 
-      sanitize: false 
+    const result = await cc.captureWithPreview({
+      mode: "selection",
+      pocketId: "p1",
+      sanitize: false,
     });
 
     // Check validation
@@ -158,23 +176,25 @@ describe("ContentCapture.captureWithPreview - selection mode", () => {
       timestamp: Date.now(),
     });
 
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
-      messenger: deps.messenger 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
+      messenger: deps.messenger,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "selection", 
-      pocketId: "p1", 
-      sanitize: false 
+    const result = await cc.captureWithPreview({
+      mode: "selection",
+      pocketId: "p1",
+      sanitize: false,
     });
 
     // Check validation
     expect(result.validation.isValid).toBe(true);
-    expect(result.validation.warnings).toContain("Selection is very large (>50,000 characters)");
+    expect(result.validation.warnings).toContain(
+      "Selection is very large (>50,000 characters)",
+    );
   });
 
   it("generates warnings for missing context", async () => {
@@ -191,23 +211,25 @@ describe("ContentCapture.captureWithPreview - selection mode", () => {
       timestamp: Date.now(),
     });
 
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
-      messenger: deps.messenger 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
+      messenger: deps.messenger,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "selection", 
-      pocketId: "p1", 
-      sanitize: false 
+    const result = await cc.captureWithPreview({
+      mode: "selection",
+      pocketId: "p1",
+      sanitize: false,
     });
 
     // Check validation
     expect(result.validation.isValid).toBe(true);
-    expect(result.validation.warnings).toContain("No surrounding context available");
+    expect(result.validation.warnings).toContain(
+      "No surrounding context available",
+    );
   });
 
   it("generates warnings for sanitization", async () => {
@@ -224,53 +246,57 @@ describe("ContentCapture.captureWithPreview - selection mode", () => {
       timestamp: Date.now(),
     });
 
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
-      messenger: deps.messenger 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
+      messenger: deps.messenger,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "selection", 
-      pocketId: "p1", 
-      sanitize: true 
+    const result = await cc.captureWithPreview({
+      mode: "selection",
+      pocketId: "p1",
+      sanitize: true,
     });
 
     // Check validation
     expect(result.validation.isValid).toBe(true);
-    expect(result.validation.warnings.some(w => w.includes("PII item(s) were redacted"))).toBe(true);
+    expect(
+      result.validation.warnings.some((w) =>
+        w.includes("PII item(s) were redacted"),
+      ),
+    ).toBe(true);
   });
 });
 
 describe("ContentCapture.captureWithPreview - note mode", () => {
   it("creates editable preview with validation for note", async () => {
     const deps = createDeps();
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
-      messenger: deps.messenger 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
+      messenger: deps.messenger,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "note", 
+    const result = await cc.captureWithPreview({
+      mode: "note",
       noteText: "This is my note",
-      pocketId: "p1", 
-      sanitize: false 
+      pocketId: "p1",
+      sanitize: false,
     });
 
     // Check result structure
     expect(result.result.mode).toBe("note");
     expect(result.result.content.text).toBe("This is my note");
-    
+
     // Check editable preview
     expect(result.editablePreview).not.toBeNull();
     expect(result.editablePreview?.text).toBe("This is my note");
     expect(result.editablePreview?.editable).toBe(true);
-    
+
     // Check validation
     expect(result.validation.isValid).toBe(true);
     expect(result.validation.errors).toHaveLength(0);
@@ -278,19 +304,19 @@ describe("ContentCapture.captureWithPreview - note mode", () => {
 
   it("validates empty note and returns errors", async () => {
     const deps = createDeps();
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
-      messenger: deps.messenger 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
+      messenger: deps.messenger,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "note", 
+    const result = await cc.captureWithPreview({
+      mode: "note",
       noteText: "",
-      pocketId: "p1", 
-      sanitize: false 
+      pocketId: "p1",
+      sanitize: false,
     });
 
     // Check validation
@@ -302,49 +328,59 @@ describe("ContentCapture.captureWithPreview - note mode", () => {
 describe("ContentCapture.captureWithPreview - element mode", () => {
   it("creates editable preview with validation for elements", async () => {
     const deps = createDeps();
-    const mockRect = { top: 0, left: 0, width: 100, height: 50, bottom: 50, right: 100, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
-    
+    const mockRect = {
+      top: 0,
+      left: 0,
+      width: 100,
+      height: 50,
+      bottom: 50,
+      right: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect;
+
     const elementProvider = async () => [
-      { 
+      {
         element: document.createElement("div") as HTMLElement,
-        info: { 
-          tagName: "DIV", 
-          selector: "div.article", 
-          textContent: "Article content", 
-          innerHTML: "<p>Article content</p>", 
-          attributes: {}, 
-          boundingRect: mockRect 
+        info: {
+          tagName: "DIV",
+          selector: "div.article",
+          textContent: "Article content",
+          innerHTML: "<p>Article content</p>",
+          attributes: {},
+          boundingRect: mockRect,
         },
         enhancedInfo: {} as any,
-        textContent: "Article content"
+        textContent: "Article content",
       },
     ];
 
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
       messenger: deps.messenger,
-      elementProvider 
+      elementProvider,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "element", 
-      pocketId: "p1", 
-      sanitize: false 
+    const result = await cc.captureWithPreview({
+      mode: "element",
+      pocketId: "p1",
+      sanitize: false,
     });
 
     // Check result structure
     expect(result.result.mode).toBe("element");
     expect(result.result.content.count).toBe(1);
-    
+
     // Check editable preview
     expect(result.editablePreview).not.toBeNull();
     expect(result.editablePreview?.text).toBe("Article content");
     expect(result.editablePreview?.htmlContent).toBe("<p>Article content</p>");
     expect(result.editablePreview?.editable).toBe(true);
-    
+
     // Check validation
     expect(result.validation.isValid).toBe(true);
     expect(result.validation.errors).toHaveLength(0);
@@ -354,19 +390,19 @@ describe("ContentCapture.captureWithPreview - element mode", () => {
     const deps = createDeps();
     const elementProvider = async () => [];
 
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
       messenger: deps.messenger,
-      elementProvider 
+      elementProvider,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "element", 
-      pocketId: "p1", 
-      sanitize: false 
+    const result = await cc.captureWithPreview({
+      mode: "element",
+      pocketId: "p1",
+      sanitize: false,
     });
 
     // Check validation
@@ -376,41 +412,53 @@ describe("ContentCapture.captureWithPreview - element mode", () => {
 
   it("generates warnings for elements without text content", async () => {
     const deps = createDeps();
-    const mockRect = { top: 0, left: 0, width: 100, height: 50, bottom: 50, right: 100, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
-    
+    const mockRect = {
+      top: 0,
+      left: 0,
+      width: 100,
+      height: 50,
+      bottom: 50,
+      right: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect;
+
     const elementProvider = async () => [
-      { 
+      {
         element: document.createElement("div") as HTMLElement,
-        info: { 
-          tagName: "DIV", 
-          selector: "div.article", 
-          textContent: "", 
-          innerHTML: "<img src='test.png'>", 
-          attributes: {}, 
-          boundingRect: mockRect 
+        info: {
+          tagName: "DIV",
+          selector: "div.article",
+          textContent: "",
+          innerHTML: "<img src='test.png'>",
+          attributes: {},
+          boundingRect: mockRect,
         },
         enhancedInfo: {} as any,
-        textContent: ""
+        textContent: "",
       },
     ];
 
-    const cc = new ContentCapture({ 
-      domAnalyzer: deps.dom, 
-      sanitizer: deps.sanitizer, 
-      media: deps.media, 
-      selection: deps.selection, 
+    const cc = new ContentCapture({
+      domAnalyzer: deps.dom,
+      sanitizer: deps.sanitizer,
+      media: deps.media,
+      selection: deps.selection,
       messenger: deps.messenger,
-      elementProvider 
+      elementProvider,
     });
 
-    const result = await cc.captureWithPreview({ 
-      mode: "element", 
-      pocketId: "p1", 
-      sanitize: false 
+    const result = await cc.captureWithPreview({
+      mode: "element",
+      pocketId: "p1",
+      sanitize: false,
     });
 
     // Check validation
     expect(result.validation.isValid).toBe(true);
-    expect(result.validation.warnings).toContain("1 element(s) have no text content");
+    expect(result.validation.warnings).toContain(
+      "1 element(s) have no text content",
+    );
   });
 });

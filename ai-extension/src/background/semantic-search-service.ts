@@ -1,9 +1,9 @@
 /**
  * Semantic Search Service
- * 
+ *
  * Provides intelligent conversation search using AI-generated metadata
  * and semantic understanding of search queries.
- * 
+ *
  * Features:
  * - Fuzzy matching for typos
  * - Synonym and related term expansion
@@ -14,7 +14,10 @@
 
 import { AIManager } from "./ai-manager.js";
 import { logger } from "./monitoring.js";
-import type { Conversation, ConversationMetadata } from "./indexeddb-manager.js";
+import type {
+  Conversation,
+  ConversationMetadata,
+} from "./indexeddb-manager.js";
 
 export interface SearchResult {
   conversation: Conversation;
@@ -30,7 +33,10 @@ export interface SearchResult {
 
 export class SemanticSearchService {
   private aiManager: AIManager;
-  private searchCache: Map<string, { keywords: string[]; topics: string[]; intent: string; timestamp: number }> = new Map();
+  private searchCache: Map<
+    string,
+    { keywords: string[]; topics: string[]; intent: string; timestamp: number }
+  > = new Map();
   private cacheExpiry: number = 5 * 60 * 1000; // 5 minutes
 
   constructor(aiManager: AIManager) {
@@ -43,7 +49,9 @@ export class SemanticSearchService {
   private levenshteinDistance(str1: string, str2: string): number {
     const len1 = str1.length;
     const len2 = str2.length;
-    const matrix: number[][] = Array(len1 + 1).fill(0).map(() => Array(len2 + 1).fill(0));
+    const matrix: number[][] = Array(len1 + 1)
+      .fill(0)
+      .map(() => Array(len2 + 1).fill(0));
 
     for (let i = 0; i <= len1; i++) {
       matrix[i]![0] = i;
@@ -58,7 +66,7 @@ export class SemanticSearchService {
         matrix[i]![j] = Math.min(
           matrix[i - 1]![j]! + 1,
           matrix[i]![j - 1]! + 1,
-          matrix[i - 1]![j - 1]! + cost
+          matrix[i - 1]![j - 1]! + cost,
         );
       }
     }
@@ -69,14 +77,21 @@ export class SemanticSearchService {
   /**
    * Check if two strings are similar (fuzzy match)
    */
-  private isFuzzyMatch(str1: string, str2: string, threshold: number = 0.8): boolean {
+  private isFuzzyMatch(
+    str1: string,
+    str2: string,
+    threshold: number = 0.8,
+  ): boolean {
     const longer = str1.length > str2.length ? str1 : str2;
     const shorter = str1.length > str2.length ? str2 : str1;
 
     if (longer.length === 0) return true;
     if (shorter.length === 0) return false;
 
-    const distance = this.levenshteinDistance(longer.toLowerCase(), shorter.toLowerCase());
+    const distance = this.levenshteinDistance(
+      longer.toLowerCase(),
+      shorter.toLowerCase(),
+    );
     const similarity = (longer.length - distance) / longer.length;
 
     return similarity >= threshold;
@@ -93,8 +108,8 @@ export class SemanticSearchService {
     if (textLower.includes(queryLower)) return true;
 
     // Check if all query words appear in text
-    const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
-    return queryWords.every(word => textLower.includes(word));
+    const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 2);
+    return queryWords.every((word) => textLower.includes(word));
   }
 
   /**
@@ -102,7 +117,7 @@ export class SemanticSearchService {
    */
   async searchConversations(
     query: string,
-    conversations: Conversation[]
+    conversations: Conversation[],
   ): Promise<SearchResult[]> {
     try {
       if (!query.trim()) {
@@ -119,7 +134,7 @@ export class SemanticSearchService {
         const result = await this.scoreConversationComprehensive(
           conversation,
           query,
-          searchIntent
+          searchIntent,
         );
 
         if (result.relevanceScore > 0) {
@@ -156,7 +171,7 @@ export class SemanticSearchService {
   private async scoreConversationComprehensive(
     conversation: Conversation,
     query: string,
-    searchIntent: { keywords: string[]; topics: string[]; intent: string }
+    searchIntent: { keywords: string[]; topics: string[]; intent: string },
   ): Promise<SearchResult> {
     let totalScore = 0;
     const matchedFields: string[] = [];
@@ -172,7 +187,7 @@ export class SemanticSearchService {
       const metadataResult = this.scoreMetadata(
         conversation.metadata,
         query,
-        searchIntent
+        searchIntent,
       );
       totalScore += metadataResult.score;
       matchedFields.push(...metadataResult.matchedFields);
@@ -190,7 +205,8 @@ export class SemanticSearchService {
     }
 
     // 3. Recency boost (prefer recent conversations)
-    const ageInDays = (Date.now() - conversation.updatedAt) / (1000 * 60 * 60 * 24);
+    const ageInDays =
+      (Date.now() - conversation.updatedAt) / (1000 * 60 * 60 * 24);
     const recencyBoost = Math.max(0, 20 - ageInDays * 2); // Up to 20 points for very recent
     totalScore += recencyBoost;
 
@@ -260,7 +276,9 @@ Respond ONLY with valid JSON:`;
 
       // Add synonyms to keywords if provided
       if (Array.isArray(analysis.synonyms)) {
-        result.keywords.push(...analysis.synonyms.map((s: string) => s.toLowerCase()));
+        result.keywords.push(
+          ...analysis.synonyms.map((s: string) => s.toLowerCase()),
+        );
       }
 
       // Cache the result
@@ -268,7 +286,9 @@ Respond ONLY with valid JSON:`;
 
       return result;
     } catch (error) {
-      logger.warn("SemanticSearch", "Query analysis failed, using fallback", { error });
+      logger.warn("SemanticSearch", "Query analysis failed, using fallback", {
+        error,
+      });
       return this.fallbackQueryAnalysis(query);
     }
   }
@@ -299,8 +319,14 @@ Respond ONLY with valid JSON:`;
   private scoreMetadata(
     metadata: ConversationMetadata,
     query: string,
-    searchIntent: { keywords: string[]; topics: string[]; intent: string }
-  ): { score: number; matchedFields: string[]; exactMatches: number; fuzzyMatches: number; synonymMatches: number } {
+    searchIntent: { keywords: string[]; topics: string[]; intent: string },
+  ): {
+    score: number;
+    matchedFields: string[];
+    exactMatches: number;
+    fuzzyMatches: number;
+    synonymMatches: number;
+  } {
     let score = 0;
     const matchedFields: string[] = [];
     let exactMatches = 0;
@@ -348,7 +374,10 @@ Respond ONLY with valid JSON:`;
           score += 50;
           exactMatches++;
           matchedFields.push("topics");
-        } else if (mtLower.includes(topicLower) || topicLower.includes(mtLower)) {
+        } else if (
+          mtLower.includes(topicLower) ||
+          topicLower.includes(mtLower)
+        ) {
           score += 35;
           synonymMatches++;
           matchedFields.push("topics");
@@ -405,7 +434,7 @@ Respond ONLY with valid JSON:`;
   private scoreContent(
     conversation: Conversation,
     query: string,
-    searchIntent: { keywords: string[]; topics: string[]; intent: string }
+    searchIntent: { keywords: string[]; topics: string[]; intent: string },
   ): { score: number; matches: number } {
     let score = 0;
     let matches = 0;
@@ -443,7 +472,7 @@ Respond ONLY with valid JSON:`;
    */
   private basicTextMatch(query: string, conversation: Conversation): number {
     const queryLower = query.toLowerCase();
-    const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+    const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 2);
     let score = 0;
 
     for (const message of conversation.messages) {
@@ -474,7 +503,10 @@ Respond ONLY with valid JSON:`;
   /**
    * Fallback search when semantic search fails
    */
-  private fallbackSearch(query: string, conversations: Conversation[]): SearchResult[] {
+  private fallbackSearch(
+    query: string,
+    conversations: Conversation[],
+  ): SearchResult[] {
     const queryLower = query.toLowerCase();
     const results: SearchResult[] = [];
 

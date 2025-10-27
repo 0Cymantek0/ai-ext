@@ -19,7 +19,9 @@ interface MediaPreviewProps {
 }
 
 export function MediaPreview({ media, onSave, onCancel }: MediaPreviewProps) {
-  const [selectedTab, setSelectedTab] = useState<"images" | "audio" | "video">("images");
+  const [selectedTab, setSelectedTab] = useState<"images" | "audio" | "video">(
+    "images",
+  );
 
   const handleSave = () => {
     onSave?.(media);
@@ -105,7 +107,8 @@ interface ImageCardProps {
 function ImageCard({ image }: ImageCardProps) {
   const [showDetails, setShowDetails] = useState(false);
 
-  const displayUrl = image.thumbnail || image.compressed?.dataUrl || image.dataUrl;
+  const displayUrl =
+    image.thumbnail || image.compressed?.dataUrl || image.dataUrl;
   const size = image.compressed?.compressedSize || 0;
 
   return (
@@ -133,7 +136,8 @@ function ImageCard({ image }: ImageCardProps) {
           <div>Source: {image.metadata.src}</div>
           {image.compressed && (
             <div>
-              Compression: {(image.compressed.compressionRatio * 100).toFixed(1)}%
+              Compression:{" "}
+              {(image.compressed.compressionRatio * 100).toFixed(1)}%
             </div>
           )}
         </div>
@@ -175,7 +179,9 @@ function AudioCard({ audio }: AudioCardProps) {
     <div className="audio-card">
       <div className="audio-icon">🎵</div>
       <div className="audio-info">
-        <div className="audio-title">{audio.metadata.title || "Untitled Audio"}</div>
+        <div className="audio-title">
+          {audio.metadata.title || "Untitled Audio"}
+        </div>
         <div className="audio-meta">
           Duration: {formatDuration(audio.metadata.duration)}
           {audio.metadata.format && ` • ${audio.metadata.format.toUpperCase()}`}
@@ -224,14 +230,19 @@ function VideoCard({ video }: VideoCardProps) {
     <div className="video-card">
       {video.thumbnailDataUrl && (
         <div className="video-thumbnail">
-          <img src={video.thumbnailDataUrl} alt={video.metadata.title || "Video"} />
+          <img
+            src={video.thumbnailDataUrl}
+            alt={video.metadata.title || "Video"}
+          />
           <div className="video-duration">
             {formatDuration(video.metadata.duration)}
           </div>
         </div>
       )}
       <div className="video-info">
-        <div className="video-title">{video.metadata.title || "Untitled Video"}</div>
+        <div className="video-title">
+          {video.metadata.title || "Untitled Video"}
+        </div>
         <div className="video-meta">
           {video.metadata.videoWidth} × {video.metadata.videoHeight}
           {video.metadata.format && ` • ${video.metadata.format.toUpperCase()}`}

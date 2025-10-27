@@ -1,9 +1,9 @@
 /**
  * Abbreviation Manager - Tab Completion
- * 
+ *
  * Handles tab completion for abbreviations in text fields.
  * When user types "/shortcut" and presses Tab, it expands to the full text.
- * 
+ *
  * Requirements: 10.2, 10.5
  */
 
@@ -17,7 +17,7 @@ const setupFields = new WeakSet<HTMLInputElement | HTMLTextAreaElement>();
 
 /**
  * Expand an abbreviation by replacing the shortcut with the expansion text
- * 
+ *
  * @param textField - The input or textarea element
  * @param shortcut - The abbreviation shortcut (without the leading slash)
  * @returns true if expansion was successful, false otherwise
@@ -31,7 +31,7 @@ async function expandAbbreviation(
     const response = await sendMessage<AbbreviationExpandResult>(
       "ABBREVIATION_EXPAND",
       { shortcut },
-      { timeout: 5000 }
+      { timeout: 5000 },
     );
 
     if (!response.success || !response.data) {
@@ -49,7 +49,7 @@ async function expandAbbreviation(
     // Find the start of the abbreviation pattern (including the slash)
     const beforeCursor = value.slice(0, selectionStart);
     const match = beforeCursor.match(ABBREVIATION_PATTERN);
-    
+
     if (!match) {
       return false;
     }
@@ -90,7 +90,7 @@ async function expandAbbreviation(
 
 /**
  * Handle Tab key press for abbreviation expansion
- * 
+ *
  * @param textField - The input or textarea element
  */
 export function handleTabCompletion(
@@ -104,7 +104,7 @@ export function handleTabCompletion(
 
   textField.addEventListener("keydown", async (event) => {
     const keyboardEvent = event as KeyboardEvent;
-    
+
     // Only handle Tab key (not Shift+Tab)
     if (keyboardEvent.key !== "Tab" || keyboardEvent.shiftKey) {
       return;
@@ -118,7 +118,7 @@ export function handleTabCompletion(
     // Check if there's an abbreviation pattern before the cursor
     const beforeCursor = value.slice(0, selectionStart);
     const match = beforeCursor.match(ABBREVIATION_PATTERN);
-    
+
     if (!match || !match[1]) {
       // No abbreviation pattern, let Tab work normally
       return;
@@ -135,7 +135,10 @@ export function handleTabCompletion(
 
     if (!expanded) {
       // If expansion failed, show a subtle indication
-      console.debug("[AbbreviationManager] No expansion available for:", shortcut);
+      console.debug(
+        "[AbbreviationManager] No expansion available for:",
+        shortcut,
+      );
       // Could optionally show a tooltip or notification here
     }
   });

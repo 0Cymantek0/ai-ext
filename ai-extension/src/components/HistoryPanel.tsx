@@ -59,7 +59,9 @@ export function HistoryPanel({
     return date.toLocaleDateString();
   };
 
-  const [filteredResults, setFilteredResults] = React.useState<Conversation[]>([]);
+  const [filteredResults, setFilteredResults] = React.useState<Conversation[]>(
+    [],
+  );
 
   // Debounced semantic search
   React.useEffect(() => {
@@ -113,7 +115,8 @@ export function HistoryPanel({
         });
 
         if (response) {
-          const isCurrentlyIndexing = response.queueLength > 0 || response.isProcessing;
+          const isCurrentlyIndexing =
+            response.queueLength > 0 || response.isProcessing;
           setIsIndexing(isCurrentlyIndexing);
           setIndexingCount(response.conversationsWithoutMetadata || 0);
         }
@@ -132,7 +135,10 @@ export function HistoryPanel({
   }, [conversations.length]);
 
   // Basic fallback filter
-  const basicFilter = (query: string, convs: Conversation[]): Conversation[] => {
+  const basicFilter = (
+    query: string,
+    convs: Conversation[],
+  ): Conversation[] => {
     const queryLower = query.toLowerCase();
     return convs.filter((conv) => {
       // Search in title
@@ -151,7 +157,9 @@ export function HistoryPanel({
       }
       // Search in messages
       if (conv.messages) {
-        return conv.messages.some((m) => m.content.toLowerCase().includes(queryLower));
+        return conv.messages.some((m) =>
+          m.content.toLowerCase().includes(queryLower),
+        );
       }
       return false;
     });
@@ -376,9 +384,7 @@ export function HistoryPanel({
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                 />
               </svg>
-              <p className="text-sm text-muted-foreground">
-                No results found
-              </p>
+              <p className="text-sm text-muted-foreground">No results found</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Try a different search term
               </p>
@@ -484,8 +490,16 @@ export function HistoryPanel({
                   ? `${filteredConversations.length} of ${conversations.length}`
                   : conversations.length}{" "}
                 conversation
-                {(searchQuery ? filteredConversations.length : conversations.length) !== 1 ? "s" : ""}
-                {searchQuery ? " found" : isIndexing ? " saved" : " saved and indexed"}
+                {(searchQuery
+                  ? filteredConversations.length
+                  : conversations.length) !== 1
+                  ? "s"
+                  : ""}
+                {searchQuery
+                  ? " found"
+                  : isIndexing
+                    ? " saved"
+                    : " saved and indexed"}
               </span>
               {isIndexing && (
                 <div className="relative group">
@@ -510,7 +524,8 @@ export function HistoryPanel({
                     />
                   </svg>
                   <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                    Indexing {indexingCount} conversation{indexingCount !== 1 ? "s" : ""}
+                    Indexing {indexingCount} conversation
+                    {indexingCount !== 1 ? "s" : ""}
                   </div>
                 </div>
               )}

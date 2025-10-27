@@ -234,7 +234,10 @@ export class ModeAwareProcessor {
           request.conversationId,
         );
         let attachedPocketIds = conversation?.attachedPocketIds || [];
-        if (conversation?.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation?.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 
@@ -242,7 +245,9 @@ export class ModeAwareProcessor {
           effectivePocketId = attachedPocketIds[0];
 
           // Validate pocket exists
-          const pocket = effectivePocketId ? await indexedDBManager.getPocket(effectivePocketId) : null;
+          const pocket = effectivePocketId
+            ? await indexedDBManager.getPocket(effectivePocketId)
+            : null;
           if (!pocket) {
             logger.warn(
               "ModeAwareProcessor",
@@ -387,7 +392,10 @@ export class ModeAwareProcessor {
           request.conversationId,
         );
         let attachedPocketIds = conversation?.attachedPocketIds || [];
-        if (conversation?.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation?.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 
@@ -395,7 +403,9 @@ export class ModeAwareProcessor {
           effectivePocketId = attachedPocketIds[0];
 
           // Validate pocket exists
-          const pocket = effectivePocketId ? await indexedDBManager.getPocket(effectivePocketId) : null;
+          const pocket = effectivePocketId
+            ? await indexedDBManager.getPocket(effectivePocketId)
+            : null;
           if (!pocket) {
             logger.warn(
               "ModeAwareProcessor",
@@ -570,5 +580,3 @@ export function getModeAwareProcessor(
   }
   return modeAwareProcessorInstance;
 }
-
-

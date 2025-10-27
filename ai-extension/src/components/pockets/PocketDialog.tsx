@@ -7,7 +7,9 @@ import type { PocketData } from "./PocketCard";
 interface PocketDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (pocket: Omit<PocketData, "id" | "createdAt" | "updatedAt" | "contentIds">) => void;
+  onSave: (
+    pocket: Omit<PocketData, "id" | "createdAt" | "updatedAt" | "contentIds">,
+  ) => void;
   editingPocket?: PocketData | null;
 }
 
@@ -24,9 +26,18 @@ const PRESET_COLORS = [
   "#3b82f6", // blue
 ];
 
-const PRESET_ICONS = ["📁", "📚", "💼", "🎨", "🔬", "💡", "🎯", "🌟", "🚀", "📊"];
-
-
+const PRESET_ICONS = [
+  "📁",
+  "📚",
+  "💼",
+  "🎨",
+  "🔬",
+  "💡",
+  "🎯",
+  "🌟",
+  "🚀",
+  "📊",
+];
 
 export function PocketDialog({
   isOpen,
@@ -131,7 +142,6 @@ export function PocketDialog({
         {/* Content */}
         <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8">
           <div className="space-y-8">
-
             {/* Name */}
             <div className="bg-white/5 rounded-xl p-6 border border-white/10">
               <label className="block text-base font-medium mb-3">
@@ -159,7 +169,7 @@ export function PocketDialog({
                 className={cn(
                   "w-full px-4 py-3 rounded-lg border bg-white/10 border-white/10 text-white placeholder-white/50",
                   "focus:outline-none focus:ring-2 focus:ring-primary/50",
-                  "resize-none text-base"
+                  "resize-none text-base",
                 )}
                 rows={4}
               />
@@ -181,7 +191,7 @@ export function PocketDialog({
                       "border-2 transition-all hover:scale-105",
                       icon === presetIcon
                         ? "border-primary bg-primary/20 shadow-lg shadow-primary/20"
-                        : "border-white/10 hover:border-white/30 bg-white/5"
+                        : "border-white/10 hover:border-white/30 bg-white/5",
                     )}
                   >
                     {presetIcon}
@@ -205,7 +215,7 @@ export function PocketDialog({
                       "w-14 h-14 rounded-xl border-2 transition-all hover:scale-105",
                       color === presetColor
                         ? "border-white scale-110 shadow-lg"
-                        : "border-white/20 hover:border-white/40"
+                        : "border-white/20 hover:border-white/40",
                     )}
                     style={{ backgroundColor: presetColor }}
                     title={presetColor}

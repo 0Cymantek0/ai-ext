@@ -16,7 +16,7 @@ export interface ContentElement {
   id: string;
   pocketId: string;
   pocketName: string;
-  type: 'capture' | 'note' | 'pdf' | 'image' | 'audio' | 'link';
+  type: "capture" | "note" | "pdf" | "image" | "audio" | "link";
   title: string;
   preview?: string;
   thumbnail?: string; // For images

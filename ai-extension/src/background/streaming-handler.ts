@@ -140,7 +140,7 @@ export class StreamingHandler {
     // Generate message ID for the assistant response
     const messageId = crypto.randomUUID();
     session.messageId = messageId;
-    
+
     // Send stream start message
     this.sendToSidePanel({
       kind: "AI_PROCESS_STREAM_START",

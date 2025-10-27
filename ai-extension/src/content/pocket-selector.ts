@@ -21,7 +21,9 @@ export class PocketSelector {
   async show(pockets: Pocket[]): Promise<string | null> {
     // Prevent multiple instances from showing simultaneously
     if (PocketSelector.isShowing) {
-      console.warn("[PocketSelector] Already showing, ignoring duplicate request");
+      console.warn(
+        "[PocketSelector] Already showing, ignoring duplicate request",
+      );
       return null;
     }
 

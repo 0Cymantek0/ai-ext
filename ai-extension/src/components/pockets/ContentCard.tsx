@@ -17,9 +17,10 @@ export function ContentCard({
   onDelete,
 }: ContentCardProps) {
   const [showActions, setShowActions] = React.useState(false);
-  
+
   // Check if content is being auto-formatted (ONLY for captured text: selection and page)
-  const isProcessing = (content.metadata as any)?.autoFormatted === undefined && 
+  const isProcessing =
+    (content.metadata as any)?.autoFormatted === undefined &&
     ["selection", "page"].includes(content.type);
 
   const formatDate = (timestamp: number) => {
@@ -28,10 +29,10 @@ export function ContentCard({
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    const timeStr = date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
     });
 
     if (diffDays === 0) return `Today, ${timeStr}`;
@@ -44,76 +45,201 @@ export function ContentCard({
     switch (type) {
       case "pdf":
         return (
-          <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h4" />
+          <svg
+            className="w-5 h-5 text-red-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h4"
+            />
           </svg>
         );
       case "document":
         return (
-          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <svg
+            className="w-5 h-5 text-blue-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
           </svg>
         );
       case "spreadsheet":
         return (
-          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          <svg
+            className="w-5 h-5 text-green-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+            />
           </svg>
         );
       case "file":
         return (
-          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          <svg
+            className="w-5 h-5 text-gray-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+            />
           </svg>
         );
       case "snippet":
       case "text":
         return (
-          <svg className="w-5 h-5 text-[#8B7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          <svg
+            className="w-5 h-5 text-[#8B7355]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+            />
           </svg>
         );
       case "image":
         return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
           </svg>
         );
       case "video":
         return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+            />
           </svg>
         );
       case "audio":
         return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+            />
           </svg>
         );
       case "page":
         return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+            />
           </svg>
         );
       case "element":
         return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+            />
           </svg>
         );
       case "note":
         return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
           </svg>
         );
       default:
         return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+            />
           </svg>
         );
     }
@@ -121,23 +247,31 @@ export function ContentCard({
 
   const getContentPreview = (content: CapturedContent): string => {
     // Handle file types
-    if (content.type === "pdf" || content.type === "document" || content.type === "spreadsheet" || content.type === "file") {
-      const fileSize = content.metadata.fileSize 
+    if (
+      content.type === "pdf" ||
+      content.type === "document" ||
+      content.type === "spreadsheet" ||
+      content.type === "file"
+    ) {
+      const fileSize = content.metadata.fileSize
         ? `${(content.metadata.fileSize / 1024).toFixed(1)} KB`
         : "Unknown size";
-      const fileType = content.metadata.fileExtension?.toUpperCase() || content.type.toUpperCase();
+      const fileType =
+        content.metadata.fileExtension?.toUpperCase() ||
+        content.type.toUpperCase();
       return `${fileType} file • ${fileSize}`;
     }
 
     // Handle image types
     if (content.type === "image") {
-      const dimensions = content.metadata.dimensions 
+      const dimensions = content.metadata.dimensions
         ? `${content.metadata.dimensions.width}x${content.metadata.dimensions.height}`
         : "Unknown size";
       return `Image • ${dimensions}`;
     }
 
-    if (typeof content.content !== "string") return `Binary content (${content.type})`;
+    if (typeof content.content !== "string")
+      return `Binary content (${content.type})`;
     const text = content.content
       .replace(/#{1,6}\s+/g, "")
       .replace(/\*\*(.*?)\*\*/g, "$1")
@@ -153,7 +287,7 @@ export function ContentCard({
 
   const getImageSrc = (content: CapturedContent): string | null => {
     if (content.type !== "image") return null;
-    
+
     try {
       if (typeof content.content === "string") {
         const parsed = JSON.parse(content.content);
@@ -188,13 +322,13 @@ export function ContentCard({
     const isNote = content.type === "note";
     const isImage = content.type === "image";
     const imageSrc = isImage ? getImageSrc(content) : null;
-    
+
     return (
       <div
         className={cn(
           "group relative flex flex-col p-4 rounded-xl border-2",
           "hover:border-[#8B7355]/80 cursor-pointer transition-all",
-          isNote ? "bg-[#2A2A2A] border-[#6B5D4F]" : "bg-card border-border"
+          isNote ? "bg-[#2A2A2A] border-[#6B5D4F]" : "bg-card border-border",
         )}
         onClick={() => onPreview(content)}
         onMouseEnter={() => setShowActions(true)}
@@ -204,27 +338,52 @@ export function ContentCard({
           {/* Icon or Image Thumbnail */}
           {isImage && imageSrc ? (
             <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-accent/10">
-              <img 
-                src={imageSrc} 
-                alt={content.metadata.title || "Image"} 
+              <img
+                src={imageSrc}
+                alt={content.metadata.title || "Image"}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   // Fallback to icon if image fails to load
-                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.style.display = "none";
                 }}
               />
             </div>
           ) : isProcessing ? (
             <div className="shrink-0 mt-0.5 text-purple-400">
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <svg
+                className="w-5 h-5 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
               </svg>
             </div>
           ) : isNote ? (
             <div className="shrink-0 mt-0.5 text-[#F59E0B]">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
               </svg>
             </div>
           ) : (
@@ -235,16 +394,20 @@ export function ContentCard({
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <h3 className={cn(
-              "font-semibold text-lg truncate pr-2",
-              isNote ? "text-white" : ""
-            )}>
+            <h3
+              className={cn(
+                "font-semibold text-lg truncate pr-2",
+                isNote ? "text-white" : "",
+              )}
+            >
               {getContentTitle(content)}
             </h3>
-            <p className={cn(
-              "mt-1.5 text-sm line-clamp-2",
-              isNote ? "text-[#9CA3AF]" : "text-muted-foreground/80"
-            )}>
+            <p
+              className={cn(
+                "mt-1.5 text-sm line-clamp-2",
+                isNote ? "text-[#9CA3AF]" : "text-muted-foreground/80",
+              )}
+            >
               {getContentPreview(content)}
             </p>
           </div>
@@ -252,21 +415,31 @@ export function ContentCard({
 
         <div className="mt-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className={cn(
                 "h-8 w-8 p-0 hover:bg-transparent",
-                isNote ? "text-white/70 hover:text-white" : ""
+                isNote ? "text-white/70 hover:text-white" : "",
               )}
-              onClick={handleDelete} 
+              onClick={handleDelete}
               title="Delete"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
               </svg>
             </Button>
-            {(content.metadata.tags || []).slice(0,3).map((t, i) => (
+            {(content.metadata.tags || []).slice(0, 3).map((t, i) => (
               <span
                 key={t + i}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 text-amber-500 rounded-full text-xs font-medium"
@@ -274,16 +447,18 @@ export function ContentCard({
                 #{t}
               </span>
             ))}
-            {((content.metadata.tags?.length || 0) > 3) && (
+            {(content.metadata.tags?.length || 0) > 3 && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 text-amber-500 rounded-full text-xs font-medium">
-                +{(content.metadata.tags!.length - 3)}
+                +{content.metadata.tags!.length - 3}
               </span>
             )}
           </div>
-          <div className={cn(
-            "text-sm",
-            isNote ? "text-[#9CA3AF]" : "text-muted-foreground/70"
-          )}>
+          <div
+            className={cn(
+              "text-sm",
+              isNote ? "text-[#9CA3AF]" : "text-muted-foreground/70",
+            )}
+          >
             {formatDate(content.capturedAt)}
           </div>
         </div>
@@ -298,13 +473,13 @@ export function ContentCard({
   const tags = content.metadata.tags || [];
   const visibleTags = tags.slice(0, 3);
   const extraCount = Math.max(tags.length - 3, 0);
-  
+
   return (
     <div
       className={cn(
         "group relative flex flex-col p-4 rounded-xl border-2 h-full",
         "hover:border-[#8B7355]/80 cursor-pointer transition-all",
-        isNote ? "bg-[#2A2A2A] border-[#6B5D4F]" : "bg-card border-border"
+        isNote ? "bg-[#2A2A2A] border-[#6B5D4F]" : "bg-card border-border",
       )}
       onClick={() => onPreview(content)}
       onMouseEnter={() => setShowActions(true)}
@@ -315,51 +490,67 @@ export function ContentCard({
         {/* Image Thumbnail for grid view */}
         {isImage && imageSrc && (
           <div className="w-full h-32 rounded-lg overflow-hidden bg-accent/10 mb-3">
-            <img 
-              src={imageSrc} 
-              alt={content.metadata.title || "Image"} 
+            <img
+              src={imageSrc}
+              alt={content.metadata.title || "Image"}
               className="w-full h-full object-cover"
               onError={(e) => {
-                e.currentTarget.style.display = 'none';
+                e.currentTarget.style.display = "none";
               }}
             />
           </div>
         )}
-        
+
         <div className="flex items-start gap-3">
-          <div className={cn("mt-0.5 shrink-0", isNote ? "text-[#F59E0B]" : "text-muted-foreground")}>
+          <div
+            className={cn(
+              "mt-0.5 shrink-0",
+              isNote ? "text-[#F59E0B]" : "text-muted-foreground",
+            )}
+          >
             {isNote ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
               </svg>
             ) : (
               getContentIcon(content.type)
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className={cn(
-              "font-semibold text-lg line-clamp-2 pr-2",
-              isNote ? "text-white" : ""
-            )}>
+            <h3
+              className={cn(
+                "font-semibold text-lg line-clamp-2 pr-2",
+                isNote ? "text-white" : "",
+              )}
+            >
               {getContentTitle(content)}
             </h3>
           </div>
         </div>
-        
+
         {!isImage && (
-          <p className={cn(
-            "mt-2 text-sm line-clamp-3",
-            isNote ? "text-[#9CA3AF]" : "text-muted-foreground/80"
-          )}>
+          <p
+            className={cn(
+              "mt-2 text-sm line-clamp-3",
+              isNote ? "text-[#9CA3AF]" : "text-muted-foreground/80",
+            )}
+          >
             {getContentPreview(content)}
           </p>
         )}
-        
+
         {isImage && (
-          <p className={cn(
-            "mt-2 text-sm",
-            "text-muted-foreground/80"
-          )}>
+          <p className={cn("mt-2 text-sm", "text-muted-foreground/80")}>
             {getContentPreview(content)}
           </p>
         )}
@@ -386,24 +577,36 @@ export function ContentCard({
 
       {/* Footer - always at bottom */}
       <div className="mt-auto pt-3 flex items-center justify-between">
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           className={cn(
             "h-8 w-8 p-0 hover:bg-transparent",
-            isNote ? "text-white/70 hover:text-white" : ""
+            isNote ? "text-white/70 hover:text-white" : "",
           )}
-          onClick={handleDelete} 
+          onClick={handleDelete}
           title="Delete"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </Button>
-        <div className={cn(
-          "text-sm",
-          isNote ? "text-[#9CA3AF]" : "text-muted-foreground/70"
-        )}>
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+        </Button>
+        <div
+          className={cn(
+            "text-sm",
+            isNote ? "text-[#9CA3AF]" : "text-muted-foreground/70",
+          )}
+        >
           {formatDate(content.capturedAt)}
         </div>
       </div>

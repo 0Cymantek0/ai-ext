@@ -1,6 +1,6 @@
 /**
  * Metadata Queue Manager
- * 
+ *
  * Manages background generation of conversation metadata.
  * Ensures metadata is generated automatically and efficiently.
  */
@@ -40,22 +40,29 @@ export class MetadataQueueManager {
   start() {
     try {
       logger.info("MetadataQueue", "Starting background metadata generation");
-      
+
       // Initial scan for missing metadata
       this.scanForMissingMetadata().catch((error) => {
         logger.error("MetadataQueue", "Initial scan failed", { error });
       });
-      
+
       // Set up periodic scanning
       this.scanTimer = setInterval(() => {
         this.scanForMissingMetadata().catch((error) => {
           logger.error("MetadataQueue", "Periodic scan failed", { error });
         });
       }, this.scanInterval) as unknown as number;
-      
-      logger.info("MetadataQueue", "Background metadata generation started successfully");
+
+      logger.info(
+        "MetadataQueue",
+        "Background metadata generation started successfully",
+      );
     } catch (error) {
-      logger.error("MetadataQueue", "Failed to start background metadata generation", { error });
+      logger.error(
+        "MetadataQueue",
+        "Failed to start background metadata generation",
+        { error },
+      );
       throw error;
     }
   }
@@ -76,12 +83,16 @@ export class MetadataQueueManager {
    */
   async enqueueConversation(
     conversationId: string,
-    priority: "high" | "normal" | "low" = "normal"
+    priority: "high" | "normal" | "low" = "normal",
   ) {
     // Check if already in queue
-    const exists = this.queue.some((job) => job.conversationId === conversationId);
+    const exists = this.queue.some(
+      (job) => job.conversationId === conversationId,
+    );
     if (exists) {
-      logger.debug("MetadataQueue", "Conversation already in queue", { conversationId });
+      logger.debug("MetadataQueue", "Conversation already in queue", {
+        conversationId,
+      });
       return;
     }
 
@@ -148,7 +159,9 @@ export class MetadataQueueManager {
 
       // Wait between jobs to avoid overwhelming the system
       if (this.queue.length > 0) {
-        await new Promise((resolve) => setTimeout(resolve, this.processingInterval));
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.processingInterval),
+        );
       }
     }
 
@@ -176,7 +189,7 @@ export class MetadataQueueManager {
     if (conversation.metadata) {
       const metadataAge = Date.now() - conversation.metadata.generatedAt;
       const oneDayMs = 24 * 60 * 60 * 1000;
-      
+
       // If metadata is newer than last update and less than 1 day old, skip
       if (
         conversation.metadata.generatedAt > conversation.updatedAt &&
@@ -188,17 +201,20 @@ export class MetadataQueueManager {
         });
         return;
       }
-      
+
       logger.info("MetadataQueue", "Regenerating outdated metadata", {
         conversationId,
-        reason: conversation.metadata.generatedAt <= conversation.updatedAt 
-          ? "conversation updated" 
-          : "metadata expired",
+        reason:
+          conversation.metadata.generatedAt <= conversation.updatedAt
+            ? "conversation updated"
+            : "metadata expired",
       });
     }
 
     // Generate metadata
-    const metadata = await this.generator.generateMetadata(conversation.messages);
+    const metadata = await this.generator.generateMetadata(
+      conversation.messages,
+    );
     if (!metadata) {
       throw new Error("Failed to generate metadata");
     }
@@ -218,7 +234,10 @@ export class MetadataQueueManager {
    */
   private async scanForMissingMetadata() {
     try {
-      logger.info("MetadataQueue", "Scanning for conversations without metadata");
+      logger.info(
+        "MetadataQueue",
+        "Scanning for conversations without metadata",
+      );
 
       const { indexedDBManager } = await import("./indexeddb-manager.js");
       await indexedDBManager.init();

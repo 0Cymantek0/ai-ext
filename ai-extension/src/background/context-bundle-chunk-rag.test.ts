@@ -46,7 +46,7 @@ function createMockChunk(
   id: string,
   text: string,
   relevance: number,
-  overrides: Partial<VectorChunk> = {}
+  overrides: Partial<VectorChunk> = {},
 ): ChunkSearchResult {
   const chunk: VectorChunk = {
     id,
@@ -72,7 +72,7 @@ function createMockChunk(
   return {
     chunk,
     relevanceScore: relevance,
-    matchType: 'semantic',
+    matchType: "semantic",
   };
 }
 
@@ -93,11 +93,13 @@ describe("Context Bundle with Chunk-Based RAG", () => {
         createMockChunk(
           `chunk-${i}`,
           `This is chunk ${i} with some content about AI and machine learning.`,
-          0.9 - i * 0.05
-        )
+          0.9 - i * 0.05,
+        ),
       );
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(mockChunks);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(
+        mockChunks,
+      );
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -122,7 +124,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
         createMockChunk("chunk-3", "Medium relevance content", 0.7),
       ];
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(mockChunks);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(
+        mockChunks,
+      );
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -147,7 +151,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
         createMockChunk("chunk-2", "Second chunk", 0.8),
       ];
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(mockChunks);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(
+        mockChunks,
+      );
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -187,7 +193,7 @@ describe("Context Bundle with Chunk-Based RAG", () => {
           topK: 5,
           minRelevance: 0.3,
           maxTokens: expect.any(Number),
-        })
+        }),
       );
 
       const callArgs = searchSpy.mock.calls[0]![1];
@@ -202,10 +208,12 @@ describe("Context Bundle with Chunk-Based RAG", () => {
       // Create large chunks that will exceed budget
       const largeText = "A".repeat(4000); // ~1000 tokens per chunk
       const mockChunks = Array.from({ length: 5 }, (_, i) =>
-        createMockChunk(`chunk-${i}`, largeText, 0.9 - i * 0.05)
+        createMockChunk(`chunk-${i}`, largeText, 0.9 - i * 0.05),
       );
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(mockChunks);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(
+        mockChunks,
+      );
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -229,7 +237,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
         createMockChunk("chunk-2", "Another short chunk", 0.8),
       ];
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(mockChunks);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(
+        mockChunks,
+      );
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -290,10 +300,12 @@ describe("Context Bundle with Chunk-Based RAG", () => {
             category: "research",
             textPreview: "Test content about AI",
           },
-        }
+        },
       );
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([mockChunk]);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([
+        mockChunk,
+      ]);
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -338,10 +350,12 @@ describe("Context Bundle with Chunk-Based RAG", () => {
             title: "Machine Learning Guide",
             textPreview: "Machine learning is a subset...",
           },
-        }
+        },
       );
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([mockChunk]);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([
+        mockChunk,
+      ]);
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -360,7 +374,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
       expect(serialized).toContain("Part: 1 of 3");
       expect(serialized).toContain("Captured:");
       expect(serialized).toContain("Relevance: 95%");
-      expect(serialized).toContain("Machine learning is a subset of artificial intelligence.");
+      expect(serialized).toContain(
+        "Machine learning is a subset of artificial intelligence.",
+      );
     });
 
     it("should format timestamps correctly", async () => {
@@ -383,7 +399,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
         },
       });
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([mockChunk]);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([
+        mockChunk,
+      ]);
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -430,7 +448,7 @@ describe("Context Bundle with Chunk-Based RAG", () => {
       vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([]);
       vi.spyOn(
         conversationContextLoader,
-        "buildConversationContext"
+        "buildConversationContext",
       ).mockResolvedValue({
         messages: [
           { role: "user", content: "Previous question", timestamp: Date.now() },
@@ -458,7 +476,7 @@ describe("Context Bundle with Chunk-Based RAG", () => {
       const { vectorSearchService } = await import("./vector-search-service");
 
       vi.spyOn(vectorSearchService, "searchChunks").mockRejectedValue(
-        new Error("Search service failed")
+        new Error("Search service failed"),
       );
 
       const options: ContextBundleOptions = {
@@ -481,10 +499,13 @@ describe("Context Bundle with Chunk-Based RAG", () => {
     it("should handle chunks with special characters", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
 
-      const specialText = "Content with émojis 🎉 and spëcial çharacters <>&\"'";
+      const specialText =
+        "Content with émojis 🎉 and spëcial çharacters <>&\"'";
       const mockChunk = createMockChunk("chunk-1", specialText, 0.9);
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([mockChunk]);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([
+        mockChunk,
+      ]);
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -506,7 +527,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
       const multilineText = "Line 1\n\nLine 2\n   Line 3\t\tTabbed";
       const mockChunk = createMockChunk("chunk-1", multilineText, 0.9);
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([mockChunk]);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([
+        mockChunk,
+      ]);
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -595,7 +618,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
         }),
       ];
 
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(mockChunks);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue(
+        mockChunks,
+      );
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -608,8 +633,12 @@ describe("Context Bundle with Chunk-Based RAG", () => {
 
       expect(bundle.chunks).toBeDefined();
       expect(bundle.chunks!.length).toBe(2);
-      expect(bundle.chunks![0]!.chunk.metadata.sourceType).toBe(ContentType.TEXT);
-      expect(bundle.chunks![1]!.chunk.metadata.sourceType).toBe(ContentType.PDF);
+      expect(bundle.chunks![0]!.chunk.metadata.sourceType).toBe(
+        ContentType.TEXT,
+      );
+      expect(bundle.chunks![1]!.chunk.metadata.sourceType).toBe(
+        ContentType.PDF,
+      );
     });
   });
 
@@ -618,7 +647,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
       const { vectorSearchService } = await import("./vector-search-service");
 
       const mockChunk = createMockChunk("chunk-1", "Test content", 0.9);
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([mockChunk]);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([
+        mockChunk,
+      ]);
 
       const options: ContextBundleOptions = {
         mode: "ask",
@@ -637,7 +668,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
       const { vectorSearchService } = await import("./vector-search-service");
 
       const mockChunk = createMockChunk("chunk-1", "Test content", 0.9);
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([mockChunk]);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([
+        mockChunk,
+      ]);
 
       const options: ContextBundleOptions = {
         mode: "ai-pocket",
@@ -671,7 +704,7 @@ describe("Context Bundle with Chunk-Based RAG", () => {
         "scoped query",
         expect.objectContaining({
           pocketId: "specific-pocket-789",
-        })
+        }),
       );
     });
   });
@@ -708,7 +741,9 @@ describe("Context Bundle with Chunk-Based RAG", () => {
       const { vectorSearchService } = await import("./vector-search-service");
 
       const mockChunk = createMockChunk("chunk-1", "Test content", 0.9);
-      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([mockChunk]);
+      vi.spyOn(vectorSearchService, "searchChunks").mockResolvedValue([
+        mockChunk,
+      ]);
 
       const options1: ContextBundleOptions = {
         mode: "ask",

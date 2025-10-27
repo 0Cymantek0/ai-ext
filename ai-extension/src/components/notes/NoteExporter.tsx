@@ -12,7 +12,8 @@ interface NoteExporterProps {
 type ExportFormat = "markdown" | "html" | "pdf" | "json";
 
 export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
-  const [selectedFormat, setSelectedFormat] = React.useState<ExportFormat>("markdown");
+  const [selectedFormat, setSelectedFormat] =
+    React.useState<ExportFormat>("markdown");
   const [isExporting, setIsExporting] = React.useState(false);
   const [includeMetadata, setIncludeMetadata] = React.useState(true);
   const [combineNotes, setCombineNotes] = React.useState(false);
@@ -50,34 +51,36 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
 
   const formatNoteAsMarkdown = (note: NoteData): string => {
     let content = "";
-    
+
     if (includeMetadata) {
       content += `---\n`;
       content += `title: ${note.title}\n`;
       if (note.category) content += `category: ${note.category}\n`;
       if (note.tags.length > 0) content += `tags: [${note.tags.join(", ")}]\n`;
-      if (note.createdAt) content += `created: ${new Date(note.createdAt).toISOString()}\n`;
-      if (note.updatedAt) content += `updated: ${new Date(note.updatedAt).toISOString()}\n`;
+      if (note.createdAt)
+        content += `created: ${new Date(note.createdAt).toISOString()}\n`;
+      if (note.updatedAt)
+        content += `updated: ${new Date(note.updatedAt).toISOString()}\n`;
       content += `---\n\n`;
     }
-    
+
     content += `# ${note.title}\n\n`;
     content += note.content;
-    
+
     return content;
   };
 
   const formatNoteAsHTML = (note: NoteData): string => {
     // Simple markdown to HTML conversion
     let htmlContent = note.content
-      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n/g, '<br>');
+      .replace(/^# (.*$)/gm, "<h1>$1</h1>")
+      .replace(/^## (.*$)/gm, "<h2>$1</h2>")
+      .replace(/^### (.*$)/gm, "<h3>$1</h3>")
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>")
+      .replace(/`(.*?)`/g, "<code>$1</code>")
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br>");
 
     htmlContent = `<p>${htmlContent}</p>`;
 
@@ -101,12 +104,15 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
     if (includeMetadata) {
       html += `<div class="metadata">
         <h1>${note.title}</h1>`;
-      if (note.category) html += `<p><strong>Category:</strong> ${note.category}</p>`;
-      if (note.createdAt) html += `<p><strong>Created:</strong> ${new Date(note.createdAt).toLocaleDateString()}</p>`;
-      if (note.updatedAt) html += `<p><strong>Updated:</strong> ${new Date(note.updatedAt).toLocaleDateString()}</p>`;
+      if (note.category)
+        html += `<p><strong>Category:</strong> ${note.category}</p>`;
+      if (note.createdAt)
+        html += `<p><strong>Created:</strong> ${new Date(note.createdAt).toLocaleDateString()}</p>`;
+      if (note.updatedAt)
+        html += `<p><strong>Updated:</strong> ${new Date(note.updatedAt).toLocaleDateString()}</p>`;
       if (note.tags.length > 0) {
         html += `<div class="tags"><strong>Tags:</strong> `;
-        note.tags.forEach(tag => {
+        note.tags.forEach((tag) => {
           html += `<span class="tag">${tag}</span>`;
         });
         html += `</div>`;
@@ -124,16 +130,16 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
     // For PDF generation, we'll create an HTML version and use the browser's print functionality
     // This is a simplified approach - in a real implementation, you might use a library like jsPDF
     const htmlContent = formatNoteAsHTML(note);
-    
+
     // Create a temporary window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) throw new Error('Could not open print window');
-    
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) throw new Error("Could not open print window");
+
     printWindow.document.write(htmlContent);
     printWindow.document.close();
-    
+
     // This is a placeholder - actual PDF generation would require more complex implementation
-    return new Blob([htmlContent], { type: 'text/html' });
+    return new Blob([htmlContent], { type: "text/html" });
   };
 
   const handleExport = async () => {
@@ -151,8 +157,8 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
         }
       }
     } catch (error) {
-      console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      console.error("Export failed:", error);
+      alert("Export failed. Please try again.");
     } finally {
       setIsExporting(false);
     }
@@ -163,7 +169,7 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
     let mimeType: string;
     let filename: string;
 
-    const baseFilename = note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const baseFilename = note.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
 
     switch (selectedFormat) {
       case "markdown":
@@ -191,9 +197,12 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
     }
 
     // Create and download the file
-    const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
+    const blob =
+      content instanceof Blob
+        ? content
+        : new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
@@ -209,12 +218,18 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
 
     switch (selectedFormat) {
       case "markdown":
-        content = notes.map(note => formatNoteAsMarkdown(note)).join('\n\n---\n\n');
+        content = notes
+          .map((note) => formatNoteAsMarkdown(note))
+          .join("\n\n---\n\n");
         mimeType = "text/markdown";
         filename = "notes_export.md";
         break;
       case "html":
-        const htmlNotes = notes.map(note => formatNoteAsHTML(note).replace(/<!DOCTYPE.*?<body>/, '').replace(/<\/body>.*?<\/html>/, ''));
+        const htmlNotes = notes.map((note) =>
+          formatNoteAsHTML(note)
+            .replace(/<!DOCTYPE.*?<body>/, "")
+            .replace(/<\/body>.*?<\/html>/, ""),
+        );
         content = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -228,7 +243,7 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
     </style>
 </head>
 <body>
-    ${htmlNotes.map(html => `<div class="note">${html}</div>`).join('')}
+    ${htmlNotes.map((html) => `<div class="note">${html}</div>`).join("")}
 </body>
 </html>`;
         mimeType = "text/html";
@@ -240,12 +255,14 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
         filename = "notes_export.json";
         break;
       default:
-        throw new Error(`Combined export not supported for format: ${selectedFormat}`);
+        throw new Error(
+          `Combined export not supported for format: ${selectedFormat}`,
+        );
     }
 
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
@@ -259,8 +276,18 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold">Export Notes</h3>
         <Button variant="ghost" size="sm" onClick={onClose}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </Button>
       </div>
@@ -278,13 +305,15 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
                   "flex items-start gap-3 p-3 rounded-lg border text-left transition-colors",
                   selectedFormat === format.id
                     ? "border-primary bg-primary/5"
-                    : "border-border hover:bg-accent/50"
+                    : "border-border hover:bg-accent/50",
                 )}
               >
                 <span className="text-xl">{format.icon}</span>
                 <div>
                   <div className="font-medium text-sm">{format.name}</div>
-                  <div className="text-xs text-muted-foreground">{format.description}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {format.description}
+                  </div>
                 </div>
               </button>
             ))}
@@ -302,9 +331,11 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
                 onChange={(e) => setIncludeMetadata(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-sm">Include metadata (tags, dates, category)</span>
+              <span className="text-sm">
+                Include metadata (tags, dates, category)
+              </span>
             </label>
-            
+
             {notes.length > 1 && (
               <label className="flex items-center gap-2">
                 <input
@@ -313,7 +344,9 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
                   onChange={(e) => setCombineNotes(e.target.checked)}
                   className="rounded"
                 />
-                <span className="text-sm">Combine all notes into a single file</span>
+                <span className="text-sm">
+                  Combine all notes into a single file
+                </span>
               </label>
             )}
           </div>
@@ -325,8 +358,9 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
             <strong>Export Summary:</strong>
           </div>
           <div className="text-sm text-muted-foreground mt-1">
-            {notes.length} note{notes.length !== 1 ? 's' : ''} • {selectedFormat.toUpperCase()} format
-            {combineNotes && notes.length > 1 ? ' • Combined into 1 file' : ''}
+            {notes.length} note{notes.length !== 1 ? "s" : ""} •{" "}
+            {selectedFormat.toUpperCase()} format
+            {combineNotes && notes.length > 1 ? " • Combined into 1 file" : ""}
           </div>
         </div>
 
@@ -335,7 +369,10 @@ export function NoteExporter({ notes, onClose, className }: NoteExporterProps) {
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleExport} disabled={isExporting || notes.length === 0}>
+          <Button
+            onClick={handleExport}
+            disabled={isExporting || notes.length === 0}
+          >
             {isExporting ? "Exporting..." : "Export"}
           </Button>
         </div>

@@ -63,7 +63,7 @@ export class MediaCapture {
    * Requirements: 2.1, 3.6, 3.7
    */
   async captureAllMedia(
-    options: MediaCaptureOptions = {}
+    options: MediaCaptureOptions = {},
   ): Promise<MediaCaptureResult> {
     const {
       compressImages = true,
@@ -84,7 +84,7 @@ export class MediaCapture {
       compressImages,
       generateThumbnails,
       compressionOptions,
-      thumbnailSize
+      thumbnailSize,
     );
 
     // Capture background images
@@ -93,7 +93,7 @@ export class MediaCapture {
       compressImages,
       generateThumbnails,
       compressionOptions,
-      thumbnailSize
+      thumbnailSize,
     );
 
     // Combine all images
@@ -106,7 +106,7 @@ export class MediaCapture {
     const videos = await this.captureVideos(
       detected.videos,
       generateThumbnails,
-      thumbnailSize
+      thumbnailSize,
     );
 
     // Calculate total size
@@ -134,7 +134,7 @@ export class MediaCapture {
    */
   async captureImage(
     img: HTMLImageElement,
-    options: MediaCaptureOptions = {}
+    options: MediaCaptureOptions = {},
   ): Promise<CapturedImage> {
     const {
       compressImages = true,
@@ -160,7 +160,7 @@ export class MediaCapture {
       try {
         captured.compressed = await mediaProcessor.compressImage(
           img,
-          compressionOptions
+          compressionOptions,
         );
       } catch (error) {
         console.warn("[MediaCapture] Image compression failed", error);
@@ -172,7 +172,7 @@ export class MediaCapture {
       try {
         const thumbnailResult = await mediaProcessor.generateImageThumbnail(
           img,
-          thumbnailSize
+          thumbnailSize,
         );
         captured.thumbnail = thumbnailResult.dataUrl;
       } catch (error) {
@@ -189,7 +189,7 @@ export class MediaCapture {
    */
   async captureAudio(
     audio: HTMLAudioElement,
-    transcribe: boolean = false
+    transcribe: boolean = false,
   ): Promise<CapturedAudio> {
     // Extract metadata
     const metadata = await mediaMetadataExtractor.extractAudioMetadata(audio);
@@ -225,7 +225,7 @@ export class MediaCapture {
   async captureVideo(
     video: HTMLVideoElement,
     generateThumbnail: boolean = true,
-    thumbnailSize: number = 200
+    thumbnailSize: number = 200,
   ): Promise<CapturedVideo> {
     // Extract metadata
     const metadata = await mediaMetadataExtractor.extractVideoMetadata(video);
@@ -241,7 +241,7 @@ export class MediaCapture {
         const thumbnailResult = await mediaProcessor.generateVideoThumbnail(
           video,
           0, // Capture at start
-          { maxWidth: thumbnailSize, maxHeight: thumbnailSize }
+          { maxWidth: thumbnailSize, maxHeight: thumbnailSize },
         );
         captured.thumbnailDataUrl = thumbnailResult.dataUrl;
         captured.thumbnail = thumbnailResult.dataUrl;
@@ -261,7 +261,7 @@ export class MediaCapture {
     compress: boolean,
     generateThumbnails: boolean,
     compressionOptions: CompressionOptions,
-    thumbnailSize: number
+    thumbnailSize: number,
   ): Promise<CapturedImage[]> {
     const captured: CapturedImage[] = [];
 
@@ -290,7 +290,7 @@ export class MediaCapture {
     compress: boolean,
     generateThumbnails: boolean,
     compressionOptions: CompressionOptions,
-    thumbnailSize: number
+    thumbnailSize: number,
   ): Promise<CapturedImage[]> {
     const captured: CapturedImage[] = [];
 
@@ -299,7 +299,7 @@ export class MediaCapture {
         // Extract metadata
         const metadata = mediaMetadataExtractor.extractBackgroundImageMetadata(
           element,
-          url
+          url,
         );
 
         // Load image to process it
@@ -319,10 +319,13 @@ export class MediaCapture {
           try {
             result.compressed = await mediaProcessor.compressImage(
               img,
-              compressionOptions
+              compressionOptions,
             );
           } catch (error) {
-            console.warn("[MediaCapture] Background image compression failed", error);
+            console.warn(
+              "[MediaCapture] Background image compression failed",
+              error,
+            );
           }
         }
 
@@ -331,17 +334,23 @@ export class MediaCapture {
           try {
             const thumbnailResult = await mediaProcessor.generateImageThumbnail(
               img,
-              thumbnailSize
+              thumbnailSize,
             );
             result.thumbnail = thumbnailResult.dataUrl;
           } catch (error) {
-            console.warn("[MediaCapture] Background image thumbnail failed", error);
+            console.warn(
+              "[MediaCapture] Background image thumbnail failed",
+              error,
+            );
           }
         }
 
         captured.push(result);
       } catch (error) {
-        console.error("[MediaCapture] Failed to capture background image", error);
+        console.error(
+          "[MediaCapture] Failed to capture background image",
+          error,
+        );
       }
     }
 
@@ -353,7 +362,7 @@ export class MediaCapture {
    */
   private async captureAudios(
     audios: HTMLAudioElement[],
-    transcribe: boolean
+    transcribe: boolean,
   ): Promise<CapturedAudio[]> {
     const captured: CapturedAudio[] = [];
 
@@ -375,13 +384,17 @@ export class MediaCapture {
   private async captureVideos(
     videos: HTMLVideoElement[],
     generateThumbnails: boolean,
-    thumbnailSize: number
+    thumbnailSize: number,
   ): Promise<CapturedVideo[]> {
     const captured: CapturedVideo[] = [];
 
     for (const video of videos) {
       try {
-        const result = await this.captureVideo(video, generateThumbnails, thumbnailSize);
+        const result = await this.captureVideo(
+          video,
+          generateThumbnails,
+          thumbnailSize,
+        );
         captured.push(result);
       } catch (error) {
         console.error("[MediaCapture] Failed to capture video", error);
@@ -447,7 +460,7 @@ export class MediaCapture {
   private calculateTotalSize(
     images: CapturedImage[],
     audios: CapturedAudio[],
-    videos: CapturedVideo[]
+    videos: CapturedVideo[],
   ): number {
     let total = 0;
 
@@ -485,7 +498,7 @@ export class MediaCapture {
    */
   filterMediaByType(
     result: MediaCaptureResult,
-    type: "image" | "audio" | "video"
+    type: "image" | "audio" | "video",
   ): CapturedImage[] | CapturedAudio[] | CapturedVideo[] {
     switch (type) {
       case "image":
@@ -532,7 +545,9 @@ export class MediaCapture {
       let largestSize = 0;
 
       for (const img of result.images) {
-        const size = img.compressed?.compressedSize || this.estimateDataUrlSize(img.dataUrl);
+        const size =
+          img.compressed?.compressedSize ||
+          this.estimateDataUrlSize(img.dataUrl);
         totalImageSize += size;
 
         if (size > largestSize) {

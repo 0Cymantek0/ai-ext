@@ -84,7 +84,9 @@
   border-radius: 0.5rem;
   overflow: hidden;
   background: var(--card);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .image-card:hover {
@@ -169,7 +171,9 @@
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   background: var(--card);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .audio-card:hover {
@@ -232,7 +236,9 @@
   border-radius: 0.5rem;
   overflow: hidden;
   background: var(--card);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .video-card:hover {

@@ -23,7 +23,7 @@ export interface ExtractedText {
   headings: Array<{ level: number; text: string }>;
   links: Array<{ text: string; href: string }>;
   images: Array<{ alt: string; src: string }>;
-  lists: Array<{ type: 'ordered' | 'unordered'; items: string[] }>;
+  lists: Array<{ type: "ordered" | "unordered"; items: string[] }>;
   tables: Array<{ headers: string[]; rows: string[][] }>;
 }
 
@@ -224,7 +224,11 @@ export class DOMAnalyzer {
           const bodyRows = element.querySelectorAll("tbody tr, tr");
           bodyRows.forEach((row, index) => {
             // Skip first row if it was used as headers
-            if (index === 0 && headers.length > 0 && !element.querySelector("thead")) {
+            if (
+              index === 0 &&
+              headers.length > 0 &&
+              !element.querySelector("thead")
+            ) {
               return;
             }
 
@@ -354,7 +358,11 @@ export class DOMAnalyzer {
 
       const bodyRows = table.querySelectorAll("tbody tr, tr");
       bodyRows.forEach((row, index) => {
-        if (index === 0 && headers.length > 0 && !table.querySelector("thead")) {
+        if (
+          index === 0 &&
+          headers.length > 0 &&
+          !table.querySelector("thead")
+        ) {
           return;
         }
 
@@ -583,16 +591,20 @@ export class DOMAnalyzer {
    * Requirements: 2.1, 2.2, 2.3
    */
   extractDetailedSelection(
-    contextChars: number = 200
+    contextChars: number = 200,
   ): DetailedSelection | null {
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || selection.toString().trim() === "") {
+    if (
+      !selection ||
+      selection.rangeCount === 0 ||
+      selection.toString().trim() === ""
+    ) {
       return null;
     }
 
     const range = selection.getRangeAt(0);
     const selectedText = selection.toString();
-    
+
     // Get the container element
     let containerElement = range.commonAncestorContainer;
     if (containerElement.nodeType === Node.TEXT_NODE) {
@@ -602,20 +614,24 @@ export class DOMAnalyzer {
     // Extract surrounding context
     const fullText = (containerElement as Element).textContent || "";
     const startIndex = fullText.indexOf(selectedText);
-    
+
     let beforeContext = "";
     let afterContext = "";
-    
+
     if (startIndex !== -1) {
-      beforeContext = fullText.substring(
-        Math.max(0, startIndex - contextChars),
-        startIndex
-      ).trim();
-      
-      afterContext = fullText.substring(
-        startIndex + selectedText.length,
-        Math.min(fullText.length, startIndex + selectedText.length + contextChars)
-      ).trim();
+      beforeContext = fullText
+        .substring(Math.max(0, startIndex - contextChars), startIndex)
+        .trim();
+
+      afterContext = fullText
+        .substring(
+          startIndex + selectedText.length,
+          Math.min(
+            fullText.length,
+            startIndex + selectedText.length + contextChars,
+          ),
+        )
+        .trim();
     }
 
     // Get HTML content to preserve formatting
@@ -651,12 +667,10 @@ export class DOMAnalyzer {
    * Extract multiple selections with batch processing
    * Requirements: 2.1, 2.2, 2.3
    */
-  extractMultipleSelections(
-    contextChars: number = 200
-  ): DetailedSelection[] {
+  extractMultipleSelections(contextChars: number = 200): DetailedSelection[] {
     const selections: DetailedSelection[] = [];
     const selection = window.getSelection();
-    
+
     if (!selection) {
       return selections;
     }
@@ -665,7 +679,7 @@ export class DOMAnalyzer {
     for (let i = 0; i < selection.rangeCount; i++) {
       const range = selection.getRangeAt(i);
       const selectedText = range.toString().trim();
-      
+
       if (!selectedText) {
         continue;
       }
@@ -679,20 +693,24 @@ export class DOMAnalyzer {
       // Extract surrounding context
       const fullText = (containerElement as Element).textContent || "";
       const startIndex = fullText.indexOf(selectedText);
-      
+
       let beforeContext = "";
       let afterContext = "";
-      
+
       if (startIndex !== -1) {
-        beforeContext = fullText.substring(
-          Math.max(0, startIndex - contextChars),
-          startIndex
-        ).trim();
-        
-        afterContext = fullText.substring(
-          startIndex + selectedText.length,
-          Math.min(fullText.length, startIndex + selectedText.length + contextChars)
-        ).trim();
+        beforeContext = fullText
+          .substring(Math.max(0, startIndex - contextChars), startIndex)
+          .trim();
+
+        afterContext = fullText
+          .substring(
+            startIndex + selectedText.length,
+            Math.min(
+              fullText.length,
+              startIndex + selectedText.length + contextChars,
+            ),
+          )
+          .trim();
       }
 
       // Get HTML content to preserve formatting

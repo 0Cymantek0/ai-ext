@@ -93,8 +93,18 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60">
           <div className="flex items-center gap-2 min-w-0">
-            <svg className="size-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="size-4 text-muted-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <div className="truncate text-sm">
               <span className="text-muted-foreground">Results for</span>{" "}
@@ -103,9 +113,24 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
           </div>
           <div className="ml-auto flex items-center gap-2">
             {loading && (
-              <svg className="size-4 animate-spin text-muted-foreground" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <svg
+                className="size-4 animate-spin text-muted-foreground"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
               </svg>
             )}
             <button
@@ -115,8 +140,18 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
               aria-label="Close search results"
               title="Close"
             >
-              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -127,12 +162,16 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
           {isPockets ? (
             <PocketResultsList
               results={(props as PocketResultsProps).results}
-              onSelect={(p) => (props as PocketResultsProps).onSelectPocket?.(p)}
+              onSelect={(p) =>
+                (props as PocketResultsProps).onSelectPocket?.(p)
+              }
             />
           ) : (
             <ContentResultsList
               results={(props as ContentResultsProps).results}
-              onSelect={(c) => (props as ContentResultsProps).onSelectContent?.(c)}
+              onSelect={(c) =>
+                (props as ContentResultsProps).onSelectContent?.(c)
+              }
             />
           )}
         </div>
@@ -156,7 +195,13 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
     />
   );
 
-  return createPortal(<>{overlay}{panel}</>, document.body);
+  return createPortal(
+    <>
+      {overlay}
+      {panel}
+    </>,
+    document.body,
+  );
 }
 
 function PocketResultsList({
@@ -167,9 +212,7 @@ function PocketResultsList({
   onSelect?: (p: PocketData) => void;
 }) {
   if (!results || results.length === 0) {
-    return (
-      <EmptyResults message="No pockets match your search." />
-    );
+    return <EmptyResults message="No pockets match your search." />;
   }
 
   return (
@@ -205,7 +248,10 @@ function PocketResultsList({
 
           <div className="flex items-center gap-2 flex-wrap mt-1">
             {item.tags?.slice(0, 4).map((tag) => (
-              <span key={tag} className="text-[10px] rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+              <span
+                key={tag}
+                className="text-[10px] rounded-full bg-muted px-2 py-0.5 text-muted-foreground"
+              >
                 #{tag}
               </span>
             ))}
@@ -215,7 +261,8 @@ function PocketResultsList({
               </span>
             )}
             <span className="ml-auto text-[10px] text-muted-foreground">
-              {item.contentIds?.length || 0} items · {formatDate(item.updatedAt)}
+              {item.contentIds?.length || 0} items ·{" "}
+              {formatDate(item.updatedAt)}
             </span>
           </div>
         </button>
@@ -232,9 +279,7 @@ function ContentResultsList({
   onSelect?: (c: CapturedContent) => void;
 }) {
   if (!results || results.length === 0) {
-    return (
-      <EmptyResults message="No content matches your search." />
-    );
+    return <EmptyResults message="No content matches your search." />;
   }
 
   return (
@@ -249,7 +294,8 @@ function ContentResultsList({
           }
         };
         const title = item.metadata?.title || getDomain() || "Untitled";
-        const snippet = typeof item.content === "string" ? item.content.slice(0, 220) : "";
+        const snippet =
+          typeof item.content === "string" ? item.content.slice(0, 220) : "";
         return (
           <button
             key={item.id}
@@ -272,7 +318,9 @@ function ContentResultsList({
                   )}
                 </div>
                 {snippet && (
-                  <p className="line-clamp-3 text-xs text-muted-foreground mt-0.5">{snippet}</p>
+                  <p className="line-clamp-3 text-xs text-muted-foreground mt-0.5">
+                    {snippet}
+                  </p>
                 )}
               </div>
             </div>
@@ -301,8 +349,18 @@ function EmptyResults({ message }: { message: string }) {
   return (
     <div className="h-full flex items-center justify-center">
       <div className="text-center max-w-sm">
-        <svg className="w-12 h-12 mx-auto mb-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <svg
+          className="w-12 h-12 mx-auto mb-4 text-muted-foreground"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
         </svg>
         <h3 className="text-lg font-semibold mb-2">No results found</h3>
         <p className="text-sm text-muted-foreground">{message}</p>

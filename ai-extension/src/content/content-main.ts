@@ -5,22 +5,25 @@
  */
 
 import {
-   initializeMessageListener,
-   messageHandler,
-   sendMessage,
- } from "../shared/message-client.js";
- import { domAnalyzer } from "./dom-analyzer.js";
- import { contentCapture } from "./content-capture.js";
- import { selectionPreviewUI } from "./selection-preview-ui.js";
- import { buildSnippetCapturePayload, type SnippetOptions } from "./snippet-utils.js";
- import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
- import "./content-logging-setup.js";
+  initializeMessageListener,
+  messageHandler,
+  sendMessage,
+} from "../shared/message-client.js";
+import { domAnalyzer } from "./dom-analyzer.js";
+import { contentCapture } from "./content-capture.js";
+import { selectionPreviewUI } from "./selection-preview-ui.js";
+import {
+  buildSnippetCapturePayload,
+  type SnippetOptions,
+} from "./snippet-utils.js";
+import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
+import "./content-logging-setup.js";
 
- const documentRef = typeof document !== "undefined" ? document : null;
- const contentDevtools = initializeDevInstrumentation("content", {
-   domTarget: documentRef,
+const documentRef = typeof document !== "undefined" ? document : null;
+const contentDevtools = initializeDevInstrumentation("content", {
+  domTarget: documentRef,
   rootElement: documentRef?.body ?? null,
- });
+});
 
 interface ContentScriptState {
   initialized: boolean;
@@ -84,7 +87,11 @@ class ContentScriptManager {
     return undefined;
   }
 
-  private recordCaptureSuccess(mode: string, result: any, detail: Record<string, any> = {}): void {
+  private recordCaptureSuccess(
+    mode: string,
+    result: any,
+    detail: Record<string, any> = {},
+  ): void {
     const summary: Record<string, any> = {
       mode,
       timestamp: Date.now(),
@@ -96,7 +103,9 @@ class ContentScriptManager {
       summary.textLength = textLength;
     }
 
-    const entryCount = Array.isArray(result?.entries) ? result.entries.length : undefined;
+    const entryCount = Array.isArray(result?.entries)
+      ? result.entries.length
+      : undefined;
     if (typeof entryCount === "number") {
       summary.entryCount = entryCount;
     }
@@ -201,7 +210,10 @@ class ContentScriptManager {
 
     // Handler for multi-selection capture
     messageHandler.on("CAPTURE_MULTI_SELECTION", async (payload) => {
-      console.debug("[ContentScript] Received CAPTURE_MULTI_SELECTION", payload);
+      console.debug(
+        "[ContentScript] Received CAPTURE_MULTI_SELECTION",
+        payload,
+      );
       this.recordEvent("message:CAPTURE_MULTI_SELECTION:received", {
         pocketId: payload?.pocketId,
       });
@@ -210,7 +222,9 @@ class ContentScriptManager {
         const result = await contentCapture.captureMultipleSelections(true);
 
         this.recordCaptureSuccess("multi-selection", result, {
-          selectionCount: Array.isArray(result?.items) ? result.items.length : undefined,
+          selectionCount: Array.isArray(result?.items)
+            ? result.items.length
+            : undefined,
         });
 
         return {
@@ -272,7 +286,9 @@ class ContentScriptManager {
         }
 
         const images = Array.from(document.querySelectorAll("img"));
-        const targetImage = images.find((img) => img.src === srcUrl || img.currentSrc === srcUrl);
+        const targetImage = images.find(
+          (img) => img.src === srcUrl || img.currentSrc === srcUrl,
+        );
 
         if (!targetImage) {
           this.recordEvent("capture:image:error", {
@@ -324,7 +340,10 @@ class ContentScriptManager {
 
     // Handler for capturing selection snippet without UI
     messageHandler.on("CAPTURE_SELECTION_SNIPPET", async (payload) => {
-      console.debug("[ContentScript] Received CAPTURE_SELECTION_SNIPPET", payload);
+      console.debug(
+        "[ContentScript] Received CAPTURE_SELECTION_SNIPPET",
+        payload,
+      );
       this.recordEvent("message:CAPTURE_SELECTION_SNIPPET:received", {
         providedText: Boolean(payload?.selectionText),
         sourceUrl: payload?.sourceUrl,
@@ -353,7 +372,9 @@ class ContentScriptManager {
           };
         }
 
-        let captureResult: Awaited<ReturnType<typeof contentCapture.capture>> | null = null;
+        let captureResult: Awaited<
+          ReturnType<typeof contentCapture.capture>
+        > | null = null;
         try {
           captureResult = await contentCapture.capture({
             mode: "selection",
@@ -361,9 +382,15 @@ class ContentScriptManager {
             sanitize: true,
           });
         } catch (error) {
-          console.warn("[ContentScript] Selection capture failed, falling back to basic snippet", error);
+          console.warn(
+            "[ContentScript] Selection capture failed, falling back to basic snippet",
+            error,
+          );
           this.recordEvent("capture:snippet:fallback", {
-            reason: error instanceof Error ? error.message : String(error ?? "unknown"),
+            reason:
+              error instanceof Error
+                ? error.message
+                : String(error ?? "unknown"),
           });
         }
 
@@ -378,8 +405,12 @@ class ContentScriptManager {
         let captureTimestamp = captureResult?.metadata?.timestamp;
 
         if (captureResult?.content) {
-          const textContent = captureResult.content.text || captureResult.content;
-          if (typeof textContent?.content === "string" && textContent.content.trim()) {
+          const textContent =
+            captureResult.content.text || captureResult.content;
+          if (
+            typeof textContent?.content === "string" &&
+            textContent.content.trim()
+          ) {
             sanitizedText = textContent.content;
           }
 
@@ -391,7 +422,8 @@ class ContentScriptManager {
             };
           }
 
-          const sanitization = captureResult.content.sanitization || textContent?.sanitization;
+          const sanitization =
+            captureResult.content.sanitization || textContent?.sanitization;
           if (sanitization) {
             sanitizationInfo = {
               detectedPII: sanitization.detectedPII || 0,
@@ -421,7 +453,10 @@ class ContentScriptManager {
           snippetOptions.timestamp = captureTimestamp;
         }
 
-        const snippet = buildSnippetCapturePayload(sanitizedText, snippetOptions);
+        const snippet = buildSnippetCapturePayload(
+          sanitizedText,
+          snippetOptions,
+        );
 
         if (sanitizationInfo) {
           snippet.content.sanitization = sanitizationInfo;
@@ -443,7 +478,10 @@ class ContentScriptManager {
           timestamp: Date.now(),
         };
       } catch (error) {
-        console.error("[ContentScript] CAPTURE_SELECTION_SNIPPET failed", error);
+        console.error(
+          "[ContentScript] CAPTURE_SELECTION_SNIPPET failed",
+          error,
+        );
         this.recordEvent("capture:snippet:error", { error });
         return {
           status: "error",
@@ -464,7 +502,7 @@ class ContentScriptManager {
     return new Promise(async (resolve, reject) => {
       try {
         // Capture selection with preview
-        const { result, editablePreview, validation } = 
+        const { result, editablePreview, validation } =
           await contentCapture.captureWithPreview({
             mode: "selection",
             pocketId: payload.pocketId,
@@ -486,7 +524,7 @@ class ContentScriptManager {
           onSave: (editedText: string) => {
             // Update result with edited text
             result.content.text = editedText;
-            
+
             resolve({
               status: "success",
               result,
@@ -498,7 +536,9 @@ class ContentScriptManager {
             reject(new Error("Capture cancelled by user"));
           },
           onEdit: (text: string) => {
-            console.debug("[ContentScript] Text edited", { length: text.length });
+            console.debug("[ContentScript] Text edited", {
+              length: text.length,
+            });
           },
         });
       } catch (error) {
@@ -560,12 +600,15 @@ class ContentScriptManager {
         // Silently log - this is not critical for text enhancer functionality
         console.debug(
           "[ContentScript] Service worker notification skipped",
-          response.error
+          response.error,
         );
       }
     } catch (error) {
       // Non-critical error - content scripts can work independently
-      console.debug("[ContentScript] Service worker not responding (non-critical)", error);
+      console.debug(
+        "[ContentScript] Service worker not responding (non-critical)",
+        error,
+      );
     }
   }
 

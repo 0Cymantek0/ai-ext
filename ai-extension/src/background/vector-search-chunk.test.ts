@@ -1,6 +1,6 @@
 /**
  * Vector Search Service - Chunk Search Tests
- * 
+ *
  * Tests for chunk-level semantic search functionality
  */
 
@@ -78,7 +78,7 @@ vi.mock("./text-chunker", () => ({
 function createMockContent(
   id: string,
   text: string,
-  overrides: Partial<CapturedContent> = {}
+  overrides: Partial<CapturedContent> = {},
 ): CapturedContent {
   return {
     id,
@@ -110,7 +110,7 @@ describe("VectorSearchService - Chunk Search", () => {
 
       const mockContent = createMockContent(
         "content-1",
-        "This is a long piece of content about machine learning and artificial intelligence that will be split into multiple chunks for better semantic search."
+        "This is a long piece of content about machine learning and artificial intelligence that will be split into multiple chunks for better semantic search.",
       );
 
       vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue([
@@ -164,7 +164,7 @@ describe("VectorSearchService - Chunk Search", () => {
 
       const mockContent = createMockContent(
         "content-1",
-        "Some content that might not be very relevant"
+        "Some content that might not be very relevant",
       );
 
       vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue([
@@ -220,7 +220,7 @@ describe("VectorSearchService - Chunk Search", () => {
             title: "Test Article",
             category: "research",
           },
-        }
+        },
       );
 
       vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue([
@@ -247,10 +247,9 @@ describe("VectorSearchService - Chunk Search", () => {
     it("should handle pocket scoping", async () => {
       const { indexedDBManager } = await import("./indexeddb-manager");
 
-      const getContentSpy = vi.spyOn(
-        indexedDBManager,
-        "getContentByPocket"
-      ).mockResolvedValue([]);
+      const getContentSpy = vi
+        .spyOn(indexedDBManager, "getContentByPocket")
+        .mockResolvedValue([]);
 
       await service.searchChunks("test query", {
         pocketId: "specific-pocket",
@@ -262,10 +261,30 @@ describe("VectorSearchService - Chunk Search", () => {
     it("should search all pockets when no pocketId provided", async () => {
       const { indexedDBManager } = await import("./indexeddb-manager");
 
-      const listPocketsSpy = vi.spyOn(indexedDBManager, "listPockets").mockResolvedValue([
-        { id: "pocket-1", name: "Pocket 1", description: "", createdAt: Date.now(), updatedAt: Date.now(), contentIds: [], tags: [], color: "#000" },
-        { id: "pocket-2", name: "Pocket 2", description: "", createdAt: Date.now(), updatedAt: Date.now(), contentIds: [], tags: [], color: "#000" },
-      ]);
+      const listPocketsSpy = vi
+        .spyOn(indexedDBManager, "listPockets")
+        .mockResolvedValue([
+          {
+            id: "pocket-1",
+            name: "Pocket 1",
+            description: "",
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            contentIds: [],
+            tags: [],
+            color: "#000",
+          },
+          {
+            id: "pocket-2",
+            name: "Pocket 2",
+            description: "",
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            contentIds: [],
+            tags: [],
+            color: "#000",
+          },
+        ]);
 
       vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue([]);
 
@@ -313,7 +332,7 @@ describe("VectorSearchService - Chunk Search", () => {
         "content-1",
         JSON.stringify({
           text: { content: "Actual text content" },
-        })
+        }),
       );
 
       vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue([
@@ -340,15 +359,17 @@ describe("VectorSearchService - Chunk Search", () => {
 
       // Mock embedding failure for chunks (but not query)
       let callCount = 0;
-      vi.spyOn(hybridAIEngine, "generateEmbedding").mockImplementation(async () => {
-        callCount++;
-        if (callCount === 1) {
-          // Query embedding succeeds
-          return Array(384).fill(0.5);
-        }
-        // Chunk embeddings fail
-        throw new Error("Embedding generation failed");
-      });
+      vi.spyOn(hybridAIEngine, "generateEmbedding").mockImplementation(
+        async () => {
+          callCount++;
+          if (callCount === 1) {
+            // Query embedding succeeds
+            return Array(384).fill(0.5);
+          }
+          // Chunk embeddings fail
+          throw new Error("Embedding generation failed");
+        },
+      );
 
       const results = await service.searchChunks("test query", {
         pocketId: "pocket-1",
@@ -363,7 +384,7 @@ describe("VectorSearchService - Chunk Search", () => {
 
       const mockContent = createMockContent(
         "content-1",
-        "A".repeat(500) // Multiple chunks
+        "A".repeat(500), // Multiple chunks
       );
 
       vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue([
@@ -385,7 +406,7 @@ describe("VectorSearchService - Chunk Search", () => {
       // Should be sorted descending
       for (let i = 0; i < results.length - 1; i++) {
         expect(results[i]!.relevanceScore).toBeGreaterThanOrEqual(
-          results[i + 1]!.relevanceScore
+          results[i + 1]!.relevanceScore,
         );
       }
     });
@@ -394,12 +415,23 @@ describe("VectorSearchService - Chunk Search", () => {
       const { indexedDBManager } = await import("./indexeddb-manager");
 
       const contents = [
-        createMockContent("content-1", "First piece of content about machine learning"),
-        createMockContent("content-2", "Second piece of content about artificial intelligence"),
-        createMockContent("content-3", "Third piece of content about deep learning"),
+        createMockContent(
+          "content-1",
+          "First piece of content about machine learning",
+        ),
+        createMockContent(
+          "content-2",
+          "Second piece of content about artificial intelligence",
+        ),
+        createMockContent(
+          "content-3",
+          "Third piece of content about deep learning",
+        ),
       ];
 
-      vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue(contents);
+      vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue(
+        contents,
+      );
 
       const results = await service.searchChunks("content", {
         pocketId: "pocket-1",
@@ -419,12 +451,18 @@ describe("VectorSearchService - Chunk Search", () => {
         createMockContent("content-1", "Text content about machine learning", {
           type: ContentType.TEXT,
         }),
-        createMockContent("content-2", "PDF content about artificial intelligence", {
-          type: ContentType.PDF,
-        }),
+        createMockContent(
+          "content-2",
+          "PDF content about artificial intelligence",
+          {
+            type: ContentType.PDF,
+          },
+        ),
       ];
 
-      vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue(contents);
+      vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue(
+        contents,
+      );
 
       const results = await service.searchChunks("content", {
         pocketId: "pocket-1",
@@ -475,7 +513,7 @@ describe("VectorSearchService - Chunk Search", () => {
 
       const specialContent = createMockContent(
         "content-1",
-        "Content with émojis 🎉 and spëcial çharacters <>&\"'"
+        "Content with émojis 🎉 and spëcial çharacters <>&\"'",
       );
 
       vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue([
@@ -513,7 +551,7 @@ describe("VectorSearchService - Chunk Search", () => {
       const { indexedDBManager } = await import("./indexeddb-manager");
 
       vi.spyOn(indexedDBManager, "getContentByPocket").mockRejectedValue(
-        new Error("Database error")
+        new Error("Database error"),
       );
 
       const results = await service.searchChunks("test query", {
@@ -531,10 +569,12 @@ describe("VectorSearchService - Chunk Search", () => {
 
       // Create 100 content items
       const contents = Array.from({ length: 100 }, (_, i) =>
-        createMockContent(`content-${i}`, `Content ${i} with some text`)
+        createMockContent(`content-${i}`, `Content ${i} with some text`),
       );
 
-      vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue(contents);
+      vi.spyOn(indexedDBManager, "getContentByPocket").mockResolvedValue(
+        contents,
+      );
 
       const startTime = Date.now();
 

@@ -14,10 +14,10 @@ import {
 } from "./vector-search-service.js";
 import type { CapturedContent } from "./indexeddb-manager.js";
 import { conversationContextLoader } from "./conversation-context-loader.js";
-import { 
-  extractLLMContent, 
+import {
+  extractLLMContent,
   extractLLMContentFromChunk,
-  estimateChunkTokens 
+  estimateChunkTokens,
 } from "./content-extractor.js";
 import type { VectorChunk, ChunkSearchResult } from "./vector-chunk-types.js";
 
@@ -79,7 +79,7 @@ export interface ContextBundle {
   page?: PageContext;
   tabs?: TabContext[];
   pockets?: PocketContext[];
-  chunks?: ChunkContext[];  // Chunk-level RAG results
+  chunks?: ChunkContext[]; // Chunk-level RAG results
   history?: HistoryContext[];
 
   // Metadata
@@ -323,7 +323,7 @@ export class ContextBundleBuilder {
           topK: 5, // Request top 5 chunks
           minRelevance: 0.3,
           maxTokens: availableForChunks,
-        }
+        },
       );
 
       if (chunkResults.length > 0) {
@@ -619,7 +619,7 @@ export class ContextBundleBuilder {
    * Centralized logic for token budget allocation
    */
   private determineBudget(options: ContextBundleOptions): number {
-    if (options.mode === 'ask' && !options.pocketId) {
+    if (options.mode === "ask" && !options.pocketId) {
       return 4000; // Standard budget for Ask mode without RAG
     }
     // Default for RAG-enabled modes ('ask' with pocketId, 'ai-pocket')
@@ -746,30 +746,32 @@ export function serializeContextBundle(
     for (let i = 0; i < bundle.chunks.length; i++) {
       const chunkContext = bundle.chunks[i];
       if (!chunkContext) continue;
-      
+
       const { chunk, relevanceScore } = chunkContext;
       const { metadata } = chunk;
 
       parts.push(
         `\n### Chunk ${i + 1} (Relevance: ${(relevanceScore * 100).toFixed(0)}%)`,
       );
-      
+
       // Add metadata
       if (metadata.title) {
         parts.push(`Title: ${metadata.title}`);
       }
       parts.push(`Source: ${metadata.sourceUrl}`);
       parts.push(`Type: ${metadata.sourceType}`);
-      
+
       // Add chunk position info
       if (metadata.totalChunks > 1) {
-        parts.push(`Part: ${metadata.chunkIndex + 1} of ${metadata.totalChunks}`);
+        parts.push(
+          `Part: ${metadata.chunkIndex + 1} of ${metadata.totalChunks}`,
+        );
       }
-      
+
       // Add timestamp
       const capturedDate = new Date(metadata.capturedAt).toLocaleDateString();
       parts.push(`Captured: ${capturedDate}`);
-      
+
       // Add chunk text
       parts.push(`\nContent:\n${chunk.text}`);
     }

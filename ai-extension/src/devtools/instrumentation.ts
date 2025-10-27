@@ -10,7 +10,11 @@
 
 const DEv_FLAG = import.meta.env?.VITE_DEBUG_RECORDER === "true";
 
-export type InstrumentationSurface = "content" | "background" | "sidepanel" | "offscreen";
+export type InstrumentationSurface =
+  | "content"
+  | "background"
+  | "sidepanel"
+  | "offscreen";
 
 export interface RuntimeLoggerLike {
   debug: (...args: any[]) => void;
@@ -49,7 +53,9 @@ type Cleanup = () => void;
 
 type ReactProfilerPhase = "mount" | "update" | "nested-update";
 
-type ReactProfilerCallback = NonNullable<import("react").ProfilerProps["onRender"]>;
+type ReactProfilerCallback = NonNullable<
+  import("react").ProfilerProps["onRender"]
+>;
 
 interface SurfaceState {
   initialized: boolean;
@@ -85,7 +91,10 @@ function isEnabled(): boolean {
   return getRegistry().enabled === true;
 }
 
-function createHandle(surface: InstrumentationSurface, state: SurfaceState): DevInstrumentationHandle {
+function createHandle(
+  surface: InstrumentationSurface,
+  state: SurfaceState,
+): DevInstrumentationHandle {
   const registry = getRegistry();
 
   const recordEvent = (event: string, detail?: any) => {
@@ -101,7 +110,10 @@ function createHandle(surface: InstrumentationSurface, state: SurfaceState): Dev
 
     registry.eventHistory.push(entry);
     if (registry.eventHistory.length > registry.maxEvents) {
-      registry.eventHistory.splice(0, registry.eventHistory.length - registry.maxEvents);
+      registry.eventHistory.splice(
+        0,
+        registry.eventHistory.length - registry.maxEvents,
+      );
     }
 
     console.debug("[DevInstrumentation]", surface, event, entry.detail ?? null);
@@ -120,7 +132,8 @@ function createHandle(surface: InstrumentationSurface, state: SurfaceState): Dev
     recordEvent(`snapshot:${key}`, sanitized);
   };
 
-  const getEventHistory = () => registry.eventHistory.filter((entry) => entry.surface === surface);
+  const getEventHistory = () =>
+    registry.eventHistory.filter((entry) => entry.surface === surface);
   const getSnapshotKeys = () => Object.keys(state.snapshotHashes);
 
   const getProfilerCallback = (id: string): ReactProfilerCallback => {
@@ -158,18 +171,29 @@ function createHandle(surface: InstrumentationSurface, state: SurfaceState): Dev
   } satisfies DevInstrumentationHandle;
 }
 
-function registerDomListeners(handle: DevInstrumentationHandle, domTarget?: Document | DocumentFragment | Element | null, rootElement?: Element | null): Cleanup {
+function registerDomListeners(
+  handle: DevInstrumentationHandle,
+  domTarget?: Document | DocumentFragment | Element | null,
+  rootElement?: Element | null,
+): Cleanup {
   if (!isEnabled()) {
     return () => {};
   }
 
-  const target: Document | DocumentFragment | Element | null = domTarget ?? (typeof document !== "undefined" ? document : null);
+  const target: Document | DocumentFragment | Element | null =
+    domTarget ?? (typeof document !== "undefined" ? document : null);
 
   if (!target || typeof (target as Document).addEventListener !== "function") {
     return () => {};
   }
 
-  const listeners: Array<[string, EventListenerOrEventListenerObject, AddEventListenerOptions | boolean | undefined]> = [];
+  const listeners: Array<
+    [
+      string,
+      EventListenerOrEventListenerObject,
+      AddEventListenerOptions | boolean | undefined,
+    ]
+  > = [];
   const addListener = (
     type: string,
     listener: EventListenerOrEventListenerObject,
@@ -182,25 +206,43 @@ function registerDomListeners(handle: DevInstrumentationHandle, domTarget?: Docu
   const domEventTypes = ["click", "input", "focusin", "submit"];
 
   const eventListener: EventListener = (event) => {
-    handle.recordEvent(`dom:${event.type}`, buildDomEventPayload(event, rootElement));
+    handle.recordEvent(
+      `dom:${event.type}`,
+      buildDomEventPayload(event, rootElement),
+    );
   };
 
-  domEventTypes.forEach((eventType) => addListener(eventType, eventListener, { capture: true }));
+  domEventTypes.forEach((eventType) =>
+    addListener(eventType, eventListener, { capture: true }),
+  );
 
   const throttledMouseMove = throttle((event: Event) => {
-    handle.recordEvent("dom:mousemove", buildPointerEventPayload(event as MouseEvent, rootElement));
+    handle.recordEvent(
+      "dom:mousemove",
+      buildPointerEventPayload(event as MouseEvent, rootElement),
+    );
   }, 200);
 
   const throttledScroll = throttle((event: Event) => {
-    handle.recordEvent("dom:scroll", buildScrollEventPayload(event, rootElement));
+    handle.recordEvent(
+      "dom:scroll",
+      buildScrollEventPayload(event, rootElement),
+    );
   }, 250);
 
   if (typeof window !== "undefined") {
     window.addEventListener("mousemove", throttledMouseMove, { passive: true });
     listeners.push(["mousemove", throttledMouseMove, { passive: true }]);
 
-    window.addEventListener("scroll", throttledScroll, { passive: true, capture: true });
-    listeners.push(["scroll", throttledScroll, { passive: true, capture: true } as AddEventListenerOptions]);
+    window.addEventListener("scroll", throttledScroll, {
+      passive: true,
+      capture: true,
+    });
+    listeners.push([
+      "scroll",
+      throttledScroll,
+      { passive: true, capture: true } as AddEventListenerOptions,
+    ]);
   }
 
   return () => {
@@ -208,7 +250,11 @@ function registerDomListeners(handle: DevInstrumentationHandle, domTarget?: Docu
       try {
         (target as Document).removeEventListener(type, listener, options);
       } catch (error) {
-        console.warn("[DevInstrumentation] Failed to remove listener", type, error);
+        console.warn(
+          "[DevInstrumentation] Failed to remove listener",
+          type,
+          error,
+        );
       }
     });
   };
@@ -227,7 +273,11 @@ function registerChromeRuntimeHooks(handle: DevInstrumentationHandle): Cleanup {
 
   const runtime = chrome.runtime as any;
 
-  if (runtime && runtime.onMessage && typeof runtime.onMessage.addListener === "function") {
+  if (
+    runtime &&
+    runtime.onMessage &&
+    typeof runtime.onMessage.addListener === "function"
+  ) {
     const listener = (message: any, sender: chrome.runtime.MessageSender) => {
       handle.recordEvent("runtime:onMessage", {
         senderId: sender?.id,
@@ -242,12 +292,19 @@ function registerChromeRuntimeHooks(handle: DevInstrumentationHandle): Cleanup {
       try {
         runtime.onMessage.removeListener(listener);
       } catch (error) {
-        console.warn("[DevInstrumentation] Failed to detach runtime listener", error);
+        console.warn(
+          "[DevInstrumentation] Failed to detach runtime listener",
+          error,
+        );
       }
     });
   }
 
-  if (runtime && typeof runtime.sendMessage === "function" && !runtime.__devInstrumentationSendWrapped) {
+  if (
+    runtime &&
+    typeof runtime.sendMessage === "function" &&
+    !runtime.__devInstrumentationSendWrapped
+  ) {
     const originalSendMessage = runtime.sendMessage.bind(runtime);
     runtime.__devInstrumentationSendWrapped = true;
 
@@ -262,14 +319,19 @@ function registerChromeRuntimeHooks(handle: DevInstrumentationHandle): Cleanup {
 
         if (result && typeof result.then === "function") {
           return result.then((response: any) => {
-            handle.recordEvent("runtime:sendMessage:response", summarizeMessagePayload(response));
+            handle.recordEvent(
+              "runtime:sendMessage:response",
+              summarizeMessagePayload(response),
+            );
             return response;
           });
         }
 
         return result;
       } catch (error) {
-        handle.recordEvent("runtime:sendMessage:error", { error: toErrorPayload(error) });
+        handle.recordEvent("runtime:sendMessage:error", {
+          error: toErrorPayload(error),
+        });
         throw error;
       }
     };
@@ -281,7 +343,10 @@ function registerChromeRuntimeHooks(handle: DevInstrumentationHandle): Cleanup {
           delete runtime.__devInstrumentationSendWrapped;
         }
       } catch (error) {
-        console.warn("[DevInstrumentation] Failed to restore runtime.sendMessage", error);
+        console.warn(
+          "[DevInstrumentation] Failed to restore runtime.sendMessage",
+          error,
+        );
       }
     });
   }
@@ -291,7 +356,10 @@ function registerChromeRuntimeHooks(handle: DevInstrumentationHandle): Cleanup {
   };
 }
 
-function registerLoggerInstrumentation(handle: DevInstrumentationHandle, logger?: RuntimeLoggerLike | null): Cleanup {
+function registerLoggerInstrumentation(
+  handle: DevInstrumentationHandle,
+  logger?: RuntimeLoggerLike | null,
+): Cleanup {
   if (!isEnabled()) {
     return () => {};
   }
@@ -345,7 +413,10 @@ function buildDomEventPayload(event: Event, rootElement?: Element | null) {
   };
 }
 
-function buildPointerEventPayload(event: MouseEvent, rootElement?: Element | null) {
+function buildPointerEventPayload(
+  event: MouseEvent,
+  rootElement?: Element | null,
+) {
   const target = resolveEventTarget(event);
   return {
     type: event.type,
@@ -359,7 +430,8 @@ function buildPointerEventPayload(event: MouseEvent, rootElement?: Element | nul
 }
 
 function buildScrollEventPayload(event: Event, rootElement?: Element | null) {
-  const scrollTarget = (event.target as Element) ?? document?.documentElement ?? document?.body;
+  const scrollTarget =
+    (event.target as Element) ?? document?.documentElement ?? document?.body;
   if (!scrollTarget) {
     return {
       type: event.type,
@@ -371,15 +443,24 @@ function buildScrollEventPayload(event: Event, rootElement?: Element | null) {
   return {
     type: event.type,
     position: {
-      scrollTop: (scrollTarget as Element).scrollTop ?? (document?.documentElement?.scrollTop ?? 0),
-      scrollLeft: (scrollTarget as Element).scrollLeft ?? (document?.documentElement?.scrollLeft ?? 0),
+      scrollTop:
+        (scrollTarget as Element).scrollTop ??
+        document?.documentElement?.scrollTop ??
+        0,
+      scrollLeft:
+        (scrollTarget as Element).scrollLeft ??
+        document?.documentElement?.scrollLeft ??
+        0,
     },
     target: getElementMetadata(scrollTarget as Element, rootElement),
     timeStamp: event.timeStamp,
   };
 }
 
-function getElementMetadata(element?: Element | null, rootElement?: Element | null) {
+function getElementMetadata(
+  element?: Element | null,
+  rootElement?: Element | null,
+) {
   if (!element || !(element instanceof Element)) {
     return null;
   }
@@ -509,14 +590,21 @@ function truncate(input: string, length: number): string {
 }
 
 function resolveEventTarget(event: Event): Element | null {
-  const composedPath = typeof event.composedPath === "function" ? event.composedPath() : [];
-  const primaryTarget = composedPath.length > 0 ? (composedPath[0] as Element) : (event.target as Element | null);
+  const composedPath =
+    typeof event.composedPath === "function" ? event.composedPath() : [];
+  const primaryTarget =
+    composedPath.length > 0
+      ? (composedPath[0] as Element)
+      : (event.target as Element | null);
 
   if (primaryTarget && primaryTarget instanceof Element) {
     return primaryTarget;
   }
 
-  if (event.target && (event.target as Element).nodeType === Node.ELEMENT_NODE) {
+  if (
+    event.target &&
+    (event.target as Element).nodeType === Node.ELEMENT_NODE
+  ) {
     return event.target as Element;
   }
 
@@ -531,7 +619,9 @@ function getNearestReactComponentName(element: Element): string | undefined {
   let current: Element | null = element;
 
   while (current) {
-    const maybeFiber = findReactFiber(current as unknown as Record<string, any>);
+    const maybeFiber = findReactFiber(
+      current as unknown as Record<string, any>,
+    );
     if (maybeFiber) {
       const name = extractFiberName(maybeFiber);
       if (name) {
@@ -547,7 +637,10 @@ function getNearestReactComponentName(element: Element): string | undefined {
 function findReactFiber(node: Record<string, any>): any | undefined {
   const keys = Object.keys(node);
   for (const key of keys) {
-    if (key.startsWith("__reactFiber$") || key.startsWith("__reactInternalInstance$")) {
+    if (
+      key.startsWith("__reactFiber$") ||
+      key.startsWith("__reactInternalInstance$")
+    ) {
       return node[key];
     }
   }
@@ -567,7 +660,10 @@ function extractFiberName(fiber: any): string | undefined {
   return nodeType.displayName || nodeType.name || undefined;
 }
 
-function throttle<T extends (...args: any[]) => void>(fn: T, interval: number): T {
+function throttle<T extends (...args: any[]) => void>(
+  fn: T,
+  interval: number,
+): T {
   let last = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -707,8 +803,16 @@ export function initializeDevInstrumentation(
     const cleanupFns: Cleanup[] = [];
 
     cleanupFns.push(registerChromeRuntimeHooks(state.handle));
-    cleanupFns.push(registerDomListeners(state.handle, options.domTarget, options.rootElement ?? null));
-    cleanupFns.push(registerLoggerInstrumentation(state.handle, options.logger ?? null));
+    cleanupFns.push(
+      registerDomListeners(
+        state.handle,
+        options.domTarget,
+        options.rootElement ?? null,
+      ),
+    );
+    cleanupFns.push(
+      registerLoggerInstrumentation(state.handle, options.logger ?? null),
+    );
 
     state.cleanupFns = cleanupFns;
     state.initialized = true;
@@ -722,7 +826,9 @@ export function initializeDevInstrumentation(
   return state.handle;
 }
 
-export function getDevInstrumentation(surface: InstrumentationSurface): DevInstrumentationHandle | null {
+export function getDevInstrumentation(
+  surface: InstrumentationSurface,
+): DevInstrumentationHandle | null {
   if (!isEnabled()) {
     return null;
   }
@@ -732,7 +838,9 @@ export function getDevInstrumentation(surface: InstrumentationSurface): DevInstr
   return state?.handle ?? null;
 }
 
-export function teardownDevInstrumentation(surface: InstrumentationSurface): void {
+export function teardownDevInstrumentation(
+  surface: InstrumentationSurface,
+): void {
   if (!isEnabled()) {
     return;
   }
@@ -748,7 +856,11 @@ export function teardownDevInstrumentation(surface: InstrumentationSurface): voi
     try {
       fn();
     } catch (error) {
-      console.warn("[DevInstrumentation] Failed during teardown", surface, error);
+      console.warn(
+        "[DevInstrumentation] Failed during teardown",
+        surface,
+        error,
+      );
     }
   });
 

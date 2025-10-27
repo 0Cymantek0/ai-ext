@@ -78,8 +78,12 @@ export function buildSnippetCapturePayload(
     .filter(Boolean);
 
   const timestamp = options.timestamp ?? Date.now();
-  const url = options.sourceUrl ?? (typeof window !== "undefined" ? window.location.href : "");
-  const title = options.title ?? (typeof document !== "undefined" ? document.title : undefined);
+  const url =
+    options.sourceUrl ??
+    (typeof window !== "undefined" ? window.location.href : "");
+  const title =
+    options.title ??
+    (typeof document !== "undefined" ? document.title : undefined);
   const context: SnippetContext = {
     before: options.context?.before ?? "",
     after: options.context?.after ?? "",

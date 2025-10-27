@@ -60,7 +60,7 @@ export class CodeSnippetGenerator {
     element: HTMLElement,
     elementInfo: EnhancedElementInfo,
     format: SnippetFormat,
-    options: SnippetOptions = {}
+    options: SnippetOptions = {},
   ): CodeSnippet {
     const opts = { ...this.defaultOptions, ...options };
 
@@ -91,7 +91,7 @@ export class CodeSnippetGenerator {
   generateAllFormats(
     element: HTMLElement,
     elementInfo: EnhancedElementInfo,
-    options: SnippetOptions = {}
+    options: SnippetOptions = {},
   ): CodeSnippet[] {
     const formats: SnippetFormat[] = [
       "html",
@@ -104,7 +104,7 @@ export class CodeSnippetGenerator {
     ];
 
     return formats.map((format) =>
-      this.generateSnippet(element, elementInfo, format, options)
+      this.generateSnippet(element, elementInfo, format, options),
     );
   }
 
@@ -115,7 +115,7 @@ export class CodeSnippetGenerator {
   private generateHTML(
     element: HTMLElement,
     elementInfo: EnhancedElementInfo,
-    options: Required<SnippetOptions>
+    options: Required<SnippetOptions>,
   ): CodeSnippet {
     const parts: string[] = [];
 
@@ -148,7 +148,7 @@ export class CodeSnippetGenerator {
    */
   private generateCSS(
     elementInfo: EnhancedElementInfo,
-    options: Required<SnippetOptions>
+    options: Required<SnippetOptions>,
   ): CodeSnippet {
     const parts: string[] = [];
 
@@ -211,7 +211,8 @@ export class CodeSnippetGenerator {
         parts.push(`  justify-content: ${styles.justifyContent};`);
       if (styles.alignItems && styles.alignItems !== "normal")
         parts.push(`  align-items: ${styles.alignItems};`);
-      if (styles.gap && styles.gap !== "0px") parts.push(`  gap: ${styles.gap};`);
+      if (styles.gap && styles.gap !== "0px")
+        parts.push(`  gap: ${styles.gap};`);
     }
 
     // Add grid properties
@@ -220,7 +221,8 @@ export class CodeSnippetGenerator {
         parts.push(`  grid-template-columns: ${styles.gridTemplateColumns};`);
       if (styles.gridTemplateRows)
         parts.push(`  grid-template-rows: ${styles.gridTemplateRows};`);
-      if (styles.gap && styles.gap !== "0px") parts.push(`  gap: ${styles.gap};`);
+      if (styles.gap && styles.gap !== "0px")
+        parts.push(`  gap: ${styles.gap};`);
     }
 
     parts.push("}");
@@ -240,7 +242,7 @@ export class CodeSnippetGenerator {
   private generateReact(
     element: HTMLElement,
     elementInfo: EnhancedElementInfo,
-    options: Required<SnippetOptions>
+    options: Required<SnippetOptions>,
   ): CodeSnippet {
     const componentName = options.componentName;
     const parts: string[] = [];
@@ -290,7 +292,7 @@ export class CodeSnippetGenerator {
   private generateVue(
     element: HTMLElement,
     elementInfo: EnhancedElementInfo,
-    options: Required<SnippetOptions>
+    options: Required<SnippetOptions>,
   ): CodeSnippet {
     const parts: string[] = [];
 
@@ -338,7 +340,7 @@ export class CodeSnippetGenerator {
   private generateAngular(
     element: HTMLElement,
     elementInfo: EnhancedElementInfo,
-    options: Required<SnippetOptions>
+    options: Required<SnippetOptions>,
   ): CodeSnippet {
     const componentName = options.componentName;
     const selector = this.sanitizeClassName(componentName.toLowerCase());
@@ -389,7 +391,7 @@ export class CodeSnippetGenerator {
   private generateSvelte(
     element: HTMLElement,
     elementInfo: EnhancedElementInfo,
-    options: Required<SnippetOptions>
+    options: Required<SnippetOptions>,
   ): CodeSnippet {
     const parts: string[] = [];
 
@@ -434,7 +436,7 @@ export class CodeSnippetGenerator {
   private generateTailwind(
     element: HTMLElement,
     elementInfo: EnhancedElementInfo,
-    options: Required<SnippetOptions>
+    options: Required<SnippetOptions>,
   ): CodeSnippet {
     const parts: string[] = [];
 
@@ -466,9 +468,7 @@ export class CodeSnippetGenerator {
   /**
    * Convert computed styles to Tailwind classes
    */
-  private convertToTailwindClasses(
-    elementInfo: EnhancedElementInfo
-  ): string[] {
+  private convertToTailwindClasses(elementInfo: EnhancedElementInfo): string[] {
     const classes: string[] = [];
     const styles = elementInfo.computedStyles;
 
@@ -573,7 +573,9 @@ export class CodeSnippetGenerator {
       const [prop, value] = decl.split(":").map((s) => s.trim());
       if (prop && value) {
         // Convert kebab-case to camelCase
-        const camelProp = prop.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+        const camelProp = prop.replace(/-([a-z])/g, (_, char) =>
+          char.toUpperCase(),
+        );
         styles[camelProp] = value;
       }
     });
@@ -594,7 +596,7 @@ export class CodeSnippetGenerator {
 
     // Remove event handlers
     const eventAttrs = Array.from(element.attributes).filter((attr) =>
-      attr.name.startsWith("on")
+      attr.name.startsWith("on"),
     );
     eventAttrs.forEach((attr) => element.removeAttribute(attr.name));
 

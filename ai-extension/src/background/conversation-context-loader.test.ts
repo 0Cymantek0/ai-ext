@@ -1,6 +1,6 @@
 /**
  * Tests for Conversation Context Loader
- * 
+ *
  * Verifies conversation history retrieval, formatting, and context window management.
  */
 
@@ -40,15 +40,17 @@ describe("ConversationContextLoader", () => {
   beforeEach(async () => {
     const module = await import("./indexeddb-manager");
     indexedDBManager = module.indexedDBManager;
-    
+
     loader = new ConversationContextLoader();
     mockConversations.clear();
     vi.clearAllMocks();
-    
+
     // Reset the mock implementation to default behavior
-    vi.mocked(indexedDBManager.getConversation).mockImplementation(async (id: string) => {
-      return mockConversations.get(id) || null;
-    });
+    vi.mocked(indexedDBManager.getConversation).mockImplementation(
+      async (id: string) => {
+        return mockConversations.get(id) || null;
+      },
+    );
   });
 
   describe("loadConversationHistory", () => {
@@ -84,7 +86,9 @@ describe("ConversationContextLoader", () => {
 
       expect(result).toEqual(mockConversation);
       expect(indexedDBManager.init).toHaveBeenCalled();
-      expect(indexedDBManager.getConversation).toHaveBeenCalledWith(conversationId);
+      expect(indexedDBManager.getConversation).toHaveBeenCalledWith(
+        conversationId,
+      );
     });
 
     it("should return null for non-existent conversation", async () => {
@@ -97,20 +101,22 @@ describe("ConversationContextLoader", () => {
       const conversationId = "test-conv-retry";
       let attemptCount = 0;
 
-      vi.mocked(indexedDBManager.getConversation).mockImplementation(async () => {
-        attemptCount++;
-        if (attemptCount < 2) {
-          throw new Error("Database error");
-        }
-        return {
-          id: conversationId,
-          messages: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          model: "gemini-nano",
-          tokensUsed: 0,
-        };
-      });
+      vi.mocked(indexedDBManager.getConversation).mockImplementation(
+        async () => {
+          attemptCount++;
+          if (attemptCount < 2) {
+            throw new Error("Database error");
+          }
+          return {
+            id: conversationId,
+            messages: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            model: "gemini-nano",
+            tokensUsed: 0,
+          };
+        },
+      );
 
       const result = await loader.loadConversationHistory(conversationId);
 
@@ -120,11 +126,11 @@ describe("ConversationContextLoader", () => {
 
     it("should throw after max retries", async () => {
       vi.mocked(indexedDBManager.getConversation).mockRejectedValue(
-        new Error("Persistent error")
+        new Error("Persistent error"),
       );
 
       await expect(
-        loader.loadConversationHistory("failing-conv")
+        loader.loadConversationHistory("failing-conv"),
       ).rejects.toThrow("Failed to load conversation after 3 attempts");
     });
   });
@@ -159,7 +165,10 @@ describe("ConversationContextLoader", () => {
 
       expect(formatted).toEqual([
         { role: "user", content: "What is AI?" },
-        { role: "assistant", content: "AI stands for Artificial Intelligence." },
+        {
+          role: "assistant",
+          content: "AI stands for Artificial Intelligence.",
+        },
         { role: "system", content: "You are a helpful assistant." },
       ]);
     });
@@ -209,7 +218,7 @@ describe("ConversationContextLoader", () => {
 
     it("should truncate long conversations", async () => {
       const conversationId = "long-conv";
-      
+
       // Create a conversation with many messages
       const messages: Message[] = [];
       for (let i = 0; i < 100; i++) {
@@ -246,7 +255,7 @@ describe("ConversationContextLoader", () => {
 
     it("should prioritize recent messages", async () => {
       const conversationId = "priority-conv";
-      
+
       const messages: Message[] = [
         {
           id: "msg-old-1",
@@ -295,14 +304,14 @@ describe("ConversationContextLoader", () => {
       const context = await loader.buildConversationContext(conversationId);
 
       // Should include recent messages
-      const messageIds = context.messages.map(m => m.content);
+      const messageIds = context.messages.map((m) => m.content);
       expect(messageIds).toContain("Recent message 1");
       expect(messageIds).toContain("Recent response 1");
     });
 
     it("should prioritize system messages", async () => {
       const conversationId = "system-priority-conv";
-      
+
       const messages: Message[] = [
         {
           id: "msg-system",
@@ -344,7 +353,7 @@ describe("ConversationContextLoader", () => {
       const context = await loader.buildConversationContext(conversationId);
 
       // System message should be included even with small token budget
-      const messageContents = context.messages.map(m => m.content);
+      const messageContents = context.messages.map((m) => m.content);
       expect(messageContents).toContain("You are a helpful assistant.");
     });
 
@@ -397,16 +406,16 @@ describe("ConversationContextLoader", () => {
     it("should include truncation notice", () => {
       const context = {
         conversationId: "test",
-        messages: [
-          { role: "user" as const, content: "Recent message" },
-        ],
+        messages: [{ role: "user" as const, content: "Recent message" }],
         totalTokens: 50,
         truncated: true,
       };
 
       const formatted = loader.formatContextAsString(context);
 
-      expect(formatted).toContain("[Earlier messages truncated to fit context window]");
+      expect(formatted).toContain(
+        "[Earlier messages truncated to fit context window]",
+      );
       expect(formatted).toContain("user: Recent message");
     });
 
@@ -436,14 +445,16 @@ describe("ConversationContextLoader", () => {
 
     it("should preserve unmodified config values", () => {
       const originalConfig = loader.getConfig();
-      
+
       loader.updateConfig({ maxTokens: 5000 });
 
       const newConfig = loader.getConfig();
 
       expect(newConfig.maxTokens).toBe(5000);
       expect(newConfig.targetTokens).toBe(originalConfig.targetTokens);
-      expect(newConfig.recentMessageCount).toBe(originalConfig.recentMessageCount);
+      expect(newConfig.recentMessageCount).toBe(
+        originalConfig.recentMessageCount,
+      );
     });
   });
 });

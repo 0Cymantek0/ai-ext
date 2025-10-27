@@ -20,20 +20,20 @@ interface TopBarProps {
   hasMessages?: boolean;
 }
 
-export function TopBar({ 
-  onOpenHistory, 
-  onNewChat, 
+export function TopBar({
+  onOpenHistory,
+  onNewChat,
   onNewPocket,
   onImportPocket,
   onAddNote,
   onAddFile,
   onExportChat,
-  
-  currentMode = "ask", 
-  onModeChange, 
+
+  currentMode = "ask",
+  onModeChange,
   className,
   isInsidePocket = false,
-  hasMessages = false
+  hasMessages = false,
 }: TopBarProps) {
   const [showAddMenu, setShowAddMenu] = React.useState(false);
   const [showPocketMenu, setShowPocketMenu] = React.useState(false);
@@ -46,38 +46,46 @@ export function TopBar({
   React.useEffect(() => {
     if (!showAddMenu) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+      if (
+        addMenuRef.current &&
+        !addMenuRef.current.contains(e.target as Node)
+      ) {
         setShowAddMenu(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showAddMenu]);
 
   // Close pocket menu dropdown when clicking outside
   React.useEffect(() => {
     if (!showPocketMenu) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (pocketMenuRef.current && !pocketMenuRef.current.contains(e.target as Node)) {
+      if (
+        pocketMenuRef.current &&
+        !pocketMenuRef.current.contains(e.target as Node)
+      ) {
         setShowPocketMenu(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showPocketMenu]);
 
   // Close export menu dropdown when clicking outside
   React.useEffect(() => {
     if (!showExportMenu) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+      if (
+        exportMenuRef.current &&
+        !exportMenuRef.current.contains(e.target as Node)
+      ) {
         setShowExportMenu(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showExportMenu]);
-
 
   const handleExport = (format: "markdown" | "json" | "pdf") => {
     setShowExportMenu(false);
@@ -129,8 +137,14 @@ export function TopBar({
       </div>
 
       {/* Center: Mode switcher */}
-      <div className="absolute left-1/2 -translate-x-1/2" style={{ pointerEvents: "auto" }}>
-        <ModeSwitcher currentMode={currentMode} onModeChange={onModeChange ?? (() => {})} />
+      <div
+        className="absolute left-1/2 -translate-x-1/2"
+        style={{ pointerEvents: "auto" }}
+      >
+        <ModeSwitcher
+          currentMode={currentMode}
+          onModeChange={onModeChange ?? (() => {})}
+        />
       </div>
 
       {/* Right pill: export + new */}
@@ -166,10 +180,10 @@ export function TopBar({
                 />
               </svg>
             </Button>
-            
+
             {/* Export format dropdown menu */}
             {showExportMenu && (
-              <div 
+              <div
                 className="absolute top-full right-0 mt-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
                 style={{ pointerEvents: "auto" }}
               >
@@ -178,8 +192,18 @@ export function TopBar({
                   className="w-full justify-start px-4 py-3 h-auto text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 rounded-none"
                   onClick={() => handleExport("markdown")}
                 >
-                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  <svg
+                    className="w-4 h-4 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
                   </svg>
                   Export as Markdown
                 </Button>
@@ -188,8 +212,18 @@ export function TopBar({
                   className="w-full justify-start px-4 py-3 h-auto text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 rounded-none"
                   onClick={() => handleExport("json")}
                 >
-                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  <svg
+                    className="w-4 h-4 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                    />
                   </svg>
                   Export as JSON
                 </Button>
@@ -198,8 +232,18 @@ export function TopBar({
                   className="w-full justify-start px-4 py-3 h-auto text-gray-100 hover:bg-gray-800/60 dark:hover:bg-gray-900/60 rounded-none"
                   onClick={() => handleExport("pdf")}
                 >
-                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  <svg
+                    className="w-4 h-4 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
                   </svg>
                   Export as PDF
                 </Button>
@@ -207,7 +251,6 @@ export function TopBar({
             )}
           </div>
         )}
-
 
         {/* New Chat/Pocket Button with dropdown */}
         {currentMode === "ai-pocket" && !isInsidePocket ? (
@@ -233,10 +276,10 @@ export function TopBar({
                 />
               </svg>
             </Button>
-            
+
             {/* Dropdown menu for pocket actions */}
             {showPocketMenu && (
-              <div 
+              <div
                 className="absolute top-full right-0 mt-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
                 style={{ pointerEvents: "auto" }}
               >
@@ -248,8 +291,18 @@ export function TopBar({
                     onNewPocket?.();
                   }}
                 >
-                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <svg
+                    className="w-4 h-4 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
                   </svg>
                   Create New Pocket
                 </Button>
@@ -261,8 +314,18 @@ export function TopBar({
                     onImportPocket?.();
                   }}
                 >
-                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  <svg
+                    className="w-4 h-4 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                    />
                   </svg>
                   Import Pocket
                 </Button>
@@ -306,10 +369,10 @@ export function TopBar({
                 />
               </svg>
             </Button>
-            
+
             {/* Dropdown menu for add options */}
             {showAddMenu && currentMode === "ai-pocket" && isInsidePocket && (
-              <div 
+              <div
                 className="absolute top-full right-0 mt-2 bg-gray-900/90 dark:bg-gray-950/90 backdrop-blur-xl border border-gray-700/50 dark:border-gray-800/50 rounded-lg shadow-2xl overflow-hidden min-w-[180px] z-50"
                 style={{ pointerEvents: "auto" }}
               >
@@ -321,8 +384,18 @@ export function TopBar({
                     onAddFile?.();
                   }}
                 >
-                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  <svg
+                    className="w-4 h-4 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
                   </svg>
                   Add file
                 </Button>
@@ -334,8 +407,18 @@ export function TopBar({
                     onAddNote?.();
                   }}
                 >
-                  <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg
+                    className="w-4 h-4 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
                   </svg>
                   Add note
                 </Button>

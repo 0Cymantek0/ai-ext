@@ -13,9 +13,9 @@ export interface SelectionPreviewProps {
 // Helper to sanitize HTML (basic approach - removes script tags and event handlers)
 function sanitizeHTML(html: string): string {
   return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/on\w+\s*=\s*[^\s>]*/gi, '');
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/on\w+\s*=\s*[^\s>]*/gi, "");
 }
 
 export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
@@ -24,7 +24,7 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
     try {
       if (typeof content.content === "string") {
         const parsed = JSON.parse(content.content);
-        
+
         // Handle nested structure: parsed.text.content vs parsed.text
         let textContent = "";
         let htmlContent = "";
@@ -32,7 +32,7 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
         let wordCount = 0;
         let characterCount = 0;
         let isAIFormatted = false;
-        
+
         if (parsed.text && typeof parsed.text === "object") {
           // New format: { text: { content: "...", formattedContent: "...", aiFormattedContent: "...", ... } }
           textContent = parsed.text.content || "";
@@ -52,7 +52,7 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
           characterCount = textContent.length;
           wordCount = textContent.trim().split(/\s+/).filter(Boolean).length;
         }
-        
+
         return {
           text: textContent,
           htmlContent: htmlContent,
@@ -64,44 +64,44 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
           selection: parsed.selection || {},
         };
       }
-      
+
       // Fallback to plain content
       const text = typeof content.content === "string" ? content.content : "";
-      return { 
-        text, 
+      return {
+        text,
         htmlContent: "",
         formattedContent: "",
         isAIFormatted: false,
         wordCount: text.trim().split(/\s+/).filter(Boolean).length,
         characterCount: text.length,
-        context: {}, 
-        selection: {} 
+        context: {},
+        selection: {},
       };
     } catch (error) {
       console.error("Failed to parse selection content:", error);
       const text = typeof content.content === "string" ? content.content : "";
-      return { 
-        text, 
+      return {
+        text,
         htmlContent: "",
         formattedContent: "",
         isAIFormatted: false,
         wordCount: text.trim().split(/\s+/).filter(Boolean).length,
         characterCount: text.length,
-        context: {}, 
-        selection: {} 
+        context: {},
+        selection: {},
       };
     }
   }, [content.content]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
     });
   };
 
@@ -116,18 +116,22 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
   // Handle ESC key to close
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onClose();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
   // Determine what content to display - prefer AI formatted, then HTML, then plain text
-  const displayContent = parsedContent.formattedContent || parsedContent.htmlContent || parsedContent.text;
-  const shouldRenderMarkdown = parsedContent.formattedContent || parsedContent.htmlContent;
+  const displayContent =
+    parsedContent.formattedContent ||
+    parsedContent.htmlContent ||
+    parsedContent.text;
+  const shouldRenderMarkdown =
+    parsedContent.formattedContent || parsedContent.htmlContent;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
@@ -153,8 +157,18 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
               className="h-10 w-10 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
               title="Close (Esc)"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </Button>
           </div>
@@ -181,8 +195,18 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
             {parsedContent.context.before && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
                   </svg>
                   Context Before
                 </div>
@@ -197,15 +221,27 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
             {/* Selected Text */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-purple-400 uppercase tracking-wider">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
                 Captured Content
               </div>
               <div className="p-8 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl border-2 border-purple-500/30">
                 {shouldRenderMarkdown ? (
                   <div className="prose prose-invert prose-lg max-w-none">
-                    <Response>{displayContent || "*No content available*"}</Response>
+                    <Response>
+                      {displayContent || "*No content available*"}
+                    </Response>
                   </div>
                 ) : (
                   <p className="text-zinc-100 text-lg leading-relaxed whitespace-pre-wrap">
@@ -219,8 +255,18 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
             {parsedContent.context.after && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                   Context After
                 </div>
@@ -285,8 +331,18 @@ export function SelectionPreview({ content, onClose }: SelectionPreviewProps) {
                   >
                     <p className="text-sm text-purple-400 group-hover:text-purple-300 break-all flex items-center gap-2">
                       {content.sourceUrl}
-                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      <svg
+                        className="w-4 h-4 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        />
                       </svg>
                     </p>
                   </a>

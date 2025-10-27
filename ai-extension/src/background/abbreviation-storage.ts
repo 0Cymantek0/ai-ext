@@ -1,13 +1,13 @@
 /**
  * Abbreviation Storage Module
- * 
+ *
  * Manages CRUD operations for user-defined abbreviations using chrome.storage.sync.
  * Abbreviations are stored in sync storage to enable cross-device synchronization.
- * 
+ *
  * Storage Structure:
  * - Key: STORAGE_KEYS.ABBREVIATIONS
  * - Value: Record<string, Abbreviation> (shortcut -> abbreviation mapping)
- * 
+ *
  * Requirements: 10.1, 10.3
  */
 
@@ -51,10 +51,9 @@ export class AbbreviationStorageError extends Error {
 async function getAllAbbreviations(): Promise<Record<string, Abbreviation>> {
   try {
     const result = await chrome.storage.sync.get(STORAGE_KEYS.ABBREVIATIONS);
-    return (result[STORAGE_KEYS.ABBREVIATIONS] as Record<
-      string,
-      Abbreviation
-    >) || {};
+    return (
+      (result[STORAGE_KEYS.ABBREVIATIONS] as Record<string, Abbreviation>) || {}
+    );
   } catch (error) {
     console.error("Failed to get abbreviations:", error);
     throw new AbbreviationStorageError(
@@ -97,7 +96,7 @@ async function saveAllAbbreviations(
 
 /**
  * Create a new abbreviation
- * 
+ *
  * @param shortcut - The shortcut text (e.g., "sig")
  * @param expansion - The full text to expand to
  * @param category - Optional category for organization
@@ -156,7 +155,7 @@ export async function createAbbreviation(
 
 /**
  * Get an abbreviation by shortcut
- * 
+ *
  * @param shortcut - The shortcut to look up
  * @returns The abbreviation if found, null otherwise
  */
@@ -170,7 +169,7 @@ export async function getAbbreviation(
 
 /**
  * Update an existing abbreviation
- * 
+ *
  * @param shortcut - The shortcut to update
  * @param updates - Partial abbreviation data to update
  * @returns The updated abbreviation
@@ -195,7 +194,8 @@ export async function updateAbbreviation(
   const updated: Abbreviation = {
     ...existing,
     ...(updates.expansion && { expansion: updates.expansion.trim() }),
-    ...(updates.category !== undefined && updates.category.trim() && { category: updates.category.trim() }),
+    ...(updates.category !== undefined &&
+      updates.category.trim() && { category: updates.category.trim() }),
   };
 
   abbreviations[normalizedShortcut] = updated;
@@ -206,7 +206,7 @@ export async function updateAbbreviation(
 
 /**
  * Delete an abbreviation
- * 
+ *
  * @param shortcut - The shortcut to delete
  * @throws AbbreviationStorageError if abbreviation not found
  */
@@ -227,7 +227,7 @@ export async function deleteAbbreviation(shortcut: string): Promise<void> {
 
 /**
  * List all abbreviations
- * 
+ *
  * @param category - Optional category filter
  * @returns Array of abbreviations, sorted by usage count (descending)
  */
@@ -255,7 +255,7 @@ export async function listAbbreviations(
 
 /**
  * Expand an abbreviation and increment its usage count
- * 
+ *
  * @param shortcut - The shortcut to expand
  * @returns The expansion text and updated abbreviation
  * @throws AbbreviationStorageError if abbreviation not found
@@ -290,7 +290,7 @@ export async function expandAbbreviation(shortcut: string): Promise<{
 
 /**
  * Get storage usage statistics
- * 
+ *
  * @returns Storage usage information
  */
 export async function getStorageUsage(): Promise<{
@@ -314,7 +314,7 @@ export async function getStorageUsage(): Promise<{
 
 /**
  * Export all abbreviations as JSON
- * 
+ *
  * @returns JSON string of all abbreviations
  */
 export async function exportAbbreviations(): Promise<string> {
@@ -324,7 +324,7 @@ export async function exportAbbreviations(): Promise<string> {
 
 /**
  * Import abbreviations from JSON
- * 
+ *
  * @param jsonData - JSON string containing abbreviations
  * @param merge - If true, merge with existing abbreviations; if false, replace all
  * @returns Number of abbreviations imported
@@ -339,10 +339,7 @@ export async function importAbbreviations(
   try {
     importedData = JSON.parse(jsonData);
   } catch (error) {
-    throw new AbbreviationStorageError(
-      "Invalid JSON format",
-      "INVALID_INPUT",
-    );
+    throw new AbbreviationStorageError("Invalid JSON format", "INVALID_INPUT");
   }
 
   // Validate imported data
@@ -375,7 +372,7 @@ export async function importAbbreviations(
 
 /**
  * Clear all abbreviations
- * 
+ *
  * @returns Number of abbreviations deleted
  */
 export async function clearAllAbbreviations(): Promise<number> {

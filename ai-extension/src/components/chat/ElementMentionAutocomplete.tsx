@@ -5,7 +5,14 @@
  */
 
 import * as React from "react";
-import { FileText, Image as ImageIcon, FileAudio, Link as LinkIcon, FileType, Loader2 } from "lucide-react";
+import {
+  FileText,
+  Image as ImageIcon,
+  FileAudio,
+  Link as LinkIcon,
+  FileType,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContentElement, PocketInfo } from "./types";
 
@@ -55,17 +62,19 @@ export function ElementMentionAutocomplete({
           });
 
           if (response.success && response.data?.contents) {
-            const pocketElements: ContentElement[] = response.data.contents.map((content: any) => ({
-              id: content.id,
-              pocketId: pocket.id,
-              pocketName: pocket.name,
-              type: content.type,
-              title: content.metadata?.title || getDefaultTitle(content),
-              preview: getPreview(content),
-              thumbnail: getThumbnail(content),
-              sourceUrl: content.sourceUrl,
-              timestamp: content.capturedAt,
-            }));
+            const pocketElements: ContentElement[] = response.data.contents.map(
+              (content: any) => ({
+                id: content.id,
+                pocketId: pocket.id,
+                pocketName: pocket.name,
+                type: content.type,
+                title: content.metadata?.title || getDefaultTitle(content),
+                preview: getPreview(content),
+                thumbnail: getThumbnail(content),
+                sourceUrl: content.sourceUrl,
+                timestamp: content.capturedAt,
+              }),
+            );
 
             allElements.push(...pocketElements);
           }
@@ -74,7 +83,7 @@ export function ElementMentionAutocomplete({
         // Filter by query
         const filtered = query
           ? allElements.filter((el) =>
-              el.title.toLowerCase().includes(query.toLowerCase())
+              el.title.toLowerCase().includes(query.toLowerCase()),
             )
           : allElements;
 
@@ -140,7 +149,7 @@ export function ElementMentionAutocomplete({
       className={cn(
         "absolute bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl",
         "w-[320px] max-h-[300px] overflow-y-auto z-50",
-        disabled && "opacity-50 pointer-events-none"
+        disabled && "opacity-50 pointer-events-none",
       )}
       style={position ? { top: position.top, left: position.left } : undefined}
     >
@@ -172,9 +181,7 @@ export function ElementMentionAutocomplete({
               onClick={() => onSelectElement(element)}
               className={cn(
                 "w-full text-left px-3 py-2 transition-colors flex items-center gap-3",
-                index === selectedIndex
-                  ? "bg-white/15"
-                  : "hover:bg-white/10"
+                index === selectedIndex ? "bg-white/15" : "hover:bg-white/10",
               )}
               disabled={disabled}
             >
@@ -214,7 +221,9 @@ export function ElementMentionAutocomplete({
 function getDefaultTitle(content: any): string {
   if (content.type === "capture") {
     const text = content.content?.toString() || "";
-    return text.length > 50 ? text.slice(0, 50) + "..." : text || "Text Capture";
+    return text.length > 50
+      ? text.slice(0, 50) + "..."
+      : text || "Text Capture";
   }
   if (content.type === "note") return "Note";
   if (content.type === "pdf") return content.metadata?.title || "PDF Document";

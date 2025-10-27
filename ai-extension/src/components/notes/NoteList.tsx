@@ -41,7 +41,11 @@ export function NoteList({
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
     if (diffDays === 0) return `Today, ${timeStr}`;
     if (diffDays === 1) return `Yesterday, ${timeStr}`;
     if (diffDays < 7) return `${diffDays} days ago, ${timeStr}`;
@@ -59,14 +63,16 @@ export function NoteList({
       .replace(/^\s*\d+\.\s+/gm, "")
       .replace(/\n+/g, " ")
       .trim();
-    return plainText.length > maxLength ? plainText.substring(0, maxLength) + "..." : plainText;
+    return plainText.length > maxLength
+      ? plainText.substring(0, maxLength) + "..."
+      : plainText;
   };
 
   const handleSelectNote = (noteId: string, selected: boolean) => {
     if (selected) {
       onSelectNotes([...selectedNotes, noteId]);
     } else {
-      onSelectNotes(selectedNotes.filter(id => id !== noteId));
+      onSelectNotes(selectedNotes.filter((id) => id !== noteId));
     }
   };
 
@@ -74,7 +80,7 @@ export function NoteList({
     if (selectedNotes.length === notes.length) {
       onSelectNotes([]);
     } else {
-      onSelectNotes(notes.map(note => note.id!).filter(Boolean));
+      onSelectNotes(notes.map((note) => note.id!).filter(Boolean));
     }
   };
 
@@ -149,17 +155,32 @@ export function NoteList({
     );
   }
 
-  const renderNoteItem = (note: NoteData, viewMode: "list" | "grid" = "list") => {
+  const renderNoteItem = (
+    note: NoteData,
+    viewMode: "list" | "grid" = "list",
+  ) => {
     const visibleTags = (note.tags || []).slice(0, 3);
-    const extraCount = Math.max((note.tags?.length || 0) - visibleTags.length, 0);
-    const TagChip: React.FC<{ label: string; idx?: number }> = ({ label, idx = 0 }) => {
+    const extraCount = Math.max(
+      (note.tags?.length || 0) - visibleTags.length,
+      0,
+    );
+    const TagChip: React.FC<{ label: string; idx?: number }> = ({
+      label,
+      idx = 0,
+    }) => {
       const palettes = [
         "bg-[#8B7355] text-white",
         "bg-[#4A7C9C] text-white",
         "bg-[#5A8B6B] text-white",
       ];
       const style = palettes[idx % palettes.length];
-      return <span className={cn("px-2.5 py-1 rounded-md text-xs font-medium", style)}>{label}</span>;
+      return (
+        <span
+          className={cn("px-2.5 py-1 rounded-md text-xs font-medium", style)}
+        >
+          {label}
+        </span>
+      );
     };
 
     if (viewMode === "list") {
@@ -170,7 +191,7 @@ export function NoteList({
             "group relative flex flex-col p-4 rounded-xl border-2",
             "hover:border-[#8B7355]/80 cursor-pointer transition-all",
             "bg-[#2A2A2A] border-[#6B5D4F]",
-            selectedNotes.includes(note.id!) && "ring-2 ring-amber-500"
+            selectedNotes.includes(note.id!) && "ring-2 ring-amber-500",
           )}
           onMouseEnter={() => setShowActions(note.id!)}
           onMouseLeave={() => setShowActions(null)}
@@ -178,8 +199,18 @@ export function NoteList({
         >
           <div className="flex items-start gap-3">
             <div className="mt-0.5 shrink-0 text-[#F59E0B]">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
@@ -204,15 +235,27 @@ export function NoteList({
                 }}
                 title="Delete note"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
                 </svg>
               </Button>
               {visibleTags.map((t, i) => (
                 <TagChip key={t + i} label={t} idx={i} />
               ))}
               {extraCount > 0 && (
-                <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#3A3A3A] text-white">+{extraCount}</span>
+                <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#3A3A3A] text-white">
+                  +{extraCount}
+                </span>
               )}
             </div>
             <div className="text-sm text-[#9CA3AF]">
@@ -231,7 +274,7 @@ export function NoteList({
           "group relative flex flex-col p-4 rounded-xl border-2 h-full",
           "hover:border-[#8B7355]/80 cursor-pointer transition-all",
           "bg-[#2A2A2A] border-[#6B5D4F]",
-          selectedNotes.includes(note.id!) && "ring-2 ring-amber-500"
+          selectedNotes.includes(note.id!) && "ring-2 ring-amber-500",
         )}
         onMouseEnter={() => setShowActions(note.id!)}
         onMouseLeave={() => setShowActions(null)}
@@ -241,8 +284,18 @@ export function NoteList({
         <div className="flex-1 flex flex-col">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 shrink-0 text-[#F59E0B]">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
@@ -251,7 +304,7 @@ export function NoteList({
               </h3>
             </div>
           </div>
-          
+
           <p className="mt-2 text-sm text-[#9CA3AF] line-clamp-3">
             {getPreview(note.content, 120)}
           </p>
@@ -263,7 +316,9 @@ export function NoteList({
                 <TagChip key={t + i} label={t} idx={i} />
               ))}
               {extraCount > 0 && (
-                <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#3A3A3A] text-white">+{extraCount}</span>
+                <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#3A3A3A] text-white">
+                  +{extraCount}
+                </span>
               )}
             </div>
           )}
@@ -281,8 +336,18 @@ export function NoteList({
             }}
             title="Delete note"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
             </svg>
           </Button>
           <div className="text-sm text-[#9CA3AF]">
@@ -306,10 +371,9 @@ export function NoteList({
               className="rounded"
             />
             <span className="text-sm text-muted-foreground">
-              {selectedNotes.length > 0 
+              {selectedNotes.length > 0
                 ? `${selectedNotes.length} selected`
-                : `${notes.length} notes`
-              }
+                : `${notes.length} notes`}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -329,8 +393,18 @@ export function NoteList({
                 className="h-7 px-2"
                 onClick={() => setViewMode("list")}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               </Button>
               <Button
@@ -339,8 +413,18 @@ export function NoteList({
                 className="h-7 px-2"
                 onClick={() => setViewMode("grid")}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                  />
                 </svg>
               </Button>
             </div>
@@ -349,9 +433,17 @@ export function NoteList({
       )}
 
       {/* Notes Grid/List */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 pt-40 sm:pt-44 md:pt-48">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-4 pt-40 sm:pt-44 md:pt-48"
+      >
         {useVirtualized ? (
-          <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
+          <div
+            style={{
+              height: rowVirtualizer.getTotalSize(),
+              position: "relative",
+            }}
+          >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const note = notes[virtualRow.index]!;
               return (
@@ -371,11 +463,13 @@ export function NoteList({
             })}
           </div>
         ) : (
-          <div className={cn(
-            viewMode === "grid" 
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-              : "flex flex-col gap-4"
-          )}>
+          <div
+            className={cn(
+              viewMode === "grid"
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                : "flex flex-col gap-4",
+            )}
+          >
             {notes.map((note) => renderNoteItem(note, viewMode))}
           </div>
         )}

@@ -1,9 +1,9 @@
 /**
  * Embedding Engine
- * 
+ *
  * Manages embedding generation with Nano-first approach, batching, and rate limiting.
  * Falls back to cloud when Nano is unavailable.
- * 
+ *
  * Requirements: 7.2 (Embedding generation for semantic search)
  */
 
@@ -24,13 +24,13 @@ export class EmbeddingEngine {
   private embeddingCache = new Map<string, number[]>();
   private readonly MAX_CACHE_SIZE = 500;
   private readonly EMBEDDING_SYSTEM_PROMPT = `You are an embedding generation system. Your task is to understand the semantic meaning of text and represent it as a vector. Focus on extracting key concepts, themes, and meaningful information.`;
-  
+
   // Rate limiting
   private requestCount = 0;
   private windowStart = Date.now();
   private readonly RATE_LIMIT_WINDOW = 60000; // 1 minute
   private readonly MAX_REQUESTS_PER_WINDOW = 100;
-  
+
   // Nano session management
   private nanoSessionId: string | null = null;
   private nanoAvailable: boolean | null = null;
@@ -51,14 +51,16 @@ export class EmbeddingEngine {
     try {
       const availability = await this.aiManager.checkModelAvailability();
       this.nanoAvailable = availability === "readily";
-      
+
       logger.info("EmbeddingEngine", "Nano availability checked", {
         available: this.nanoAvailable,
       });
-      
+
       return this.nanoAvailable;
     } catch (error) {
-      logger.warn("EmbeddingEngine", "Failed to check Nano availability", { error });
+      logger.warn("EmbeddingEngine", "Failed to check Nano availability", {
+        error,
+      });
       this.nanoAvailable = false;
       return false;
     }
@@ -74,14 +76,16 @@ export class EmbeddingEngine {
 
     try {
       this.nanoSessionId = await this.aiManager.createSession();
-      
+
       logger.info("EmbeddingEngine", "Nano embedding session created", {
         sessionId: this.nanoSessionId,
       });
-      
+
       return this.nanoSessionId;
     } catch (error) {
-      logger.error("EmbeddingEngine", "Failed to create Nano session", { error });
+      logger.error("EmbeddingEngine", "Failed to create Nano session", {
+        error,
+      });
       throw error;
     }
   }
@@ -91,7 +95,7 @@ export class EmbeddingEngine {
    */
   private async checkRateLimit(): Promise<void> {
     const now = Date.now();
-    
+
     // Reset window if needed
     if (now - this.windowStart > this.RATE_LIMIT_WINDOW) {
       this.requestCount = 0;
@@ -101,14 +105,14 @@ export class EmbeddingEngine {
     // Check if rate limit exceeded
     if (this.requestCount >= this.MAX_REQUESTS_PER_WINDOW) {
       const waitTime = this.RATE_LIMIT_WINDOW - (now - this.windowStart);
-      
+
       logger.warn("EmbeddingEngine", "Rate limit reached, waiting", {
         waitTime,
         requestCount: this.requestCount,
       });
-      
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-      
+
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+
       // Reset after waiting
       this.requestCount = 0;
       this.windowStart = Date.now();
@@ -126,29 +130,39 @@ export class EmbeddingEngine {
   private async generateWithNano(text: string): Promise<number[]> {
     try {
       const sessionId = await this.getNanoSession();
-      
+
       // Attempt to get structured embedding via JSON prompt
       const prompt = `Generate a semantic embedding vector for the following text. Return ONLY a JSON object with this exact structure: {"embedding": [array of 768 numbers between -1 and 1]}. The vector should be normalized (unit length). Text: "${text.slice(0, 500)}"`;
-      
+
       const response = await this.aiManager.processPrompt(sessionId, prompt);
-      
+
       // Try to parse JSON response
       const jsonMatch = response.match(/\{[^}]*"embedding"[^}]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed.embedding) && parsed.embedding.length === 768) {
+        if (
+          Array.isArray(parsed.embedding) &&
+          parsed.embedding.length === 768
+        ) {
           // Normalize the vector
-          const magnitude = Math.sqrt(parsed.embedding.reduce((sum: number, val: number) => sum + val * val, 0));
+          const magnitude = Math.sqrt(
+            parsed.embedding.reduce(
+              (sum: number, val: number) => sum + val * val,
+              0,
+            ),
+          );
           if (magnitude > 0) {
             return parsed.embedding.map((val: number) => val / magnitude);
           }
         }
       }
-      
+
       // If JSON parsing fails, fall back to hash-based
       throw new Error("Failed to extract valid embedding from Nano response");
     } catch (error) {
-      logger.warn("EmbeddingEngine", "Nano embedding extraction failed", { error });
+      logger.warn("EmbeddingEngine", "Nano embedding extraction failed", {
+        error,
+      });
       throw error;
     }
   }
@@ -171,7 +185,7 @@ export class EmbeddingEngine {
    */
   async generateEmbedding(
     text: string,
-    options: EmbeddingOptions = {}
+    options: EmbeddingOptions = {},
   ): Promise<number[]> {
     const { preferNano = true } = options; // Default to local for privacy
 
@@ -192,29 +206,37 @@ export class EmbeddingEngine {
       // LOCAL-FIRST: Try TensorFlow.js Universal Sentence Encoder (100% on-device)
       try {
         embedding = await localEmbeddingEngine.generateEmbedding(text);
-        
+
         logger.debug("EmbeddingEngine", "Generated with local TF.js USE", {
           textLength: text.length,
           embeddingDim: embedding.length,
         });
       } catch (localError) {
-        logger.warn("EmbeddingEngine", "Local embedding failed, trying fallbacks", {
-          error: localError,
-        });
-        
+        logger.warn(
+          "EmbeddingEngine",
+          "Local embedding failed, trying fallbacks",
+          {
+            error: localError,
+          },
+        );
+
         // Fallback 1: Try cloud if available and not preferring local-only
         if (!preferNano && this.cloudAIManager.isAvailable()) {
           try {
             embedding = await this.generateWithCloud(text);
-            
+
             logger.debug("EmbeddingEngine", "Generated with cloud fallback", {
               textLength: text.length,
               embeddingDim: embedding.length,
             });
           } catch (cloudError) {
-            logger.warn("EmbeddingEngine", "Cloud fallback failed, using hash", {
-              error: cloudError,
-            });
+            logger.warn(
+              "EmbeddingEngine",
+              "Cloud fallback failed, using hash",
+              {
+                error: cloudError,
+              },
+            );
             embedding = this.generateHashEmbedding(text);
           }
         } else {
@@ -227,12 +249,14 @@ export class EmbeddingEngine {
       // Validate embedding (512 for USE, 768 for cloud, 768 for hash)
       const validDimensions = [512, 768];
       if (!embedding || !validDimensions.includes(embedding.length)) {
-        throw new Error(`Invalid embedding dimension: ${embedding?.length}, expected ${validDimensions.join(' or ')}`);
+        throw new Error(
+          `Invalid embedding dimension: ${embedding?.length}, expected ${validDimensions.join(" or ")}`,
+        );
       }
 
       // Cache the result
       this.embeddingCache.set(text, embedding);
-      
+
       // Limit cache size
       if (this.embeddingCache.size > this.MAX_CACHE_SIZE) {
         const firstKey = this.embeddingCache.keys().next().value;
@@ -245,9 +269,12 @@ export class EmbeddingEngine {
         error,
         textLength: text.length,
       });
-      
+
       // Last resort: hash-based embedding
-      logger.warn("EmbeddingEngine", "Using hash-based embedding as last resort");
+      logger.warn(
+        "EmbeddingEngine",
+        "Using hash-based embedding as last resort",
+      );
       return this.generateHashEmbedding(text);
     }
   }
@@ -258,32 +285,39 @@ export class EmbeddingEngine {
    */
   async generateEmbeddingsBatch(
     texts: string[],
-    options: EmbeddingOptions = {}
+    options: EmbeddingOptions = {},
   ): Promise<number[][]> {
     const { batchSize = 32, preferNano = true } = options;
 
     try {
       // LOCAL-FIRST: Use TensorFlow.js batch processing (most efficient)
-      const embeddings = await localEmbeddingEngine.generateEmbeddingsBatch(texts, {
-        batchSize,
-      });
-      
+      const embeddings = await localEmbeddingEngine.generateEmbeddingsBatch(
+        texts,
+        {
+          batchSize,
+        },
+      );
+
       logger.info("EmbeddingEngine", "Batch generated with local TF.js", {
         count: embeddings.length,
       });
-      
+
       return embeddings;
     } catch (localError) {
-      logger.warn("EmbeddingEngine", "Local batch failed, falling back to individual", {
-        error: localError,
-      });
-      
+      logger.warn(
+        "EmbeddingEngine",
+        "Local batch failed, falling back to individual",
+        {
+          error: localError,
+        },
+      );
+
       // Fallback: Process individually
       const embeddings: number[][] = [];
-      
+
       for (let i = 0; i < texts.length; i += batchSize) {
         const batch = texts.slice(i, i + batchSize);
-        
+
         logger.info("EmbeddingEngine", "Processing fallback batch", {
           batchIndex: Math.floor(i / batchSize),
           batchSize: batch.length,
@@ -292,7 +326,7 @@ export class EmbeddingEngine {
 
         // Generate embeddings for batch
         const batchEmbeddings = await Promise.all(
-          batch.map(text => this.generateEmbedding(text, options))
+          batch.map((text) => this.generateEmbedding(text, options)),
         );
 
         embeddings.push(...batchEmbeddings);
@@ -318,10 +352,12 @@ export class EmbeddingEngine {
       try {
         await this.aiManager.destroySession(this.nanoSessionId);
         this.nanoSessionId = null;
-        
+
         logger.info("EmbeddingEngine", "Nano session destroyed");
       } catch (error) {
-        logger.warn("EmbeddingEngine", "Failed to destroy Nano session", { error });
+        logger.warn("EmbeddingEngine", "Failed to destroy Nano session", {
+          error,
+        });
       }
     }
   }
@@ -334,13 +370,13 @@ export class EmbeddingEngine {
   private generateHashEmbedding(text: string): number[] {
     const vector: number[] = new Array(768).fill(0);
     const normalizedText = text.toLowerCase().trim();
-    
+
     // Use character trigrams for better semantic approximation
     for (let i = 0; i < normalizedText.length - 2; i++) {
       const trigram = normalizedText.slice(i, i + 3);
       let hash = 0;
       for (let j = 0; j < trigram.length; j++) {
-        hash = ((hash << 5) - hash) + trigram.charCodeAt(j);
+        hash = (hash << 5) - hash + trigram.charCodeAt(j);
         hash = hash & hash; // Convert to 32-bit integer
       }
       const index = Math.abs(hash) % 768;
@@ -356,8 +392,10 @@ export class EmbeddingEngine {
     }
 
     // L2 normalize
-    const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-    return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
+    const magnitude = Math.sqrt(
+      vector.reduce((sum, val) => sum + val * val, 0),
+    );
+    return magnitude > 0 ? vector.map((val) => val / magnitude) : vector;
   }
 }
 

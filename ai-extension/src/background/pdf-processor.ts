@@ -4,11 +4,13 @@
  * Generates LLM-friendly metadata for AI processing
  */
 
-import * as pdfjsLib from 'pdfjs-dist';
-import { logger } from './monitoring.js';
+import * as pdfjsLib from "pdfjs-dist";
+import { logger } from "./monitoring.js";
 
 // Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('pdfjs-dist/build/pdf.worker.mjs');
+pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL(
+  "pdfjs-dist/build/pdf.worker.mjs",
+);
 
 export interface PDFTextItem {
   text: string;
@@ -48,11 +50,11 @@ export class PDFProcessor {
    * Process PDF file and extract all content
    */
   async processPDF(fileData: string): Promise<PDFMetadata> {
-    logger.info('PDFProcessor', 'Starting PDF processing');
+    logger.info("PDFProcessor", "Starting PDF processing");
 
     try {
       // Convert base64 to Uint8Array
-      const binaryString = atob(fileData.split(',')[1] || fileData);
+      const binaryString = atob(fileData.split(",")[1] || fileData);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
@@ -62,7 +64,7 @@ export class PDFProcessor {
       const loadingTask = pdfjsLib.getDocument({ data: bytes });
       const pdf = await loadingTask.promise;
 
-      logger.info('PDFProcessor', 'PDF loaded', { pageCount: pdf.numPages });
+      logger.info("PDFProcessor", "PDF loaded", { pageCount: pdf.numPages });
 
       // Extract content from all pages
       const allText: string[] = [];
@@ -71,13 +73,13 @@ export class PDFProcessor {
 
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
-        
+
         // Extract text with positioning
         const textContent = await page.getTextContent();
         const pageTextItems = this.extractTextItems(textContent);
         allTextItems.push(...pageTextItems);
-        
-        const pageText = pageTextItems.map(item => item.text).join(' ');
+
+        const pageText = pageTextItems.map((item) => item.text).join(" ");
         allText.push(pageText);
 
         // Extract images
@@ -86,7 +88,7 @@ export class PDFProcessor {
       }
 
       // Combine all text
-      const fullText = allText.join('\n\n');
+      const fullText = allText.join("\n\n");
 
       // Analyze structure
       const structuredContent = this.analyzeStructure(allTextItems);
@@ -103,7 +105,7 @@ export class PDFProcessor {
         tokenCount,
       };
 
-      logger.info('PDFProcessor', 'PDF processing completed', {
+      logger.info("PDFProcessor", "PDF processing completed", {
         pageCount: pdf.numPages,
         textLength: fullText.length,
         imageCount: images.length,
@@ -112,7 +114,7 @@ export class PDFProcessor {
 
       return metadata;
     } catch (error) {
-      logger.error('PDFProcessor', 'PDF processing failed', error);
+      logger.error("PDFProcessor", "PDF processing failed", error);
       throw new Error(`Failed to process PDF: ${error}`);
     }
   }
@@ -128,7 +130,7 @@ export class PDFProcessor {
         items.push({
           text: item.str,
           fontSize: item.height || 12,
-          fontName: item.fontName || 'unknown',
+          fontName: item.fontName || "unknown",
           x: item.transform[4],
           y: item.transform[5],
           width: item.width,
@@ -153,7 +155,9 @@ export class PDFProcessor {
     const sortedItems = [...textItems].sort((a, b) => b.y - a.y);
 
     // Calculate average font size
-    const avgFontSize = sortedItems.reduce((sum, item) => sum + item.fontSize, 0) / sortedItems.length;
+    const avgFontSize =
+      sortedItems.reduce((sum, item) => sum + item.fontSize, 0) /
+      sortedItems.length;
 
     let currentParagraph: string[] = [];
     let currentList: string[] = [];
@@ -168,10 +172,10 @@ export class PDFProcessor {
       // Detect headings (larger font size)
       if (item.fontSize > avgFontSize * 1.2) {
         if (currentParagraph.length > 0) {
-          paragraphs.push(currentParagraph.join(' '));
+          paragraphs.push(currentParagraph.join(" "));
           currentParagraph = [];
         }
-        
+
         const level = item.fontSize > avgFontSize * 1.5 ? 1 : 2;
         headings.push({ level, text });
         continue;
@@ -180,23 +184,24 @@ export class PDFProcessor {
       // Detect lists (starts with bullet points or numbers)
       if (/^[•\-\*\d+\.)]\s/.test(text)) {
         if (currentParagraph.length > 0) {
-          paragraphs.push(currentParagraph.join(' '));
+          paragraphs.push(currentParagraph.join(" "));
           currentParagraph = [];
         }
         currentList.push(text);
         continue;
       } else if (currentList.length > 0) {
-        lists.push(currentList.join('\n'));
+        lists.push(currentList.join("\n"));
         currentList = [];
       }
 
       // Detect table-like structures (items on same line with spacing)
-      const isNewLine = lastY === -1 || Math.abs(item.y - lastY) > lineThreshold;
-      
+      const isNewLine =
+        lastY === -1 || Math.abs(item.y - lastY) > lineThreshold;
+
       if (!isNewLine && currentParagraph.length > 0) {
         // Potential table cell
         if (currentTable.length === 0) {
-          currentTable.push([currentParagraph.join(' ')]);
+          currentTable.push([currentParagraph.join(" ")]);
           currentParagraph = [];
         }
         const lastRow = currentTable[currentTable.length - 1];
@@ -211,9 +216,9 @@ export class PDFProcessor {
           tables.push(this.tableToMarkdown(currentTable));
           currentTable = [];
         }
-        
+
         if (currentParagraph.length > 0) {
-          paragraphs.push(currentParagraph.join(' '));
+          paragraphs.push(currentParagraph.join(" "));
         }
         currentParagraph = [text];
       }
@@ -223,10 +228,10 @@ export class PDFProcessor {
 
     // Flush remaining content
     if (currentParagraph.length > 0) {
-      paragraphs.push(currentParagraph.join(' '));
+      paragraphs.push(currentParagraph.join(" "));
     }
     if (currentList.length > 0) {
-      lists.push(currentList.join('\n'));
+      lists.push(currentList.join("\n"));
     }
     const firstRow = currentTable[0];
     if (currentTable.length > 0 && firstRow && firstRow.length > 1) {
@@ -240,28 +245,30 @@ export class PDFProcessor {
    * Convert table data to Markdown format
    */
   private tableToMarkdown(table: string[][]): string {
-    if (table.length === 0) return '';
+    if (table.length === 0) return "";
 
-    const maxCols = Math.max(...table.map(row => row.length));
-    
+    const maxCols = Math.max(...table.map((row) => row.length));
+
     // Normalize rows to have same number of columns
-    const normalizedTable = table.map(row => {
+    const normalizedTable = table.map((row) => {
       const normalized = [...row];
       while (normalized.length < maxCols) {
-        normalized.push('');
+        normalized.push("");
       }
       return normalized;
     });
 
     // Create Markdown table
     const firstRow = normalizedTable[0];
-    if (!firstRow) return '';
-    
-    const header = '| ' + firstRow.join(' | ') + ' |';
-    const separator = '|' + firstRow.map(() => '---').join('|') + '|';
-    const rows = normalizedTable.slice(1).map(row => '| ' + row.join(' | ') + ' |');
+    if (!firstRow) return "";
 
-    return [header, separator, ...rows].join('\n');
+    const header = "| " + firstRow.join(" | ") + " |";
+    const separator = "|" + firstRow.map(() => "---").join("|") + "|";
+    const rows = normalizedTable
+      .slice(1)
+      .map((row) => "| " + row.join(" | ") + " |");
+
+    return [header, separator, ...rows].join("\n");
   }
 
   /**
@@ -272,29 +279,33 @@ export class PDFProcessor {
 
     try {
       const ops = await page.getOperatorList();
-      
+
       for (let i = 0; i < ops.fnArray.length; i++) {
         // Check for image operations
-        if (ops.fnArray[i] === pdfjsLib.OPS.paintImageXObject || 
-            ops.fnArray[i] === pdfjsLib.OPS.paintInlineImageXObject) {
-          
+        if (
+          ops.fnArray[i] === pdfjsLib.OPS.paintImageXObject ||
+          ops.fnArray[i] === pdfjsLib.OPS.paintInlineImageXObject
+        ) {
           try {
             const imageName = ops.argsArray[i][0];
             const image = await page.objs.get(imageName);
-            
+
             if (image && image.width && image.height) {
               // Convert image to base64
               const canvas = new OffscreenCanvas(image.width, image.height);
-              const ctx = canvas.getContext('2d');
-              
+              const ctx = canvas.getContext("2d");
+
               if (ctx && image.data) {
-                const imageData = ctx.createImageData(image.width, image.height);
+                const imageData = ctx.createImageData(
+                  image.width,
+                  image.height,
+                );
                 imageData.data.set(image.data);
                 ctx.putImageData(imageData, 0, 0);
-                
-                const blob = await canvas.convertToBlob({ type: 'image/png' });
+
+                const blob = await canvas.convertToBlob({ type: "image/png" });
                 const base64 = await this.blobToBase64(blob);
-                
+
                 images.push({
                   data: base64,
                   width: image.width,
@@ -304,12 +315,12 @@ export class PDFProcessor {
               }
             }
           } catch (imgError) {
-            logger.warn('PDFProcessor', 'Failed to extract image', imgError);
+            logger.warn("PDFProcessor", "Failed to extract image", imgError);
           }
         }
       }
     } catch (error) {
-      logger.warn('PDFProcessor', 'Failed to extract images from page', error);
+      logger.warn("PDFProcessor", "Failed to extract images from page", error);
     }
 
     return images;
@@ -336,45 +347,47 @@ export class PDFProcessor {
 
     // Add document overview
     parts.push(`PDF Document (${metadata.pageCount} pages)`);
-    parts.push('');
+    parts.push("");
 
     // Add headings structure
     if (metadata.structuredContent.headings.length > 0) {
-      parts.push('## Document Structure');
+      parts.push("## Document Structure");
       for (const heading of metadata.structuredContent.headings) {
-        const prefix = '#'.repeat(heading.level + 1);
+        const prefix = "#".repeat(heading.level + 1);
         parts.push(`${prefix} ${heading.text}`);
       }
-      parts.push('');
+      parts.push("");
     }
 
     // Add key paragraphs (first few)
     if (metadata.structuredContent.paragraphs.length > 0) {
-      parts.push('## Content Summary');
+      parts.push("## Content Summary");
       const keyParagraphs = metadata.structuredContent.paragraphs.slice(0, 5);
-      parts.push(keyParagraphs.join('\n\n'));
-      
+      parts.push(keyParagraphs.join("\n\n"));
+
       if (metadata.structuredContent.paragraphs.length > 5) {
-        parts.push(`\n... (${metadata.structuredContent.paragraphs.length - 5} more paragraphs)`);
+        parts.push(
+          `\n... (${metadata.structuredContent.paragraphs.length - 5} more paragraphs)`,
+        );
       }
-      parts.push('');
+      parts.push("");
     }
 
     // Add tables
     if (metadata.structuredContent.tables.length > 0) {
-      parts.push('## Tables');
+      parts.push("## Tables");
       for (const table of metadata.structuredContent.tables) {
         parts.push(table);
-        parts.push('');
+        parts.push("");
       }
     }
 
     // Add lists
     if (metadata.structuredContent.lists.length > 0) {
-      parts.push('## Lists');
+      parts.push("## Lists");
       for (const list of metadata.structuredContent.lists) {
         parts.push(list);
-        parts.push('');
+        parts.push("");
       }
     }
 
@@ -383,7 +396,7 @@ export class PDFProcessor {
       parts.push(`## Images: ${metadata.images.length} images found`);
     }
 
-    return parts.join('\n');
+    return parts.join("\n");
   }
 }
 

@@ -1,13 +1,17 @@
 /**
  * Conversation Context Loader
- * 
+ *
  * Handles conversation history retrieval from IndexedDB and formats it for AI context.
  * Implements context window management to prevent token limit exceeded errors.
- * 
+ *
  * Requirements: 8.1.1, 8.1.2, 8.1.3, 8.1.4, 8.1.5, 8.1.7
  */
 
-import { indexedDBManager, type Message, type Conversation } from "./indexeddb-manager.js";
+import {
+  indexedDBManager,
+  type Message,
+  type Conversation,
+} from "./indexeddb-manager.js";
 import { logger } from "./monitoring.js";
 
 /**
@@ -58,7 +62,7 @@ const DEFAULT_CONFIG: ContextWindowConfig = {
 
 /**
  * Conversation Context Loader
- * 
+ *
  * Loads conversation history from IndexedDB and formats it for AI processing.
  * Implements intelligent context window management to stay within token limits.
  */
@@ -74,23 +78,30 @@ export class ConversationContextLoader {
   /**
    * Load conversation history from IndexedDB
    * Requirement 8.1.1: Load complete conversation history
-   * 
+   *
    * @param conversationId - ID of the conversation to load
    * @returns Conversation object or null if not found
    */
-  async loadConversationHistory(conversationId: string): Promise<Conversation | null> {
+  async loadConversationHistory(
+    conversationId: string,
+  ): Promise<Conversation | null> {
     let lastError: Error | null = null;
 
     // Retry logic for robustness
     for (let attempt = 1; attempt <= this.retryAttempts; attempt++) {
       try {
-        logger.info("ConversationContextLoader", "Loading conversation history", {
-          conversationId,
-          attempt,
-        });
+        logger.info(
+          "ConversationContextLoader",
+          "Loading conversation history",
+          {
+            conversationId,
+            attempt,
+          },
+        );
 
         await indexedDBManager.init();
-        const conversation = await indexedDBManager.getConversation(conversationId);
+        const conversation =
+          await indexedDBManager.getConversation(conversationId);
 
         if (!conversation) {
           logger.warn("ConversationContextLoader", "Conversation not found", {
@@ -99,43 +110,51 @@ export class ConversationContextLoader {
           return null;
         }
 
-        logger.info("ConversationContextLoader", "Conversation loaded successfully", {
-          conversationId,
-          messageCount: conversation.messages.length,
-          tokensUsed: conversation.tokensUsed,
-        });
+        logger.info(
+          "ConversationContextLoader",
+          "Conversation loaded successfully",
+          {
+            conversationId,
+            messageCount: conversation.messages.length,
+            tokensUsed: conversation.tokensUsed,
+          },
+        );
 
         return conversation;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        logger.error("ConversationContextLoader", `Load attempt ${attempt} failed`, {
-          conversationId,
-          error: lastError.message,
-        });
+        logger.error(
+          "ConversationContextLoader",
+          `Load attempt ${attempt} failed`,
+          {
+            conversationId,
+            error: lastError.message,
+          },
+        );
 
         // Wait before retrying (exponential backoff)
         if (attempt < this.retryAttempts) {
           const delay = this.retryDelay * Math.pow(2, attempt - 1);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     }
 
     // All retries failed
     throw new Error(
-      `Failed to load conversation after ${this.retryAttempts} attempts: ${lastError?.message}`
+      `Failed to load conversation after ${this.retryAttempts} attempts: ${lastError?.message}`,
     );
   }
 
   /**
    * Format messages for AI context
    * Requirement 8.1.2: Format messages in role:content format
-   * 
+   *
    * @param messages - Array of messages to format
    * @returns Array of formatted messages
    */
   formatMessagesForAI(messages: Message[]): FormattedMessage[] {
-    return messages.map(msg => ({
+    return messages.map((msg) => ({
       role: msg.role,
       content: msg.content,
     }));
@@ -144,7 +163,7 @@ export class ConversationContextLoader {
   /**
    * Estimate token count for text
    * Uses rough approximation: 1 token ≈ 4 characters
-   * 
+   *
    * @param text - Text to estimate tokens for
    * @returns Estimated token count
    */
@@ -154,7 +173,7 @@ export class ConversationContextLoader {
 
   /**
    * Estimate tokens for a message
-   * 
+   *
    * @param message - Message to estimate
    * @returns Estimated token count
    */
@@ -167,7 +186,7 @@ export class ConversationContextLoader {
   /**
    * Prioritize messages for context window
    * Requirement 8.1.5: Prioritize relevant historical messages
-   * 
+   *
    * @param messages - Messages to prioritize
    * @returns Prioritized messages with metadata
    */
@@ -181,7 +200,8 @@ export class ConversationContextLoader {
       }
       // Recent messages get high priority
       else if (index >= messages.length - this.config.recentMessageCount) {
-        priority = 500 + (index - (messages.length - this.config.recentMessageCount));
+        priority =
+          500 + (index - (messages.length - this.config.recentMessageCount));
       }
       // Older messages get lower priority
       else {
@@ -199,7 +219,7 @@ export class ConversationContextLoader {
   /**
    * Fit messages within context window
    * Requirement 8.1.4: Manage context window for long conversations
-   * 
+   *
    * @param messages - Prioritized messages
    * @returns Messages that fit within token budget
    */
@@ -232,13 +252,15 @@ export class ConversationContextLoader {
 
     // Sort selected messages back to chronological order
     const chronological = selected.sort((a, b) => {
-      const aIndex = messages.findIndex(m => m.id === a.id);
-      const bIndex = messages.findIndex(m => m.id === b.id);
+      const aIndex = messages.findIndex((m) => m.id === a.id);
+      const bIndex = messages.findIndex((m) => m.id === b.id);
       return aIndex - bIndex;
     });
 
     // Remove priority and estimatedTokens fields
-    const finalMessages: Message[] = chronological.map(({ priority, estimatedTokens, ...msg }) => msg);
+    const finalMessages: Message[] = chronological.map(
+      ({ priority, estimatedTokens, ...msg }) => msg,
+    );
 
     const truncated = finalMessages.length < messages.length;
 
@@ -259,19 +281,25 @@ export class ConversationContextLoader {
   /**
    * Build conversation context for AI
    * Requirement 8.1.3: Initialize AI session with conversation history
-   * 
+   *
    * @param conversationId - ID of the conversation
    * @returns Formatted conversation context
    */
-  async buildConversationContext(conversationId: string): Promise<ConversationContext> {
+  async buildConversationContext(
+    conversationId: string,
+  ): Promise<ConversationContext> {
     try {
       // Load conversation history
       const conversation = await this.loadConversationHistory(conversationId);
 
       if (!conversation || conversation.messages.length === 0) {
-        logger.info("ConversationContextLoader", "No conversation history found", {
-          conversationId,
-        });
+        logger.info(
+          "ConversationContextLoader",
+          "No conversation history found",
+          {
+            conversationId,
+          },
+        );
 
         return {
           messages: [],
@@ -285,7 +313,8 @@ export class ConversationContextLoader {
       const prioritized = this.prioritizeMessages(conversation.messages);
 
       // Fit within context window
-      const { messages, totalTokens, truncated } = this.fitInContextWindow(prioritized);
+      const { messages, totalTokens, truncated } =
+        this.fitInContextWindow(prioritized);
 
       // Format for AI
       const formattedMessages = this.formatMessagesForAI(messages);
@@ -315,7 +344,7 @@ export class ConversationContextLoader {
 
   /**
    * Format context as a single string for AI prompt
-   * 
+   *
    * @param context - Conversation context
    * @returns Formatted context string
    */
@@ -324,7 +353,7 @@ export class ConversationContextLoader {
       return "";
     }
 
-    const lines = context.messages.map(msg => `${msg.role}: ${msg.content}`);
+    const lines = context.messages.map((msg) => `${msg.role}: ${msg.content}`);
 
     if (context.truncated) {
       lines.unshift("[Earlier messages truncated to fit context window]");
@@ -335,17 +364,21 @@ export class ConversationContextLoader {
 
   /**
    * Update configuration
-   * 
+   *
    * @param config - Partial configuration to update
    */
   updateConfig(config: Partial<ContextWindowConfig>): void {
     this.config = { ...this.config, ...config };
-    logger.info("ConversationContextLoader", "Configuration updated", this.config);
+    logger.info(
+      "ConversationContextLoader",
+      "Configuration updated",
+      this.config,
+    );
   }
 
   /**
    * Get current configuration
-   * 
+   *
    * @returns Current configuration
    */
   getConfig(): ContextWindowConfig {

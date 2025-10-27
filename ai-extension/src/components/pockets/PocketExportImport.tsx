@@ -19,8 +19,14 @@ interface ExportData {
   };
 }
 
-export function PocketExportImport({ pockets, onImport, onClose }: PocketExportImportProps) {
-  const [selectedPockets, setSelectedPockets] = React.useState<Set<string>>(new Set());
+export function PocketExportImport({
+  pockets,
+  onImport,
+  onClose,
+}: PocketExportImportProps) {
+  const [selectedPockets, setSelectedPockets] = React.useState<Set<string>>(
+    new Set(),
+  );
   const [isImporting, setIsImporting] = React.useState(false);
   const [importError, setImportError] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -57,11 +63,16 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
       pockets: pocketsToExport,
       metadata: {
         totalPockets: pocketsToExport.length,
-        totalContent: pocketsToExport.reduce((sum, p) => sum + p.contentIds.length, 0),
+        totalContent: pocketsToExport.reduce(
+          (sum, p) => sum + p.contentIds.length,
+          0,
+        ),
       },
     };
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -104,7 +115,9 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
       onClose();
     } catch (error) {
       console.error("Import error:", error);
-      setImportError(error instanceof Error ? error.message : "Failed to import file");
+      setImportError(
+        error instanceof Error ? error.message : "Failed to import file",
+      );
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
@@ -169,7 +182,10 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
       pockets: pocketsToShare,
       metadata: {
         totalPockets: pocketsToShare.length,
-        totalContent: pocketsToShare.reduce((sum, p) => sum + p.contentIds.length, 0),
+        totalContent: pocketsToShare.reduce(
+          (sum, p) => sum + p.contentIds.length,
+          0,
+        ),
       },
     };
 
@@ -178,12 +194,14 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
     // Copy to clipboard
     navigator.clipboard.writeText(shareText).then(
       () => {
-        alert("Pocket data copied to clipboard! You can share this with others.");
+        alert(
+          "Pocket data copied to clipboard! You can share this with others.",
+        );
       },
       (err) => {
         console.error("Failed to copy:", err);
         alert("Failed to copy to clipboard");
-      }
+      },
     );
   };
 
@@ -196,15 +214,25 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
         className={cn(
           "w-full max-w-3xl max-h-[90vh] m-4 p-6 rounded-2xl shadow-2xl border overflow-y-auto",
           "bg-[rgba(17,25,40,0.75)] border-white/10 backdrop-blur-xl",
-          "text-white"
+          "text-white",
         )}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Export & Import Pockets</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </Button>
         </div>
@@ -225,16 +253,41 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
           <Button onClick={handleImportClick} disabled={isImporting}>
             {isImporting ? (
               <>
-                <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                <svg
+                  className="w-4 h-4 mr-2 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
                 </svg>
                 Importing...
               </>
             ) : (
               <>
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
                 </svg>
                 Choose File to Import
               </>
@@ -252,7 +305,9 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Export Pockets</h3>
             <Button variant="outline" size="sm" onClick={handleSelectAll}>
-              {selectedPockets.size === pockets.length ? "Deselect All" : "Select All"}
+              {selectedPockets.size === pockets.length
+                ? "Deselect All"
+                : "Select All"}
             </Button>
           </div>
 
@@ -270,7 +325,7 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
                       "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
                       selectedPockets.has(pocket.id)
                         ? "bg-accent/50 border-primary"
-                        : "bg-accent/20 border-white/10 hover:bg-accent/30"
+                        : "bg-accent/20 border-white/10 hover:bg-accent/30",
                     )}
                   >
                     <input
@@ -296,21 +351,62 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button onClick={handleExport} disabled={selectedPockets.size === 0}>
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                <Button
+                  onClick={handleExport}
+                  disabled={selectedPockets.size === 0}
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                    />
                   </svg>
                   Export as JSON
                 </Button>
-                <Button onClick={handleExportAsMarkdown} disabled={selectedPockets.size === 0} variant="outline">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <Button
+                  onClick={handleExportAsMarkdown}
+                  disabled={selectedPockets.size === 0}
+                  variant="outline"
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
                   </svg>
                   Export as Markdown
                 </Button>
-                <Button onClick={handleShareSelected} disabled={selectedPockets.size === 0} variant="outline">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                <Button
+                  onClick={handleShareSelected}
+                  disabled={selectedPockets.size === 0}
+                  variant="outline"
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                    />
                   </svg>
                   Copy to Share
                 </Button>
@@ -321,8 +417,9 @@ export function PocketExportImport({ pockets, onImport, onClose }: PocketExportI
 
         <div className="text-xs text-muted-foreground">
           <p>
-            <strong>Note:</strong> Exported files contain pocket metadata and structure. Content items are referenced by ID
-            and may need to be exported separately for complete backup.
+            <strong>Note:</strong> Exported files contain pocket metadata and
+            structure. Content items are referenced by ID and may need to be
+            exported separately for complete backup.
           </p>
         </div>
       </div>

@@ -13,9 +13,9 @@ import {
   type CapturedContent,
   type Embedding,
 } from "./indexeddb-manager.js";
-import type { 
-  VectorChunk, 
-  ChunkSearchResult, 
+import type {
+  VectorChunk,
+  ChunkSearchResult,
   ChunkSearchOptions,
 } from "./vector-chunk-types.js";
 
@@ -70,10 +70,10 @@ export class VectorSearchService {
     try {
       // Use embedding engine (Nano-first approach)
       const embedding = await embeddingEngine.generateEmbedding(text);
-      
+
       // Cache the result
       this.embeddingCache.set(text, embedding);
-      
+
       // Limit cache size
       if (this.embeddingCache.size > 100) {
         const firstKey = this.embeddingCache.keys().next().value;
@@ -95,7 +95,7 @@ export class VectorSearchService {
    */
   private keywordSearchPockets(
     pockets: Pocket[],
-    query: string
+    query: string,
   ): SearchResult<Pocket>[] {
     const lowerQuery = query.toLowerCase();
     const results: SearchResult<Pocket>[] = [];
@@ -118,7 +118,7 @@ export class VectorSearchService {
 
       // Check tags
       const matchingTags = pocket.tags.filter((tag) =>
-        tag.toLowerCase().includes(lowerQuery)
+        tag.toLowerCase().includes(lowerQuery),
       );
       if (matchingTags.length > 0) {
         score += 0.2 * (matchingTags.length / pocket.tags.length);
@@ -142,7 +142,7 @@ export class VectorSearchService {
    */
   private keywordSearchContent(
     contents: CapturedContent[],
-    query: string
+    query: string,
   ): SearchResult<CapturedContent>[] {
     const lowerQuery = query.toLowerCase();
     const results: SearchResult<CapturedContent>[] = [];
@@ -194,7 +194,7 @@ export class VectorSearchService {
    */
   async searchPockets(
     query: string,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<SearchResult<Pocket>[]> {
     try {
       logger.info("VectorSearchService", "Searching pockets", { query, limit });
@@ -214,14 +214,18 @@ export class VectorSearchService {
         for (const pocket of pockets) {
           // Create searchable text from pocket metadata
           const searchableText = `${pocket.name} ${pocket.description} ${pocket.tags.join(" ")}`;
-          
+
           // Generate or retrieve embedding for pocket
           const pocketEmbedding = await this.generateEmbedding(searchableText);
-          
+
           // Calculate similarity
-          const similarity = this.cosineSimilarity(queryEmbedding, pocketEmbedding);
-          
-          if (similarity > 0.3) { // Threshold for relevance
+          const similarity = this.cosineSimilarity(
+            queryEmbedding,
+            pocketEmbedding,
+          );
+
+          if (similarity > 0.3) {
+            // Threshold for relevance
             results.push({
               item: pocket,
               relevanceScore: similarity,
@@ -245,9 +249,9 @@ export class VectorSearchService {
         logger.warn(
           "VectorSearchService",
           "Vector search failed, falling back to keyword search",
-          { error: embeddingError }
+          { error: embeddingError },
         );
-        
+
         // Fallback to keyword search
         return this.keywordSearchPockets(pockets, query).slice(0, limit);
       }
@@ -263,7 +267,7 @@ export class VectorSearchService {
   async searchContent(
     query: string,
     pocketId?: string,
-    limit: number = 20
+    limit: number = 20,
   ): Promise<SearchResult<CapturedContent>[]> {
     try {
       logger.info("VectorSearchService", "Searching content", {
@@ -280,7 +284,7 @@ export class VectorSearchService {
         // Get all pockets and their content
         const pockets = await indexedDBManager.listPockets();
         const contentPromises = pockets.map((p) =>
-          indexedDBManager.getContentByPocket(p.id)
+          indexedDBManager.getContentByPocket(p.id),
         );
         const contentArrays = await Promise.all(contentPromises);
         contents = contentArrays.flat();
@@ -304,7 +308,7 @@ export class VectorSearchService {
 
         for (const content of contents) {
           let contentEmbedding: number[];
-          
+
           // Try to get existing embedding
           const existingEmbedding = embeddingMap.get(content.id);
           if (existingEmbedding) {
@@ -315,13 +319,13 @@ export class VectorSearchService {
               typeof content.content === "string"
                 ? content.content
                 : content.metadata.title || "";
-            
+
             if (!contentText.trim()) {
               continue;
             }
 
             contentEmbedding = await this.generateEmbedding(
-              contentText.slice(0, 1000) // Limit text length
+              contentText.slice(0, 1000), // Limit text length
             );
 
             // Save embedding for future use
@@ -335,7 +339,7 @@ export class VectorSearchService {
           // Calculate similarity
           const similarity = this.cosineSimilarity(
             queryEmbedding,
-            contentEmbedding
+            contentEmbedding,
           );
 
           if (similarity > 0.3) {
@@ -362,7 +366,7 @@ export class VectorSearchService {
         logger.warn(
           "VectorSearchService",
           "Vector search failed, falling back to keyword search",
-          { error: embeddingError }
+          { error: embeddingError },
         );
 
         // Fallback to keyword search
@@ -389,7 +393,7 @@ export class VectorSearchService {
    */
   async searchChunks(
     query: string,
-    options: ChunkSearchOptions = {}
+    options: ChunkSearchOptions = {},
   ): Promise<ChunkSearchResult[]> {
     const {
       pocketId,
@@ -438,21 +442,28 @@ export class VectorSearchService {
         // Skip chunks with mismatched embedding dimensions
         if (chunk.embedding.length !== queryEmbedding.length) {
           dimensionMismatchCount++;
-          logger.warn("VectorSearchService", "Skipping chunk with mismatched embedding dimension", {
-            chunkId: chunk.id,
-            chunkDim: chunk.embedding.length,
-            queryDim: queryEmbedding.length,
-          });
+          logger.warn(
+            "VectorSearchService",
+            "Skipping chunk with mismatched embedding dimension",
+            {
+              chunkId: chunk.id,
+              chunkDim: chunk.embedding.length,
+              queryDim: queryEmbedding.length,
+            },
+          );
           continue;
         }
 
-        const similarity = this.cosineSimilarity(queryEmbedding, chunk.embedding);
+        const similarity = this.cosineSimilarity(
+          queryEmbedding,
+          chunk.embedding,
+        );
 
         if (similarity >= minRelevance) {
           results.push({
             chunk: { ...chunk, relevanceScore: similarity },
             relevanceScore: similarity,
-            matchType: 'semantic',
+            matchType: "semantic",
           });
         }
       }
@@ -462,7 +473,8 @@ export class VectorSearchService {
           skippedChunks: dimensionMismatchCount,
           totalChunks: storedChunks.length,
           queryDim: queryEmbedding.length,
-          message: "Some chunks were indexed with a different embedding model. Consider re-indexing.",
+          message:
+            "Some chunks were indexed with a different embedding model. Consider re-indexing.",
         });
       }
 
@@ -516,12 +528,11 @@ export class VectorSearchService {
       return topResults;
     } catch (error) {
       logger.error("VectorSearchService", "Chunk search failed", { error });
-      
+
       // Graceful fallback: return empty results
       return [];
     }
   }
-
 }
 
 export const vectorSearchService = new VectorSearchService();

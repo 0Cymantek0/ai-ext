@@ -1,14 +1,18 @@
 /**
  * Tests for ContextBundle conversation history integration
- * 
+ *
  * Verifies that ContextBundle properly integrates with ConversationContextLoader
  * to load actual conversation history instead of just reserving token space.
- * 
+ *
  * Requirements: 36.5, 36.7, 36.11, 38.1, 38.2
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { ContextBundleBuilder, serializeContextBundle, type ContextBundle } from "./context-bundle";
+import {
+  ContextBundleBuilder,
+  serializeContextBundle,
+  type ContextBundle,
+} from "./context-bundle";
 import type { Conversation, Message } from "./indexeddb-manager";
 import type { ConversationContext } from "./conversation-context-loader";
 
@@ -69,7 +73,8 @@ describe("ContextBundle History Integration", () => {
           {
             id: "msg-2",
             role: "assistant",
-            content: "AI stands for Artificial Intelligence. It's a field of computer science.",
+            content:
+              "AI stands for Artificial Intelligence. It's a field of computer science.",
             timestamp: Date.now() - 1000,
             source: "gemini-nano",
           },
@@ -101,8 +106,12 @@ describe("ContextBundle History Integration", () => {
 
       // Verify actual message content is present
       expect(bundle.history?.[0]?.content).toBe("What is AI?");
-      expect(bundle.history?.[1]?.content).toBe("AI stands for Artificial Intelligence. It's a field of computer science.");
-      expect(bundle.history?.[2]?.content).toBe("Tell me more about machine learning");
+      expect(bundle.history?.[1]?.content).toBe(
+        "AI stands for Artificial Intelligence. It's a field of computer science.",
+      );
+      expect(bundle.history?.[2]?.content).toBe(
+        "Tell me more about machine learning",
+      );
 
       // Verify roles are correct
       expect(bundle.history?.[0]?.role).toBe("user");
@@ -149,14 +158,17 @@ describe("ContextBundle History Integration", () => {
 
     it("should truncate history when token budget is exceeded", async () => {
       const conversationId = "long-conv";
-      
+
       // Create a conversation with many long messages
       const messages: Message[] = [];
       for (let i = 0; i < 20; i++) {
         messages.push({
           id: `msg-${i}`,
           role: i % 2 === 0 ? "user" : "assistant",
-          content: `This is message ${i} with a lot of content that takes up many tokens. `.repeat(20),
+          content:
+            `This is message ${i} with a lot of content that takes up many tokens. `.repeat(
+              20,
+            ),
           timestamp: Date.now() + i,
           source: "gemini-nano",
         });
@@ -314,7 +326,8 @@ describe("ContextBundle History Integration", () => {
           },
           {
             role: "assistant",
-            content: "Machine learning is a subset of AI that enables systems to learn from data.",
+            content:
+              "Machine learning is a subset of AI that enables systems to learn from data.",
             timestamp: Date.now() - 1000,
           },
         ],
@@ -329,7 +342,9 @@ describe("ContextBundle History Integration", () => {
       // Verify history section is included
       expect(serialized).toContain("## Conversation History");
       expect(serialized).toContain("User: What is machine learning?");
-      expect(serialized).toContain("Assistant: Machine learning is a subset of AI");
+      expect(serialized).toContain(
+        "Assistant: Machine learning is a subset of AI",
+      );
     });
 
     it("should include history in serialized output for AI Pocket mode", () => {
@@ -356,7 +371,7 @@ describe("ContextBundle History Integration", () => {
 
     it("should truncate long messages in serialized history", () => {
       const longContent = "A".repeat(300);
-      
+
       const bundle: ContextBundle = {
         history: [
           {
@@ -449,7 +464,7 @@ describe("ContextBundle History Integration", () => {
       // Both should have history
       expect(bundle1.history).toBeDefined();
       expect(bundle2.history).toBeDefined();
-      
+
       // Should be the same reference (cached)
       expect(bundle1).toBe(bundle2);
     });
@@ -546,7 +561,7 @@ describe("ContextBundle History Integration", () => {
 
     it("should respect token budget when adding history", async () => {
       const conversationId = "budget-conv";
-      
+
       // Create conversation with moderate content
       const messages: Message[] = [];
       for (let i = 0; i < 10; i++) {
@@ -579,7 +594,7 @@ describe("ContextBundle History Integration", () => {
 
       // Should not exceed budget
       expect(bundle.totalTokens).toBeLessThanOrEqual(maxTokens);
-      
+
       // Should have some history but not all
       if (bundle.history) {
         expect(bundle.history.length).toBeLessThan(messages.length);

@@ -13,7 +13,10 @@ import {
   type ContentMetadata,
 } from "./indexeddb-manager.js";
 import { pdfProcessor, type PDFMetadata } from "./pdf-processor.js";
-import { vectorIndexingQueue, IndexingOperation } from "./vector-indexing-queue.js";
+import {
+  vectorIndexingQueue,
+  IndexingOperation,
+} from "./vector-indexing-queue.js";
 
 export interface ProcessContentOptions {
   pocketId: string;
@@ -41,8 +44,17 @@ export class ContentProcessor {
   /**
    * Process and store captured content
    */
-  async processContent(options: ProcessContentOptions): Promise<ProcessedContent> {
-    const { pocketId, mode, content, metadata, sourceUrl, sanitize = true } = options;
+  async processContent(
+    options: ProcessContentOptions,
+  ): Promise<ProcessedContent> {
+    const {
+      pocketId,
+      mode,
+      content,
+      metadata,
+      sourceUrl,
+      sanitize = true,
+    } = options;
 
     logger.info("ContentProcessor", "Processing content", {
       pocketId,
@@ -54,7 +66,9 @@ export class ContentProcessor {
       // Validate content
       const validation = this.validateContent(content, mode);
       if (!validation.valid) {
-        throw new Error(`Content validation failed: ${validation.errors.join(", ")}`);
+        throw new Error(
+          `Content validation failed: ${validation.errors.join(", ")}`,
+        );
       }
 
       // Log warnings if any
@@ -88,7 +102,11 @@ export class ContentProcessor {
       const preparedContent = this.prepareContent(content, contentType, mode);
 
       // Create content metadata
-      const contentMetadata = this.createContentMetadata(metadata, content, mode);
+      const contentMetadata = this.createContentMetadata(
+        metadata,
+        content,
+        mode,
+      );
 
       // Save to IndexedDB
       await indexedDBManager.init();
@@ -100,29 +118,47 @@ export class ContentProcessor {
         sourceUrl,
         processingStatus: ProcessingStatus.COMPLETED,
       };
-      
+
       // Add pdfMetadata only if it exists
       if (pdfMetadata) {
         contentData.pdfMetadata = pdfMetadata;
       }
-      
+
       const contentId = await indexedDBManager.saveContent(contentData);
 
       // Enqueue vector indexing job (non-blocking)
-      vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.CREATE).catch((error) => {
-        logger.error("ContentProcessor", "Failed to enqueue vector indexing job", { contentId, error });
-      });
+      vectorIndexingQueue
+        .enqueueContent(contentId, IndexingOperation.CREATE)
+        .catch((error) => {
+          logger.error(
+            "ContentProcessor",
+            "Failed to enqueue vector indexing job",
+            { contentId, error },
+          );
+        });
 
       // Trigger Gemini Nano formatting ONLY for captured text (selection and page), NOT notes
       if (["selection", "page"].includes(mode) && preparedContent) {
         // Import and trigger formatting in background
-        import("./service-worker.js").then(({ backgroundProcessor }) => {
-          backgroundProcessor.processNewCapture(contentId, preparedContent).catch((error) => {
-            logger.error("ContentProcessor", "Background formatting failed", error);
+        import("./service-worker.js")
+          .then(({ backgroundProcessor }) => {
+            backgroundProcessor
+              .processNewCapture(contentId, preparedContent)
+              .catch((error) => {
+                logger.error(
+                  "ContentProcessor",
+                  "Background formatting failed",
+                  error,
+                );
+              });
+          })
+          .catch((error) => {
+            logger.error(
+              "ContentProcessor",
+              "Failed to import background processor",
+              error,
+            );
           });
-        }).catch((error) => {
-          logger.error("ContentProcessor", "Failed to import background processor", error);
-        });
       }
 
       // Generate preview
@@ -223,7 +259,7 @@ export class ContentProcessor {
     if (content.sanitization) {
       if (content.sanitization.detectedPII > 0) {
         warnings.push(
-          `Detected ${content.sanitization.detectedPII} PII instances (${content.sanitization.piiTypes?.join(", ")})`
+          `Detected ${content.sanitization.detectedPII} PII instances (${content.sanitization.piiTypes?.join(", ")})`,
         );
       }
     }
@@ -283,8 +319,10 @@ export class ContentProcessor {
         // Detect file type based on extension
         const fileExtension = content.fileExtension?.toLowerCase();
         if (fileExtension === "pdf") return ContentType.PDF;
-        if (["doc", "docx"].includes(fileExtension)) return ContentType.DOCUMENT;
-        if (["xls", "xlsx"].includes(fileExtension)) return ContentType.SPREADSHEET;
+        if (["doc", "docx"].includes(fileExtension))
+          return ContentType.DOCUMENT;
+        if (["xls", "xlsx"].includes(fileExtension))
+          return ContentType.SPREADSHEET;
         return ContentType.FILE;
 
       default:
@@ -296,7 +334,11 @@ export class ContentProcessor {
    * Prepare content for storage
    * Requirements: 2.1, 2.2, 2.5
    */
-  private prepareContent(content: any, type: ContentType, mode: string): string {
+  private prepareContent(
+    content: any,
+    type: ContentType,
+    mode: string,
+  ): string {
     switch (type) {
       case ContentType.PAGE:
       case ContentType.TEXT:
@@ -357,7 +399,7 @@ export class ContentProcessor {
   private createContentMetadata(
     pageMetadata: any,
     content: any,
-    mode: string
+    mode: string,
   ): ContentMetadata {
     const metadata: ContentMetadata = {
       timestamp: pageMetadata.timestamp || Date.now(),
@@ -404,7 +446,7 @@ export class ContentProcessor {
         height: content.image.height,
       };
     }
-    
+
     // Add dimensions from metadata if provided
     if (pageMetadata.dimensions) {
       metadata.dimensions = pageMetadata.dimensions;
@@ -414,7 +456,8 @@ export class ContentProcessor {
     if (mode === "file") {
       metadata.fileSize = pageMetadata.fileSize || content.fileSize;
       metadata.fileType = pageMetadata.fileType || content.fileType;
-      metadata.fileExtension = pageMetadata.fileExtension || content.fileExtension;
+      metadata.fileExtension =
+        pageMetadata.fileExtension || content.fileExtension;
     }
 
     return metadata;
@@ -423,7 +466,11 @@ export class ContentProcessor {
   /**
    * Generate content preview
    */
-  private generatePreview(content: any, type: ContentType, mode: string): string {
+  private generatePreview(
+    content: any,
+    type: ContentType,
+    mode: string,
+  ): string {
     const maxLength = 200;
 
     switch (type) {
@@ -544,7 +591,7 @@ export class ContentProcessor {
    */
   async updateProcessingStatus(
     contentId: string,
-    status: ProcessingStatus
+    status: ProcessingStatus,
   ): Promise<void> {
     try {
       await indexedDBManager.init();
@@ -557,7 +604,11 @@ export class ContentProcessor {
         status,
       });
     } catch (error) {
-      logger.error("ContentProcessor", "Failed to update processing status", error);
+      logger.error(
+        "ContentProcessor",
+        "Failed to update processing status",
+        error,
+      );
       throw error;
     }
   }
@@ -571,9 +622,15 @@ export class ContentProcessor {
       await indexedDBManager.deleteContent(contentId);
 
       // Enqueue vector indexing DELETE job (non-blocking)
-      vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.DELETE).catch((error) => {
-        logger.error("ContentProcessor", "Failed to enqueue vector deletion job", { contentId, error });
-      });
+      vectorIndexingQueue
+        .enqueueContent(contentId, IndexingOperation.DELETE)
+        .catch((error) => {
+          logger.error(
+            "ContentProcessor",
+            "Failed to enqueue vector deletion job",
+            { contentId, error },
+          );
+        });
 
       logger.info("ContentProcessor", "Content deleted", { contentId });
     } catch (error) {
@@ -588,7 +645,7 @@ export class ContentProcessor {
    */
   async generateSummary(
     contentId: string,
-    options: { preferLocal?: boolean; maxLength?: number } = {}
+    options: { preferLocal?: boolean; maxLength?: number } = {},
   ): Promise<string> {
     const { preferLocal = true, maxLength = 500 } = options;
 
@@ -667,14 +724,22 @@ export class ContentProcessor {
    * Process full page capture with AI enhancements
    * Requirements: 2.1, 2.2, 2.5, 3.4
    */
-  async processFullPageCapture(options: ProcessContentOptions): Promise<ProcessedContent> {
-    logger.info("ContentProcessor", "Processing full page capture with AI enhancements");
+  async processFullPageCapture(
+    options: ProcessContentOptions,
+  ): Promise<ProcessedContent> {
+    logger.info(
+      "ContentProcessor",
+      "Processing full page capture with AI enhancements",
+    );
 
     // First, process and store the content normally
     const result = await this.processContent(options);
 
     // Generate summary in the background (don't wait for it)
-    this.generateSummary(result.contentId, { preferLocal: true, maxLength: 500 })
+    this.generateSummary(result.contentId, {
+      preferLocal: true,
+      maxLength: 500,
+    })
       .then((summary) => {
         logger.info("ContentProcessor", "Summary generated for full page", {
           contentId: result.contentId,
@@ -686,7 +751,11 @@ export class ContentProcessor {
         // in a separate field or in the content metadata
       })
       .catch((error) => {
-        logger.warn("ContentProcessor", "Failed to generate summary (non-critical)", error);
+        logger.warn(
+          "ContentProcessor",
+          "Failed to generate summary (non-critical)",
+          error,
+        );
       });
 
     return result;
