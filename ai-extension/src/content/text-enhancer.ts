@@ -13,7 +13,13 @@ enum EnhancementStyle {
   CONCISE = 'concise',
   EMPATHETIC = 'empathetic',
   PERSUASIVE = 'persuasive',
-  OPTIMIZE = 'optimize'
+  OPTIMIZE = 'optimize',
+  // Prompt Enhancement Styles
+  CLARIFY_PROMPT = 'clarify_prompt',
+  EXPAND_PROMPT = 'expand_prompt',
+  TECHNICAL_PROMPT = 'technical_prompt',
+  CREATIVE_PROMPT = 'creative_prompt',
+  STRUCTURED_PROMPT = 'structured_prompt'
 }
 
 interface EnhancementOption {
@@ -73,6 +79,37 @@ class UniversalTextEnhancer {
       label: 'Optimize',
       icon: '✨',
       description: 'Improve grammar, clarity, and flow'
+    },
+    // Prompt Enhancement Options
+    {
+      id: EnhancementStyle.CLARIFY_PROMPT,
+      label: 'Clarify Prompt',
+      icon: '🔍',
+      description: 'Make your prompt clearer and more specific'
+    },
+    {
+      id: EnhancementStyle.EXPAND_PROMPT,
+      label: 'Expand Prompt',
+      icon: '📝',
+      description: 'Add more detail and context to your prompt'
+    },
+    {
+      id: EnhancementStyle.TECHNICAL_PROMPT,
+      label: 'Technical Prompt',
+      icon: '⚙️',
+      description: 'Optimize for technical or coding tasks'
+    },
+    {
+      id: EnhancementStyle.CREATIVE_PROMPT,
+      label: 'Creative Prompt',
+      icon: '🎨',
+      description: 'Enhance for creative and imaginative outputs'
+    },
+    {
+      id: EnhancementStyle.STRUCTURED_PROMPT,
+      label: 'Structured Prompt',
+      icon: '📋',
+      description: 'Format as a well-structured, step-by-step prompt'
     }
   ];
 
@@ -380,6 +417,22 @@ class UniversalTextEnhancer {
         color: rgba(255, 255, 255, 0.6);
         margin: 0;
         line-height: 1.4;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .ai-pocket-enhancement-menu-separator {
+        padding: 8px 16px;
+        margin: 8px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .ai-pocket-enhancement-menu-separator-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
         font-family: "Space Grotesk", sans-serif;
       }
 
@@ -1175,6 +1228,49 @@ class UniversalTextEnhancer {
   }
 
   /**
+   * Create option button for enhancement menu
+   */
+  private createOptionButton(option: EnhancementOption, index: number): HTMLElement {
+    const optionButton = document.createElement('button');
+    optionButton.className = 'ai-pocket-enhancement-option';
+    optionButton.setAttribute('role', 'menuitem');
+    optionButton.setAttribute('data-style', option.id);
+    optionButton.setAttribute('tabindex', index === 0 ? '0' : '-1');
+    optionButton.setAttribute('aria-checked', 'false');
+
+    const icon = document.createElement('span');
+    icon.className = 'ai-pocket-enhancement-option-icon';
+    icon.textContent = option.icon;
+    icon.setAttribute('aria-hidden', 'true');
+
+    const content = document.createElement('div');
+    content.className = 'ai-pocket-enhancement-option-content';
+
+    const label = document.createElement('div');
+    label.className = 'ai-pocket-enhancement-option-label';
+    label.textContent = option.label;
+
+    const description = document.createElement('div');
+    description.className = 'ai-pocket-enhancement-option-description';
+    description.textContent = option.description;
+
+    content.appendChild(label);
+    content.appendChild(description);
+
+    optionButton.appendChild(icon);
+    optionButton.appendChild(content);
+
+    // Add click handler
+    optionButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handleStyleSelection(option.id, optionButton);
+    });
+
+    return optionButton;
+  }
+
+  /**
    * Create enhancement menu
    */
   private createEnhancementMenu(): HTMLElement {
@@ -1210,44 +1306,52 @@ class UniversalTextEnhancer {
     header.appendChild(subtitle);
     menu.appendChild(header);
 
-    // Options
-    this.enhancementOptions.forEach((option, index) => {
-      const optionButton = document.createElement('button');
-      optionButton.className = 'ai-pocket-enhancement-option';
-      optionButton.setAttribute('role', 'menuitem');
-      optionButton.setAttribute('data-style', option.id);
-      optionButton.setAttribute('tabindex', index === 0 ? '0' : '-1');
-      optionButton.setAttribute('aria-checked', 'false');
+    // Options - split into text enhancement and prompt enhancement sections
+    const textEnhancementStyles = [
+      EnhancementStyle.PROFESSIONAL,
+      EnhancementStyle.CONCISE,
+      EnhancementStyle.EMPATHETIC,
+      EnhancementStyle.PERSUASIVE,
+      EnhancementStyle.FUNNY,
+      EnhancementStyle.OPTIMIZE
+    ];
 
-      const icon = document.createElement('span');
-      icon.className = 'ai-pocket-enhancement-option-icon';
-      icon.textContent = option.icon;
-      icon.setAttribute('aria-hidden', 'true');
+    const promptEnhancementStyles = [
+      EnhancementStyle.CLARIFY_PROMPT,
+      EnhancementStyle.EXPAND_PROMPT,
+      EnhancementStyle.TECHNICAL_PROMPT,
+      EnhancementStyle.CREATIVE_PROMPT,
+      EnhancementStyle.STRUCTURED_PROMPT
+    ];
 
-      const content = document.createElement('div');
-      content.className = 'ai-pocket-enhancement-option-content';
+    // Add text enhancement options
+    const textEnhancementOptions = this.enhancementOptions.filter(opt => 
+      textEnhancementStyles.includes(opt.id)
+    );
 
-      const label = document.createElement('div');
-      label.className = 'ai-pocket-enhancement-option-label';
-      label.textContent = option.label;
+    textEnhancementOptions.forEach((option, index) => {
+      const optionButton = this.createOptionButton(option, index);
+      menu.appendChild(optionButton);
+    });
 
-      const description = document.createElement('div');
-      description.className = 'ai-pocket-enhancement-option-description';
-      description.textContent = option.description;
+    // Add separator
+    const separator = document.createElement('div');
+    separator.className = 'ai-pocket-enhancement-menu-separator';
+    
+    const separatorLabel = document.createElement('div');
+    separatorLabel.className = 'ai-pocket-enhancement-menu-separator-label';
+    separatorLabel.textContent = 'Prompt Enhancement';
+    
+    separator.appendChild(separatorLabel);
+    menu.appendChild(separator);
 
-      content.appendChild(label);
-      content.appendChild(description);
+    // Add prompt enhancement options
+    const promptEnhancementOptions = this.enhancementOptions.filter(opt => 
+      promptEnhancementStyles.includes(opt.id)
+    );
 
-      optionButton.appendChild(icon);
-      optionButton.appendChild(content);
-
-      // Add click handler
-      optionButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.handleStyleSelection(option.id, optionButton);
-      });
-
+    promptEnhancementOptions.forEach((option, index) => {
+      const optionButton = this.createOptionButton(option, textEnhancementOptions.length + index);
       menu.appendChild(optionButton);
     });
 
@@ -1542,7 +1646,6 @@ class UniversalTextEnhancer {
       /\*\*(.*?)\*\*/g, // Bold text - keep content, remove formatting
       /^(Enhanced text|Improved version|Rewritten text):\s*/i,
       /^(The enhanced text is|The improved version is):\s*/i,
-      /\n\n.*?(explanation|analysis|note|context).*$/is, // Remove explanations at the end
     ];
 
     // Apply cleaning patterns
@@ -1555,8 +1658,22 @@ class UniversalTextEnhancer {
       }
     });
 
+    // Remove explanations at the end (without using 's' flag)
+    cleaned = cleaned.replace(/\n\n[\s\S]*?(explanation|analysis|note|context)[\s\S]*$/, '');
+
     // If the response contains multiple options, try to extract the first clean option
-    const optionMatch = cleaned.match(/^[^>\n\*\d-].*?(?=\n\n|\n[>\*\d-]|$)/s);
+    const lines = cleaned.split('\n');
+    let firstValidLine = '';
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine && !trimmedLine.match(/^[>\*\d-]/) && trimmedLine.length > 10) {
+        firstValidLine = trimmedLine;
+        break;
+      }
+    }
+    if (firstValidLine) {
+      cleaned = firstValidLine;
+    }
     if (optionMatch && optionMatch[0].length > 10) {
       cleaned = optionMatch[0].trim();
     }
@@ -1594,6 +1711,17 @@ class UniversalTextEnhancer {
         'Rewrite the following text with humor and lightheartedness. Add wit and playfulness while maintaining the core message.',
       [EnhancementStyle.OPTIMIZE]:
         'Improve the following text by fixing grammar errors, enhancing clarity, and improving overall flow. Make it more polished and well-written.',
+      // Prompt Enhancement Instructions
+      [EnhancementStyle.CLARIFY_PROMPT]:
+        'Transform the following text into a clear, specific, and well-defined prompt for an AI assistant. Remove ambiguity, add necessary context, and make the intent crystal clear. Focus on precision and clarity.',
+      [EnhancementStyle.EXPAND_PROMPT]:
+        'Transform the following text into a detailed, comprehensive prompt for an AI assistant. Add relevant context, specify desired format, include examples if helpful, and provide clear success criteria. Make it thorough and complete.',
+      [EnhancementStyle.TECHNICAL_PROMPT]:
+        'Transform the following text into a technical prompt optimized for coding, development, or technical tasks. Include specific requirements, technical constraints, desired technologies, code quality expectations, and any relevant technical context.',
+      [EnhancementStyle.CREATIVE_PROMPT]:
+        'Transform the following text into a creative prompt that encourages imaginative and innovative responses. Add elements that inspire creativity, specify the creative direction, and provide context that enables unique and original outputs.',
+      [EnhancementStyle.STRUCTURED_PROMPT]:
+        'Transform the following text into a well-structured, step-by-step prompt with clear sections. Break down the request into logical components, add numbered steps if applicable, specify input/output format, and organize information hierarchically for maximum clarity.',
     };
 
     let prompt = styleInstructions[style];
