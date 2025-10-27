@@ -91,6 +91,12 @@ export default defineConfig(({ mode }) => {
     // CRXJS handles all entry points from manifest.config.ts
     // Do not manually specify rollupOptions.input as it interferes with TypeScript transformation
     minify: mode === "production" ? "esbuild" : false,
+    rollupOptions: {
+      external: (id) => {
+        // Externalize all TensorFlow.js packages and their submodules
+        return id.startsWith("@tensorflow/");
+      },
+    },
   },
   };
 });

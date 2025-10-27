@@ -1674,9 +1674,6 @@ class UniversalTextEnhancer {
     if (firstValidLine) {
       cleaned = firstValidLine;
     }
-    if (optionMatch && optionMatch[0].length > 10) {
-      cleaned = optionMatch[0].trim();
-    }
 
     // Remove any remaining formatting artifacts
     cleaned = cleaned
