@@ -177,7 +177,7 @@ class UniversalTextEnhancer {
 
     try {
       this.pocketContext = await PocketContextProvider.getRelevantContent(this.pageContext);
-      
+
       if (this.pocketContext.relevantContent.length > 0) {
         console.debug("[TextEnhancer] Loaded pocket context", {
           itemCount: this.pocketContext.relevantContent.length,
@@ -1046,7 +1046,7 @@ class UniversalTextEnhancer {
 
     // Auto-detect the best enhancement style
     const detectedStyle = this.autoDetectEnhancementStyle(currentText);
-    
+
     console.debug("[TextEnhancer] Auto-detected style:", detectedStyle);
 
     // Process enhancement directly without showing menu
@@ -1058,7 +1058,7 @@ class UniversalTextEnhancer {
    */
   private autoDetectEnhancementStyle(text: string): EnhancementStyle {
     const lowerText = text.toLowerCase();
-    
+
     // Check for grammar/spelling issues first
     const hasGrammarIssues = this.hasGrammarIssues(text);
     if (hasGrammarIssues) {
@@ -1068,8 +1068,8 @@ class UniversalTextEnhancer {
     // Check page context for professional environments
     if (this.pageContext) {
       const professionalContexts = ['email', 'business', 'linkedin', 'work', 'corporate'];
-      if (professionalContexts.some(ctx => 
-        this.pageContext!.domain.includes(ctx) || 
+      if (professionalContexts.some(ctx =>
+        this.pageContext!.domain.includes(ctx) ||
         this.pageContext!.type.includes(ctx) ||
         (this.pageContext!.title && this.pageContext!.title.toLowerCase().includes(ctx))
       )) {
@@ -1084,7 +1084,7 @@ class UniversalTextEnhancer {
       /[.]{2,}|[!]{2,}|[?]{2,}/,
       /\b(awesome|cool|sweet|dope|sick)\b/i
     ];
-    
+
     if (informalPatterns.some(pattern => pattern.test(text))) {
       // If it's informal, check if it needs to be more professional
       if (text.length > 50) {
@@ -1104,7 +1104,7 @@ class UniversalTextEnhancer {
       /\b(sorry|apologize|understand|feel|emotion|heart|care|love|hate|angry|sad|happy|excited)\b/i,
       /\b(please|thank|appreciate|grateful|help|support)\b/i
     ];
-    
+
     if (emotionalPatterns.some(pattern => pattern.test(text))) {
       return EnhancementStyle.EMPATHETIC;
     }
@@ -1114,7 +1114,7 @@ class UniversalTextEnhancer {
       /\b(should|must|need|important|urgent|recommend|suggest|propose|convince|believe)\b/i,
       /\b(benefits?|advantages?|opportunity|offer|deal|value|worth)\b/i
     ];
-    
+
     if (persuasivePatterns.some(pattern => pattern.test(text))) {
       return EnhancementStyle.PERSUASIVE;
     }
@@ -1289,12 +1289,12 @@ class UniversalTextEnhancer {
 
     const subtitle = document.createElement('p');
     subtitle.className = 'ai-pocket-enhancement-menu-subtitle';
-    
+
     // Show context-aware subtitle if context is available
     if (this.pageContext) {
       const contextLabel = this.pageContext.type.replace('_', ' ');
       subtitle.textContent = `Optimized for ${contextLabel}`;
-      
+
       if (this.pocketContext && this.pocketContext.relevantContent.length > 0) {
         subtitle.textContent += ` • ${this.pocketContext.relevantContent.length} saved items`;
       }
@@ -1325,7 +1325,7 @@ class UniversalTextEnhancer {
     ];
 
     // Add text enhancement options
-    const textEnhancementOptions = this.enhancementOptions.filter(opt => 
+    const textEnhancementOptions = this.enhancementOptions.filter(opt =>
       textEnhancementStyles.includes(opt.id)
     );
 
@@ -1337,16 +1337,16 @@ class UniversalTextEnhancer {
     // Add separator
     const separator = document.createElement('div');
     separator.className = 'ai-pocket-enhancement-menu-separator';
-    
+
     const separatorLabel = document.createElement('div');
     separatorLabel.className = 'ai-pocket-enhancement-menu-separator-label';
     separatorLabel.textContent = 'Prompt Enhancement';
-    
+
     separator.appendChild(separatorLabel);
     menu.appendChild(separator);
 
     // Add prompt enhancement options
-    const promptEnhancementOptions = this.enhancementOptions.filter(opt => 
+    const promptEnhancementOptions = this.enhancementOptions.filter(opt =>
       promptEnhancementStyles.includes(opt.id)
     );
 
@@ -1617,7 +1617,7 @@ class UniversalTextEnhancer {
         originalText: text,
         directMode,
       },
-      { timeout: 30000 }
+      { timeout: 100000 }
     );
 
     if (!response.success || !response.data) {
@@ -1729,11 +1729,11 @@ class UniversalTextEnhancer {
     // Add page context if available (Requirement 9.5)
     if (this.pageContext) {
       prompt += `\n\nContext: You are helping the user write text on a ${this.pageContext.type} page`;
-      
+
       if (this.pageContext.title) {
         prompt += ` titled "${this.pageContext.title}"`;
       }
-      
+
       // Add contextual suggestions
       const suggestions = PageContextDetector.getContextualSuggestions(this.pageContext);
       if (suggestions.length > 0) {
@@ -1744,14 +1744,14 @@ class UniversalTextEnhancer {
     // Add pocket context if available (Requirement 9.6)
     if (this.pocketContext && this.pocketContext.relevantContent.length > 0) {
       prompt += `\n\nRelevant information from user's saved content:`;
-      
+
       this.pocketContext.relevantContent.slice(0, 3).forEach((item, index) => {
         prompt += `\n${index + 1}. ${item.title}`;
         if (item.snippet) {
           prompt += `\n   ${item.snippet}`;
         }
       });
-      
+
       prompt += `\n\nYou may reference or incorporate relevant information from the user's saved content if appropriate.`;
     }
 
@@ -1780,7 +1780,7 @@ class UniversalTextEnhancer {
     // Add loading state to button
     button.classList.add('loading');
     button.setAttribute('aria-label', 'Enhancing text...');
-    
+
     // Change icon to indicate loading (the CSS animation will handle the spinning)
     const icon = button.querySelector('.ai-pocket-enhance-btn-icon');
     if (icon) {
@@ -1799,7 +1799,7 @@ class UniversalTextEnhancer {
     // Remove loading state from button
     loadingButton.classList.remove('loading');
     loadingButton.setAttribute('aria-label', 'Enhance text with AI (drag to move)');
-    
+
     // Restore original icon
     const icon = loadingButton.querySelector('.ai-pocket-enhance-btn-icon');
     if (icon) {
