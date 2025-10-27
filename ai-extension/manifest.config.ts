@@ -25,7 +25,6 @@ export default defineManifest({
     "unlimitedStorage",
     "contextMenus",
   ],
-  optional_permissions: ["microphone"],
   host_permissions: ["<all_urls>"],
   side_panel: {
     default_path: "src/sidepanel/sidepanel.html",

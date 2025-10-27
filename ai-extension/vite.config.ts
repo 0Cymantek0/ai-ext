@@ -76,6 +76,7 @@ export default defineConfig(({ mode }) => {
       "@hooks": path.resolve(__dirname, "src/hooks"),
       "@devtools-shared": path.resolve(__dirname, "../dev-tools/shared"),
     },
+    dedupe: ['react', 'react-dom'],
     preserveSymlinks: true,
   },
   server: {
@@ -91,6 +92,16 @@ export default defineConfig(({ mode }) => {
     // CRXJS handles all entry points from manifest.config.ts
     // Do not manually specify rollupOptions.input as it interferes with TypeScript transformation
     minify: mode === "production" ? "esbuild" : false,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // Bundle TensorFlow separately to avoid size issues
+          if (id.includes('@tensorflow')) {
+            return 'tensorflow';
+          }
+        },
+      },
+    },
   },
   };
 });
