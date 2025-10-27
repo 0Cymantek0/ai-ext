@@ -92,9 +92,13 @@ export default defineConfig(({ mode }) => {
     // Do not manually specify rollupOptions.input as it interferes with TypeScript transformation
     minify: mode === "production" ? "esbuild" : false,
     rollupOptions: {
-      external: (id) => {
-        // Externalize all TensorFlow.js packages and their subpaths
-        return id.startsWith("@tensorflow/");
+      output: {
+        manualChunks: (id) => {
+          // Bundle TensorFlow separately to avoid size issues
+          if (id.includes('@tensorflow')) {
+            return 'tensorflow';
+          }
+        },
       },
     },
   },

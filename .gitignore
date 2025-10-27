@@ -72,4 +72,5 @@ ai-extension/.cursor/
 ai-extension/.cursor/mcp.json
 .claude
 .vscode
+/node_modules
 /node_modules/
