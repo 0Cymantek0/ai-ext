@@ -1,4 +1,12 @@
-import { Session, SessionMetadata, Interaction, LogEntry, ErrorEntry, StateSnapshot, RecordingOptions } from './types.js';
+import {
+  Session,
+  SessionMetadata,
+  Interaction,
+  LogEntry,
+  ErrorEntry,
+  StateSnapshot,
+  RecordingOptions,
+} from './types.js';
 
 export interface RawSessionCapture {
   session?: Partial<SessionMetadata> & { sessionId: string; startTime: number };
@@ -51,7 +59,12 @@ export interface RawAsset {
 
 export function normalizeSession(raw: RawSessionCapture): Session {
   const metadata = normalizeMetadata(raw.session);
-  const interactions = normalizeInteractions(raw.timeline ?? [], raw.logs ?? [], raw.errors ?? [], raw.assets ?? []);
+  const interactions = normalizeInteractions(
+    raw.timeline ?? [],
+    raw.logs ?? [],
+    raw.errors ?? [],
+    raw.assets ?? []
+  );
   const errors = normalizeErrors(raw.errors ?? []);
   const snapshots = raw.snapshots ?? [];
 
@@ -94,7 +107,7 @@ function normalizeInteractions(
   timeline: RawInteractionEvent[],
   logGroups: RawLogGroup[],
   errors: RawErrorEvent[],
-  assets: RawAsset[],
+  assets: RawAsset[]
 ): Interaction[] {
   const interactionMap = new Map<string, Interaction>();
 

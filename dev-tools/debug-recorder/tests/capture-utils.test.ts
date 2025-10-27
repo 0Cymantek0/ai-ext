@@ -27,7 +27,7 @@ describe('capture utilities', () => {
           extensionId: 'test',
         },
       }),
-      'utf-8',
+      'utf-8'
     );
 
     const capture = await readCaptureFile(file);

@@ -4,10 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type {
-  StructuredLogEnvelope,
-  LogOrigin,
-} from '../src/types.js';
+import type { StructuredLogEnvelope, LogOrigin } from '../src/types.js';
 
 describe('Logging System Integration', () => {
   describe('Console Wrapper + Bridge Client Integration', () => {

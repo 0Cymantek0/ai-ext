@@ -62,7 +62,7 @@ export class BridgeServer {
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private startTime: number = 0;
   private totalEventsReceived: number = 0;
-  
+
   private onEvent?: (event: EventMessage) => void;
   private onBatch?: (batch: BatchMessage) => void;
   private onClientConnected?: (clientId: string, context: ClientContext) => void;
@@ -85,9 +85,9 @@ export class BridgeServer {
   async start(): Promise<string> {
     return new Promise((resolve, reject) => {
       try {
-        this.wss = new WebSocketServer({ 
+        this.wss = new WebSocketServer({
           host: this.config.host,
-          port: this.port 
+          port: this.port,
         });
 
         this.wss.on('listening', () => {
@@ -120,7 +120,7 @@ export class BridgeServer {
       }
 
       // Notify all clients about disconnection
-      for (const [clientId, client] of this.clients.entries()) {
+      for (const client of this.clients.values()) {
         if (client.ws.readyState === WebSocket.OPEN) {
           this.sendMessage(client.ws, {
             type: 'DISCONNECT',
@@ -168,7 +168,11 @@ export class BridgeServer {
   /**
    * Send command to specific client context
    */
-  sendCommandToContext(context: ClientContext, command: CommandType, params?: Record<string, unknown>): void {
+  sendCommandToContext(
+    context: ClientContext,
+    command: CommandType,
+    params?: Record<string, unknown>
+  ): void {
     const message: CommandMessage = {
       type: 'COMMAND',
       id: this.generateMessageId(),
@@ -177,7 +181,11 @@ export class BridgeServer {
     };
 
     for (const client of this.clients.values()) {
-      if (client.authenticated && client.context === context && client.ws.readyState === WebSocket.OPEN) {
+      if (
+        client.authenticated &&
+        client.context === context &&
+        client.ws.readyState === WebSocket.OPEN
+      ) {
         this.sendMessage(client.ws, message);
       }
     }
@@ -207,9 +215,10 @@ export class BridgeServer {
   /**
    * Handle new WebSocket connection
    */
-  private handleConnection(ws: WebSocket, req: any): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private handleConnection(ws: WebSocket, _req: any): void {
     const clientId = this.generateClientId();
-    
+
     const client: ConnectedClient = {
       ws,
       id: clientId,
@@ -280,7 +289,7 @@ export class BridgeServer {
    * Handle handshake from client
    */
   private handleHandshake(client: ConnectedClient, message: HandshakeMessage): void {
-    const { token, context, extensionId, sessionId } = message.payload;
+    const { token, context, sessionId } = message.payload;
 
     // Verify token and session
     if (token !== this.sessionToken || sessionId !== this.sessionId) {
@@ -301,9 +310,11 @@ export class BridgeServer {
 
     // Check for duplicate sessions from same context
     for (const existingClient of this.clients.values()) {
-      if (existingClient.authenticated && 
-          existingClient.context === context && 
-          existingClient.sessionId === sessionId) {
+      if (
+        existingClient.authenticated &&
+        existingClient.context === context &&
+        existingClient.sessionId === sessionId
+      ) {
         console.warn(`[BridgeServer] Duplicate connection from ${context}, closing old connection`);
         existingClient.ws.close();
       }
@@ -328,7 +339,7 @@ export class BridgeServer {
     });
 
     console.log(`[BridgeServer] Client connected: ${client.id} (${context})`);
-    
+
     if (this.onClientConnected) {
       this.onClientConnected(client.id, context);
     }
@@ -407,7 +418,7 @@ export class BridgeServer {
     if (client) {
       console.log(`[BridgeServer] Client disconnected: ${clientId} (${client.context})`);
       this.clients.delete(clientId);
-      
+
       if (this.onClientDisconnected) {
         this.onClientDisconnected(clientId);
       }

@@ -5,13 +5,16 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "debug-recorder": "dist/cli.js"
+    "ai-pocket-recorder": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
+    "build": "tsup",
+    "dev": "tsx watch src/cli.ts",
     "test": "vitest",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "debug",
@@ -23,12 +26,23 @@
   "license": "MIT",
   "dependencies": {
     "commander": "^11.1.0",
+    "ink": "^4.4.1",
+    "react": "^18.2.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@types/node": "^20.10.0",
+    "@types/react": "^18.2.45",
     "@types/ws": "^8.18.1",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "prettier": "^3.6.2",
+    "tsup": "^8.0.1",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.3",
+    "typescript-eslint": "^8.46.0",
     "vitest": "^1.0.4"
   }
 }

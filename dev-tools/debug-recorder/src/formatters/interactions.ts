@@ -4,7 +4,11 @@ import { normalizeTimestamp, formatDuration } from '../utils/timestamp.js';
 import { truncateToTokenLimit } from '../utils/token-aware.js';
 import { sanitizeMarkdown } from '../utils/text.js';
 
-export function formatDetailedInteractions(interactions: Interaction[], maxTokens = 5000, collapseLogs = true): string {
+export function formatDetailedInteractions(
+  interactions: Interaction[],
+  maxTokens = 5000,
+  collapseLogs = true
+): string {
   if (!interactions.length) {
     return '';
   }
@@ -17,7 +21,9 @@ export function formatDetailedInteractions(interactions: Interaction[], maxToken
     const status = normalizeStatus(interaction.status);
 
     lines.push(`<details>`);
-    lines.push(`<summary><strong>#${index + 1} — ${interaction.type}</strong> | ${status} | ${interaction.description}</summary>`);
+    lines.push(
+      `<summary><strong>#${index + 1} — ${interaction.type}</strong> | ${status} | ${interaction.description}</summary>`
+    );
     lines.push('');
     lines.push(`- **ID**: \`${interaction.id}\``);
     lines.push(`- **Timestamp**: ${normalizeTimestamp(interaction.timestamp)}`);
@@ -58,7 +64,9 @@ export function formatDetailedInteractions(interactions: Interaction[], maxToken
       lines.push('### Errors');
       lines.push('');
       for (const error of interaction.errors) {
-        lines.push(`- **[${normalizeTimestamp(error.timestamp)}]** ${sanitizeMarkdown(error.message)}`);
+        lines.push(
+          `- **[${normalizeTimestamp(error.timestamp)}]** ${sanitizeMarkdown(error.message)}`
+        );
         if (error.source) {
           lines.push(`  - Source: \`${error.source}\``);
         }

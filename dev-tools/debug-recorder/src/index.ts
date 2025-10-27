@@ -3,8 +3,10 @@
  */
 
 export { SessionStore } from './session-store.js';
+export { SessionController } from './session-controller.js';
 export { ReportGenerator } from './report-generator.js';
 export { normalizeSession } from './normalizer.js';
+export { BridgeServer } from './bridge-server.js';
 export {
   LogFilterPipeline,
   createDefaultLogFilter,
@@ -37,3 +39,5 @@ export type {
   RawErrorEvent,
   RawAsset,
 } from './normalizer.js';
+
+export type { SessionState, SessionConfig } from './session-controller.js';
