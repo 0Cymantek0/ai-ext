@@ -1,11 +1,8 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
@@ -29,7 +26,6 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children, them
   const match = /language-(\w+)/.exec(className || "");
   const language = match ? match[1] : "";
   const code = String(children).replace(/\n$/, "");
-  const codeTheme = theme === "dark" ? oneDark : oneLight;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code);
@@ -71,24 +67,14 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children, them
           )}
         </Button>
       </div>
-      <SyntaxHighlighter
-        style={codeTheme}
-        language={language || "text"}
-        PreTag="div"
+      <pre
         className={cn(
-          "text-sm min-w-0",
-          language ? "!rounded-t-none" : "rounded-lg"
+          "bg-muted p-4 rounded-lg overflow-x-auto text-sm font-mono border border-border",
+          language ? "!rounded-t-none pt-4" : "pt-10"
         )}
-        customStyle={{
-          margin: 0,
-          padding: "1rem",
-          paddingTop: language ? "1rem" : "2.5rem",
-          overflowX: "auto",
-          maxWidth: "100%",
-        }}
       >
-        {code}
-      </SyntaxHighlighter>
+        <code className={className}>{code}</code>
+      </pre>
     </div>
   );
 };
@@ -102,7 +88,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     <div className={cn("markdown-content break-words max-w-full", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeRaw, rehypeKatex]}
+        rehypePlugins={[rehypeKatex as any]}
         components={{
           // Code blocks with syntax highlighting
           code: (props) => <CodeBlock {...props} theme={theme} />,
