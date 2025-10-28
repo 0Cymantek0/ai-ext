@@ -328,6 +328,12 @@ export interface ConversationAttachedPocketResult {
 export type ResearchMode = "quick" | "standard" | "deep";
 
 /**
+ * Flexible mode string accepted across messaging.
+ * Allows predefined research modes and custom legacy values.
+ */
+export type AriaMode = ResearchMode | (string & {});
+
+/**
  * Enum describing the discrete phases of an ARIA research run.
  * Provides stable keys for messaging and UI state machines.
  */
@@ -361,8 +367,8 @@ export interface AriaRunMetrics {
 }
 
 export interface AriaRunConfig {
-  /** Research mode requested for the run */
-  mode: ResearchMode;
+  /** Research mode requested for the run (accepts ResearchMode or any custom string) */
+  mode: string;
   /** Optional initial query or prompt */
   query?: string;
   /** Optional phase to resume from */
@@ -378,8 +384,8 @@ export interface AriaRunConfig {
 export interface AriaRunState {
   /** Unique identifier for the run */
   runId: string;
-  /** Research mode for this run */
-  mode: ResearchMode;
+  /** Research mode for this run (ResearchMode or any custom string) */
+  mode: string;
   /** Current phase */
   phase: AriaRunPhase;
   /** Current status */
@@ -496,8 +502,8 @@ export interface AriaForkTranscript {
  * Initiates a new ARIA research session.
  */
 export interface AriaStartPayload {
-  /** Research mode: quick, standard, or deep */
-  mode: ResearchMode;
+  /** Research mode: "quick", "standard", "deep", or any custom mode string */
+  mode: AriaMode;
   /** Resource quota limits */
   quotas?: AriaQuotaLimits;
   /** Optional: specific research topics to focus on */
@@ -522,7 +528,7 @@ export interface AriaStatusPayload {
   /** Current execution phase */
   phase: AriaRunPhase;
   /** Research mode being used */
-  mode: ResearchMode;
+  mode: AriaMode;
   /** Progress metrics */
   metrics: AriaProgressMetrics;
   /** Timestamp of last update */

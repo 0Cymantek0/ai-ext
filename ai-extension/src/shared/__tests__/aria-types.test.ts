@@ -9,6 +9,7 @@ import { describe, it, expect } from "vitest";
 import { AriaPhase } from "../types/index.d";
 import type {
   ResearchMode,
+  AriaMode,
   AriaPhaseValue,
   AriaStartPayload,
   AriaStatusPayload,
@@ -31,6 +32,28 @@ describe("ARIA Type Definitions", () => {
       expect(quickMode).toBe("quick");
       expect(standardMode).toBe("standard");
       expect(deepMode).toBe("deep");
+    });
+  });
+
+  describe("AriaMode", () => {
+    it("should accept ResearchMode values", () => {
+      const quickMode: AriaMode = "quick";
+      const standardMode: AriaMode = "standard";
+      const deepMode: AriaMode = "deep";
+
+      expect(quickMode).toBe("quick");
+      expect(standardMode).toBe("standard");
+      expect(deepMode).toBe("deep");
+    });
+
+    it("should accept custom mode strings for backward compatibility", () => {
+      const assistMode: AriaMode = "assist";
+      const autonomousMode: AriaMode = "autonomous";
+      const customMode: AriaMode = "my-custom-mode";
+
+      expect(assistMode).toBe("assist");
+      expect(autonomousMode).toBe("autonomous");
+      expect(customMode).toBe("my-custom-mode");
     });
   });
 
@@ -160,6 +183,15 @@ describe("ARIA Type Definitions", () => {
       };
 
       expect(payload.mode).toBe("quick");
+    });
+
+    it("should allow custom mode strings for future expansion", () => {
+      const payload: AriaStartPayload = {
+        mode: "autonomous",
+        query: "Custom mode query",
+      };
+
+      expect(payload.mode).toBe("autonomous");
     });
   });
 
