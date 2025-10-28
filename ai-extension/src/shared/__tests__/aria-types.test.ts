@@ -15,7 +15,7 @@ import type {
   AriaStatusPayload,
   AriaEventPayload,
   AriaErrorPayload,
-  AriaProgressMetrics,
+  AriaMetrics,
   AriaQuotaLimits,
   AriaRunStatus,
   AriaRunPhase,
@@ -95,29 +95,37 @@ describe("ARIA Type Definitions", () => {
     });
   });
 
-  describe("AriaProgressMetrics", () => {
-    it("should create valid progress metrics with required fields", () => {
-      const metrics: AriaProgressMetrics = {
+  describe("AriaMetrics", () => {
+    it("should create valid metrics with required fields", () => {
+      const metrics: AriaMetrics = {
+        progress: 0.4,
+        stepsCompleted: 2,
         interactionsUsed: 5,
         sourcesCollected: 10,
         elapsedMs: 2500,
       };
 
+      expect(metrics.progress).toBeCloseTo(0.4);
+      expect(metrics.stepsCompleted).toBe(2);
       expect(metrics.interactionsUsed).toBe(5);
       expect(metrics.sourcesCollected).toBe(10);
       expect(metrics.elapsedMs).toBe(2500);
     });
 
     it("should support optional fields", () => {
-      const metrics: AriaProgressMetrics = {
-        interactionsUsed: 3,
-        sourcesCollected: 7,
-        elapsedMs: 1500,
-        estimatedRemainingMs: 3000,
+      const metrics: AriaMetrics = {
+        progress: 0.75,
+        stepsCompleted: 6,
+        stepsTotal: 8,
+        interactionsUsed: 12,
+        sourcesCollected: 18,
+        elapsedMs: 4500,
+        estimatedRemainingMs: 1500,
         throughput: 4.5,
       };
 
-      expect(metrics.estimatedRemainingMs).toBe(3000);
+      expect(metrics.stepsTotal).toBe(8);
+      expect(metrics.estimatedRemainingMs).toBe(1500);
       expect(metrics.throughput).toBe(4.5);
     });
   });
@@ -203,6 +211,8 @@ describe("ARIA Type Definitions", () => {
         phase: "researching",
         mode: "standard",
         metrics: {
+          progress: 0.45,
+          stepsCompleted: 3,
           interactionsUsed: 10,
           sourcesCollected: 25,
           elapsedMs: 5000,
@@ -225,6 +235,9 @@ describe("ARIA Type Definitions", () => {
         phase: "paused",
         mode: "deep",
         metrics: {
+          progress: 0.65,
+          stepsCompleted: 8,
+          stepsTotal: 12,
           interactionsUsed: 50,
           sourcesCollected: 100,
           elapsedMs: 30000,
@@ -244,16 +257,18 @@ describe("ARIA Type Definitions", () => {
     it("should support all status values", () => {
       const statuses: AriaRunStatus[] = ["running", "paused", "cancelled", "completed"];
 
-      statuses.forEach((status) => {
+      statuses.forEach((status, index) => {
         const payload: AriaStatusPayload = {
           runId: `run-${status}`,
           status,
           phase: "completed",
           mode: "standard",
           metrics: {
-            interactionsUsed: 0,
-            sourcesCollected: 0,
-            elapsedMs: 0,
+            progress: status === "completed" ? 1 : 0.3 * (index + 1),
+            stepsCompleted: index,
+            interactionsUsed: index * 5,
+            sourcesCollected: index * 2,
+            elapsedMs: index * 1000,
           },
           updatedAt: Date.now(),
         };
@@ -271,6 +286,9 @@ describe("ARIA Type Definitions", () => {
         phase: "researching",
         summary: "Completed 50% of research",
         metrics: {
+          progress: 0.5,
+          stepsCompleted: 5,
+          stepsTotal: 10,
           interactionsUsed: 15,
           sourcesCollected: 30,
           elapsedMs: 7500,
@@ -294,16 +312,18 @@ describe("ARIA Type Definitions", () => {
         "progress",
       ];
 
-      eventTypes.forEach((eventType) => {
+      eventTypes.forEach((eventType, index) => {
         const payload: AriaEventPayload = {
           runId: "run-event",
           eventType,
           phase: "planning",
           summary: `Event: ${eventType}`,
           metrics: {
-            interactionsUsed: 1,
-            sourcesCollected: 2,
-            elapsedMs: 100,
+            progress: index * 0.1,
+            stepsCompleted: index,
+            interactionsUsed: 1 + index,
+            sourcesCollected: 2 + index,
+            elapsedMs: 100 * (index + 1),
           },
           timestamp: Date.now(),
         };
@@ -319,9 +339,13 @@ describe("ARIA Type Definitions", () => {
         phase: "synthesizing",
         summary: "Synthesizing results from multiple sources",
         metrics: {
+          progress: 0.8,
+          stepsCompleted: 8,
+          stepsTotal: 10,
           interactionsUsed: 20,
           sourcesCollected: 45,
           elapsedMs: 12000,
+          estimatedRemainingMs: 3000,
         },
         timestamp: Date.now(),
         forkTranscript: {
@@ -411,6 +435,9 @@ describe("ARIA Type Definitions", () => {
         phase: "planning",
         mode: startPayload.mode,
         metrics: {
+          progress: 0.1,
+          stepsCompleted: 1,
+          stepsTotal: 5,
           interactionsUsed: 0,
           sourcesCollected: 0,
           elapsedMs: 0,
@@ -459,6 +486,9 @@ describe("ARIA Type Definitions", () => {
           phase,
           mode: "standard",
           metrics: {
+            progress: index / (phases.length - 1),
+            stepsCompleted: index,
+            stepsTotal: phases.length - 1,
             interactionsUsed: index * 10,
             sourcesCollected: index * 20,
             elapsedMs: index * 1000,
