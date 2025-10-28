@@ -10,6 +10,7 @@ if (typeof document === 'undefined') {
   (globalThis as any).document = {
     createElement: () => ({ rel: '', href: '' }),
     head: { appendChild: () => { } },
+    getElementsByTagName: () => [],
   };
 }
 
