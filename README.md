@@ -29,6 +29,7 @@ AI Pocket is a Chrome extension that helps you capture, organize, and interact w
 - **Cloud AI**: Google Generative AI SDK (Gemini Flash/Pro)
 - **Embeddings**: Vector search with IndexedDB persistence
 - **Local ML**: TensorFlow.js + Universal Sentence Encoder (fallback)
+- **AI Workflows**: LangChain.js + LangGraph.js for building complex AI workflows
 
 ### Storage & Performance
 - **Primary Storage**: IndexedDB (via `idb` wrapper)
@@ -248,6 +249,15 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 - Large content (> 100 MB) may hit storage quotas
 
 See [GitHub Issues](https://github.com/0Cymantek0/ai-extension/issues) for known bugs and feature requests.
+
+## Recent Updates
+
+### Dependencies
+- **LangChain.js Integration** (v1.0.2): Added LangChain and LangGraph dependencies to enable building complex AI workflows and agent orchestration patterns in future releases. These libraries will support:
+  - Multi-step reasoning chains
+  - Agent-based task execution
+  - State management for conversation flows
+  - Integration with various AI model providers
 
 ## Roadmap
 
