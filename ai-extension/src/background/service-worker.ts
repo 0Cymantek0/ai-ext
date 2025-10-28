@@ -36,6 +36,7 @@ import { indexedDBManager, ContentType, ProcessingStatus } from "./indexeddb-man
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
+import { PocketReportGenerator } from "./pocket-report-generator.js";
 
 // Initialize runtime logging (disabled by default until debug recording is enabled)
 initializeRuntimeLogging({
@@ -1998,7 +1999,6 @@ messageRouter.registerHandler("GENERATE_REPORT", async (payload: any) => {
 
   try {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY ?? undefined;
-    const { PocketReportGenerator } = await import("./pocket-report-generator.js");
 
     const normalizedPocketId =
       typeof payload?.pocketId === "string" && payload.pocketId.trim().length > 0
