@@ -148,9 +148,46 @@ function renderContentList(contents) {
     title.className = 'content-title';
     title.textContent = content.title || 'Untitled';
     
-    const preview = document.createElement('div');
-    preview.className = 'content-preview';
-    preview.textContent = content.preview || 'No preview available';
+    // Handle image content differently
+    if (content.type === 'image') {
+      const imageContainer = document.createElement('div');
+      imageContainer.style.cssText = 'margin: 15px 0; text-align: center;';
+      
+      const img = document.createElement('img');
+      // Try to use imageData first (data URL), then preview, then sourceUrl
+      const imageSrc = content.imageData || content.preview || content.url;
+      
+      if (imageSrc && (imageSrc.startsWith('data:image/') || imageSrc.startsWith('http'))) {
+        img.src = imageSrc;
+        img.alt = content.title || 'Image';
+        img.style.cssText = 'max-width: 100%; max-height: 400px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+        img.onerror = function() {
+          // If image fails to load, show a placeholder
+          this.style.display = 'none';
+          const placeholder = document.createElement('div');
+          placeholder.style.cssText = 'padding: 40px; background: #f5f7fa; border-radius: 8px; color: #a0aec0;';
+          placeholder.textContent = '🖼️ Image (source unavailable)';
+          imageContainer.appendChild(placeholder);
+        };
+        imageContainer.appendChild(img);
+      } else {
+        // No valid image source, show placeholder
+        const placeholder = document.createElement('div');
+        placeholder.style.cssText = 'padding: 40px; background: #f5f7fa; border-radius: 8px; color: #a0aec0;';
+        placeholder.textContent = '🖼️ Image';
+        imageContainer.appendChild(placeholder);
+      }
+      
+      item.appendChild(title);
+      item.appendChild(imageContainer);
+    } else {
+      // For non-image content, show preview as text
+      const preview = document.createElement('div');
+      preview.className = 'content-preview';
+      preview.textContent = content.preview || 'No preview available';
+      item.appendChild(title);
+      item.appendChild(preview);
+    }
     
     const tagsDiv = document.createElement('div');
     if (content.tags && content.tags.length > 0) {
@@ -169,11 +206,10 @@ function renderContentList(contents) {
       <span>${content.type}</span>
     `;
     
-    item.appendChild(title);
-    item.appendChild(preview);
     item.appendChild(tagsDiv);
     item.appendChild(meta);
     
+    // Add "View Source" link for all content types
     if (content.url) {
       const link = document.createElement('a');
       link.href = content.url;

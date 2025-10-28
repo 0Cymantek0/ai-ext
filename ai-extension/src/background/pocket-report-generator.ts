@@ -218,8 +218,25 @@ export class PocketReportGenerator {
 
   /**
    * Get content preview (first 200 chars)
+   * Note: This is used for AI analysis, so we don't include full image data URLs
    */
   private getContentPreview(content: CapturedContent): string {
+    // For images, return metadata instead of the full data URL
+    if (content.type === "image") {
+      try {
+        if (typeof content.content === "string") {
+          const parsedContent = JSON.parse(content.content);
+          const width = parsedContent.image?.width || content.metadata.dimensions?.width || 0;
+          const height = parsedContent.image?.height || content.metadata.dimensions?.height || 0;
+          const alt = parsedContent.image?.alt || parsedContent.alt || "";
+          return `Image: ${width}x${height}${alt ? ` - ${alt}` : ""}`;
+        }
+      } catch (error) {
+        // If parsing fails, return generic description
+      }
+      return `[Image content]`;
+    }
+    
     if (typeof content.content === "string") {
       return content.content.substring(0, 200);
     }
@@ -288,14 +305,35 @@ Format your response as JSON with this structure:
    * Format content list for report
    */
   private formatContentList(contents: CapturedContent[]) {
-    return contents.map(content => ({
-      id: content.id,
-      type: content.type,
-      title: content.metadata.title || "Untitled",
-      preview: this.getContentPreview(content),
-      timestamp: content.capturedAt,
-      tags: content.metadata.tags || [],
-      url: content.sourceUrl,
-    }));
+    return contents.map(content => {
+      const formatted: any = {
+        id: content.id,
+        type: content.type,
+        title: content.metadata.title || "Untitled",
+        preview: this.getContentPreview(content),
+        timestamp: content.capturedAt,
+        tags: content.metadata.tags || [],
+        url: content.sourceUrl,
+      };
+
+      // For images, parse the JSON content and extract the image src
+      if (content.type === "image" && typeof content.content === "string") {
+        try {
+          const parsedContent = JSON.parse(content.content);
+          // Extract the image src from the parsed content
+          const imageSrc = parsedContent.image?.src || parsedContent.src;
+          if (imageSrc) {
+            formatted.imageData = imageSrc;
+          }
+        } catch (error) {
+          // If parsing fails, try to use the content directly if it's a data URL
+          if (content.content.startsWith('data:image/')) {
+            formatted.imageData = content.content;
+          }
+        }
+      }
+
+      return formatted;
+    });
   }
 }
