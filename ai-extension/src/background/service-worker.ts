@@ -1989,30 +1989,29 @@ messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
 
 messageRouter.registerHandler("GENERATE_REPORT", async (payload: any) => {
   logger.info("Handler", "GENERATE_REPORT", payload);
+
   try {
-    // Get API key from environment (injected at build time)
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    
-    if (!apiKey) {
-      throw new Error("Gemini API key not configured. Please set VITE_GEMINI_API_KEY in .env file.");
-    }
-    
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY ?? undefined;
     const { PocketReportGenerator } = await import("./pocket-report-generator.js");
+
+    const normalizedPocketId =
+      typeof payload?.pocketId === "string" && payload.pocketId.trim().length > 0
+        ? payload.pocketId.trim()
+        : undefined;
+
     const reportGenerator = new PocketReportGenerator(apiKey);
-    const reportData = await reportGenerator.generateReport(payload.pocketId);
-    
+    const reportData = await reportGenerator.generateReport(normalizedPocketId);
+
     logger.info("Handler", "GENERATE_REPORT success", {
-      pocketId: payload.pocketId,
+      pocketId: normalizedPocketId ?? "all",
       totalItems: reportData.metadata.totalItems,
     });
-    
-    return { success: true, data: reportData };
+
+    return reportData;
   } catch (error) {
     logger.error("Handler", "GENERATE_REPORT error", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to generate report",
-    };
+
+    throw error instanceof Error ? error : new Error(String(error));
   }
 });
 

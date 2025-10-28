@@ -30,13 +30,16 @@ async function loadReport() {
 
     console.log('Report response:', response);
 
-    if (response && response.success) {
+    if (response?.success && response?.data) {
       reportData = response.data;
       console.log('Report data:', reportData);
       renderReport(reportData);
     } else {
-      const errorMsg = response?.error || 'Failed to generate report';
-      console.error('Report generation failed:', errorMsg);
+      const errorPayload = response?.error;
+      const errorMsg = typeof errorPayload === 'string'
+        ? errorPayload
+        : errorPayload?.message || 'Failed to generate report';
+      console.error('Report generation failed:', errorMsg, errorPayload);
       showError(errorMsg);
     }
   } catch (error) {
