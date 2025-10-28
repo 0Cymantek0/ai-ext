@@ -37,7 +37,8 @@ export class EmbeddingEngine {
 
   constructor(aiManager?: AIManager, cloudAIManager?: CloudAIManager) {
     this.aiManager = aiManager || new AIManager();
-    this.cloudAIManager = cloudAIManager || new CloudAIManager();
+    const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    this.cloudAIManager = cloudAIManager || new CloudAIManager(geminiApiKey);
   }
 
   /**

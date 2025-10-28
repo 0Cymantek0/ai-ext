@@ -602,4 +602,5 @@ export class CloudAIManager {
 }
 
 // Export singleton instance
-export const cloudAIManager = new CloudAIManager();
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+export const cloudAIManager = new CloudAIManager(geminiApiKey);

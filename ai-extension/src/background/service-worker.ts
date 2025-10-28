@@ -2170,7 +2170,9 @@ messageRouter.registerHandler("CONTENT_IMPORT", async (payload) => {
 
 // Initialize AI managers for streaming
 const aiManager = new AIManager();
-const cloudAIManager = new CloudAIManager();
+// Explicitly pass API key to CloudAIManager to ensure it's available in service worker context
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const cloudAIManager = new CloudAIManager(geminiApiKey);
 const streamingHandler = getStreamingHandler(aiManager, cloudAIManager);
 
 // Initialize metadata queue manager for background metadata generation

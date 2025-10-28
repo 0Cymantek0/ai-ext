@@ -7,7 +7,8 @@ import { copyFileSync, mkdirSync } from "node:fs";
 import manifest from "./manifest.config";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  // Load env from the project root (where .env file is located)
+  const env = loadEnv(mode, __dirname, "");
   const debugRecorderFlag = env.VITE_DEBUG_RECORDER === "true" ? "true" : "false";
   
   return {
