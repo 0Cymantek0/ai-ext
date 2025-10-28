@@ -64,6 +64,7 @@ export type MessageKind =
   | "ARIA_RUN_RESUME"
   | "ARIA_RUN_CANCEL"
   | "ARIA_EVENT"
+  | "ARIA_ERROR"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -317,42 +318,123 @@ export interface ConversationAttachedPocketResult {
 }
 
 // ARIA Research Types
-export type AriaRunStatus = "running" | "paused" | "cancelled" | "completed";
 
-export type AriaRunPhase =
-  | "initializing"
-  | "planning"
-  | "researching"
-  | "synthesizing"
-  | "paused"
-  | "cancelled"
-  | "completed";
+/**
+ * Research mode for ARIA autonomous research agent.
+ * - "quick": Fast research with minimal depth
+ * - "standard": Balanced research with moderate depth
+ * - "deep": Comprehensive research with maximum depth
+ */
+export type ResearchMode = "quick" | "standard" | "deep";
 
-export interface AriaRunMetrics {
-  progress: number;
-  stepsCompleted: number;
-  stepsTotal?: number;
+/**
+ * Flexible mode string accepted across messaging.
+ * Allows predefined research modes and custom legacy values.
+ */
+export type AriaMode = ResearchMode | (string & {});
+
+/**
+ * Enum describing the discrete phases of an ARIA research run.
+ * Provides stable keys for messaging and UI state machines.
+ */
+export const enum AriaPhase {
+  Initializing = "initializing",
+  Planning = "planning",
+  Researching = "researching",
+  Synthesizing = "synthesizing",
+  Paused = "paused",
+  Cancelled = "cancelled",
+  Completed = "completed",
 }
 
-export interface AriaRunConfig {
-  mode: string;
-  query?: string;
-  phase?: AriaRunPhase;
+/**
+ * String literal form of {@link AriaPhase} values.
+ * Useful when working with serialized payloads.
+ */
+export type AriaPhaseValue = `${AriaPhase}`;
+
+export type AriaRunStatus = "running" | "paused" | "cancelled" | "completed";
+
+export type AriaRunPhase = AriaPhaseValue;
+
+/**
+ * Comprehensive metrics for ARIA research execution.
+ * Combines progress tracking with resource usage statistics.
+ */
+export interface AriaMetrics {
+  /** Overall progress expressed as percentage from 0-1 */
+  progress: number;
+  /** Number of discrete steps completed */
+  stepsCompleted: number;
+  /** Total number of steps planned for the run */
   stepsTotal?: number;
+  /** Number of AI interactions/API calls used */
+  interactionsUsed: number;
+  /** Number of sources/documents collected */
+  sourcesCollected: number;
+  /** Time elapsed in milliseconds */
+  elapsedMs: number;
+  /** Optional: estimated time remaining in milliseconds */
+  estimatedRemainingMs?: number;
+  /** Optional: current processing throughput (sources per minute) */
+  throughput?: number;
+}
+
+/**
+ * @deprecated Use AriaMetrics instead. Kept for backward compatibility.
+ */
+export type AriaRunMetrics = Pick<
+  AriaMetrics,
+  "progress" | "stepsCompleted" | "stepsTotal"
+>;
+
+/**
+ * @deprecated Use AriaMetrics instead. Kept for backward compatibility.
+ */
+export type AriaProgressMetrics = Pick<
+  AriaMetrics,
+  | "interactionsUsed"
+  | "sourcesCollected"
+  | "elapsedMs"
+  | "estimatedRemainingMs"
+  | "throughput"
+>;
+
+export interface AriaRunConfig {
+  /** Research mode requested for the run (accepts ResearchMode or any custom string) */
+  mode: string;
+  /** Optional initial query or prompt */
+  query?: string;
+  /** Optional phase to resume from */
+  phase?: AriaRunPhase;
+  /** Planned total number of steps */
+  stepsTotal?: number;
+  /** Additional metadata used for diagnostics */
   metadata?: Record<string, unknown>;
+  /** Arbitrary context passed from the UI */
   context?: Record<string, unknown>;
 }
 
 export interface AriaRunState {
+  /** Unique identifier for the run */
   runId: string;
+  /** Research mode for this run (ResearchMode or any custom string) */
   mode: string;
+  /** Current phase */
   phase: AriaRunPhase;
+  /** Current status */
   status: AriaRunStatus;
+  /** Creation timestamp */
   createdAt: number;
+  /** Last update timestamp */
   updatedAt: number;
-  metrics: AriaRunMetrics;
+  /** Comprehensive progress and resource metrics */
+  metrics: AriaMetrics;
+  /** Arbitrary contextual state */
   context?: Record<string, unknown>;
+  /** Last emitted event type */
   lastEvent?: AriaControllerEventType;
+  /** Last status message */
   lastMessage?: string;
 }
 
@@ -389,6 +471,147 @@ export interface AriaRunFailureResponse {
 
 export type AriaRunResult = AriaRunSuccessResponse | AriaRunFailureResponse;
 
+/**
+ * Progress metrics for ARIA research execution.
+ * Tracks resource usage and execution time.
+ */
+export interface AriaProgressMetrics {
+  /** Number of AI interactions/API calls used */
+  interactionsUsed: number;
+  /** Number of sources/documents collected */
+  sourcesCollected: number;
+  /** Time elapsed in milliseconds */
+  elapsedMs: number;
+  /** Optional: estimated time remaining in milliseconds */
+  estimatedRemainingMs?: number;
+  /** Optional: current processing throughput (sources per minute) */
+  throughput?: number;
+}
+
+/**
+ * Quota limits for ARIA research execution.
+ * Controls resource consumption.
+ */
+export interface AriaQuotaLimits {
+  /** Maximum number of AI interactions allowed */
+  maxInteractions?: number;
+  /** Maximum number of sources to collect */
+  maxSources?: number;
+  /** Maximum execution time in milliseconds */
+  maxDurationMs?: number;
+}
+
+/**
+ * Single utterance captured during a forked exploration path.
+ */
+export interface AriaForkTranscriptMessage {
+  /** Speaker or generator of the message */
+  role: "agent" | "assistant" | "system" | "user" | "source";
+  /** Message content */
+  content: string;
+  /** Capture timestamp */
+  timestamp: number;
+  /** Optional metadata for rich UI rendering */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Transcript representing a forked exploration branch.
+ */
+export interface AriaForkTranscript {
+  /** Unique identifier for the fork branch */
+  forkId: string;
+  /** Identifier for the parent fork when nesting occurs */
+  parentForkId?: string;
+  /** Descriptive label for the branch */
+  label?: string;
+  /** Summary of the branch outcome */
+  summary?: string;
+  /** Chronological messages collected during the fork */
+  messages: AriaForkTranscriptMessage[];
+}
+
+/**
+ * Payload for ARIA_RUN_START message.
+ * Initiates a new ARIA research session.
+ */
+export interface AriaStartPayload {
+  /** Research mode: "quick", "standard", "deep", or any custom mode string */
+  mode: AriaMode;
+  /** Resource quota limits */
+  quotas?: AriaQuotaLimits;
+  /** Optional: specific research topics to focus on */
+  topics?: string[];
+  /** Optional: resume token to continue a previous session */
+  resumeToken?: string;
+  /** Optional: initial query or prompt */
+  query?: string;
+  /** Optional: additional configuration context */
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Payload for ARIA_RUN_STATUS message.
+ * Reports current status of an ARIA research session.
+ */
+export type AriaStatusPayload =
+  Pick<AriaRunState, "runId" | "status" | "phase" | "mode" | "metrics"> &
+    {
+      /** Timestamp of last update */
+      updatedAt: number;
+      /** Optional: detailed message about current status */
+      message?: string;
+      /** Optional: current context data */
+      context?: Record<string, unknown>;
+    };
+
+/**
+ * Payload for ARIA_EVENT message.
+ * Reports progress events during ARIA research execution.
+ */
+export interface AriaEventPayload {
+  /** Unique identifier for the research run */
+  runId: string;
+  /** Type of event */
+  eventType: AriaControllerEventType;
+  /** Current execution phase */
+  phase: AriaRunPhase;
+  /** Brief summary of the event */
+  summary: string;
+  /** Metrics snapshot at time of event */
+  metrics: AriaMetrics;
+  /** Event timestamp */
+  timestamp: number;
+  /** Optional: fork transcript(s) for exploration branches */
+  forkTranscript?: AriaForkTranscript | AriaForkTranscript[];
+  /** Optional: additional event-specific context */
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Payload for ARIA_ERROR message.
+ * Reports errors during ARIA research execution.
+ */
+export interface AriaErrorPayload {
+  /** Unique identifier for the research run (if available) */
+  runId?: string;
+  /** Error message */
+  error: string;
+  /** Error code or type */
+  errorCode?: string;
+  /** Current phase when error occurred */
+  phase?: AriaRunPhase;
+  /** Timestamp of error */
+  timestamp: number;
+  /** Whether the error is recoverable */
+  recoverable?: boolean;
+  /** Optional: stack trace or additional debug info */
+  details?: string;
+  /** Optional: suggested action for recovery */
+  suggestedAction?: string;
+}
+
+// Legacy payload types for backward compatibility
 export interface AriaRunStartPayload {
   config: AriaRunConfig;
 }
@@ -399,7 +622,8 @@ export interface AriaRunUpdatePayload {
 
 export type AriaRunStatusResponse = AriaRunResult;
 
-export type AriaEventPayload = AriaControllerEventDetail;
+// Legacy event payload alias (use AriaEventPayload for new code)
+export type AriaControllerEventPayload = AriaControllerEventDetail;
 
 // Storage Keys
 export const STORAGE_KEYS = {
