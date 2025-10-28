@@ -9,8 +9,13 @@
 if (typeof document === 'undefined') {
   (globalThis as any).document = {
     createElement: () => ({ rel: '', href: '' }),
-    head: { appendChild: () => { } },
+    head: { appendChild: () => {} },
     getElementsByTagName: () => [],
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    getElementById: () => null,
+    getElementsByClassName: () => [],
+    body: null,
   };
 }
 
