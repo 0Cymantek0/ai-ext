@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,14 +10,19 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     @media print {
-      .no-print { display: none !important; }
-      body { background: white; }
+      .no-print {
+        display: none !important;
+      }
+
+      body {
+        background: white;
+      }
     }
-    
+
     .gradient-bg {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
-    
+
     .card {
       background: white;
       border-radius: 12px;
@@ -24,14 +30,14 @@
       padding: 24px;
       margin-bottom: 24px;
     }
-    
+
     .stat-card {
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       border-radius: 8px;
       padding: 16px;
       text-align: center;
     }
-    
+
     .tag {
       display: inline-block;
       background: #e0e7ff;
@@ -41,7 +47,7 @@
       font-size: 12px;
       margin: 4px;
     }
-    
+
     .theme-badge {
       background: #fef3c7;
       color: #92400e;
@@ -53,18 +59,17 @@
     }
   </style>
 </head>
+
 <body class="bg-gray-50 p-8">
   <!-- Header -->
   <div class="max-w-6xl mx-auto">
     <div class="gradient-bg text-white p-8 rounded-lg mb-8 no-print">
       <h1 class="text-4xl font-bold mb-2">Pocket Report</h1>
       <p class="text-lg opacity-90">AI-Powered Content Analysis</p>
-      <div class="mt-4 flex gap-4">
-        <button onclick="exportToPDF()" class="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition">
+      <div class="mt-4">
+        <button onclick="exportToPDF()"
+          class="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition">
           📄 Export to PDF
-        </button>
-        <button onclick="window.print()" class="bg-white/20 text-white px-6 py-2 rounded-lg font-semibold hover:bg-white/30 transition">
-          🖨️ Print
         </button>
       </div>
     </div>
@@ -103,7 +108,7 @@
       <!-- AI Insights Section -->
       <div class="card">
         <h2 class="text-2xl font-bold mb-4 text-gray-800">🤖 AI Insights</h2>
-        
+
         <div class="mb-6">
           <h3 class="text-lg font-semibold mb-2 text-gray-700">Executive Summary</h3>
           <p class="text-gray-600 leading-relaxed" id="aiSummary">Loading insights...</p>
@@ -156,4 +161,5 @@
 
   <script src="./report-viewer.js"></script>
 </body>
+
 </html>
