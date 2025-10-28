@@ -11,6 +11,7 @@ vi.mock("../monitoring.js", () => ({
 import {
   AriaController,
   type AriaControllerEventDetail,
+  type AriaRunConfig,
 } from "./aria-controller.js";
 
 describe("AriaController", () => {
@@ -118,5 +119,18 @@ describe("AriaController", () => {
       throw new Error("Expected resumeRun to fail after cancel");
     }
     expect(resumeAfterCancel.reason).toBe("INVALID_STATE");
+  });
+
+  it("validates configuration for new runs", () => {
+    const controller = new AriaController();
+    const invalid = controller.startRun({ mode: "" } as AriaRunConfig);
+
+    expect(invalid.success).toBe(false);
+    if (invalid.success) {
+      throw new Error("Expected startRun to reject invalid configuration");
+    }
+
+    expect(invalid.reason).toBe("INVALID_CONFIG");
+    expect(invalid.error).toContain("mode");
   });
 });

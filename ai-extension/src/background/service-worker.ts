@@ -1534,6 +1534,7 @@ messageRouter.registerHandler("ARIA_RUN_START", async (payload: any) => {
     return {
       success: false,
       error: "ARIA_RUN_START requires a configuration object",
+      reason: "INVALID_CONFIG",
     };
   }
 
@@ -1567,6 +1568,7 @@ messageRouter.registerHandler("ARIA_RUN_STATUS", async (payload: any) => {
     return {
       success: false,
       error: "ARIA_RUN_STATUS requires a runId",
+      reason: "INVALID_CONFIG",
     };
   }
 
@@ -1597,6 +1599,7 @@ messageRouter.registerHandler("ARIA_RUN_PAUSE", async (payload: any) => {
     return {
       success: false,
       error: "ARIA_RUN_PAUSE requires a runId",
+      reason: "INVALID_CONFIG",
     };
   }
 
@@ -1627,6 +1630,7 @@ messageRouter.registerHandler("ARIA_RUN_RESUME", async (payload: any) => {
     return {
       success: false,
       error: "ARIA_RUN_RESUME requires a runId",
+      reason: "INVALID_CONFIG",
     };
   }
 
@@ -1657,6 +1661,7 @@ messageRouter.registerHandler("ARIA_RUN_CANCEL", async (payload: any) => {
     return {
       success: false,
       error: "ARIA_RUN_CANCEL requires a runId",
+      reason: "INVALID_CONFIG",
     };
   }
 

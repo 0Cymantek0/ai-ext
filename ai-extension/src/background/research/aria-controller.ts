@@ -63,7 +63,10 @@ class AriaControllerDispatchEvent extends Event {
   }
 }
 
-export type AriaRunFailureReason = "NOT_FOUND" | "INVALID_STATE";
+export type AriaRunFailureReason =
+  | "NOT_FOUND"
+  | "INVALID_STATE"
+  | "INVALID_CONFIG";
 
 export interface AriaRunSuccess {
   success: true;
@@ -122,6 +125,18 @@ export class AriaController {
    * Start a new ARIA run using the provided configuration.
    */
   startRun(config: AriaRunConfig): AriaRunResult {
+    const mode = typeof config.mode === "string" ? config.mode.trim() : "";
+    if (!mode) {
+      logger.error(
+        "AriaController",
+        "Invalid run configuration: mode is required",
+        {
+          config,
+        },
+      );
+      return this.makeInvalidConfigError("Run configuration must include a mode");
+    }
+
     const runId = this.generateRunId();
     const timestamp = Date.now();
 
@@ -134,7 +149,7 @@ export class AriaController {
 
     const run: InternalAriaRunState = {
       runId,
-      mode: config.mode,
+      mode,
       phase: initialPhase,
       status: "running",
       createdAt: timestamp,
@@ -371,6 +386,14 @@ export class AriaController {
       success: false,
       reason: "INVALID_STATE",
       error: `${message} (current status: ${run.status})`,
+    };
+  }
+
+  private makeInvalidConfigError(message: string): AriaRunFailure {
+    return {
+      success: false,
+      reason: "INVALID_CONFIG",
+      error: message,
     };
   }
 

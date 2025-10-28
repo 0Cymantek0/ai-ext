@@ -370,7 +370,10 @@ export interface AriaControllerEventDetail {
   timestamp: number;
 }
 
-export type AriaRunFailureReason = "NOT_FOUND" | "INVALID_STATE";
+export type AriaRunFailureReason =
+  | "NOT_FOUND"
+  | "INVALID_STATE"
+  | "INVALID_CONFIG";
 
 export interface AriaRunSuccessResponse {
   success: true;
