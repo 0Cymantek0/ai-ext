@@ -147,6 +147,8 @@ export class AriaController {
       ...(config.stepsTotal ? { stepsTotal: config.stepsTotal } : {}),
     };
 
+    const context = cloneContext(config.context ?? config.metadata);
+
     const run: InternalAriaRunState = {
       runId,
       mode,
@@ -155,7 +157,7 @@ export class AriaController {
       createdAt: timestamp,
       updatedAt: timestamp,
       metrics: initialMetrics,
-      context: cloneContext(config.context ?? config.metadata),
+      ...(context ? { context } : {}),
       lastEvent: "started",
       lastMessage: "ARIA run started",
     };
@@ -356,6 +358,8 @@ export class AriaController {
   }
 
   private cloneRun(run: InternalAriaRunState): AriaRunState {
+    const context = cloneContext(run.context);
+
     return {
       runId: run.runId,
       mode: run.mode,
@@ -364,9 +368,9 @@ export class AriaController {
       createdAt: run.createdAt,
       updatedAt: run.updatedAt,
       metrics: { ...run.metrics },
-      context: cloneContext(run.context),
-      lastEvent: run.lastEvent,
-      lastMessage: run.lastMessage,
+      ...(context ? { context } : {}),
+      ...(run.lastEvent !== undefined ? { lastEvent: run.lastEvent } : {}),
+      ...(run.lastMessage !== undefined ? { lastMessage: run.lastMessage } : {}),
     };
   }
 
