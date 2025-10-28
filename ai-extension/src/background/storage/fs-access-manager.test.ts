@@ -26,6 +26,7 @@ import {
   FsAccessManager,
   registerFsAccessHandlers,
   FS_ACCESS_STORAGE_KEY,
+  type DirectoryHandleLike,
 } from "./fs-access-manager.js";
 import { logger } from "../monitoring.js";
 
@@ -257,9 +258,9 @@ function createStorageMock() {
 }
 
 function createHandle(options: {
-  query?: FileSystemPermissionState;
-  request?: FileSystemPermissionState;
-}) {
+  query?: "granted" | "prompt" | "denied";
+  request?: "granted" | "prompt" | "denied";
+}): DirectoryHandleLike {
   return {
     queryPermission: vi
       .fn()
@@ -267,7 +268,7 @@ function createHandle(options: {
     requestPermission: vi
       .fn()
       .mockResolvedValue(options.request ?? "granted"),
-  } as unknown as FileSystemDirectoryHandle;
+  };
 }
 
 function createRouterMock() {

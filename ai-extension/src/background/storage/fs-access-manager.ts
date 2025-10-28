@@ -7,8 +7,24 @@ import type {
   StorageFsAccessRevokeResponse,
 } from "../../shared/types/index.d.ts";
 
-const PERMISSION_MODE: FileSystemPermissionMode = "readwrite";
 export const FS_ACCESS_STORAGE_KEY = "fsAccess.directory.granted";
+
+type FsPermissionMode = "read" | "readwrite";
+type FsPermissionState = "granted" | "denied" | "prompt";
+interface FsPermissionDescriptor {
+  mode?: FsPermissionMode;
+}
+
+interface FsPermissionCapable {
+  queryPermission?: (
+    descriptor?: FsPermissionDescriptor,
+  ) => Promise<FsPermissionState | undefined>;
+  requestPermission?: (
+    descriptor?: FsPermissionDescriptor,
+  ) => Promise<FsPermissionState | undefined>;
+}
+
+const PERMISSION_MODE: FsPermissionMode = "readwrite";
 
 interface FsAccessStorageRecord {
   granted: boolean;
@@ -18,10 +34,12 @@ interface FsAccessStorageRecord {
 interface LocalStorageLike
   extends Pick<ChromeLocalStorage, "get" | "set" | "remove"> {}
 
+export interface DirectoryHandleLike extends FsPermissionCapable {}
+
 export interface DirectoryAccessResult {
   granted: boolean;
   reason?: string;
-  handle?: FileSystemDirectoryHandle | null;
+  handle?: DirectoryHandleLike | null;
 }
 
 export interface AccessAvailabilityResult {
@@ -79,7 +97,7 @@ async function callWithCatch<T>(
 }
 
 export class FsAccessManager {
-  private directoryHandle: FileSystemDirectoryHandle | null = null;
+  private directoryHandle: DirectoryHandleLike | null = null;
   private readonly storage: LocalStorageLike;
 
   constructor(storage: LocalStorageLike = new ChromeLocalStorage()) {
@@ -221,30 +239,31 @@ export class FsAccessManager {
   }
 
   protected getDirectoryPicker():
-    | (() => Promise<FileSystemDirectoryHandle>)
+    | (() => Promise<DirectoryHandleLike>)
     | null {
     const picker = (globalThis as any).showDirectoryPicker;
     return isFunction(picker) ? picker.bind(globalThis) : null;
   }
 
   private async ensurePermission(
-    handle: FileSystemDirectoryHandle,
-  ): Promise<FileSystemPermissionState> {
+    handle: DirectoryHandleLike,
+  ): Promise<FsPermissionState> {
     const current = await this.queryPermission(handle);
     if (current === "granted" || current === "denied") {
       return current;
     }
 
     if (isFunction(handle.requestPermission)) {
-      return await handle.requestPermission({ mode: PERMISSION_MODE });
+      const result = await handle.requestPermission({ mode: PERMISSION_MODE });
+      return result ?? "prompt";
     }
 
     return "granted";
   }
 
   private async queryPermission(
-    handle: FileSystemDirectoryHandle,
-  ): Promise<FileSystemPermissionState | undefined> {
+    handle: DirectoryHandleLike,
+  ): Promise<FsPermissionState | undefined> {
     if (isFunction(handle.queryPermission)) {
       return await handle.queryPermission({ mode: PERMISSION_MODE });
     }
