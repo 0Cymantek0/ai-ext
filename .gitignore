@@ -75,3 +75,5 @@ ai-extension/.cursor/mcp.json
 /node_modules
 /node_modules/
 /node_modules
+ai-extension/.env.production
+.env.production

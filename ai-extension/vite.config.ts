@@ -63,6 +63,7 @@ export default defineConfig(({ mode }) => {
   ],
   define: {
     "import.meta.env.VITE_DEBUG_RECORDER": debugRecorderFlag,
+    "import.meta.env.VITE_GEMINI_API_KEY": JSON.stringify(env.VITE_GEMINI_API_KEY || ""),
   },
   resolve: {
     alias: {
