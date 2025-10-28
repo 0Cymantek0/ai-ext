@@ -58,6 +58,12 @@ export type MessageKind =
   | "VECTOR_INDEXING_RETRY"
   | "VECTOR_INDEXING_PROGRESS"
   | "LOG_BATCH"
+  | "ARIA_RUN_START"
+  | "ARIA_RUN_STATUS"
+  | "ARIA_RUN_PAUSE"
+  | "ARIA_RUN_RESUME"
+  | "ARIA_RUN_CANCEL"
+  | "ARIA_EVENT"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -309,6 +315,88 @@ export interface ConversationAttachedPocketResult {
   pocketName?: string; // For backward compatibility (first pocket)
   pocketDescription?: string; // For backward compatibility (first pocket)
 }
+
+// ARIA Research Types
+export type AriaRunStatus = "running" | "paused" | "cancelled" | "completed";
+
+export type AriaRunPhase =
+  | "initializing"
+  | "planning"
+  | "researching"
+  | "synthesizing"
+  | "paused"
+  | "cancelled"
+  | "completed";
+
+export interface AriaRunMetrics {
+  progress: number;
+  stepsCompleted: number;
+  stepsTotal?: number;
+}
+
+export interface AriaRunConfig {
+  mode: string;
+  query?: string;
+  phase?: AriaRunPhase;
+  stepsTotal?: number;
+  metadata?: Record<string, unknown>;
+  context?: Record<string, unknown>;
+}
+
+export interface AriaRunState {
+  runId: string;
+  mode: string;
+  phase: AriaRunPhase;
+  status: AriaRunStatus;
+  createdAt: number;
+  updatedAt: number;
+  metrics: AriaRunMetrics;
+  context?: Record<string, unknown>;
+  lastEvent?: AriaControllerEventType;
+  lastMessage?: string;
+}
+
+export type AriaControllerEventType =
+  | "started"
+  | "paused"
+  | "resumed"
+  | "cancelled"
+  | "progress";
+
+export interface AriaControllerEventDetail {
+  type: AriaControllerEventType;
+  run: AriaRunState;
+  message: string;
+  timestamp: number;
+}
+
+export type AriaRunFailureReason = "NOT_FOUND" | "INVALID_STATE";
+
+export interface AriaRunSuccessResponse {
+  success: true;
+  run: AriaRunState;
+  message: string;
+}
+
+export interface AriaRunFailureResponse {
+  success: false;
+  reason: AriaRunFailureReason;
+  error: string;
+}
+
+export type AriaRunResult = AriaRunSuccessResponse | AriaRunFailureResponse;
+
+export interface AriaRunStartPayload {
+  config: AriaRunConfig;
+}
+
+export interface AriaRunUpdatePayload {
+  runId: string;
+}
+
+export type AriaRunStatusResponse = AriaRunResult;
+
+export type AriaEventPayload = AriaControllerEventDetail;
 
 // Storage Keys
 export const STORAGE_KEYS = {

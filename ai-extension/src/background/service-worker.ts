@@ -42,6 +42,10 @@ import {
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
+import {
+  AriaController,
+  type AriaControllerEventDetail,
+} from "./research/aria-controller.js";
 
 // Initialize runtime logging (disabled by default until debug recording is enabled)
 initializeRuntimeLogging({
@@ -1488,6 +1492,28 @@ class MessageRouter {
 // Create singleton instance
 const messageRouter = new MessageRouter();
 
+const ariaController = new AriaController();
+
+ariaController.onEvent((detail: AriaControllerEventDetail) => {
+  logger.info("AriaController", "Dispatching ARIA event", {
+    runId: detail.run.runId,
+    type: detail.type,
+    status: detail.run.status,
+  });
+
+  messageRouter
+    .sendToSidePanel({
+      kind: "ARIA_EVENT",
+      payload: detail,
+    } as BaseMessage<MessageKind, AriaControllerEventDetail>)
+    .catch((error) => {
+      logger.warn("AriaController", "Failed to forward ARIA_EVENT", {
+        runId: detail.run.runId,
+        error,
+      });
+    });
+});
+
 // Register LOG_BATCH handler for collecting logs from all runtimes
 messageRouter.registerHandler("LOG_BATCH", async (payload: LogBatch) => {
   try {
@@ -1497,6 +1523,160 @@ messageRouter.registerHandler("LOG_BATCH", async (payload: LogBatch) => {
     logger.error("Handler", "LOG_BATCH error", error);
     return { success: false, error: "Failed to collect log batch" };
   }
+});
+
+// Register ARIA research handlers
+messageRouter.registerHandler("ARIA_RUN_START", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_START", payload);
+
+  const config = payload?.config;
+  if (!config || typeof config !== "object") {
+    return {
+      success: false,
+      error: "ARIA_RUN_START requires a configuration object",
+    };
+  }
+
+  const result = ariaController.startRun(config);
+  if (!result.success) {
+    logger.error("Handler", "ARIA_RUN_START failed", {
+      error: result.error,
+    });
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
+});
+
+messageRouter.registerHandler("ARIA_RUN_STATUS", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_STATUS", payload);
+
+  const runId = typeof payload?.runId === "string" ? payload.runId : undefined;
+  if (!runId) {
+    return {
+      success: false,
+      error: "ARIA_RUN_STATUS requires a runId",
+    };
+  }
+
+  const result = ariaController.getStatus(runId);
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
+});
+
+messageRouter.registerHandler("ARIA_RUN_PAUSE", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_PAUSE", payload);
+
+  const runId = typeof payload?.runId === "string" ? payload.runId : undefined;
+  if (!runId) {
+    return {
+      success: false,
+      error: "ARIA_RUN_PAUSE requires a runId",
+    };
+  }
+
+  const result = ariaController.pauseRun(runId);
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
+});
+
+messageRouter.registerHandler("ARIA_RUN_RESUME", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_RESUME", payload);
+
+  const runId = typeof payload?.runId === "string" ? payload.runId : undefined;
+  if (!runId) {
+    return {
+      success: false,
+      error: "ARIA_RUN_RESUME requires a runId",
+    };
+  }
+
+  const result = ariaController.resumeRun(runId);
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
+});
+
+messageRouter.registerHandler("ARIA_RUN_CANCEL", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_CANCEL", payload);
+
+  const runId = typeof payload?.runId === "string" ? payload.runId : undefined;
+  if (!runId) {
+    return {
+      success: false,
+      error: "ARIA_RUN_CANCEL requires a runId",
+    };
+  }
+
+  const result = ariaController.cancelRun(runId);
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
 });
 
 // Register content capture handler
