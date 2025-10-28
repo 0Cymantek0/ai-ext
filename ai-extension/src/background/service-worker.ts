@@ -107,6 +107,7 @@ import {
   vectorIndexingQueue,
   IndexingOperation,
 } from "./vector-indexing-queue.js";
+import { registerFsAccessHandlers } from "./storage/fs-access-manager.js";
 
 // Initialize formatter and background processor
 const storageWrapper = new ChromeLocalStorage();
@@ -1491,6 +1492,7 @@ class MessageRouter {
 
 // Create singleton instance
 const messageRouter = new MessageRouter();
+registerFsAccessHandlers(messageRouter);
 
 const ariaController = new AriaController();
 

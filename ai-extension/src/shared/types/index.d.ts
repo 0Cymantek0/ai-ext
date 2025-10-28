@@ -9,6 +9,9 @@ export type MessageKind =
   | "CAPTURE_SELECTION_SNIPPET"
   | "CAPTURE_IMAGE_DATA"
   | "FILE_UPLOAD"
+  | "STORAGE_REQUEST_FS_ACCESS"
+  | "STORAGE_CHECK_FS_ACCESS"
+  | "STORAGE_REVOKE_FS_ACCESS"
   | "CONTEXT_MENU_SAVE_TO_POCKET"
   | "POCKET_SELECTION_REQUEST"
   | "POCKET_SELECTION_RESPONSE"
@@ -144,6 +147,27 @@ export interface AiCancelRequestPayload {
 
 export interface AiTextCorrectionPayload {
   text: string;
+}
+
+export interface StorageFsAccessRequestPayload {}
+
+export interface StorageFsAccessRequestResponse {
+  granted: boolean;
+  reason?: string;
+}
+
+export interface StorageFsAccessCheckPayload {}
+
+export interface StorageFsAccessCheckResponse {
+  available: boolean;
+  reason?: string;
+}
+
+export interface StorageFsAccessRevokePayload {}
+
+export interface StorageFsAccessRevokeResponse {
+  revoked: boolean;
+  reason?: string;
 }
 
 export interface ContentListPayload {
