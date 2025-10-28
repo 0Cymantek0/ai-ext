@@ -1990,8 +1990,15 @@ messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
 messageRouter.registerHandler("GENERATE_REPORT", async (payload: any) => {
   logger.info("Handler", "GENERATE_REPORT", payload);
   try {
+    // Get API key from environment (injected at build time)
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("Gemini API key not configured. Please set VITE_GEMINI_API_KEY in .env file.");
+    }
+    
     const { PocketReportGenerator } = await import("./pocket-report-generator.js");
-    const reportGenerator = new PocketReportGenerator();
+    const reportGenerator = new PocketReportGenerator(apiKey);
     const reportData = await reportGenerator.generateReport(payload.pocketId);
     
     logger.info("Handler", "GENERATE_REPORT success", {

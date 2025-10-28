@@ -59,18 +59,33 @@ export class PocketReportGenerator {
     try {
       logger.info("PocketReport", "Starting report generation", pocketId || "all");
 
+      // Check if Cloud AI is available
+      if (!this.cloudAI.isAvailable()) {
+        throw new Error("Cloud AI not available. Please check API key configuration.");
+      }
+
       // Fetch pocket data
+      logger.info("PocketReport", "Fetching pockets", "");
       const pockets = await this.fetchPockets(pocketId);
+      logger.info("PocketReport", "Pockets fetched", `${pockets.length} pockets`);
+
+      // Fetch contents
+      logger.info("PocketReport", "Fetching contents", "");
       const contents = await this.fetchContents(pocketId);
+      logger.info("PocketReport", "Contents fetched", `${contents.length} items`);
 
       // Calculate statistics
+      logger.info("PocketReport", "Calculating statistics", "");
       const statistics = this.calculateStatistics(contents);
 
       // Prepare data for AI analysis
+      logger.info("PocketReport", "Preparing analysis data", "");
       const analysisData = this.prepareAnalysisData(pockets, contents);
 
       // Get AI insights using Gemini Flash
+      logger.info("PocketReport", "Generating AI insights", "");
       const aiInsights = await this.generateAIInsights(analysisData);
+      logger.info("PocketReport", "AI insights generated", "");
 
       // Build report data
       const reportData: ReportData = {
@@ -90,8 +105,9 @@ export class PocketReportGenerator {
 
       return reportData;
     } catch (error) {
-      logger.error("PocketReport", "Report generation failed", error);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error("PocketReport", "Report generation failed", errorMessage);
+      throw new Error(`Report generation failed: ${errorMessage}`);
     }
   }
 
