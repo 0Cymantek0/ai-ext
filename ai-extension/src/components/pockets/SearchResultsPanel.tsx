@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import type { PocketData } from "./PocketCard";
 import type { CapturedContent } from "@/background/indexeddb-manager";
+import { formatSearchResults, type FormattedSearchResult } from "@/search/result-formatter";
 
 type PocketResult = {
   item: PocketData;
@@ -29,12 +30,14 @@ interface PocketResultsProps extends BaseProps {
   kind: "pockets";
   results: PocketResult[];
   onSelectPocket?: (p: PocketData) => void;
+  formattedResults?: FormattedSearchResult<PocketData>[];
 }
 
 interface ContentResultsProps extends BaseProps {
   kind: "content";
   results: ContentResult[];
   onSelectContent?: (c: CapturedContent) => void;
+  formattedResults?: FormattedSearchResult<CapturedContent>[];
 }
 
 type SearchResultsPanelProps = PocketResultsProps | ContentResultsProps;
@@ -61,6 +64,11 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
   if (!open) return null;
 
   const isPockets = props.kind === "pockets";
+  
+  // Format search results using the result formatter with proper typing
+  const formattedResults = isPockets 
+    ? formatSearchResults(props.results as PocketResult[], { query })
+    : formatSearchResults(props.results as ContentResult[], { query });
 
   const panel = (
     <motion.div
@@ -108,7 +116,7 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
             </svg>
             <div className="truncate text-sm">
               <span className="text-muted-foreground">Results for</span>{" "}
-              <span className="font-medium">“{query}”</span>
+              <span className="font-medium">"{query}"</span>
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -162,6 +170,7 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
           {isPockets ? (
             <PocketResultsList
               results={(props as PocketResultsProps).results}
+              formattedResults={formattedResults as FormattedSearchResult<PocketData>[]}
               onSelect={(p) =>
                 (props as PocketResultsProps).onSelectPocket?.(p)
               }
@@ -169,6 +178,7 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
           ) : (
             <ContentResultsList
               results={(props as ContentResultsProps).results}
+              formattedResults={formattedResults as FormattedSearchResult<CapturedContent>[]}
               onSelect={(c) =>
                 (props as ContentResultsProps).onSelectContent?.(c)
               }
@@ -206,9 +216,11 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
 
 function PocketResultsList({
   results,
+  formattedResults,
   onSelect,
 }: {
   results: PocketResult[];
+  formattedResults?: FormattedSearchResult<PocketData>[];
   onSelect?: (p: PocketData) => void;
 }) {
   if (!results || results.length === 0) {
@@ -217,85 +229,10 @@ function PocketResultsList({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {results.map(({ item, relevanceScore, matchedFields }) => (
-        <button
-          key={item.id}
-          type="button"
-          onClick={() => onSelect?.(item)}
-          className={cn(
-            "group text-left rounded-xl border border-border bg-card/70",
-            "hover:border-accent hover:bg-accent/30 transition-colors",
-            "p-3 flex flex-col gap-2",
-          )}
-        >
-          <div className="flex items-start gap-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <h3 className="truncate font-medium text-sm">{item.name}</h3>
-                {typeof relevanceScore === "number" && (
-                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                    {formatScore(relevanceScore)}
-                  </span>
-                )}
-              </div>
-              {item.description && (
-                <p className="line-clamp-2 text-xs text-muted-foreground mt-0.5">
-                  {item.description}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap mt-1">
-            {item.tags?.slice(0, 4).map((tag) => (
-              <span
-                key={tag}
-                className="text-[10px] rounded-full bg-muted px-2 py-0.5 text-muted-foreground"
-              >
-                #{tag}
-              </span>
-            ))}
-            {matchedFields && matchedFields.length > 0 && (
-              <span className="text-[10px] rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5">
-                semantic
-              </span>
-            )}
-            <span className="ml-auto text-[10px] text-muted-foreground">
-              {item.contentIds?.length || 0} items ·{" "}
-              {formatDate(item.updatedAt)}
-            </span>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function ContentResultsList({
-  results,
-  onSelect,
-}: {
-  results: ContentResult[];
-  onSelect?: (c: CapturedContent) => void;
-}) {
-  if (!results || results.length === 0) {
-    return <EmptyResults message="No content matches your search." />;
-  }
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {results.map(({ item, relevanceScore, matchedFields }) => {
-        const getDomain = () => {
-          if (!item.sourceUrl) return "";
-          try {
-            return new URL(item.sourceUrl).hostname;
-          } catch {
-            return "";
-          }
-        };
-        const title = item.metadata?.title || getDomain() || "Untitled";
-        const snippet =
-          typeof item.content === "string" ? item.content.slice(0, 220) : "";
+      {results.map((result, index) => {
+        const formatted = formattedResults?.[index];
+        const { item, relevanceScore, matchedFields } = result;
+        
         return (
           <button
             key={item.id}
@@ -310,16 +247,136 @@ function ContentResultsList({
             <div className="flex items-start gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 min-w-0">
-                  <h3 className="truncate font-medium text-sm">{title}</h3>
-                  {typeof relevanceScore === "number" && (
+                  <h3 className="truncate font-medium text-sm">
+                    {formatted ? (
+                      <>
+                        {formatted.title.segments.map((segment, i) => (
+                          <span
+                            key={i}
+                            className={segment.highlight ? "bg-primary/20 text-primary rounded px-0.5" : ""}
+                          >
+                            {segment.text}
+                          </span>
+                        ))}
+                      </>
+                    ) : (
+                      item.name
+                    )}
+                  </h3>
+                  {formatted?.scoreLabel && (
                     <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                      {formatScore(relevanceScore)}
+                      {formatted.scoreLabel}
                     </span>
                   )}
                 </div>
-                {snippet && (
+                {item.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground mt-0.5">
+                    {item.description}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              {item.tags?.slice(0, 4).map((tag) => (
+                <span
+                  key={tag}
+                  className="text-[10px] rounded-full bg-muted px-2 py-0.5 text-muted-foreground"
+                >
+                  #{tag}
+                </span>
+              ))}
+              {matchedFields && matchedFields.length > 0 && (
+                <span className="text-[10px] rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5">
+                  semantic
+                </span>
+              )}
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                {item.contentIds?.length || 0} items ·{" "}
+                {formatDate(item.updatedAt)}
+              </span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ContentResultsList({
+  results,
+  formattedResults,
+  onSelect,
+}: {
+  results: ContentResult[];
+  formattedResults?: FormattedSearchResult<CapturedContent>[];
+  onSelect?: (c: CapturedContent) => void;
+}) {
+  if (!results || results.length === 0) {
+    return <EmptyResults message="No content matches your search." />;
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {results.map((result, index) => {
+        const formatted = formattedResults?.[index];
+        const { item, relevanceScore, matchedFields } = result;
+        
+        const getDomain = () => {
+          if (!item.sourceUrl) return "";
+          try {
+            return new URL(item.sourceUrl).hostname;
+          } catch {
+            return "";
+          }
+        };
+        
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onSelect?.(item)}
+            className={cn(
+              "group text-left rounded-xl border border-border bg-card/70",
+              "hover:border-accent hover:bg-accent/30 transition-colors",
+              "p-3 flex flex-col gap-2",
+            )}
+          >
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h3 className="truncate font-medium text-sm">
+                    {formatted ? (
+                      <>
+                        {formatted.title.segments.map((segment, i) => (
+                          <span
+                            key={i}
+                            className={segment.highlight ? "bg-primary/20 text-primary rounded px-0.5" : ""}
+                          >
+                            {segment.text}
+                          </span>
+                        ))}
+                      </>
+                    ) : (
+                      item.metadata?.title || getDomain() || "Untitled"
+                    )}
+                  </h3>
+                  {formatted?.scoreLabel && (
+                    <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      {formatted.scoreLabel}
+                    </span>
+                  )}
+                </div>
+                {formatted?.snippet && (
                   <p className="line-clamp-3 text-xs text-muted-foreground mt-0.5">
-                    {snippet}
+                    {formatted.snippet.segments.map((segment, i) => (
+                      <span
+                        key={i}
+                        className={segment.highlight ? "bg-primary/20 text-primary rounded px-0.5" : ""}
+                      >
+                        {segment.text}
+                      </span>
+                    ))}
                   </p>
                 )}
               </div>

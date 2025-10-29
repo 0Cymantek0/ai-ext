@@ -550,6 +550,18 @@ function computeNormalizedScores<T>(
         : 1;
 
   if (min === max) {
+    // Special case: single result - keep original score if already in 0-1 range
+    if (results.length === 1 && min >= 0 && max <= 1) {
+      return results.map((result) => {
+        const score = result.relevanceScore;
+        if (typeof score !== "number" || !Number.isFinite(score)) {
+          return null;
+        }
+        const normalized = clampScores ? clamp(score, 0, 1) : score;
+        return roundTo(normalized, precision);
+      });
+    }
+    // For multiple identical scores, normalize to 0 or 1
     if (min === 0) {
       return results.map(() => 0);
     }
