@@ -266,7 +266,7 @@ export class TieredVectorSearchService
   private readonly database: DatabaseManagerLike;
   private readonly embeddingGenerator: EmbeddingGenerator;
   private readonly logger: LoggerLike;
-  private readonly metrics?: SearchMetricsRecorder;
+  private readonly metrics: SearchMetricsRecorder | undefined;
   private readonly config: Required<VectorSearchConfig>;
 
   private readonly queryCache: LRUCache<string, number[]>;
@@ -522,7 +522,7 @@ export class TieredVectorSearchService
     const results: SearchResult<VectorContentMatch>[] = [];
 
     for (const chunk of chunks) {
-      if (chunk.embedding.length !== queryEmbedding.length) {
+      if (!Array.isArray(chunk.embedding) || chunk.embedding.length !== queryEmbedding.length) {
         continue;
       }
       const similarity = cosineSimilarity(queryEmbedding, chunk.embedding);
@@ -703,23 +703,23 @@ export class TieredVectorSearchService
   private async getQueryEmbedding(query: string): Promise<number[]> {
     const cached = this.queryCache.get(query);
     if (cached) {
-      return cached;
+      return Array.isArray(cached) ? cached.slice() : cached;
     }
     const vector = await this.embeddingGenerator(query);
     const cloned = vector.slice();
     this.queryCache.set(query, cloned);
-    return cloned;
+    return cloned.slice();
   }
 
   private async getDocumentEmbedding(key: string, text: string): Promise<number[]> {
     const cached = this.documentCache.get(key);
     if (cached) {
-      return cached;
+      return Array.isArray(cached) ? cached.slice() : cached;
     }
     const embedding = await this.embeddingGenerator(text);
     const cloned = embedding.slice();
     this.documentCache.set(key, cloned);
-    return cloned;
+    return cloned.slice();
   }
 
   private resolveScope(options: ContentSearchOptions): SearchScope {
