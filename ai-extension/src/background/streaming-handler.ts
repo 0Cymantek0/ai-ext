@@ -7,13 +7,9 @@
 
 import { AIManager } from "./ai-manager";
 import { CloudAIManager } from "./cloud-ai-manager";
-import { HybridAIEngine, TaskOperation } from "./hybrid-ai-engine";
-import type { Task, Content } from "./hybrid-ai-engine";
+import { HybridAIEngine } from "./hybrid-ai-engine";
 import { logger } from "./monitoring";
-import {
-  conversationContextLoader,
-  type ConversationContext,
-} from "./conversation-context-loader";
+import { conversationContextLoader } from "./conversation-context-loader";
 import { routeQuery, type RoutingDecision } from "./query-router";
 import {
   getModeAwareProcessor,
@@ -238,7 +234,11 @@ export class StreamingHandler {
     const loggedPreferLocal =
       userSpecifiedModel !== undefined
         ? userSpecifiedModel === "nano"
-        : session.routingDecision?.preferLocal ?? payload.preferLocal;
+        : session.routingDecision?.preferLocal ?? payload.preferLocal ?? true;
+
+    if (!session.resolvedModel) {
+      session.resolvedModel = loggedPreferLocal ? "nano" : "flash";
+    }
 
     logger.info("StreamingHandler", "Starting stream", {
       requestId,
@@ -388,6 +388,9 @@ export class StreamingHandler {
           const response = chunk as any;
           source = response.source;
           contextUsed = response.contextUsed || [];
+          if (typeof response.content === "string" && response.content.length) {
+            fullResponse = response.content;
+          }
           break;
         }
 

@@ -57,6 +57,10 @@ vi.mock("./hybrid-ai-engine", () => ({
 import { StreamingHandler } from "./streaming-handler";
 import { logger } from "./monitoring";
 
+const loggerInfoMock = logger.info as unknown as ReturnType<typeof vi.fn>;
+const loggerWarnMock = logger.warn as unknown as ReturnType<typeof vi.fn>;
+const loggerErrorMock = logger.error as unknown as ReturnType<typeof vi.fn>;
+
 describe("StreamingHandler Mode Validation", () => {
   describe("Mode Detection and Validation", () => {
     it("should accept valid 'ask' mode", () => {
@@ -415,5 +419,236 @@ describe("Streaming with Chunk-Level RAG", () => {
       expect(payload.pocketId).toBeUndefined();
       expect(payload.mode).toBe("ai-pocket");
     });
+  });
+});
+
+describe("StreamingHandler routing integration", () => {
+  const originalChrome = (globalThis as any).chrome;
+  const originalCrypto = (globalThis as any).crypto;
+
+  let randomUUIDMock: ReturnType<typeof vi.fn>;
+  let sendMessageMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    routeQueryMock.mockReset();
+    processRequestMock.mockReset();
+    getModeAwareProcessorMock.mockReset();
+    buildConversationContextMock.mockReset();
+
+    loggerInfoMock.mockReset();
+    loggerWarnMock.mockReset();
+    loggerErrorMock.mockReset();
+
+    getModeAwareProcessorMock.mockReturnValue({
+      processRequest: processRequestMock,
+    });
+
+    buildConversationContextMock.mockResolvedValue({
+      messages: [{ role: "user", content: "hello" }],
+      totalTokens: 240,
+      truncated: false,
+      conversationId: "conv-123",
+    });
+
+    sendMessageMock = vi.fn().mockResolvedValue({});
+    (globalThis as any).chrome = {
+      runtime: {
+        sendMessage: sendMessageMock,
+      },
+    };
+
+    randomUUIDMock = vi.fn();
+    randomUUIDMock.mockReturnValue("fixed-id");
+    (globalThis as any).crypto = {
+      ...(originalCrypto ?? {}),
+      randomUUID: randomUUIDMock,
+    };
+  });
+
+  afterEach(() => {
+    routeQueryMock.mockReset();
+    processRequestMock.mockReset();
+    getModeAwareProcessorMock.mockReset();
+    buildConversationContextMock.mockReset();
+
+    if (originalChrome) {
+      (globalThis as any).chrome = originalChrome;
+    } else {
+      delete (globalThis as any).chrome;
+    }
+
+    if (originalCrypto) {
+      (globalThis as any).crypto = originalCrypto;
+    } else {
+      delete (globalThis as any).crypto;
+    }
+
+    loggerInfoMock.mockReset();
+    loggerWarnMock.mockReset();
+    loggerErrorMock.mockReset();
+  });
+
+  it("routes auto model requests and forwards decision", async () => {
+    randomUUIDMock
+      .mockReturnValueOnce("request-1")
+      .mockReturnValueOnce("message-1");
+
+    routeQueryMock.mockResolvedValue({
+      targetModel: "flash",
+      reason: "Auto-route to flash",
+      confidence: 0.82,
+      preferLocal: false,
+      metadata: { heuristics: { promptLength: 32 } },
+    });
+
+    processRequestMock.mockImplementation(async function* (request: ModeAwareRequest) {
+      yield "partial";
+      yield {
+        content: "partial",
+        source:
+          request.targetModel === "pro"
+            ? "gemini-pro"
+            : request.targetModel === "flash"
+              ? "gemini-flash"
+              : "gemini-nano",
+        mode: request.mode,
+        contextUsed: [],
+        tokensUsed: 12,
+        processingTime: 5,
+      };
+    });
+
+    const handler = new StreamingHandler({} as any, {} as any);
+
+    await handler.startStreaming(
+      {
+        prompt: "Please summarize my saved pocket research.",
+        mode: "ask",
+        conversationId: "conv-123",
+        autoContext: true,
+        model: "auto",
+      },
+      {} as any,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(routeQueryMock).toHaveBeenCalledTimes(1);
+    expect(routeQueryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "Please summarize my saved pocket research.",
+        mode: "ask",
+        conversation: expect.objectContaining({
+          id: "conv-123",
+          metadata: expect.objectContaining({
+            messageCount: 1,
+            totalTokens: 240,
+          }),
+        }),
+      }),
+    );
+
+    expect(processRequestMock).toHaveBeenCalledTimes(1);
+    const modeAwareArg = processRequestMock.mock.calls[0][0] as ModeAwareRequest;
+    expect(modeAwareArg.targetModel).toBe("flash");
+    expect(modeAwareArg.preferLocal).toBe(false);
+    expect(modeAwareArg.routingMetadata).toMatchObject({
+      reason: "Auto-route to flash",
+      confidence: 0.82,
+    });
+
+    const startCall = sendMessageMock.mock.calls.find(
+      ([message]: any[]) => message.kind === "AI_PROCESS_STREAM_START",
+    );
+    expect(startCall?.[0].payload.resolvedModel).toBe("flash");
+  });
+
+  it("bypasses router when model is manually selected", async () => {
+    randomUUIDMock
+      .mockReturnValueOnce("request-2")
+      .mockReturnValueOnce("message-2");
+
+    processRequestMock.mockImplementation(async function* (request: ModeAwareRequest) {
+      yield {
+        content: "result",
+        source: "gemini-pro",
+        mode: request.mode,
+        contextUsed: [],
+        tokensUsed: 20,
+        processingTime: 10,
+      };
+    });
+
+    const handler = new StreamingHandler({} as any, {} as any);
+
+    await handler.startStreaming(
+      {
+        prompt: "Perform deep reasoning",
+        mode: "ask",
+        conversationId: "conv-999",
+        model: "pro",
+        preferLocal: false,
+        autoContext: true,
+      },
+      {} as any,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(routeQueryMock).not.toHaveBeenCalled();
+
+    expect(processRequestMock).toHaveBeenCalledTimes(1);
+    const modeAwareArg = processRequestMock.mock.calls[0][0] as ModeAwareRequest;
+    expect(modeAwareArg.targetModel).toBe("pro");
+    expect(modeAwareArg.preferLocal).toBe(false);
+    expect(modeAwareArg.routingMetadata).toBeUndefined();
+
+    const startCall = sendMessageMock.mock.calls.find(
+      ([message]: any[]) => message.kind === "AI_PROCESS_STREAM_START",
+    );
+    expect(startCall?.[0].payload.resolvedModel).toBe("pro");
+  });
+
+  it("falls back to preferLocal defaults when router throws", async () => {
+    randomUUIDMock
+      .mockReturnValueOnce("request-3")
+      .mockReturnValueOnce("message-3");
+
+    routeQueryMock.mockRejectedValue(new Error("routing failed"));
+
+    processRequestMock.mockImplementation(async function* (request: ModeAwareRequest) {
+      yield "chunk";
+      yield {
+        content: "chunk",
+        source: request.preferLocal ? "gemini-nano" : "gemini-flash",
+        mode: request.mode,
+        contextUsed: [],
+        tokensUsed: 15,
+        processingTime: 6,
+      };
+    });
+
+    const handler = new StreamingHandler({} as any, {} as any);
+
+    await handler.startStreaming(
+      {
+        prompt: "quick question",
+        mode: "ask",
+        conversationId: "conv-abc",
+        autoContext: true,
+      },
+      {} as any,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const modeAwareArg = processRequestMock.mock.calls[0][0] as ModeAwareRequest;
+    expect(modeAwareArg.targetModel).toBeUndefined();
+    expect(modeAwareArg.preferLocal).toBe(true);
+
+    const startCall = sendMessageMock.mock.calls.find(
+      ([message]: any[]) => message.kind === "AI_PROCESS_STREAM_START",
+    );
+    expect(startCall?.[0].payload.resolvedModel).toBe("nano");
   });
 });
