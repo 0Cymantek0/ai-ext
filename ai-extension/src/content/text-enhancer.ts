@@ -707,6 +707,39 @@ class UniversalTextEnhancer {
         flex-shrink: 0;
       }
 
+      .ai-pocket-translate-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid hsl(217.2 91.2% 59.8%);
+        background: hsl(217.2 91.2% 59.8% / 0.15);
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.95);
+      }
+
+      .ai-pocket-translate-btn:hover {
+        background: hsl(217.2 91.2% 59.8% / 0.25);
+        border-color: hsl(217.2 91.2% 65%);
+        transform: translateY(-1px);
+      }
+
+      .ai-pocket-translate-btn:focus {
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
+        outline-offset: 2px;
+      }
+
+      .ai-pocket-translate-btn:active {
+        transform: translateY(0);
+      }
+
       .ai-pocket-language-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -2295,6 +2328,23 @@ class UniversalTextEnhancer {
     dropdownsContainer.appendChild(arrow);
     dropdownsContainer.appendChild(targetDropdown);
     translateContent.appendChild(dropdownsContainer);
+
+    // Translate button
+    const translateButton = document.createElement("button");
+    translateButton.className = "ai-pocket-translate-btn";
+    translateButton.textContent = "Translate";
+    translateButton.setAttribute("type", "button");
+    translateButton.setAttribute("aria-label", "Translate text");
+    translateButton.addEventListener("click", () => {
+      this.selectedTargetLanguage = targetDropdown.value;
+      if (sourceDropdown.value !== "detect") {
+        this.detectedSourceLanguage = sourceDropdown.value;
+      }
+      if (this.currentTextField) {
+        this.handleTranslation(this.currentTextField);
+      }
+    });
+    translateContent.appendChild(translateButton);
 
     // Quick language buttons
     const languageGrid = document.createElement("div");
