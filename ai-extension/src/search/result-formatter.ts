@@ -413,10 +413,6 @@ function createHighlightedSnippet(
   let start = matchIndex === -1 ? 0 : Math.max(0, matchIndex - buffer);
   let end = Math.min(cleanSnippet.length, start + snippetLength);
 
-  if (end - start < snippetLength && end < cleanSnippet.length) {
-    end = Math.min(cleanSnippet.length, start + snippetLength);
-  }
-
   start = adjustBackwardToBoundary(cleanSnippet, start);
   end = adjustForwardToBoundary(cleanSnippet, end);
 
@@ -455,9 +451,7 @@ function highlightSegments(
     return [{ text, highlight: false }];
   }
 
-  const uniqueTerms = [...new Set(terms)]
-    .map((term) => term)
-    .sort((a, b) => b.length - a.length);
+  const uniqueTerms = [...new Set(terms)].sort((a, b) => b.length - a.length);
 
   const pattern = uniqueTerms
     .map((term) => escapeRegExp(term))
@@ -584,7 +578,14 @@ function computeNormalizedScores<T>(
 
   const range = max - min;
   if (range === 0) {
-    return results.map(() => null);
+    // If all scores are the same, they should all be considered a "perfect"
+    // match relative to the dataset, unless they are 0.
+    const normalizedValue = min === 0 ? 0 : 1;
+    return results.map((result) =>
+      typeof result.relevanceScore === "number" && Number.isFinite(result.relevanceScore)
+        ? normalizedValue
+        : null,
+    );
   }
 
   return results.map((result) => {

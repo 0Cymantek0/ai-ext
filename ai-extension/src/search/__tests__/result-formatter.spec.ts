@@ -171,4 +171,93 @@ describe("formatSearchResults", () => {
       formatted.snippet?.segments.every((segment) => segment.highlight === false),
     ).toBe(true);
   });
+
+  it("normalizes identical non-zero scores to 100%", () => {
+    const pockets: Pocket[] = [
+      {
+        id: "a",
+        name: "Alpha",
+        description: "",
+        createdAt: 1,
+        updatedAt: 1,
+        contentIds: [],
+        tags: [],
+        color: "#000000",
+      },
+      {
+        id: "b",
+        name: "Beta",
+        description: "",
+        createdAt: 1,
+        updatedAt: 1,
+        contentIds: [],
+        tags: [],
+        color: "#000000",
+      },
+      {
+        id: "c",
+        name: "Gamma",
+        description: "",
+        createdAt: 1,
+        updatedAt: 1,
+        contentIds: [],
+        tags: [],
+        color: "#000000",
+      },
+    ];
+
+    const formatted = formatSearchResults(
+      [
+        { item: pockets[0], relevanceScore: 0.85 },
+        { item: pockets[1], relevanceScore: 0.85 },
+        { item: pockets[2], relevanceScore: 0.85 },
+      ],
+      { query: "" },
+    );
+
+    // When all scores are identical and non-zero, they should all normalize to 100%
+    expect(formatted.map((result) => result.scorePercentage)).toEqual([100, 100, 100]);
+    expect(formatted.map((result) => result.scoreLabel)).toEqual([
+      "100%",
+      "100%",
+      "100%",
+    ]);
+  });
+
+  it("normalizes identical zero scores to 0%", () => {
+    const pockets: Pocket[] = [
+      {
+        id: "a",
+        name: "Alpha",
+        description: "",
+        createdAt: 1,
+        updatedAt: 1,
+        contentIds: [],
+        tags: [],
+        color: "#000000",
+      },
+      {
+        id: "b",
+        name: "Beta",
+        description: "",
+        createdAt: 1,
+        updatedAt: 1,
+        contentIds: [],
+        tags: [],
+        color: "#000000",
+      },
+    ];
+
+    const formatted = formatSearchResults(
+      [
+        { item: pockets[0], relevanceScore: 0 },
+        { item: pockets[1], relevanceScore: 0 },
+      ],
+      { query: "" },
+    );
+
+    // When all scores are zero, they should all normalize to 0%
+    expect(formatted.map((result) => result.scorePercentage)).toEqual([0, 0]);
+    expect(formatted.map((result) => result.scoreLabel)).toEqual(["0%", "0%"]);
+  });
 });
