@@ -263,7 +263,7 @@ export class FullContentLoader {
     try {
       hasAccess = await this.filesystem.hasAccess(descriptor);
     } catch (cause) {
-      throw new FullContentError(
+      const error = new FullContentError(
         FullContentErrorCode.AccessCheckFailed,
         "Failed to verify filesystem access for archived content.",
         {
@@ -273,6 +273,9 @@ export class FullContentLoader {
           cause,
         },
       );
+      const fallback = this.extractFallback(captured, storage);
+      const availability = fallback != null ? "partial" : "unavailable";
+      return this.createFullContent(captured, storage, fallback, availability, error);
     }
 
     if (!hasAccess) {

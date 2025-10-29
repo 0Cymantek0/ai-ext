@@ -48,10 +48,13 @@ function createCapturedContent(
 
 function createMocks(
   content: CapturedContent | null,
-  filesystem?: Partial<{ access: boolean; data: string | ArrayBuffer }> & {
-    error?: unknown;
-    permission?: boolean;
-  },
+  filesystem?: Partial<{
+    access: boolean;
+    data: string | ArrayBuffer;
+    permission: boolean;
+    error: unknown;
+    accessError: unknown;
+  }>,
 ): {
   storageManager: MockStorageManager;
   filesystemService?: MockFilesystemService;
@@ -66,9 +69,15 @@ function createMocks(
 
   const hasAccess = filesystem.permission ?? filesystem.access ?? true;
   const filesystemService: MockFilesystemService = {
-    hasAccess: vi.fn().mockResolvedValue(hasAccess),
+    hasAccess: vi.fn(),
     read: vi.fn(),
   } as unknown as MockFilesystemService;
+
+  if (filesystem.accessError !== undefined) {
+    filesystemService.hasAccess.mockRejectedValue(filesystem.accessError);
+  } else {
+    filesystemService.hasAccess.mockResolvedValue(hasAccess);
+  }
 
   if (filesystem.error !== undefined) {
     filesystemService.read.mockRejectedValue(filesystem.error);
@@ -221,6 +230,45 @@ describe("FullContentLoader", () => {
     expect(result.availability).toBe("partial");
     expect(result.content).toBe("stored excerpt");
     expect(result.error?.code).toBe(FullContentErrorCode.FilesystemReadFailed);
+  });
+
+  it("surfaces access check errors as partial availability", async () => {
+    const archive: FileArchiveDescriptor = {
+      archiveHandleId: "dir-4",
+      relativePath: "story.md",
+      estimatedBytes: 512,
+    };
+
+    const captured = createCapturedContent({
+      id: "fs-access-check",
+      metadata: {
+        timestamp: Date.now(),
+        storage: {
+          tier: "filesystem",
+          archive,
+          fallbackPreview: "cached access fallback",
+        },
+      },
+      content: "fetched preview",
+    });
+
+    const accessError = new Error("permission query failed");
+    const { storageManager, filesystemService } = createMocks(captured, {
+      accessError,
+    });
+
+    const loader = new FullContentLoader({
+      storageManager,
+      filesystem: filesystemService,
+    });
+
+    const result = await loader.loadFullContent("fs-access-check");
+
+    expect(filesystemService?.hasAccess).toHaveBeenCalledWith(archive);
+    expect(result.availability).toBe("partial");
+    expect(result.content).toBe("cached access fallback");
+    expect(result.error?.code).toBe(FullContentErrorCode.AccessCheckFailed);
+    expect(result.error?.details?.cause).toBe(accessError);
   });
 
   it("throws an error when content is missing", async () => {
