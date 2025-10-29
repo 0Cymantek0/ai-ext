@@ -5,6 +5,7 @@
  */
 
 import { logger } from "./monitoring.js";
+import type { FileArchiveDescriptor } from "./storage/tiered-storage-types.js";
 
 const DB_NAME = "ai-pocket-db";
 const DB_VERSION = 2; // Bumped for vectorChunks store
@@ -55,6 +56,13 @@ export interface Pocket {
   icon?: string;
 }
 
+export interface ContentStorageReference {
+  tier: "indexeddb" | "filesystem";
+  archive?: FileArchiveDescriptor;
+  fallbackPreview?: string;
+  reason?: string;
+}
+
 export interface ContentMetadata {
   timestamp: number;
   title?: string;
@@ -67,6 +75,11 @@ export interface ContentMetadata {
   fileSize?: number;
   fileType?: string;
   fileExtension?: string;
+  storage?: ContentStorageReference;
+  excerpt?: string;
+  preview?: string;
+  summary?: string;
+  fallbackPreview?: string;
 }
 
 export interface CapturedContent {
