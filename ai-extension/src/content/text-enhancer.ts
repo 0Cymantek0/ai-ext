@@ -55,6 +55,7 @@ class UniversalTextEnhancer {
   private currentLanguageDetector: any | null = null;
   private detectedSourceLanguage: string | null = null;
   private selectedTargetLanguage: string = "en";
+  private savedQuickLanguages: Language[] = [];
   private sensitivePatterns = [
     /bank|banking|financial|credit|payment/i,
     /health|medical|patient|hospital/i,
@@ -234,7 +235,7 @@ class UniversalTextEnhancer {
   /**
    * Initialize the text enhancer
    */
-  private initialize(): void {
+  private async initialize(): Promise<void> {
     console.info("[TextEnhancer] Initializing");
 
     // Check if we're on a sensitive site
@@ -245,6 +246,9 @@ class UniversalTextEnhancer {
       // TODO: Show UI to allow user to enable per-site
       return;
     }
+
+    // Load saved quick languages
+    await this.loadSavedLanguages();
 
     // Detect page context (Requirement 9.5)
     this.detectPageContext();
@@ -262,6 +266,53 @@ class UniversalTextEnhancer {
     this.setupFocusListener();
 
     console.info("[TextEnhancer] Initialized successfully");
+  }
+
+  /**
+   * Load saved quick languages from storage
+   */
+  private async loadSavedLanguages(): Promise<void> {
+    try {
+      const result = await chrome.storage.local.get("quickLanguages");
+      if (result.quickLanguages && Array.isArray(result.quickLanguages)) {
+        this.savedQuickLanguages = result.quickLanguages;
+      } else {
+        // Default languages
+        this.savedQuickLanguages = [
+          { code: "es", name: "spanish" },
+          { code: "bn", name: "bengali" },
+          { code: "fr", name: "french" },
+          { code: "en", name: "english" },
+          { code: "ja", name: "japanese" },
+          { code: "zh", name: "chinese" },
+        ];
+      }
+    } catch (error) {
+      console.error("[TextEnhancer] Failed to load saved languages", error);
+      // Use defaults on error
+      this.savedQuickLanguages = [
+        { code: "es", name: "spanish" },
+        { code: "bn", name: "bengali" },
+        { code: "fr", name: "french" },
+        { code: "en", name: "english" },
+        { code: "ja", name: "japanese" },
+        { code: "zh", name: "chinese" },
+      ];
+    }
+  }
+
+  /**
+   * Save quick languages to storage
+   */
+  private async saveQuickLanguages(languages: Language[]): Promise<void> {
+    try {
+      await chrome.storage.local.set({ quickLanguages: languages });
+      this.savedQuickLanguages = languages;
+      console.info("[TextEnhancer] Quick languages saved", languages);
+    } catch (error) {
+      console.error("[TextEnhancer] Failed to save languages", error);
+      throw error;
+    }
   }
 
   /**
@@ -865,6 +916,168 @@ class UniversalTextEnhancer {
         font-weight: 300;
       }
 
+      /* Language Selection Modal */
+      .ai-pocket-language-modal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(34, 40, 49, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+        z-index: 10003;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .ai-pocket-language-modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .ai-pocket-language-modal-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.95);
+        margin: 0;
+      }
+
+      .ai-pocket-language-modal-close {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 24px;
+        cursor: pointer;
+        padding: 4px 8px;
+        line-height: 1;
+        transition: color 0.2s ease;
+      }
+
+      .ai-pocket-language-modal-close:hover {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .ai-pocket-language-modal-body {
+        padding: 24px;
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      .ai-pocket-language-modal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+      }
+
+      .ai-pocket-language-modal-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .ai-pocket-language-modal-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .ai-pocket-language-modal-item.selected {
+        background: hsl(217.2 91.2% 59.8% / 0.15);
+        border-color: hsl(217.2 91.2% 59.8%);
+      }
+
+      .ai-pocket-language-modal-checkbox {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+      }
+
+      .ai-pocket-language-modal-item.selected .ai-pocket-language-modal-checkbox {
+        background: hsl(217.2 91.2% 59.8%);
+        border-color: hsl(217.2 91.2% 59.8%);
+      }
+
+      .ai-pocket-language-modal-checkbox::after {
+        content: '✓';
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+
+      .ai-pocket-language-modal-item.selected .ai-pocket-language-modal-checkbox::after {
+        opacity: 1;
+      }
+
+      .ai-pocket-language-modal-label {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+      }
+
+      .ai-pocket-language-modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+
+      .ai-pocket-language-modal-btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .ai-pocket-language-modal-btn-cancel {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .ai-pocket-language-modal-btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+
+      .ai-pocket-language-modal-btn-save {
+        background: hsl(217.2 91.2% 59.8%);
+        border: 1px solid hsl(217.2 91.2% 59.8%);
+        color: white;
+      }
+
+      .ai-pocket-language-modal-btn-save:hover {
+        background: hsl(217.2 91.2% 65%);
+        border-color: hsl(217.2 91.2% 65%);
+      }
+
       /* Menu backdrop */
       .ai-pocket-menu-backdrop {
         position: fixed;
@@ -874,6 +1087,18 @@ class UniversalTextEnhancer {
         bottom: 0;
         z-index: 10001;
         background: transparent;
+      }
+
+      .ai-pocket-modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10002;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
       }
 
       /* Preview Dialog Styles - True Glassmorphism like Chatbox */
@@ -2419,16 +2644,8 @@ class UniversalTextEnhancer {
     const languageGrid = document.createElement("div");
     languageGrid.className = "ai-pocket-language-grid";
 
-    const quickLanguages = [
-      { code: "es", name: "spanish" },
-      { code: "bn", name: "bengali" },
-      { code: "fr", name: "french" },
-      { code: "en", name: "english" },
-      { code: "ja", name: "japanese" },
-      { code: "zh", name: "chinese" },
-    ];
-
-    quickLanguages.forEach((lang) => {
+    // Render saved quick languages
+    this.savedQuickLanguages.forEach((lang) => {
       const langBtn = document.createElement("button");
       langBtn.className = "ai-pocket-language-btn";
       langBtn.textContent = lang.name;
@@ -2462,8 +2679,7 @@ class UniversalTextEnhancer {
     addLanguageBtn.appendChild(addLangIcon);
     addLanguageBtn.appendChild(addLangLabel);
     addLanguageBtn.addEventListener("click", () => {
-      // TODO: Implement language saving functionality
-      console.log("[TextEnhancer] Add language clicked - feature coming soon");
+      this.showLanguageSelectionModal(languageGrid, targetDropdown);
     });
 
     translateContent.appendChild(addLanguageBtn);
@@ -2598,6 +2814,167 @@ class UniversalTextEnhancer {
     (this.currentMenu as any).__escHandler = escHandler;
 
     console.debug("[TextEnhancer] Enhancement menu shown");
+  }
+
+  /**
+   * Show language selection modal
+   */
+  private showLanguageSelectionModal(
+    languageGrid: HTMLElement,
+    targetDropdown: HTMLSelectElement,
+  ): void {
+    // Create modal backdrop
+    const backdrop = document.createElement("div");
+    backdrop.className = "ai-pocket-modal-backdrop";
+
+    // Create modal
+    const modal = document.createElement("div");
+    modal.className = "ai-pocket-language-modal";
+
+    // Modal header
+    const header = document.createElement("div");
+    header.className = "ai-pocket-language-modal-header";
+
+    const title = document.createElement("h3");
+    title.className = "ai-pocket-language-modal-title";
+    title.textContent = "Select Quick Languages";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "ai-pocket-language-modal-close";
+    closeBtn.textContent = "×";
+    closeBtn.setAttribute("type", "button");
+    closeBtn.setAttribute("aria-label", "Close");
+
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+
+    // Modal body
+    const body = document.createElement("div");
+    body.className = "ai-pocket-language-modal-body";
+
+    const grid = document.createElement("div");
+    grid.className = "ai-pocket-language-modal-grid";
+
+    // Track selected languages
+    const selectedCodes = new Set(this.savedQuickLanguages.map((l) => l.code));
+
+    // Create language items
+    this.supportedLanguages.forEach((lang) => {
+      const item = document.createElement("div");
+      item.className = "ai-pocket-language-modal-item";
+      if (selectedCodes.has(lang.code)) {
+        item.classList.add("selected");
+      }
+
+      const checkbox = document.createElement("div");
+      checkbox.className = "ai-pocket-language-modal-checkbox";
+
+      const label = document.createElement("span");
+      label.className = "ai-pocket-language-modal-label";
+      label.textContent = lang.name;
+
+      item.appendChild(checkbox);
+      item.appendChild(label);
+
+      item.addEventListener("click", () => {
+        if (selectedCodes.has(lang.code)) {
+          selectedCodes.delete(lang.code);
+          item.classList.remove("selected");
+        } else {
+          selectedCodes.add(lang.code);
+          item.classList.add("selected");
+        }
+      });
+
+      grid.appendChild(item);
+    });
+
+    body.appendChild(grid);
+
+    // Modal footer
+    const footer = document.createElement("div");
+    footer.className = "ai-pocket-language-modal-footer";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className =
+      "ai-pocket-language-modal-btn ai-pocket-language-modal-btn-cancel";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.setAttribute("type", "button");
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className =
+      "ai-pocket-language-modal-btn ai-pocket-language-modal-btn-save";
+    saveBtn.textContent = "Save";
+    saveBtn.setAttribute("type", "button");
+
+    footer.appendChild(cancelBtn);
+    footer.appendChild(saveBtn);
+
+    // Assemble modal
+    modal.appendChild(header);
+    modal.appendChild(body);
+    modal.appendChild(footer);
+
+    // Close handlers
+    const closeModal = () => {
+      backdrop.remove();
+      modal.remove();
+    };
+
+    closeBtn.addEventListener("click", closeModal);
+    cancelBtn.addEventListener("click", closeModal);
+    backdrop.addEventListener("click", closeModal);
+
+    // Save handler
+    saveBtn.addEventListener("click", async () => {
+      const selectedLanguages = this.supportedLanguages.filter((lang) =>
+        selectedCodes.has(lang.code),
+      );
+
+      if (selectedLanguages.length === 0) {
+        alert("Please select at least one language");
+        return;
+      }
+
+      try {
+        await this.saveQuickLanguages(selectedLanguages);
+
+        // Update the language grid
+        languageGrid.innerHTML = "";
+        selectedLanguages.forEach((lang) => {
+          const langBtn = document.createElement("button");
+          langBtn.className = "ai-pocket-language-btn";
+          langBtn.textContent = lang.name;
+          langBtn.setAttribute("type", "button");
+          langBtn.setAttribute("data-lang-code", lang.code);
+          langBtn.addEventListener("click", () => {
+            targetDropdown.value = lang.code;
+            this.selectedTargetLanguage = lang.code;
+            if (this.currentTextField) {
+              this.handleTranslation(this.currentTextField);
+            }
+          });
+          languageGrid.appendChild(langBtn);
+        });
+
+        closeModal();
+      } catch (error) {
+        console.error("[TextEnhancer] Failed to save languages", error);
+        alert("Failed to save languages. Please try again.");
+      }
+    });
+
+    // Add to DOM
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+
+    // Focus first item
+    const firstItem = grid.querySelector(
+      ".ai-pocket-language-modal-item",
+    ) as HTMLElement;
+    if (firstItem) {
+      firstItem.focus();
+    }
   }
 
   /**
