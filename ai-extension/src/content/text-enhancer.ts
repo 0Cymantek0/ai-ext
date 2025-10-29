@@ -681,6 +681,13 @@ class UniversalTextEnhancer {
         background-repeat: no-repeat;
         background-position: right 12px center;
         padding-right: 36px;
+        color-scheme: dark;
+      }
+
+      .ai-pocket-language-dropdown option {
+        background: #1a1a1a;
+        color: #ffffff;
+        padding: 8px 12px;
       }
 
       .ai-pocket-language-dropdown:hover {
