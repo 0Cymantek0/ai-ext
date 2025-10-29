@@ -17,6 +17,7 @@ import {
   AIModel,
   AIOperation,
 } from "./ai-performance-monitor";
+import type { ProcessingLocation as HybridProcessingLocation } from "./hybrid-ai-engine";
 
 // Type definitions for Chrome's Prompt API
 declare global {
@@ -132,9 +133,9 @@ export interface ProcessingOptions {
   priority: "low" | "normal" | "high";
   maxTokens?: number;
   signal?: AbortSignal;
-  targetModel?: "nano" | "flash" | "pro";
-  targetModelReason?: string;
-  targetModelConfidence?: number;
+  forcedLocation?: HybridProcessingLocation;
+  forcedLocationReason?: string;
+  forcedLocationConfidence?: number;
 }
 
 /**
