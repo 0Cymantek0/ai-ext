@@ -56,6 +56,7 @@ class UniversalTextEnhancer {
   private detectedSourceLanguage: string | null = null;
   private selectedTargetLanguage: string = "en";
   private savedQuickLanguages: Language[] = [];
+  private customPresets: EnhancementOption[] = [];
   private sensitivePatterns = [
     /bank|banking|financial|credit|payment/i,
     /health|medical|patient|hospital/i,
@@ -250,6 +251,9 @@ class UniversalTextEnhancer {
     // Load saved quick languages
     await this.loadSavedLanguages();
 
+    // Load custom presets
+    await this.loadCustomPresets();
+
     // Detect page context (Requirement 9.5)
     this.detectPageContext();
 
@@ -313,6 +317,168 @@ class UniversalTextEnhancer {
       console.error("[TextEnhancer] Failed to save languages", error);
       throw error;
     }
+  }
+
+  /**
+   * Load saved custom presets
+   */
+  private async loadCustomPresets(): Promise<void> {
+    try {
+      const result = await chrome.storage.local.get("customPresets");
+      if (result.customPresets && Array.isArray(result.customPresets)) {
+        this.customPresets = result.customPresets;
+        console.info("[TextEnhancer] Custom presets loaded", this.customPresets);
+      }
+    } catch (error) {
+      console.error("[TextEnhancer] Failed to load custom presets", error);
+    }
+  }
+
+  /**
+   * Save custom presets
+   */
+  private async saveCustomPresets(): Promise<void> {
+    try {
+      await chrome.storage.local.set({ customPresets: this.customPresets });
+      console.info("[TextEnhancer] Custom presets saved", this.customPresets);
+    } catch (error) {
+      console.error("[TextEnhancer] Failed to save custom presets", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Show dialog to add a new custom preset
+   */
+  private showAddPresetDialog(): void {
+    const presetName = prompt("Enter preset name (e.g., 'Formal', 'Casual'):");
+    if (!presetName || presetName.trim() === "") {
+      return;
+    }
+
+    const presetPrompt = prompt(
+      "Enter the enhancement instruction:\n(e.g., 'Make this text more formal and professional')",
+    );
+    if (!presetPrompt || presetPrompt.trim() === "") {
+      return;
+    }
+
+    const presetIcon = prompt("Enter an emoji icon (optional):") || "✨";
+
+    this.addCustomPreset(
+      presetName.trim(),
+      presetPrompt.trim(),
+      presetIcon.trim(),
+    );
+  }
+
+  /**
+   * Add a new custom preset
+   */
+  private async addCustomPreset(
+    label: string,
+    prompt: string,
+    icon: string,
+  ): Promise<void> {
+    const customId = `custom_${Date.now()}` as any;
+    const newPreset: EnhancementOption = {
+      id: customId,
+      label,
+      icon,
+      description: prompt,
+    };
+
+    this.customPresets.push(newPreset);
+    await this.saveCustomPresets();
+
+    // Refresh the menu to show the new preset
+    if (this.currentMenu && this.currentTextField) {
+      const button = this.injectedButtons.get(this.currentTextField);
+      if (button) {
+        this.closeEnhancementMenu();
+        this.showEnhancementMenu(this.currentTextField, button);
+      }
+    }
+
+    console.info("[TextEnhancer] Custom preset added", newPreset);
+  }
+
+  /**
+   * Delete a custom preset
+   */
+  private async deleteCustomPreset(presetId: string): Promise<void> {
+    const index = this.customPresets.findIndex((p) => p.id === presetId);
+    if (index === -1) {
+      return;
+    }
+
+    const preset = this.customPresets[index];
+    if (!preset) {
+      return;
+    }
+
+    const confirmed = confirm(
+      `Delete preset "${preset.label}"?\nThis action cannot be undone.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.customPresets.splice(index, 1);
+    await this.saveCustomPresets();
+
+    // Refresh the menu
+    if (this.currentMenu && this.currentTextField) {
+      const button = this.injectedButtons.get(this.currentTextField);
+      if (button) {
+        this.closeEnhancementMenu();
+        this.showEnhancementMenu(this.currentTextField, button);
+      }
+    }
+
+    console.info("[TextEnhancer] Custom preset deleted", preset);
+  }
+
+  /**
+   * Handle custom preset selection
+   */
+  private async handleCustomPresetSelection(
+    preset: EnhancementOption,
+  ): Promise<void> {
+    if (!this.currentTextField) {
+      console.error("[TextEnhancer] No text field selected");
+      return;
+    }
+
+    const currentText = this.getTextFieldValue(this.currentTextField);
+    if (!currentText || currentText.trim().length === 0) {
+      console.debug("[TextEnhancer] No text to enhance");
+      return;
+    }
+
+    console.debug("[TextEnhancer] Custom preset selected", {
+      preset: preset.label,
+    });
+
+    // Store reference to textField BEFORE closing menu
+    const textFieldRef = this.currentTextField;
+
+    // Close menu
+    this.closeEnhancementMenu();
+
+    // Verify textField is still valid
+    if (!textFieldRef || !document.body.contains(textFieldRef)) {
+      console.error("[TextEnhancer] Text field no longer in DOM");
+      return;
+    }
+
+    // Process enhancement with custom preset prompt
+    await this.processCustomEnhancement(
+      textFieldRef,
+      currentText,
+      preset.description,
+    );
   }
 
   /**
@@ -708,6 +874,42 @@ class UniversalTextEnhancer {
         color: rgba(255, 255, 255, 0.9);
         margin: 0;
         font-family: "Space Grotesk", sans-serif;
+      }
+
+      /* Custom Preset Styles */
+      .ai-pocket-enhancement-option.custom-preset {
+        position: relative;
+        padding-right: 36px;
+      }
+
+      .ai-pocket-preset-delete-btn {
+        position: absolute;
+        right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        border: none;
+        background: rgba(255, 59, 48, 0.2);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        padding: 0;
+      }
+
+      .ai-pocket-preset-delete-btn:hover {
+        background: rgba(255, 59, 48, 0.4);
+        transform: translateY(-50%) scale(1.1);
+      }
+
+      .ai-pocket-preset-delete-btn:active {
+        transform: translateY(-50%) scale(0.95);
       }
 
       /* Add Preset Button */
@@ -1954,9 +2156,13 @@ class UniversalTextEnhancer {
   private createPresetButton(
     option: EnhancementOption,
     index: number,
+    isCustom: boolean = false,
   ): HTMLElement {
     const optionButton = document.createElement("button");
     optionButton.className = "ai-pocket-enhancement-option";
+    if (isCustom) {
+      optionButton.classList.add("custom-preset");
+    }
     optionButton.setAttribute("role", "menuitem");
     optionButton.setAttribute("data-style", option.id);
     optionButton.setAttribute("tabindex", index === 0 ? "0" : "-1");
@@ -1975,11 +2181,30 @@ class UniversalTextEnhancer {
     optionButton.appendChild(icon);
     optionButton.appendChild(label);
 
+    // Add delete button for custom presets
+    if (isCustom) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "ai-pocket-preset-delete-btn";
+      deleteBtn.textContent = "×";
+      deleteBtn.setAttribute("type", "button");
+      deleteBtn.setAttribute("aria-label", "Delete preset");
+      deleteBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await this.deleteCustomPreset(option.id);
+      });
+      optionButton.appendChild(deleteBtn);
+    }
+
     // Add click handler
     optionButton.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.handleStyleSelection(option.id, optionButton);
+      if (isCustom) {
+        this.handleCustomPresetSelection(option);
+      } else {
+        this.handleStyleSelection(option.id, optionButton);
+      }
     });
 
     return optionButton;
@@ -2548,6 +2773,12 @@ class UniversalTextEnhancer {
       presetsGrid.appendChild(optionButton);
     });
 
+    // Add custom presets
+    this.customPresets.forEach((option, index) => {
+      const optionButton = this.createPresetButton(option, presetOptions.length + index, true);
+      presetsGrid.appendChild(optionButton);
+    });
+
     enhanceContent.appendChild(presetsGrid);
 
     // Add Preset Button
@@ -2566,8 +2797,7 @@ class UniversalTextEnhancer {
     addPresetBtn.appendChild(addIcon);
     addPresetBtn.appendChild(addLabel);
     addPresetBtn.addEventListener("click", () => {
-      // TODO: Implement preset saving functionality
-      console.log("[TextEnhancer] Add preset clicked - feature coming soon");
+      this.showAddPresetDialog();
     });
 
     enhanceContent.appendChild(addPresetBtn);
