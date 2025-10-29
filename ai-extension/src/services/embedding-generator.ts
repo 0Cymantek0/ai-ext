@@ -339,18 +339,15 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
     const useCache = options.useCache ?? true;
     const abortSignal = options.signal;
 
-    const normalizedInputs = texts.map((text, index) => {
+    const results: (number[] | null)[] = new Array(texts.length).fill(null);
+    const pending = new Map<string, number[]>();
+
+    texts.forEach((text, index) => {
       const normalized = this.normalizeText(text);
       if (!normalized) {
         throw new Error(`Embedding generation requires non-empty text at index ${index}`);
       }
-      return normalized;
-    });
 
-    const results: (number[] | null)[] = new Array(normalizedInputs.length).fill(null);
-    const pending = new Map<string, number[]>();
-
-    normalizedInputs.forEach((normalized, index) => {
       if (useCache) {
         const cached = this.cache.get(normalized);
         if (cached) {
@@ -368,14 +365,7 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
     });
 
     if (pending.size === 0) {
-      return results.map((value, index) => {
-        if (!value) {
-          throw new Error(
-            `Failed to resolve embedding for cached input at index ${index}`,
-          );
-        }
-        return value;
-      });
+      return results as number[][];
     }
 
     const uniqueTexts = Array.from(pending.keys());
