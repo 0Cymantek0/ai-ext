@@ -69,6 +69,25 @@ const SNIPPET_CUES = [
   "this text",
 ];
 
+interface KeywordMatcher {
+  keyword: string;
+  regex: RegExp;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildKeywordMatchers(keywords: string[]): KeywordMatcher[] {
+  return keywords.map((keyword) => ({
+    keyword,
+    regex: new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i"),
+  }));
+}
+
+const RESEARCH_KEYWORD_MATCHERS = buildKeywordMatchers(RESEARCH_KEYWORDS);
+const SNIPPET_CUE_MATCHERS = buildKeywordMatchers(SNIPPET_CUES);
+
 function countWords(input: string): number {
   if (!input.trim()) {
     return 0;
@@ -78,9 +97,16 @@ function countWords(input: string): number {
   return words ? words.length : 0;
 }
 
-function findKeywordMatch(prompt: string, keywords: string[]): string | undefined {
-  const normalized = prompt.toLowerCase();
-  return keywords.find((keyword) => normalized.includes(keyword));
+function findKeywordMatch(
+  prompt: string,
+  matchers: KeywordMatcher[],
+): string | undefined {
+  if (!prompt.trim()) {
+    return undefined;
+  }
+
+  const found = matchers.find(({ regex }) => regex.test(prompt));
+  return found?.keyword;
 }
 
 function hasSnippetCue(prompt: string, explicitSignal = false): boolean {
@@ -88,7 +114,7 @@ function hasSnippetCue(prompt: string, explicitSignal = false): boolean {
     return true;
   }
 
-  return Boolean(findKeywordMatch(prompt, SNIPPET_CUES));
+  return Boolean(findKeywordMatch(prompt, SNIPPET_CUE_MATCHERS));
 }
 
 function hasPocketContext(activeContext: RouterInput["activeContext"]): boolean {
@@ -118,7 +144,7 @@ export function routeQuery(input: RouterInput): RouteDecision {
   const wordCount = countWords(prompt);
   const matchedRules: string[] = [];
 
-  const researchKeyword = findKeywordMatch(prompt, RESEARCH_KEYWORDS);
+  const researchKeyword = findKeywordMatch(prompt, RESEARCH_KEYWORD_MATCHERS);
   if (researchKeyword) {
     matchedRules.push("research-keyword");
     return {
@@ -162,3 +188,4 @@ export function routeQuery(input: RouterInput): RouteDecision {
     },
   };
 }
+

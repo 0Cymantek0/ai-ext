@@ -28,6 +28,30 @@ describe("model-router", () => {
     expect(decision.confidence).toBeGreaterThan(0.8);
   });
 
+  it("respects explicit snippet signals when provided", () => {
+    const decision = routeQuery({
+      prompt: "Summarize quickly.",
+      activeContext: {
+        hasExplicitSnippet: true,
+      },
+    });
+
+    expect(decision.targetModel).toBe("nano");
+    expect(decision.matchedRules).toEqual(["short-contextual-query"]);
+  });
+
+  it("treats ai-pocket mode as contextual cue for Nano routing", () => {
+    const decision = routeQuery({
+      prompt: "Need quick pocket recap.",
+      activeContext: {
+        conversationMode: "ai-pocket",
+      },
+    });
+
+    expect(decision.targetModel).toBe("nano");
+    expect(decision.matchedRules).toEqual(["short-contextual-query"]);
+  });
+
   it("defaults to Gemini Flash when no heuristics match", () => {
     const decision = routeQuery({
       prompt: "Explain the history of artificial intelligence across major milestones.",
