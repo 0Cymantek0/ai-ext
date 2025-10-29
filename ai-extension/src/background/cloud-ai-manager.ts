@@ -34,6 +34,7 @@ export enum GeminiModel {
   FLASH = "gemini-2.5-flash",
   PRO = "gemini-2.5-pro",
   FLASH_LITE = "gemini-2.5-flash-lite",
+  FLASH_IMAGE = "gemini-2.5-flash-image",
 }
 
 /**
@@ -597,6 +598,95 @@ export class CloudAIManager {
     } catch (error) {
       console.error("Error generating embedding:", error);
       throw new Error(`Embedding generation failed: ${error}`);
+    }
+  }
+
+  /**
+   * Generate image using Gemini 2.5 Flash Image model
+   * 
+   * @param prompt Text prompt for image generation
+   * @param options Processing options including aspect ratio
+   * @returns Base64 encoded image data URL
+   */
+  async generateImage(
+    prompt: string,
+    options?: CloudProcessingOptions & { aspectRatio?: string }
+  ): Promise<string | null> {
+    if (!this.isAvailable()) {
+      throw new Error("Cloud AI Manager not initialized");
+    }
+
+    const startTime = Date.now();
+
+    try {
+      const model = this.getModel(GeminiModel.FLASH_IMAGE);
+      
+      const config: any = {
+        temperature: options?.temperature ?? 0.9,
+        maxOutputTokens: options?.maxOutputTokens ?? 1000,
+      };
+
+      // Add aspect ratio if specified
+      if (options?.aspectRatio) {
+        config.imageConfig = {
+          aspectRatio: options.aspectRatio
+        };
+      }
+
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: config,
+      });
+
+      const response = result.response;
+      
+      // Extract image data from response
+      for (const candidate of response.candidates || []) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData) {
+            const imageData = part.inlineData.data;
+            const mimeType = part.inlineData.mimeType || 'image/png';
+            const dataUrl = `data:${mimeType};base64,${imageData}`;
+            
+            // Record operation
+            aiPerformanceMonitor.recordOperation({
+              timestamp: Date.now(),
+              success: true,
+              model: AIModel.GEMINI_FLASH,
+              operation: AIOperation.GENERATE_IMAGE,
+              responseTime: Date.now() - startTime,
+              tokensUsed: 1290 // Fixed token count for image generation
+            });
+            
+            return dataUrl;
+          }
+        }
+      }
+
+      // Record failed operation
+      aiPerformanceMonitor.recordOperation({
+        timestamp: Date.now(),
+        success: false,
+        model: AIModel.GEMINI_FLASH,
+        operation: AIOperation.GENERATE_IMAGE,
+        responseTime: Date.now() - startTime,
+        tokensUsed: 0
+      });
+      
+      return null;
+    } catch (error) {
+      // Record failed operation
+      aiPerformanceMonitor.recordOperation({
+        timestamp: Date.now(),
+        success: false,
+        model: AIModel.GEMINI_FLASH,
+        operation: AIOperation.GENERATE_IMAGE,
+        responseTime: Date.now() - startTime,
+        tokensUsed: 0
+      });
+      
+      console.error("Image generation failed:", error);
+      throw error;
     }
   }
 }

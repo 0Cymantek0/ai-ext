@@ -2010,7 +2010,7 @@ messageRouter.registerHandler("GENERATE_REPORT", async (payload: any) => {
 
     logger.info("Handler", "GENERATE_REPORT success", {
       pocketId: normalizedPocketId ?? "all",
-      totalItems: reportData.metadata.totalItems,
+      totalItems: reportData.metadata?.totalItems ?? 0,
     });
 
     return reportData;

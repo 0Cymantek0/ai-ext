@@ -1,5 +1,5 @@
 /**
- * Report Viewer - Component-based report viewer
+ * Report Viewer V2 - Component-based report viewer
  */
 
 import { ReportRenderer } from './report-renderer.js';

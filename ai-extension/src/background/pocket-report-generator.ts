@@ -9,38 +9,43 @@ import { IndexedDBManager, StoreName, type Pocket, type CapturedContent } from "
 import { logger } from "./monitoring";
 
 export interface ReportData {
-  metadata: {
+  // Component-based structure
+  hero: {
+    backgroundImage?: string;
+    pocketName?: string;
+    title: string;
+    subtitle: string;
+  };
+  sidebar: {
+    showTextSize: boolean;
+    index: Array<{
+      title: string;
+      id?: string;
+      children?: Array<{ title: string; id: string }>;
+    }>;
+  };
+  sections: Array<{
+    title: string;
+    content: Array<{
+      type: string;
+      data: any;
+    }>;
+  }>;
+  footer: {
+    sources: Array<{
+      title: string;
+      url: string;
+      type: string;
+      icon: string;
+    }>;
+  };
+  // Legacy metadata for compatibility
+  metadata?: {
     generatedAt: number;
     pocketId?: string;
     pocketName?: string;
     totalItems: number;
-    dateRange: {
-      start: number;
-      end: number;
-    };
   };
-  statistics: {
-    totalContent: number;
-    byType: Record<string, number>;
-    byTag: Record<string, number>;
-    totalSize: number;
-    averageSize: number;
-  };
-  aiInsights: {
-    summary: string;
-    themes: string[];
-    recommendations: string[];
-    keyFindings: string[];
-  };
-  content: Array<{
-    id: string;
-    type: string;
-    title: string;
-    preview: string;
-    timestamp: number;
-    tags: string[];
-    url: string;
-  }>;
 }
 
 export class PocketReportGenerator {
@@ -54,6 +59,7 @@ export class PocketReportGenerator {
 
   /**
    * Generate a comprehensive report for a specific pocket or all pockets
+   * Uses two-phase generation: planning then content creation
    */
   async generateReport(pocketId?: string): Promise<ReportData> {
     try {
@@ -74,32 +80,34 @@ export class PocketReportGenerator {
       const contents = await this.fetchContents(pocketId);
       logger.info("PocketReport", "Contents fetched", `${contents.length} items`);
 
-      // Calculate statistics
-      logger.info("PocketReport", "Calculating statistics", "");
-      const statistics = this.calculateStatistics(contents);
-
       // Prepare data for AI analysis
       logger.info("PocketReport", "Preparing analysis data", "");
       const analysisData = this.prepareAnalysisData(pockets, contents);
 
-      // Get AI insights using Gemini Flash
-      logger.info("PocketReport", "Generating AI insights", "");
-      const aiInsights = await this.generateAIInsights(analysisData);
-      logger.info("PocketReport", "AI insights generated", "");
+      // PHASE 1: Generate report structure/plan
+      logger.info("PocketReport", "Phase 1: Planning report structure", "");
+      const reportPlan = await this.generateReportPlan(analysisData, pockets[0]?.name);
+      logger.info("PocketReport", "Report plan generated", "");
 
-      // Build report data
-      const reportData: ReportData = {
-        metadata: {
-          generatedAt: Date.now(),
-          ...(pocketId ? { pocketId } : {}),
-          ...(pockets[0]?.name ? { pocketName: pockets[0].name } : {}),
-          totalItems: contents.length,
-          dateRange: this.getDateRange(contents),
-        },
-        statistics,
-        aiInsights,
-        content: this.formatContentList(contents),
-      };
+      // PHASE 2: Generate detailed content following the plan
+      logger.info("PocketReport", "Phase 2: Generating report content", "");
+      const reportData = await this.generateReportContent(reportPlan, analysisData, contents);
+      logger.info("PocketReport", "Report content generated", "");
+
+      // Generate hero background image (optional - gracefully handle failures)
+      try {
+        logger.info("PocketReport", "Generating hero image", "");
+        const heroImage = await this.generateHeroImage(reportData.hero.title, pockets[0]?.name);
+        if (heroImage) {
+          reportData.hero.backgroundImage = heroImage;
+          logger.info("PocketReport", "Hero image generated successfully", "");
+        } else {
+          logger.info("PocketReport", "Hero image generation skipped", "");
+        }
+      } catch (imageError) {
+        // Image generation is optional - don't fail the entire report
+        logger.warn("PocketReport", "Hero image generation failed, continuing without image", imageError);
+      }
 
       logger.info("PocketReport", "Report generation completed", `${contents.length} items`);
 
@@ -244,25 +252,37 @@ export class PocketReportGenerator {
   }
 
   /**
-   * Generate AI insights using Gemini Flash
+   * PHASE 1: Generate report structure and plan
    */
-  private async generateAIInsights(analysisData: string) {
-    const prompt = `Analyze the following pocket data and provide comprehensive insights:
+  private async generateReportPlan(analysisData: string, pocketName?: string) {
+    const prompt = `You are creating a comprehensive, professional report about a collection of saved content.
 
+Data to analyze:
 ${analysisData}
 
-Please provide:
-1. A brief executive summary (2-3 sentences)
-2. Main themes and topics (3-5 themes)
-3. Key findings or patterns (3-5 findings)
-4. Recommendations for organization or next steps (3-5 recommendations)
+Create a detailed report structure plan. Include:
+1. A compelling title that captures the essence of the content
+2. A subtitle/description (2-3 sentences)
+3. Main sections to cover (4-8 sections with descriptive titles)
+4. For each section, list the key topics and what visualizations would be helpful (charts, diagrams, etc.)
 
-Format your response as JSON with this structure:
+CRITICAL RULES:
+- Return ONLY valid JSON
+- NO markdown formatting, NO code blocks, NO extra text
+- NO trailing commas in arrays or objects
+- Use proper JSON syntax
+
+Example format:
 {
-  "summary": "...",
-  "themes": ["...", "..."],
-  "keyFindings": ["...", "..."],
-  "recommendations": ["...", "..."]
+  "title": "Report Title Here",
+  "subtitle": "Brief description here",
+  "sections": [
+    {
+      "title": "Section Title",
+      "topics": ["topic1", "topic2"],
+      "visualizations": ["chart type"]
+    }
+  ]
 }`;
 
     try {
@@ -271,34 +291,317 @@ Format your response as JSON with this structure:
         maxOutputTokens: 2000,
       });
 
-      // Parse JSON response
-      const jsonMatch = response.result.match(/\{[\s\S]*\}/);
+      // Clean the response - remove markdown code blocks if present
+      let cleanedResponse = response.result.trim();
+      cleanedResponse = cleanedResponse.replace(/```json\s*/g, '');
+      cleanedResponse = cleanedResponse.replace(/```\s*/g, '');
+      
+      // Extract JSON object
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const insights = JSON.parse(jsonMatch[0]);
-        return {
-          summary: insights.summary || "",
-          themes: insights.themes || [],
-          keyFindings: insights.keyFindings || [],
-          recommendations: insights.recommendations || [],
-        };
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          logger.info("PocketReport", "Report plan parsed successfully", "");
+          return parsed;
+        } catch (parseError) {
+          logger.error("PocketReport", "JSON parse error", parseError);
+          // Try to fix common JSON issues
+          let fixedJson = jsonMatch[0];
+          
+          // Fix 1: Remove trailing commas before closing brackets
+          fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
+          
+          // Fix 2: Remove trailing commas in arrays (more aggressive)
+          fixedJson = fixedJson.replace(/,(\s*\])/g, '$1');
+          
+          // Fix 3: Remove trailing commas in objects
+          fixedJson = fixedJson.replace(/,(\s*\})/g, '$1');
+          
+          // Fix 4: Fix double commas
+          fixedJson = fixedJson.replace(/,,+/g, ',');
+          
+          // Fix 5: Remove comments if any
+          fixedJson = fixedJson.replace(/\/\/.*/g, '');
+          fixedJson = fixedJson.replace(/\/\*[\s\S]*?\*\//g, '');
+          
+          // Try parsing again
+          try {
+            const parsed = JSON.parse(fixedJson);
+            logger.info("PocketReport", "JSON fixed and parsed successfully", "");
+            return parsed;
+          } catch (secondError) {
+            logger.error("PocketReport", "Failed to fix JSON", secondError);
+            // Log the problematic JSON for debugging
+            logger.error("PocketReport", "Problematic JSON snippet", fixedJson.substring(0, 500));
+          }
+        }
       }
 
-      // Fallback if JSON parsing fails
+      // Fallback plan
+      logger.warn("PocketReport", "Using fallback plan", "");
       return {
-        summary: response.result.substring(0, 500),
-        themes: [],
-        keyFindings: [],
-        recommendations: [],
+        title: `${pocketName || "Content"} Analysis Report`,
+        subtitle: "A comprehensive overview of your saved content and insights.",
+        sections: [
+          { title: "Overview", topics: ["Summary"], visualizations: [] },
+          { title: "Key Findings", topics: ["Insights"], visualizations: [] }
+        ]
       };
     } catch (error) {
-      logger.error("PocketReport", "AI insights generation failed", error);
+      logger.error("PocketReport", "Report plan generation failed", error);
       return {
-        summary: "AI insights generation failed. Please try again.",
-        themes: [],
-        keyFindings: [],
-        recommendations: [],
+        title: `${pocketName || "Content"} Report`,
+        subtitle: "Analysis of your saved content.",
+        sections: [{ title: "Overview", topics: [], visualizations: [] }]
       };
     }
+  }
+
+  /**
+   * PHASE 2: Generate detailed report content following the plan
+   */
+  private async generateReportContent(plan: any, analysisData: string, contents: CapturedContent[]): Promise<ReportData> {
+    const prompt = `Create detailed content for this report following the structure plan:
+
+PLAN:
+${JSON.stringify(plan, null, 2)}
+
+DATA:
+${analysisData}
+
+For each section in the plan, generate:
+- Detailed text content (paragraphs, insights, analysis)
+- Specific data for charts (with labels and values)
+- Key findings as bullet points
+- Any relevant statistics
+
+CRITICAL RULES:
+- Return ONLY valid JSON
+- NO markdown formatting, NO code blocks, NO extra text
+- NO trailing commas in arrays or objects
+- Use proper JSON syntax
+
+Example format:
+{
+  "sections": [
+    {
+      "title": "Section Title",
+      "content": [
+        { "type": "text", "data": { "content": "paragraph text" } },
+        { "type": "abstract", "data": { "title": "Key Point", "content": "summary" } },
+        { "type": "list", "data": { "items": ["item1", "item2"] } }
+      ]
+    }
+  ]
+}`;
+
+    try {
+      const response = await this.cloudAI.processWithFlash(prompt, {
+        temperature: 0.7,
+        maxOutputTokens: 4000,
+      });
+
+      // Clean the response - remove markdown code blocks if present
+      let cleanedResponse = response.result.trim();
+      cleanedResponse = cleanedResponse.replace(/```json\s*/g, '');
+      cleanedResponse = cleanedResponse.replace(/```\s*/g, '');
+
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      let sections: any[] = [];
+      
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          sections = parsed.sections || [];
+          logger.info("PocketReport", "Report content parsed successfully", `${sections.length} sections`);
+        } catch (parseError) {
+          logger.error("PocketReport", "Content JSON parse error", parseError);
+          // Try to fix common JSON issues
+          let fixedJson = jsonMatch[0];
+          
+          // Apply all JSON fixes
+          fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
+          fixedJson = fixedJson.replace(/,(\s*\])/g, '$1');
+          fixedJson = fixedJson.replace(/,(\s*\})/g, '$1');
+          fixedJson = fixedJson.replace(/,,+/g, ',');
+          fixedJson = fixedJson.replace(/\/\/.*/g, '');
+          fixedJson = fixedJson.replace(/\/\*[\s\S]*?\*\//g, '');
+          
+          try {
+            const parsed = JSON.parse(fixedJson);
+            sections = parsed.sections || [];
+            logger.info("PocketReport", "Content JSON fixed and parsed", `${sections.length} sections`);
+          } catch (secondError) {
+            logger.error("PocketReport", "Failed to fix content JSON", secondError);
+            logger.error("PocketReport", "Problematic JSON snippet", fixedJson.substring(0, 500));
+            // Use fallback sections
+            sections = this.createFallbackSections(plan);
+          }
+        }
+      } else {
+        logger.warn("PocketReport", "No JSON found in response, using fallback", "");
+        sections = this.createFallbackSections(plan);
+      }
+
+      // Build complete report structure
+      const reportData: ReportData = {
+        hero: {
+          ...(contents[0]?.pocketId && { pocketName: "Pocket Collection" }),
+          title: plan.title || "Content Analysis Report",
+          subtitle: plan.subtitle || "Comprehensive insights from your saved content"
+        },
+        sidebar: {
+          showTextSize: true,
+          index: sections.map((s: any, i: number) => ({
+            title: s.title,
+            id: `section-${i}`
+          }))
+        },
+        sections: sections,
+        footer: {
+          sources: this.extractSources(contents)
+        },
+        metadata: {
+          generatedAt: Date.now(),
+          totalItems: contents.length
+        }
+      };
+
+      return reportData;
+    } catch (error) {
+      logger.error("PocketReport", "Report content generation failed", error);
+      
+      // Fallback report
+      return {
+        hero: {
+          title: plan.title || "Content Report",
+          subtitle: plan.subtitle || "Analysis of your content"
+        },
+        sidebar: {
+          showTextSize: true,
+          index: [{ title: "Overview", id: "section-0" }]
+        },
+        sections: [{
+          title: "Overview",
+          content: [
+            { type: "text", data: { content: "Report generation encountered an issue. Please try again." } }
+          ]
+        }],
+        footer: {
+          sources: this.extractSources(contents)
+        }
+      };
+    }
+  }
+
+  /**
+   * Generate hero background image using Gemini image generation
+   * Returns null if generation fails or quota is exceeded
+   */
+  private async generateHeroImage(title: string, pocketName?: string): Promise<string | null> {
+    try {
+      const prompt = `Create a professional, artistic hero background image for a report titled "${title}". 
+The image should be:
+- Abstract and professional
+- Suitable as a background (not too busy)
+- Related to the theme: ${pocketName || "knowledge and information"}
+- Modern and clean aesthetic
+- Wide aspect ratio suitable for a hero banner
+- Photorealistic with soft lighting and depth`;
+
+      const imageData = await this.cloudAI.generateImage(prompt, {
+        temperature: 0.9,
+        maxOutputTokens: 1000,
+        aspectRatio: "16:9"
+      });
+
+      return imageData;
+    } catch (error: any) {
+      // Check if it's a quota error
+      if (error?.message?.includes('quota') || error?.message?.includes('429')) {
+        logger.warn("PocketReport", "Image generation quota exceeded, skipping image", "");
+      } else {
+        logger.error("PocketReport", "Hero image generation failed", error);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Extract sources from content for footer
+   */
+  private extractSources(contents: CapturedContent[]) {
+    const sources = new Map();
+    
+    contents.slice(0, 20).forEach(content => {
+      if (content.sourceUrl && !sources.has(content.sourceUrl)) {
+        sources.set(content.sourceUrl, {
+          title: content.metadata.title || "Untitled",
+          url: content.sourceUrl,
+          type: content.type,
+          icon: this.getIconForType(content.type)
+        });
+      }
+    });
+
+    return Array.from(sources.values());
+  }
+
+  /**
+   * Get icon emoji for content type
+   */
+  private getIconForType(type: string): string {
+    const icons: Record<string, string> = {
+      'text': '📄',
+      'image': '🖼️',
+      'link': '🔗',
+      'video': '🎥',
+      'audio': '🎵',
+      'pdf': '📕',
+      'code': '💻'
+    };
+    return icons[type] || '📄';
+  }
+
+  /**
+   * Create fallback sections when AI generation fails
+   */
+  private createFallbackSections(plan: any): any[] {
+    const sections: any[] = [];
+    
+    // Create basic sections from plan
+    if (plan.sections && Array.isArray(plan.sections)) {
+      for (const planSection of plan.sections) {
+        sections.push({
+          title: planSection.title || "Section",
+          content: [
+            {
+              type: "text",
+              data: {
+                content: `This section covers: ${planSection.topics?.join(', ') || 'various topics'}.`
+              }
+            }
+          ]
+        });
+      }
+    }
+
+    // If no sections, create a default one
+    if (sections.length === 0) {
+      sections.push({
+        title: "Overview",
+        content: [
+          {
+            type: "text",
+            data: {
+              content: "Report content generation encountered an issue. Please try generating the report again."
+            }
+          }
+        ]
+      });
+    }
+
+    return sections;
   }
 
   /**

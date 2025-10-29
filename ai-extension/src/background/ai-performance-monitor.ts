@@ -34,6 +34,7 @@ export enum AIOperation {
   ENHANCE = "enhance",
   ANALYZE = "analyze",
   GENERATE = "generate",
+  GENERATE_IMAGE = "generate-image",
   CHAT = "chat",
   GENERAL = "general",
 }
