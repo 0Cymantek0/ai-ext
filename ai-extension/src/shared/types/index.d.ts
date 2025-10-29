@@ -113,7 +113,7 @@ export interface AiStreamRequestPayload {
   prompt: string;
   conversationId?: string;
   preferLocal?: boolean;
-  model?: "nano" | "flash" | "pro";
+  model?: "nano" | "flash" | "pro" | "auto";
   mode?: "ask" | "ai-pocket";
   pocketId?: string;
   autoContext?: boolean; // Whether to automatically include context

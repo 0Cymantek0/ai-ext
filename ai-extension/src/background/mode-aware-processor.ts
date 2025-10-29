@@ -35,14 +35,22 @@ export type AIMode = "ask" | "ai-pocket";
 /**
  * Mode-aware request
  */
+export interface RoutingMetadata {
+  reason?: string;
+  confidence?: number;
+  telemetry?: Record<string, unknown>;
+}
+
 export interface ModeAwareRequest {
   prompt: string;
   mode: AIMode;
   conversationId?: string | undefined;
   pocketId?: string | undefined;
   preferLocal?: boolean | undefined;
-  model?: "nano" | "flash" | "pro" | undefined;
+  model?: "nano" | "flash" | "pro" | "auto" | undefined;
   autoContext?: boolean | undefined;
+  targetModel?: "nano" | "flash" | "pro";
+  routingMetadata?: RoutingMetadata;
 }
 
 /**
@@ -98,6 +106,10 @@ export class ModeAwareProcessor {
       conversationId: request.conversationId,
       pocketId: request.pocketId,
       autoContext: request.autoContext,
+      targetModel: request.targetModel,
+      preferLocal: request.preferLocal,
+      routingReason: request.routingMetadata?.reason,
+      routingConfidence: request.routingMetadata?.confidence,
     });
 
     try {
@@ -117,6 +129,9 @@ export class ModeAwareProcessor {
         pipelineResult.task,
         {
           preferLocal: request.preferLocal ?? true,
+          targetModel: request.targetModel,
+          targetModelReason: request.routingMetadata?.reason,
+          targetModelConfidence: request.routingMetadata?.confidence,
           taskType: "general",
           priority: "normal",
           ...(signal && { signal }),
@@ -142,7 +157,7 @@ export class ModeAwareProcessor {
       // Calculate metrics
       const processingTime = performance.now() - startTime;
       const tokensUsed = this.estimateTokens(fullResponse);
-      const source = request.preferLocal ? "gemini-nano" : "gemini-flash";
+      const source = this.resolveResponseSource(request);
 
       // Build final response
       const response: ModeAwareResponse = {
@@ -156,6 +171,7 @@ export class ModeAwareProcessor {
 
       logger.info("ModeAwareProcessor", "Request processed successfully", {
         mode: request.mode,
+        targetModel: request.targetModel,
         tokensUsed,
         processingTime: `${processingTime.toFixed(2)}ms`,
         contextSignals: response.contextUsed,
@@ -539,6 +555,21 @@ export class ModeAwareProcessor {
   private estimateTokens(text: string): number {
     // Rough approximation: 1 token ≈ 4 characters
     return Math.ceil(text.length / 4);
+  }
+
+  private resolveResponseSource(
+    request: ModeAwareRequest,
+  ): ModeAwareResponse["source"] {
+    if (request.targetModel === "pro") {
+      return "gemini-pro";
+    }
+    if (request.targetModel === "flash") {
+      return "gemini-flash";
+    }
+    if (request.targetModel === "nano") {
+      return "gemini-nano";
+    }
+    return request.preferLocal ? "gemini-nano" : "gemini-flash";
   }
 
   /**

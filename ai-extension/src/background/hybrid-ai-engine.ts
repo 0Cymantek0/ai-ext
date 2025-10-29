@@ -403,6 +403,40 @@ export class HybridAIEngine {
     const complexity = this.taskClassifier.classifyTask(task);
     const estimatedTokens = this.taskClassifier.estimateTokens(task.content);
 
+    if (options?.targetModel) {
+      const location = this.mapTargetModelToProcessingLocation(
+        options.targetModel,
+      );
+      const modelLabel =
+        options.targetModel === "flash"
+          ? "Gemini Flash"
+          : options.targetModel === "pro"
+            ? "Gemini Pro"
+            : "Gemini Nano";
+      const confidenceSuffix =
+        options.targetModelConfidence !== undefined
+          ? ` (confidence: ${options.targetModelConfidence.toFixed(2)})`
+          : "";
+      const baseReason =
+        options.targetModelReason ??
+        `Routing override selected ${modelLabel}`;
+      const reason = confidenceSuffix ? `${baseReason}${confidenceSuffix}` : baseReason;
+      const requiresConsent = location !== ProcessingLocation.GEMINI_NANO;
+
+      aiPerformanceMonitor.recordModelSelection(
+        this.mapProcessingLocationToAIModel(location),
+        reason,
+      );
+
+      return {
+        location,
+        reason,
+        requiresConsent,
+        estimatedTokens,
+        complexity,
+      };
+    }
+
     // Check if user prefers local processing
     const preferLocal = options?.preferLocal ?? true;
 
@@ -465,6 +499,19 @@ export class HybridAIEngine {
       estimatedTokens,
       complexity,
     };
+  }
+
+  private mapTargetModelToProcessingLocation(
+    model: "nano" | "flash" | "pro",
+  ): ProcessingLocation {
+    switch (model) {
+      case "flash":
+        return ProcessingLocation.GEMINI_FLASH;
+      case "pro":
+        return ProcessingLocation.GEMINI_PRO;
+      default:
+        return ProcessingLocation.GEMINI_NANO;
+    }
   }
 
   /**
