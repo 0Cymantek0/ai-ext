@@ -4,6 +4,9 @@
  * This module implements intelligent decision-making for AI processing location.
  * It analyzes task complexity, device capabilities, and user preferences to determine
  * whether to use on-device Gemini Nano or cloud-based Gemini models.
+ * When downstream callers provide `ProcessingOptions.forcedLocation`, the engine
+ * honors the override without rerunning routing heuristics while still recording
+ * monitoring insights and prompting for cloud consent when required.
  *
  * Requirements: 4.1, 4.2, 4.4, 13.1, 16.2
  */
@@ -396,32 +399,21 @@ export class HybridAIEngine {
     task: Task,
     options?: Partial<ProcessingOptions>,
   ): Promise<ProcessingDecision> {
-    // Get device capabilities (cached for performance)
-    const capabilities = await this.getDeviceCapabilities();
-
-    // Classify the task
+    // Classify the task upfront to support overrides without re-running heuristics
     const complexity = this.taskClassifier.classifyTask(task);
     const estimatedTokens = this.taskClassifier.estimateTokens(task.content);
 
-    if (options?.targetModel) {
-      const location = this.mapTargetModelToProcessingLocation(
-        options.targetModel,
-      );
-      const modelLabel =
-        options.targetModel === "flash"
-          ? "Gemini Flash"
-          : options.targetModel === "pro"
-            ? "Gemini Pro"
-            : "Gemini Nano";
-      const confidenceSuffix =
-        options.targetModelConfidence !== undefined
-          ? ` (confidence: ${options.targetModelConfidence.toFixed(2)})`
-          : "";
-      const baseReason =
-        options.targetModelReason ??
-        `Routing override selected ${modelLabel}`;
-      const reason = confidenceSuffix ? `${baseReason}${confidenceSuffix}` : baseReason;
+    if (options?.forcedLocation) {
+      const location = options.forcedLocation;
       const requiresConsent = location !== ProcessingLocation.GEMINI_NANO;
+      const baseReason =
+        options.forcedLocationReason ??
+        `Processing location override: ${this.describeProcessingLocation(location)}`;
+      const confidenceSuffix =
+        options.forcedLocationConfidence !== undefined
+          ? ` (confidence: ${options.forcedLocationConfidence.toFixed(2)})`
+          : "";
+      const reason = `${baseReason}${confidenceSuffix}`;
 
       aiPerformanceMonitor.recordModelSelection(
         this.mapProcessingLocationToAIModel(location),
@@ -436,6 +428,9 @@ export class HybridAIEngine {
         complexity,
       };
     }
+
+    // Get device capabilities (cached for performance)
+    const capabilities = await this.getDeviceCapabilities();
 
     // Check if user prefers local processing
     const preferLocal = options?.preferLocal ?? true;
@@ -501,16 +496,16 @@ export class HybridAIEngine {
     };
   }
 
-  private mapTargetModelToProcessingLocation(
-    model: "nano" | "flash" | "pro",
-  ): ProcessingLocation {
-    switch (model) {
-      case "flash":
-        return ProcessingLocation.GEMINI_FLASH;
-      case "pro":
-        return ProcessingLocation.GEMINI_PRO;
+  private describeProcessingLocation(location: ProcessingLocation): string {
+    switch (location) {
+      case ProcessingLocation.GEMINI_FLASH:
+        return "Gemini Flash";
+      case ProcessingLocation.GEMINI_FLASH_LITE:
+        return "Gemini Flash-Lite";
+      case ProcessingLocation.GEMINI_PRO:
+        return "Gemini Pro";
       default:
-        return ProcessingLocation.GEMINI_NANO;
+        return "Gemini Nano";
     }
   }
 
@@ -549,6 +544,7 @@ export class HybridAIEngine {
     onConsentRequired?: (decision: ProcessingDecision) => Promise<boolean>,
   ): Promise<AIResponse> {
     const startTime = performance.now();
+    const forcedLocationProvided = Boolean(options?.forcedLocation);
 
     try {
       // Determine processing location
@@ -586,8 +582,8 @@ export class HybridAIEngine {
     } catch (error) {
       console.error("Error processing content:", error);
 
-      // Try fallback to local if possible
-      if (await this.canFallbackToLocal(task)) {
+      // Try fallback to local if possible when no forced override is present
+      if (!forcedLocationProvided && (await this.canFallbackToLocal(task))) {
         console.log("Attempting local fallback after error");
         return await this.processLocally(task, options);
       }
@@ -874,6 +870,7 @@ export class HybridAIEngine {
     options?: Partial<ProcessingOptions>,
     onConsentRequired?: (decision: ProcessingDecision) => Promise<boolean>,
   ): AsyncGenerator<string, void, unknown> {
+    const forcedLocationProvided = Boolean(options?.forcedLocation);
     try {
       // Determine processing location
       const decision = await this.determineProcessingLocation(task, options);
@@ -911,8 +908,8 @@ export class HybridAIEngine {
     } catch (error) {
       console.error("Error streaming content:", error);
 
-      // Try fallback to local if possible
-      if (await this.canFallbackToLocal(task)) {
+      // Try fallback to local if possible when no forced override is present
+      if (!forcedLocationProvided && (await this.canFallbackToLocal(task))) {
         console.log("Attempting local streaming fallback after error");
         yield* this.processLocallyStreaming(task, options);
       } else {

@@ -10,7 +10,7 @@ import { CloudAIManager } from "./cloud-ai-manager";
 import { HybridAIEngine } from "./hybrid-ai-engine";
 import { logger } from "./monitoring";
 import { conversationContextLoader } from "./conversation-context-loader";
-import { routeQuery, type RoutingDecision } from "./query-router";
+import { routeQuery, type RoutingDecision, type RouteQueryInput } from "./query-router";
 import {
   getModeAwareProcessor,
   ModeAwareProcessor,
@@ -187,18 +187,28 @@ export class StreamingHandler {
       );
 
       try {
-        const decision = await routeQuery({
+        const routeInput: RouteQueryInput = {
           prompt: payload.prompt,
           mode,
           context: {
-            pocketId: payload.pocketId,
             autoContext: payload.autoContext ?? true,
+            ...(payload.pocketId !== undefined
+              ? { pocketId: payload.pocketId }
+              : {}),
           },
-          conversation: {
-            id: payload.conversationId,
-            metadata: conversationMetadata,
-          },
-        });
+        };
+
+        if (payload.conversationId !== undefined || conversationMetadata) {
+          routeInput.conversation = {};
+          if (payload.conversationId !== undefined) {
+            routeInput.conversation.id = payload.conversationId;
+          }
+          if (conversationMetadata) {
+            routeInput.conversation.metadata = conversationMetadata;
+          }
+        }
+
+        const decision = await routeQuery(routeInput);
 
         const preferLocal =
           decision.preferLocal ?? decision.targetModel === "nano";
@@ -209,7 +219,7 @@ export class StreamingHandler {
           reason: decision.reason,
           confidence: decision.confidence,
           preferLocal,
-          metadata: decision.metadata,
+          ...(decision.metadata ? { metadata: decision.metadata } : {}),
         };
         session.resolvedModel = decision.targetModel;
 
@@ -319,7 +329,9 @@ export class StreamingHandler {
         ? {
             reason: sessionDecision.reason,
             confidence: sessionDecision.confidence,
-            telemetry: sessionDecision.metadata,
+            ...(sessionDecision.metadata
+              ? { telemetry: sessionDecision.metadata }
+              : {}),
           }
         : undefined;
 

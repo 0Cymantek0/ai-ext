@@ -10,10 +10,12 @@
 import { logger } from "./monitoring.js";
 import {
   HybridAIEngine,
+  ProcessingLocation,
   TaskOperation,
   type Task,
   type Content,
 } from "./hybrid-ai-engine.js";
+import type { ProcessingOptions } from "./ai-manager.js";
 import {
   conversationContextLoader,
   type ConversationContext,
@@ -125,17 +127,32 @@ export class ModeAwareProcessor {
       }
 
       // Process with hybrid AI engine
+      const forcedLocation = request.targetModel
+        ? this.mapTargetModelToProcessingLocation(request.targetModel)
+        : undefined;
+
+      const processingOptions: Partial<ProcessingOptions> = {
+        preferLocal: request.preferLocal ?? true,
+        taskType: "general",
+        priority: "normal",
+        ...(signal && { signal }),
+      };
+
+      if (forcedLocation) {
+        processingOptions.forcedLocation = forcedLocation;
+        if (request.routingMetadata?.reason !== undefined) {
+          processingOptions.forcedLocationReason =
+            request.routingMetadata.reason;
+        }
+        if (request.routingMetadata?.confidence !== undefined) {
+          processingOptions.forcedLocationConfidence =
+            request.routingMetadata.confidence;
+        }
+      }
+
       const streamGenerator = this.hybridEngine.processContentStreaming(
         pipelineResult.task,
-        {
-          preferLocal: request.preferLocal ?? true,
-          targetModel: request.targetModel,
-          targetModelReason: request.routingMetadata?.reason,
-          targetModelConfidence: request.routingMetadata?.confidence,
-          taskType: "general",
-          priority: "normal",
-          ...(signal && { signal }),
-        },
+        processingOptions,
         async (decision) => {
           // Consent callback - for now, auto-approve
           // In production, this should prompt the user
@@ -555,6 +572,19 @@ export class ModeAwareProcessor {
   private estimateTokens(text: string): number {
     // Rough approximation: 1 token ≈ 4 characters
     return Math.ceil(text.length / 4);
+  }
+
+  private mapTargetModelToProcessingLocation(
+    targetModel: "nano" | "flash" | "pro",
+  ): ProcessingLocation {
+    switch (targetModel) {
+      case "flash":
+        return ProcessingLocation.GEMINI_FLASH;
+      case "pro":
+        return ProcessingLocation.GEMINI_PRO;
+      default:
+        return ProcessingLocation.GEMINI_NANO;
+    }
   }
 
   private resolveResponseSource(

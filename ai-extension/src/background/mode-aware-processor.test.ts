@@ -11,6 +11,7 @@ import {
 } from "./mode-aware-processor";
 import { AIManager } from "./ai-manager";
 import { CloudAIManager } from "./cloud-ai-manager";
+import { ProcessingLocation } from "./hybrid-ai-engine";
 
 // Mock dependencies
 vi.mock("./monitoring", () => ({
@@ -56,6 +57,12 @@ vi.mock("./hybrid-ai-engine", () => ({
   })),
   TaskOperation: {
     GENERAL: "general",
+  },
+  ProcessingLocation: {
+    GEMINI_NANO: "gemini-nano",
+    GEMINI_FLASH: "gemini-flash",
+    GEMINI_FLASH_LITE: "gemini-flash-lite",
+    GEMINI_PRO: "gemini-pro",
   },
 }));
 
@@ -203,6 +210,46 @@ describe("ModeAwareProcessor", () => {
 
       // Should have attempted fallback
       expect(mockEngine.processContentStreaming).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("Routing overrides", () => {
+    it("should pass forced processing location when target model is provided", async () => {
+      const capturedOptions: any[] = [];
+      (processor as any).hybridEngine = {
+        processContentStreaming: vi
+          .fn()
+          .mockImplementation(async function* (_task, options) {
+            capturedOptions.push(options);
+            yield "Routed response";
+          }),
+      };
+
+      const request: ModeAwareRequest = {
+        prompt: "Use pro",
+        mode: "ask",
+        preferLocal: false,
+        targetModel: "pro",
+        routingMetadata: {
+          reason: "Router forced pro",
+          confidence: 0.9,
+        },
+      };
+
+      const chunks: string[] = [];
+      for await (const chunk of processor.processRequest(request)) {
+        if (typeof chunk === "string") {
+          chunks.push(chunk);
+        }
+      }
+
+      expect(capturedOptions).toHaveLength(1);
+      expect(chunks.join("")).toContain("Routed response");
+      expect(capturedOptions[0].forcedLocation).toBe(
+        ProcessingLocation.GEMINI_PRO,
+      );
+      expect(capturedOptions[0].forcedLocationReason).toBe("Router forced pro");
+      expect(capturedOptions[0].forcedLocationConfidence).toBe(0.9);
     });
   });
 
