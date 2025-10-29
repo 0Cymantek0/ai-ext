@@ -183,7 +183,7 @@ function formatSingleResult<T>(
     : null;
   const scoreLabel = scorePercentage != null ? `${scorePercentage}%` : null;
 
-  return {
+  const formatted: FormattedSearchResult<T> = {
     id,
     item,
     title: titleField,
@@ -195,11 +195,22 @@ function formatSingleResult<T>(
     matchedFields: Array.isArray(result.matchedFields)
       ? [...result.matchedFields]
       : [],
-    thumbnailUrl,
-    accentColor,
-    timestamp,
-    metadata,
   };
+
+  if (thumbnailUrl !== undefined) {
+    formatted.thumbnailUrl = thumbnailUrl;
+  }
+  if (accentColor !== undefined) {
+    formatted.accentColor = accentColor;
+  }
+  if (timestamp !== undefined) {
+    formatted.timestamp = timestamp;
+  }
+  if (metadata !== undefined) {
+    formatted.metadata = metadata;
+  }
+
+  return formatted;
 }
 
 function defaultGetTitle(item: unknown): string | undefined {
