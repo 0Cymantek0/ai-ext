@@ -230,13 +230,13 @@ class UniversalTextEnhancer {
   ];
 
   constructor() {
-    this.initialize();
+    // Don't call initialize here - it will be called separately
   }
 
   /**
    * Initialize the text enhancer
    */
-  private async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     console.info("[TextEnhancer] Initializing");
 
     // Check if we're on a sensitive site
@@ -4002,15 +4002,18 @@ class UniversalTextEnhancer {
 // Initialize text enhancer
 let textEnhancer: UniversalTextEnhancer | null = null;
 
-export function initializeTextEnhancer(): void {
+export async function initializeTextEnhancer(): Promise<void> {
   if (!textEnhancer) {
     textEnhancer = new UniversalTextEnhancer();
+    await textEnhancer.initialize();
   }
 }
 
 // Auto-initialize when script loads
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initializeTextEnhancer);
+  document.addEventListener("DOMContentLoaded", () => {
+    initializeTextEnhancer().catch(console.error);
+  });
 } else {
-  initializeTextEnhancer();
+  initializeTextEnhancer().catch(console.error);
 }
