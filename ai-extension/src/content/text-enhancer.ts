@@ -17,6 +17,8 @@ enum EnhancementStyle {
   EMPATHETIC = "empathetic",
   PERSUASIVE = "persuasive",
   OPTIMIZE = "optimize",
+  EXPAND = "expand",
+  SUMMARISE = "summarise",
   // Prompt Enhancement Styles
   CLARIFY_PROMPT = "clarify_prompt",
   EXPAND_PROMPT = "expand_prompt",
@@ -82,6 +84,18 @@ class UniversalTextEnhancer {
       label: "Optimize",
       icon: "✨",
       description: "Improve grammar, clarity, and flow",
+    },
+    {
+      id: EnhancementStyle.EXPAND,
+      label: "Expand",
+      icon: "📈",
+      description: "Make the text longer and more detailed",
+    },
+    {
+      id: EnhancementStyle.SUMMARISE,
+      label: "Summarise",
+      icon: "📋",
+      description: "Create a concise summary of the text",
     },
     // Prompt Enhancement Options
     {
@@ -319,9 +333,9 @@ class UniversalTextEnhancer {
         border-radius: 12px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         z-index: 10002;
-        min-width: 280px;
-        max-width: 320px;
-        padding: 8px;
+        min-width: 420px;
+        max-width: 480px;
+        padding: 16px;
         opacity: 0;
         transform: scale(0.95);
         transition: opacity 0.15s ease, transform 0.15s ease;
@@ -335,55 +349,150 @@ class UniversalTextEnhancer {
         pointer-events: auto;
       }
 
-      .ai-pocket-enhancement-menu-header {
-        padding: 12px 16px;
+      /* Tab Navigation */
+      .ai-pocket-menu-tabs {
+        display: flex;
+        gap: 24px;
+        padding: 0 0 12px 0;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        margin-bottom: 8px;
+        margin-bottom: 16px;
       }
 
-      .ai-pocket-enhancement-menu-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.9);
-        margin: 0;
-        font-family: "Space Grotesk", sans-serif;
-      }
-
-      .ai-pocket-enhancement-menu-subtitle {
-        font-size: 12px;
+      .ai-pocket-menu-tab {
+        background: none;
+        border: none;
         color: rgba(255, 255, 255, 0.6);
-        margin: 4px 0 0 0;
+        font-size: 16px;
+        font-weight: 600;
         font-family: "Space Grotesk", sans-serif;
+        cursor: pointer;
+        padding: 8px 4px;
+        position: relative;
+        transition: color 0.2s ease;
+      }
+
+      .ai-pocket-menu-tab:hover {
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .ai-pocket-menu-tab.active {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .ai-pocket-menu-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: -12px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 2px 2px 0 0;
+      }
+
+      /* Custom Prompt Input */
+      .ai-pocket-custom-prompt-container {
+        margin-bottom: 16px;
+      }
+
+      .ai-pocket-custom-prompt-wrapper {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .ai-pocket-custom-prompt-input {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 12px 16px;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 14px;
+        font-family: "Space Grotesk", sans-serif;
+        transition: all 0.2s ease;
+        resize: none;
+        min-height: 44px;
+        max-height: 120px;
+      }
+
+      .ai-pocket-custom-prompt-input::placeholder {
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .ai-pocket-custom-prompt-input:focus {
+        outline: none;
+        border-color: hsl(217.2 91.2% 59.8%);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .ai-pocket-custom-prompt-btn {
+        width: 44px;
+        height: 44px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+
+      .ai-pocket-custom-prompt-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.3);
+        transform: scale(1.05);
+      }
+
+      .ai-pocket-custom-prompt-btn:active {
+        transform: scale(0.95);
+      }
+
+      .ai-pocket-custom-prompt-btn:focus {
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
+        outline-offset: 2px;
+      }
+
+      /* Preset Grid */
+      .ai-pocket-presets-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
       }
 
       .ai-pocket-enhancement-option {
         display: flex;
-        align-items: flex-start;
-        padding: 12px 16px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 14px 16px;
         border-radius: 8px;
         cursor: pointer;
         transition: all 0.2s ease;
-        border: 1px solid transparent;
-        background: transparent;
-        width: 100%;
-        text-align: left;
-        margin: 2px 0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        text-align: center;
         font-family: "Space Grotesk", sans-serif;
       }
 
       .ai-pocket-enhancement-option:hover:not(.selected) {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.25);
+        transform: translateY(-1px);
       }
 
       .ai-pocket-enhancement-option:focus:not(.selected) {
         outline: 2px solid hsl(217.2 91.2% 59.8%);
         outline-offset: -2px;
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.1);
       }
 
       .ai-pocket-enhancement-option:active:not(.selected) {
-        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(0);
       }
 
       .ai-pocket-enhancement-option.selected {
@@ -400,57 +509,51 @@ class UniversalTextEnhancer {
       }
 
       .ai-pocket-enhancement-option-icon {
-        font-size: 20px;
-        margin-right: 12px;
-        flex-shrink: 0;
+        font-size: 18px;
         line-height: 1;
-      }
-
-      .ai-pocket-enhancement-option-content {
-        flex: 1;
-        min-width: 0;
       }
 
       .ai-pocket-enhancement-option-label {
         font-size: 14px;
         font-weight: 500;
         color: rgba(255, 255, 255, 0.9);
-        margin: 0 0 4px 0;
-        font-family: "Space Grotesk", sans-serif;
-      }
-
-      .ai-pocket-enhancement-option-description {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.6);
         margin: 0;
-        line-height: 1.4;
         font-family: "Space Grotesk", sans-serif;
       }
 
-      .ai-pocket-enhancement-menu-separator {
-        padding: 8px 16px;
-        margin: 8px 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      /* Add Preset Button */
+      .ai-pocket-add-preset-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px dashed rgba(255, 255, 255, 0.3);
+        background: transparent;
+        font-family: "Space Grotesk", sans-serif;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+        font-weight: 500;
       }
 
-      .ai-pocket-enhancement-menu-separator-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.5);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-top: 4px;
-        font-family: "Space Grotesk", sans-serif;
+      .ai-pocket-add-preset-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.4);
+        color: rgba(255, 255, 255, 0.9);
       }
 
-      .ai-pocket-enhancement-menu-footer {
-        padding: 8px 16px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        margin-top: 8px;
-        font-size: 11px;
-        color: rgba(255, 255, 255, 0.5);
-        text-align: center;
-        font-family: "Space Grotesk", sans-serif;
+      .ai-pocket-add-preset-btn:focus {
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
+        outline-offset: -2px;
+      }
+
+      .ai-pocket-add-preset-icon {
+        font-size: 18px;
+        font-weight: 300;
       }
 
       /* Menu backdrop */
@@ -1266,7 +1369,7 @@ class UniversalTextEnhancer {
   }
 
   /**
-   * Create option button for enhancement menu
+   * Create option button for enhancement menu (legacy - for full descriptions)
    */
   private createOptionButton(
     option: EnhancementOption,
@@ -1312,6 +1415,181 @@ class UniversalTextEnhancer {
   }
 
   /**
+   * Create preset button for enhancement menu (compact grid style)
+   */
+  private createPresetButton(
+    option: EnhancementOption,
+    index: number,
+  ): HTMLElement {
+    const optionButton = document.createElement("button");
+    optionButton.className = "ai-pocket-enhancement-option";
+    optionButton.setAttribute("role", "menuitem");
+    optionButton.setAttribute("data-style", option.id);
+    optionButton.setAttribute("tabindex", index === 0 ? "0" : "-1");
+    optionButton.setAttribute("aria-checked", "false");
+    optionButton.setAttribute("type", "button");
+
+    const icon = document.createElement("span");
+    icon.className = "ai-pocket-enhancement-option-icon";
+    icon.textContent = option.icon;
+    icon.setAttribute("aria-hidden", "true");
+
+    const label = document.createElement("span");
+    label.className = "ai-pocket-enhancement-option-label";
+    label.textContent = option.label;
+
+    optionButton.appendChild(icon);
+    optionButton.appendChild(label);
+
+    // Add click handler
+    optionButton.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handleStyleSelection(option.id, optionButton);
+    });
+
+    return optionButton;
+  }
+
+  /**
+   * Handle custom prompt enhancement
+   */
+  private async handleCustomPromptEnhancement(
+    customPrompt: string,
+  ): Promise<void> {
+    if (!this.currentTextField) {
+      console.error("[TextEnhancer] No text field selected");
+      return;
+    }
+
+    const currentText = this.getTextFieldValue(this.currentTextField);
+    if (!currentText || currentText.trim().length === 0) {
+      console.debug("[TextEnhancer] No text to enhance");
+      return;
+    }
+
+    console.debug("[TextEnhancer] Custom prompt enhancement", { customPrompt });
+
+    // Store reference to textField BEFORE closing menu
+    const textFieldRef = this.currentTextField;
+
+    // Close menu
+    this.closeEnhancementMenu();
+
+    // Verify textField is still valid
+    if (!textFieldRef || !document.body.contains(textFieldRef)) {
+      console.error("[TextEnhancer] Text field no longer in DOM");
+      return;
+    }
+
+    // Process enhancement with custom prompt
+    await this.processCustomEnhancement(
+      textFieldRef,
+      currentText,
+      customPrompt,
+    );
+  }
+
+  /**
+   * Process custom prompt enhancement
+   */
+  private async processCustomEnhancement(
+    textField: HTMLElement,
+    originalText: string,
+    customPrompt: string,
+  ): Promise<void> {
+    console.info("[TextEnhancer] Processing custom enhancement", {
+      customPrompt,
+      textLength: originalText.length,
+    });
+
+    // Verify textField is still valid
+    if (!textField || !document.body.contains(textField)) {
+      console.error(
+        "[TextEnhancer] Text field no longer in DOM, cannot process",
+      );
+      return;
+    }
+
+    // Show loading indicator
+    const loadingOverlay = this.showLoadingIndicator(textField);
+
+    try {
+      // Send custom enhancement request to service worker
+      const enhancedText = await this.requestCustomEnhancement(
+        originalText,
+        customPrompt,
+      );
+
+      // Remove loading indicator
+      this.hideLoadingIndicator(textField, loadingOverlay);
+
+      // Verify textField is still valid before showing preview
+      if (!textField || !document.body.contains(textField)) {
+        console.error("[TextEnhancer] Text field removed during processing");
+        return;
+      }
+
+      // Show preview with accept/reject options
+      this.showEnhancementPreview(
+        textField,
+        originalText,
+        enhancedText,
+        EnhancementStyle.OPTIMIZE,
+      );
+    } catch (error) {
+      console.error("[TextEnhancer] Custom enhancement failed", error);
+
+      // Remove loading indicator
+      this.hideLoadingIndicator(textField, loadingOverlay);
+
+      // Show error message
+      this.showErrorMessage(
+        textField,
+        error instanceof Error ? error.message : "Enhancement failed",
+      );
+    }
+  }
+
+  /**
+   * Request custom text enhancement from service worker
+   */
+  private async requestCustomEnhancement(
+    text: string,
+    customPrompt: string,
+  ): Promise<string> {
+    // Import sendMessage dynamically to avoid circular dependencies
+    const { sendMessage } = await import("../shared/message-client.js");
+
+    // Create custom enhancement prompt
+    let prompt = `${customPrompt}\n\nIMPORTANT: Provide ONLY the enhanced text as your response. Do not include explanations, options, analysis, or any other text. Just return the improved version of the original text.`;
+
+    prompt += `\n\nOriginal text:\n"${text}"\n\nEnhanced text (provide ONLY the enhanced text, no explanations):`;
+
+    // Send request to service worker
+    const response = await sendMessage<{ enhancedText: string }>(
+      "AI_PROCESS_REQUEST",
+      {
+        prompt,
+        task: "enhance",
+        preferLocal: true,
+        style: "custom",
+        originalText: text,
+        directMode: false,
+      },
+      { timeout: 100000 },
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || "Enhancement request failed");
+    }
+
+    // Clean up the response to ensure we only get the enhanced text
+    const cleanedText = this.cleanEnhancedText(response.data.enhancedText);
+    return cleanedText;
+  }
+
+  /**
    * Create enhancement menu
    */
   private createEnhancementMenu(): HTMLElement {
@@ -1320,90 +1598,112 @@ class UniversalTextEnhancer {
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", "Text enhancement options");
 
-    // Header
-    const header = document.createElement("div");
-    header.className = "ai-pocket-enhancement-menu-header";
+    // Tab Navigation
+    const tabs = document.createElement("div");
+    tabs.className = "ai-pocket-menu-tabs";
 
-    const title = document.createElement("h3");
-    title.className = "ai-pocket-enhancement-menu-title";
-    title.textContent = "Enhance Text";
+    const enhanceTab = document.createElement("button");
+    enhanceTab.className = "ai-pocket-menu-tab active";
+    enhanceTab.textContent = "Enhance";
+    enhanceTab.setAttribute("type", "button");
 
-    const subtitle = document.createElement("p");
-    subtitle.className = "ai-pocket-enhancement-menu-subtitle";
+    const translateTab = document.createElement("button");
+    translateTab.className = "ai-pocket-menu-tab";
+    translateTab.textContent = "Translate";
+    translateTab.setAttribute("type", "button");
+    translateTab.setAttribute("disabled", "true");
+    translateTab.style.opacity = "0.4";
+    translateTab.style.cursor = "not-allowed";
 
-    // Show context-aware subtitle if context is available
-    if (this.pageContext) {
-      const contextLabel = this.pageContext.type.replace("_", " ");
-      subtitle.textContent = `Optimized for ${contextLabel}`;
+    tabs.appendChild(enhanceTab);
+    tabs.appendChild(translateTab);
+    menu.appendChild(tabs);
 
-      if (this.pocketContext && this.pocketContext.relevantContent.length > 0) {
-        subtitle.textContent += ` • ${this.pocketContext.relevantContent.length} saved items`;
+    // Custom Prompt Input
+    const customPromptContainer = document.createElement("div");
+    customPromptContainer.className = "ai-pocket-custom-prompt-container";
+
+    const customPromptWrapper = document.createElement("div");
+    customPromptWrapper.className = "ai-pocket-custom-prompt-wrapper";
+
+    const customPromptInput = document.createElement("textarea");
+    customPromptInput.className = "ai-pocket-custom-prompt-input";
+    customPromptInput.setAttribute("placeholder", "prompt for enhance");
+    customPromptInput.setAttribute("rows", "1");
+    customPromptInput.setAttribute("aria-label", "Custom enhancement prompt");
+
+    // Auto-resize textarea
+    customPromptInput.addEventListener("input", () => {
+      customPromptInput.style.height = "auto";
+      customPromptInput.style.height = customPromptInput.scrollHeight + "px";
+    });
+
+    const customPromptBtn = document.createElement("button");
+    customPromptBtn.className = "ai-pocket-custom-prompt-btn";
+    customPromptBtn.textContent = "✨";
+    customPromptBtn.setAttribute("type", "button");
+    customPromptBtn.setAttribute("aria-label", "Apply custom enhancement");
+    customPromptBtn.addEventListener("click", () => {
+      const customPrompt = customPromptInput.value.trim();
+      if (customPrompt) {
+        this.handleCustomPromptEnhancement(customPrompt);
       }
-    } else {
-      subtitle.textContent = "Choose a style to improve your text";
-    }
+    });
 
-    header.appendChild(title);
-    header.appendChild(subtitle);
-    menu.appendChild(header);
+    customPromptWrapper.appendChild(customPromptInput);
+    customPromptWrapper.appendChild(customPromptBtn);
+    customPromptContainer.appendChild(customPromptWrapper);
+    menu.appendChild(customPromptContainer);
 
-    // Options - split into text enhancement and prompt enhancement sections
-    const textEnhancementStyles = [
-      EnhancementStyle.PROFESSIONAL,
-      EnhancementStyle.CONCISE,
-      EnhancementStyle.EMPATHETIC,
-      EnhancementStyle.PERSUASIVE,
+    // Preset buttons in grid
+    const presetsGrid = document.createElement("div");
+    presetsGrid.className = "ai-pocket-presets-grid";
+
+    // Default presets matching wireframe
+    const defaultPresets = [
       EnhancementStyle.FUNNY,
-      EnhancementStyle.OPTIMIZE,
+      EnhancementStyle.EXPAND,
+      EnhancementStyle.SUMMARISE,
+      EnhancementStyle.PROFESSIONAL,
     ];
 
-    const promptEnhancementStyles = [
-      EnhancementStyle.CLARIFY_PROMPT,
-      EnhancementStyle.EXPAND_PROMPT,
-      EnhancementStyle.TECHNICAL_PROMPT,
-      EnhancementStyle.CREATIVE_PROMPT,
-      EnhancementStyle.STRUCTURED_PROMPT,
-    ];
-
-    // Add text enhancement options
-    const textEnhancementOptions = this.enhancementOptions.filter((opt) =>
-      textEnhancementStyles.includes(opt.id),
+    const presetOptions = this.enhancementOptions.filter((opt) =>
+      defaultPresets.includes(opt.id),
     );
 
-    textEnhancementOptions.forEach((option, index) => {
-      const optionButton = this.createOptionButton(option, index);
-      menu.appendChild(optionButton);
+    // Sort to match wireframe order
+    presetOptions.sort((a, b) => {
+      return defaultPresets.indexOf(a.id) - defaultPresets.indexOf(b.id);
     });
 
-    // Add separator
-    const separator = document.createElement("div");
-    separator.className = "ai-pocket-enhancement-menu-separator";
-
-    const separatorLabel = document.createElement("div");
-    separatorLabel.className = "ai-pocket-enhancement-menu-separator-label";
-    separatorLabel.textContent = "Prompt Enhancement";
-
-    separator.appendChild(separatorLabel);
-    menu.appendChild(separator);
-
-    // Add prompt enhancement options
-    const promptEnhancementOptions = this.enhancementOptions.filter((opt) =>
-      promptEnhancementStyles.includes(opt.id),
-    );
-
-    promptEnhancementOptions.forEach((option, index) => {
-      const optionButton = this.createOptionButton(
-        option,
-        textEnhancementOptions.length + index,
-      );
-      menu.appendChild(optionButton);
+    presetOptions.forEach((option, index) => {
+      const optionButton = this.createPresetButton(option, index);
+      presetsGrid.appendChild(optionButton);
     });
 
-    // Footer
-    const footer = document.createElement("div");
-    footer.className = "ai-pocket-enhancement-menu-footer";
-    footer.textContent = "Press ESC to close";
-    menu.appendChild(footer);
+    menu.appendChild(presetsGrid);
+
+    // Add Preset Button
+    const addPresetBtn = document.createElement("button");
+    addPresetBtn.className = "ai-pocket-add-preset-btn";
+    addPresetBtn.setAttribute("type", "button");
+    addPresetBtn.setAttribute("aria-label", "Save more presets for enhance");
+
+    const addIcon = document.createElement("span");
+    addIcon.className = "ai-pocket-add-preset-icon";
+    addIcon.textContent = "+";
+
+    const addLabel = document.createElement("span");
+    addLabel.textContent = "Save more presets for enhance";
+
+    addPresetBtn.appendChild(addIcon);
+    addPresetBtn.appendChild(addLabel);
+    addPresetBtn.addEventListener("click", () => {
+      // TODO: Implement preset saving functionality
+      console.log("[TextEnhancer] Add preset clicked - feature coming soon");
+    });
+
+    menu.appendChild(addPresetBtn);
 
     // Keyboard navigation
     this.setupMenuKeyboardNavigation(menu);
@@ -1799,6 +2099,10 @@ class UniversalTextEnhancer {
         "Rewrite the following text with humor and lightheartedness. Add wit and playfulness while maintaining the core message.",
       [EnhancementStyle.OPTIMIZE]:
         "Improve the following text by fixing grammar errors, enhancing clarity, and improving overall flow. Make it more polished and well-written.",
+      [EnhancementStyle.EXPAND]:
+        "Expand the following text to be longer and more detailed. Add relevant information, examples, and elaboration while maintaining the core message. Make it more comprehensive and thorough.",
+      [EnhancementStyle.SUMMARISE]:
+        "Create a concise summary of the following text. Capture the key points and main ideas while removing unnecessary details. Make it brief and to the point.",
       // Prompt Enhancement Instructions
       [EnhancementStyle.CLARIFY_PROMPT]:
         "Transform the following text into a clear, specific, and well-defined prompt for an AI assistant. Remove ambiguity, add necessary context, and make the intent crystal clear. Focus on precision and clarity.",
