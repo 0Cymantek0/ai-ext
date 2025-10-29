@@ -44,6 +44,11 @@ class UniversalTextEnhancer {
   private observer: MutationObserver | null = null;
   private currentMenu: HTMLElement | null = null;
   private currentTextField: HTMLElement | null = null;
+  private isDragging: boolean = false;
+  private dragStartX: number = 0;
+  private dragStartY: number = 0;
+  private menuStartX: number = 0;
+  private menuStartY: number = 0;
   private pageContext: PageContext | null = null;
   private pocketContext: PocketContextResult | null = null;
   private currentTranslator: any | null = null;
@@ -427,7 +432,7 @@ class UniversalTextEnhancer {
         z-index: 10002;
         min-width: 420px;
         max-width: 480px;
-        padding: 16px;
+        padding: 0;
         opacity: 0;
         transform: scale(0.95);
         transition: opacity 0.15s ease, transform 0.15s ease;
@@ -439,6 +444,47 @@ class UniversalTextEnhancer {
         opacity: 1;
         transform: scale(1);
         pointer-events: auto;
+      }
+
+      .ai-pocket-enhancement-menu.dragging {
+        transition: none;
+      }
+
+      /* Drag Handle */
+      .ai-pocket-menu-drag-handle {
+        padding: 12px 16px;
+        cursor: move;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .ai-pocket-menu-drag-handle:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .ai-pocket-menu-drag-handle:active {
+        cursor: grabbing;
+      }
+
+      .ai-pocket-drag-indicator {
+        display: flex;
+        gap: 4px;
+        opacity: 0.4;
+      }
+
+      .ai-pocket-drag-dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.6);
+      }
+
+      .ai-pocket-menu-content {
+        padding: 16px;
       }
 
       /* Tab Navigation */
@@ -2155,6 +2201,29 @@ class UniversalTextEnhancer {
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", "Text enhancement options");
 
+    // Drag Handle
+    const dragHandle = document.createElement("div");
+    dragHandle.className = "ai-pocket-menu-drag-handle";
+    dragHandle.setAttribute("title", "Drag to move");
+
+    const dragIndicator = document.createElement("div");
+    dragIndicator.className = "ai-pocket-drag-indicator";
+    for (let i = 0; i < 6; i++) {
+      const dot = document.createElement("div");
+      dot.className = "ai-pocket-drag-dot";
+      dragIndicator.appendChild(dot);
+    }
+    dragHandle.appendChild(dragIndicator);
+
+    // Add drag event listeners
+    dragHandle.addEventListener("mousedown", (e) => this.handleDragStart(e, menu));
+
+    menu.appendChild(dragHandle);
+
+    // Content wrapper
+    const contentWrapper = document.createElement("div");
+    contentWrapper.className = "ai-pocket-menu-content";
+
     // Tab Navigation
     const tabs = document.createElement("div");
     tabs.className = "ai-pocket-menu-tabs";
@@ -2186,7 +2255,7 @@ class UniversalTextEnhancer {
 
     tabs.appendChild(enhanceTab);
     tabs.appendChild(translateTab);
-    menu.appendChild(tabs);
+    contentWrapper.appendChild(tabs);
 
     // Enhance Tab Content
     const enhanceContent = document.createElement("div");
@@ -2277,7 +2346,7 @@ class UniversalTextEnhancer {
     });
 
     enhanceContent.appendChild(addPresetBtn);
-    menu.appendChild(enhanceContent);
+    contentWrapper.appendChild(enhanceContent);
 
     // Translate Tab Content
     const translateContent = document.createElement("div");
@@ -2398,7 +2467,10 @@ class UniversalTextEnhancer {
     });
 
     translateContent.appendChild(addLanguageBtn);
-    menu.appendChild(translateContent);
+    contentWrapper.appendChild(translateContent);
+
+    // Append content wrapper to menu
+    menu.appendChild(contentWrapper);
 
     // Dropdown change handlers
     targetDropdown.addEventListener("change", () => {
@@ -2416,6 +2488,64 @@ class UniversalTextEnhancer {
 
     return menu;
   }
+
+  /**
+   * Handle drag start
+   */
+  private handleDragStart(e: MouseEvent, menu: HTMLElement): void {
+    e.preventDefault();
+    this.isDragging = true;
+    this.dragStartX = e.clientX;
+    this.dragStartY = e.clientY;
+
+    const rect = menu.getBoundingClientRect();
+    this.menuStartX = rect.left;
+    this.menuStartY = rect.top;
+
+    menu.classList.add("dragging");
+
+    // Add document-level event listeners
+    document.addEventListener("mousemove", this.handleDragMove);
+    document.addEventListener("mouseup", this.handleDragEnd);
+  }
+
+  /**
+   * Handle drag move
+   */
+  private handleDragMove = (e: MouseEvent): void => {
+    if (!this.isDragging || !this.currentMenu) return;
+
+    const deltaX = e.clientX - this.dragStartX;
+    const deltaY = e.clientY - this.dragStartY;
+
+    const newX = this.menuStartX + deltaX;
+    const newY = this.menuStartY + deltaY;
+
+    // Keep menu within viewport bounds
+    const rect = this.currentMenu.getBoundingClientRect();
+    const maxX = window.innerWidth - rect.width;
+    const maxY = window.innerHeight - rect.height;
+
+    const clampedX = Math.max(0, Math.min(newX, maxX));
+    const clampedY = Math.max(0, Math.min(newY, maxY));
+
+    this.currentMenu.style.left = `${clampedX}px`;
+    this.currentMenu.style.top = `${clampedY}px`;
+  };
+
+  /**
+   * Handle drag end
+   */
+  private handleDragEnd = (): void => {
+    if (!this.currentMenu) return;
+
+    this.isDragging = false;
+    this.currentMenu.classList.remove("dragging");
+
+    // Remove document-level event listeners
+    document.removeEventListener("mousemove", this.handleDragMove);
+    document.removeEventListener("mouseup", this.handleDragEnd);
+  };
 
   /**
    * Show enhancement menu
