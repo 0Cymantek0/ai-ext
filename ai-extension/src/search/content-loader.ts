@@ -93,7 +93,9 @@ export class FullContentError extends Error {
     super(message);
     this.name = "FullContentError";
     this.code = code;
-    this.details = details;
+    if (details !== undefined) {
+      this.details = details;
+    }
 
     if (details?.cause !== undefined) {
       (this as { cause?: unknown }).cause = details.cause;
@@ -122,7 +124,9 @@ export class FullContentLoader {
     }
 
     this.storageManager = dependencies.storageManager;
-    this.filesystem = dependencies.filesystem;
+    if (dependencies.filesystem !== undefined) {
+      this.filesystem = dependencies.filesystem;
+    }
     this.maxCacheEntries = Math.max(0, options.maxCacheEntries ?? 32);
     this.loadFullContent = this.loadFullContent.bind(this);
   }
@@ -548,14 +552,23 @@ function isArchiveDescriptor(value: unknown): value is FileArchiveDescriptor {
 function cloneArchiveDescriptor(
   descriptor: FileArchiveDescriptor,
 ): FileArchiveDescriptor {
-  return {
+  const clone: FileArchiveDescriptor = {
     archiveHandleId: descriptor.archiveHandleId,
     relativePath: descriptor.relativePath,
     estimatedBytes: descriptor.estimatedBytes,
-    mimeType: descriptor.mimeType,
-    compression: descriptor.compression,
-    lastModified: descriptor.lastModified,
   };
+
+  if (descriptor.mimeType !== undefined) {
+    clone.mimeType = descriptor.mimeType;
+  }
+  if (descriptor.compression !== undefined) {
+    clone.compression = descriptor.compression;
+  }
+  if (descriptor.lastModified !== undefined) {
+    clone.lastModified = descriptor.lastModified;
+  }
+
+  return clone;
 }
 
 function hasContentPayload(value: string | ArrayBuffer): boolean {
