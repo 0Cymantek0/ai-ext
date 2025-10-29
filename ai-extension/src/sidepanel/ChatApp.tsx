@@ -173,8 +173,9 @@ export function ChatApp() {
 
   const mapSelectedToPayloadModel = (
     model: typeof selectedModel,
-  ): "nano" | "flash" | "pro" | undefined => {
+  ): "nano" | "flash" | "pro" | "auto" | undefined => {
     if (model === "nano") return "nano";
+    if (model === "auto") return "auto";
     if (model === "pro") return "pro";
     if (model === "flash" || model === "flash-lite") return "flash";
     return undefined;

@@ -132,6 +132,9 @@ export interface ProcessingOptions {
   priority: "low" | "normal" | "high";
   maxTokens?: number;
   signal?: AbortSignal;
+  targetModel?: "nano" | "flash" | "pro";
+  targetModelReason?: string;
+  targetModelConfidence?: number;
 }
 
 /**

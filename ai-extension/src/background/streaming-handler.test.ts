@@ -7,6 +7,12 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { AiStreamRequestPayload } from "../shared/types/index.d";
+import type { ModeAwareRequest } from "./mode-aware-processor";
+
+const routeQueryMock = vi.fn();
+const processRequestMock = vi.fn();
+const getModeAwareProcessorMock = vi.fn();
+const buildConversationContextMock = vi.fn();
 
 // Mock the dependencies
 vi.mock("./monitoring", () => ({
@@ -24,6 +30,32 @@ vi.mock("./ai-manager", () => ({
 vi.mock("./cloud-ai-manager", () => ({
   CloudAIManager: vi.fn(),
 }));
+
+vi.mock("./mode-aware-processor", () => ({
+  getModeAwareProcessor: getModeAwareProcessorMock,
+  ModeAwareProcessor: vi.fn(),
+}));
+
+vi.mock("./query-router", () => ({
+  routeQuery: routeQueryMock,
+}));
+
+vi.mock("./conversation-context-loader", () => ({
+  conversationContextLoader: {
+    buildConversationContext: buildConversationContextMock,
+    formatContextAsString: vi.fn(),
+  },
+}));
+
+vi.mock("./hybrid-ai-engine", () => ({
+  HybridAIEngine: vi.fn().mockImplementation(() => ({})),
+  TaskOperation: {
+    GENERAL: "general",
+  },
+}));
+
+import { StreamingHandler } from "./streaming-handler";
+import { logger } from "./monitoring";
 
 describe("StreamingHandler Mode Validation", () => {
   describe("Mode Detection and Validation", () => {
