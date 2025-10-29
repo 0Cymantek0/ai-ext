@@ -34,6 +34,11 @@ interface EnhancementOption {
   description: string;
 }
 
+interface Language {
+  code: string;
+  name: string;
+}
+
 class UniversalTextEnhancer {
   private injectedButtons: WeakMap<HTMLElement, HTMLElement> = new WeakMap();
   private observer: MutationObserver | null = null;
@@ -41,11 +46,98 @@ class UniversalTextEnhancer {
   private currentTextField: HTMLElement | null = null;
   private pageContext: PageContext | null = null;
   private pocketContext: PocketContextResult | null = null;
+  private currentTranslator: any | null = null;
+  private currentLanguageDetector: any | null = null;
+  private detectedSourceLanguage: string | null = null;
+  private selectedTargetLanguage: string = "en";
   private sensitivePatterns = [
     /bank|banking|financial|credit|payment/i,
     /health|medical|patient|hospital/i,
     /password|login|signin|auth/i,
     /ssn|social.security/i,
+  ];
+
+  private supportedLanguages: Language[] = [
+    { code: "af", name: "Afrikaans" },
+    { code: "sq", name: "Albanian" },
+    { code: "am", name: "Amharic" },
+    { code: "ar", name: "Arabic" },
+    { code: "hy", name: "Armenian" },
+    { code: "az", name: "Azerbaijani" },
+    { code: "eu", name: "Basque" },
+    { code: "be", name: "Belarusian" },
+    { code: "bn", name: "Bengali" },
+    { code: "bs", name: "Bosnian" },
+    { code: "bg", name: "Bulgarian" },
+    { code: "my", name: "Burmese" },
+    { code: "ca", name: "Catalan" },
+    { code: "zh", name: "Chinese" },
+    { code: "hr", name: "Croatian" },
+    { code: "cs", name: "Czech" },
+    { code: "da", name: "Danish" },
+    { code: "nl", name: "Dutch" },
+    { code: "en", name: "English" },
+    { code: "eo", name: "Esperanto" },
+    { code: "et", name: "Estonian" },
+    { code: "fi", name: "Finnish" },
+    { code: "fr", name: "French" },
+    { code: "gl", name: "Galician" },
+    { code: "ka", name: "Georgian" },
+    { code: "de", name: "German" },
+    { code: "el", name: "Greek" },
+    { code: "gu", name: "Gujarati" },
+    { code: "ht", name: "Haitian Creole" },
+    { code: "he", name: "Hebrew" },
+    { code: "hi", name: "Hindi" },
+    { code: "hu", name: "Hungarian" },
+    { code: "is", name: "Icelandic" },
+    { code: "id", name: "Indonesian" },
+    { code: "ga", name: "Irish" },
+    { code: "it", name: "Italian" },
+    { code: "ja", name: "Japanese" },
+    { code: "kn", name: "Kannada" },
+    { code: "kk", name: "Kazakh" },
+    { code: "km", name: "Khmer" },
+    { code: "ko", name: "Korean" },
+    { code: "lo", name: "Lao" },
+    { code: "la", name: "Latin" },
+    { code: "lv", name: "Latvian" },
+    { code: "lt", name: "Lithuanian" },
+    { code: "lb", name: "Luxembourgish" },
+    { code: "mk", name: "Macedonian" },
+    { code: "ms", name: "Malay" },
+    { code: "ml", name: "Malayalam" },
+    { code: "mt", name: "Maltese" },
+    { code: "mr", name: "Marathi" },
+    { code: "mn", name: "Mongolian" },
+    { code: "ne", name: "Nepali" },
+    { code: "no", name: "Norwegian" },
+    { code: "ps", name: "Pashto" },
+    { code: "fa", name: "Persian" },
+    { code: "pl", name: "Polish" },
+    { code: "pt", name: "Portuguese" },
+    { code: "pa", name: "Punjabi" },
+    { code: "ro", name: "Romanian" },
+    { code: "ru", name: "Russian" },
+    { code: "sr", name: "Serbian" },
+    { code: "si", name: "Sinhala" },
+    { code: "sk", name: "Slovak" },
+    { code: "sl", name: "Slovenian" },
+    { code: "es", name: "Spanish" },
+    { code: "sw", name: "Swahili" },
+    { code: "sv", name: "Swedish" },
+    { code: "tl", name: "Filipino" },
+    { code: "ta", name: "Tamil" },
+    { code: "te", name: "Telugu" },
+    { code: "th", name: "Thai" },
+    { code: "tr", name: "Turkish" },
+    { code: "uk", name: "Ukrainian" },
+    { code: "ur", name: "Urdu" },
+    { code: "uz", name: "Uzbek" },
+    { code: "vi", name: "Vietnamese" },
+    { code: "cy", name: "Welsh" },
+    { code: "yi", name: "Yiddish" },
+    { code: "zu", name: "Zulu" },
   ];
 
   private enhancementOptions: EnhancementOption[] = [
@@ -552,6 +644,137 @@ class UniversalTextEnhancer {
       }
 
       .ai-pocket-add-preset-icon {
+        font-size: 18px;
+        font-weight: 300;
+      }
+
+      /* Tab Content Containers */
+      .ai-pocket-tab-content {
+        display: none;
+      }
+
+      .ai-pocket-tab-content.active {
+        display: block;
+      }
+
+      /* Translate Tab Styles */
+      .ai-pocket-translate-dropdowns {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .ai-pocket-language-dropdown {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 12px 16px;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 14px;
+        font-family: "Space Grotesk", sans-serif;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgba(255,255,255,0.6)' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
+      }
+
+      .ai-pocket-language-dropdown:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.25);
+      }
+
+      .ai-pocket-language-dropdown:focus {
+        outline: none;
+        border-color: hsl(217.2 91.2% 59.8%);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .ai-pocket-translate-arrow {
+        font-size: 24px;
+        color: rgba(255, 255, 255, 0.6);
+        flex-shrink: 0;
+      }
+
+      .ai-pocket-language-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .ai-pocket-language-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        text-align: center;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .ai-pocket-language-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.25);
+        transform: translateY(-1px);
+      }
+
+      .ai-pocket-language-btn:focus {
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
+        outline-offset: -2px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .ai-pocket-language-btn:active {
+        transform: translateY(0);
+      }
+
+      .ai-pocket-language-btn.selected {
+        background: rgba(66, 133, 244, 0.2);
+        border: 1px solid hsl(217.2 91.2% 59.8%);
+      }
+
+      .ai-pocket-add-language-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px dashed rgba(255, 255, 255, 0.3);
+        background: transparent;
+        font-family: "Space Grotesk", sans-serif;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .ai-pocket-add-language-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.4);
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .ai-pocket-add-language-btn:focus {
+        outline: 2px solid hsl(217.2 91.2% 59.8%);
+        outline-offset: -2px;
+      }
+
+      .ai-pocket-add-language-icon {
         font-size: 18px;
         font-weight: 300;
       }
@@ -1590,6 +1813,300 @@ class UniversalTextEnhancer {
   }
 
   /**
+   * Handle translation
+   */
+  private async handleTranslation(textField: HTMLElement): Promise<void> {
+    if (!textField) {
+      console.error("[TextEnhancer] No text field provided");
+      return;
+    }
+
+    const currentText = this.getTextFieldValue(textField);
+    if (!currentText || currentText.trim().length === 0) {
+      console.debug("[TextEnhancer] No text to translate");
+      return;
+    }
+
+    console.debug("[TextEnhancer] Starting translation", {
+      targetLanguage: this.selectedTargetLanguage,
+    });
+
+    // Store reference to textField
+    const textFieldRef = textField;
+
+    // Close menu
+    this.closeEnhancementMenu();
+
+    // Verify textField is still valid
+    if (!textFieldRef || !document.body.contains(textFieldRef)) {
+      console.error("[TextEnhancer] Text field no longer in DOM");
+      return;
+    }
+
+    // Process translation
+    await this.processTranslation(textFieldRef, currentText);
+  }
+
+  /**
+   * Process translation
+   */
+  private async processTranslation(
+    textField: HTMLElement,
+    originalText: string,
+  ): Promise<void> {
+    console.info("[TextEnhancer] Processing translation", {
+      textLength: originalText.length,
+      targetLanguage: this.selectedTargetLanguage,
+    });
+
+    // Verify textField is still valid
+    if (!textField || !document.body.contains(textField)) {
+      console.error(
+        "[TextEnhancer] Text field no longer in DOM, cannot process",
+      );
+      return;
+    }
+
+    // Show loading indicator
+    const loadingOverlay = this.showLoadingIndicator(textField);
+
+    try {
+      // Detect source language if needed
+      let sourceLanguage = this.detectedSourceLanguage;
+      if (!sourceLanguage) {
+        sourceLanguage = await this.detectLanguage(originalText);
+      }
+
+      if (!sourceLanguage) {
+        throw new Error("Could not detect source language");
+      }
+
+      // Translate text
+      const translatedText = await this.translateText(
+        originalText,
+        sourceLanguage,
+        this.selectedTargetLanguage,
+      );
+
+      // Remove loading indicator
+      this.hideLoadingIndicator(textField, loadingOverlay);
+
+      // Verify textField is still valid before showing preview
+      if (!textField || !document.body.contains(textField)) {
+        console.error("[TextEnhancer] Text field removed during processing");
+        return;
+      }
+
+      // Show preview with accept/reject options
+      this.showEnhancementPreview(
+        textField,
+        originalText,
+        translatedText,
+        EnhancementStyle.OPTIMIZE,
+      );
+    } catch (error) {
+      console.error("[TextEnhancer] Translation failed", error);
+
+      // Remove loading indicator
+      this.hideLoadingIndicator(textField, loadingOverlay);
+
+      // Show error message
+      this.showErrorMessage(
+        textField,
+        error instanceof Error ? error.message : "Translation failed",
+      );
+    }
+  }
+
+  /**
+   * Detect language using Language Detector API
+   */
+  private async detectLanguage(text: string): Promise<string | null> {
+    try {
+      // Check if Language Detector API is available
+      if (!("LanguageDetector" in self)) {
+        console.warn("[TextEnhancer] Language Detector API not available");
+        return null;
+      }
+
+      const LanguageDetector = (self as any).LanguageDetector;
+
+      // Check availability
+      const availability = await LanguageDetector.availability();
+      if (availability !== "available") {
+        console.warn(
+          "[TextEnhancer] Language Detector not available:",
+          availability,
+        );
+        return null;
+      }
+
+      // Create detector if not exists
+      if (!this.currentLanguageDetector) {
+        this.currentLanguageDetector = await LanguageDetector.create();
+      }
+
+      // Detect language
+      const results = await this.currentLanguageDetector.detect(text);
+      if (results && results.length > 0) {
+        const topResult = results[0];
+        console.debug("[TextEnhancer] Detected language:", {
+          language: topResult.detectedLanguage,
+          confidence: topResult.confidence,
+        });
+        return topResult.detectedLanguage;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("[TextEnhancer] Language detection failed", error);
+      return null;
+    }
+  }
+
+  /**
+   * Translate text using Translator API
+   */
+  private async translateText(
+    text: string,
+    sourceLanguage: string,
+    targetLanguage: string,
+  ): Promise<string> {
+    try {
+      // Check if Translator API is available
+      if (!("Translator" in self)) {
+        throw new Error("Translator API not available in this browser");
+      }
+
+      const Translator = (self as any).Translator;
+
+      // Check if language pair is supported
+      const availability = await Translator.availability({
+        sourceLanguage,
+        targetLanguage,
+      });
+
+      if (availability === "no") {
+        throw new Error(
+          `Translation from ${sourceLanguage} to ${targetLanguage} is not supported`,
+        );
+      }
+
+      // Create translator for this language pair
+      const translator = await Translator.create({
+        sourceLanguage,
+        targetLanguage,
+        monitor(m: any) {
+          m.addEventListener("downloadprogress", (e: any) => {
+            console.debug(
+              `[TextEnhancer] Translation model download: ${e.loaded * 100}%`,
+            );
+          });
+        },
+      });
+
+      // Translate
+      const translatedText = await translator.translate(text);
+
+      // Clean up translator
+      if (translator.destroy) {
+        translator.destroy();
+      }
+
+      return translatedText;
+    } catch (error) {
+      console.error("[TextEnhancer] Translation failed", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Translate entire page
+   */
+  private async translatePage(targetLanguage: string): Promise<void> {
+    console.info("[TextEnhancer] Translating entire page", { targetLanguage });
+
+    try {
+      // Get all text nodes in the page
+      const textNodes = this.getTextNodes(document.body);
+
+      // Translate each text node
+      for (const node of textNodes) {
+        const originalText = node.textContent?.trim();
+        if (originalText && originalText.length > 0) {
+          try {
+            // Detect language
+            const sourceLanguage = await this.detectLanguage(originalText);
+            if (sourceLanguage && sourceLanguage !== targetLanguage) {
+              // Translate
+              const translatedText = await this.translateText(
+                originalText,
+                sourceLanguage,
+                targetLanguage,
+              );
+              node.textContent = translatedText;
+            }
+          } catch (error) {
+            console.error(
+              "[TextEnhancer] Failed to translate node:",
+              error,
+            );
+            // Continue with next node
+          }
+        }
+      }
+
+      console.info("[TextEnhancer] Page translation complete");
+    } catch (error) {
+      console.error("[TextEnhancer] Page translation failed", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all text nodes in an element
+   */
+  private getTextNodes(element: Node): Text[] {
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) => {
+          // Skip script, style, and other non-visible elements
+          const parent = node.parentElement;
+          if (!parent) return NodeFilter.FILTER_REJECT;
+
+          const tagName = parent.tagName.toLowerCase();
+          if (
+            tagName === "script" ||
+            tagName === "style" ||
+            tagName === "noscript" ||
+            tagName === "iframe"
+          ) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          // Skip empty or whitespace-only nodes
+          const text = node.textContent?.trim();
+          if (!text || text.length === 0) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      },
+    );
+
+    let node;
+    while ((node = walker.nextNode())) {
+      textNodes.push(node as Text);
+    }
+
+    return textNodes;
+  }
+
+  /**
    * Create enhancement menu
    */
   private createEnhancementMenu(): HTMLElement {
@@ -1611,13 +2128,29 @@ class UniversalTextEnhancer {
     translateTab.className = "ai-pocket-menu-tab";
     translateTab.textContent = "Translate";
     translateTab.setAttribute("type", "button");
-    translateTab.setAttribute("disabled", "true");
-    translateTab.style.opacity = "0.4";
-    translateTab.style.cursor = "not-allowed";
+
+    // Tab switching logic
+    enhanceTab.addEventListener("click", () => {
+      enhanceTab.classList.add("active");
+      translateTab.classList.remove("active");
+      enhanceContent.classList.add("active");
+      translateContent.classList.remove("active");
+    });
+
+    translateTab.addEventListener("click", () => {
+      translateTab.classList.add("active");
+      enhanceTab.classList.remove("active");
+      translateContent.classList.add("active");
+      enhanceContent.classList.remove("active");
+    });
 
     tabs.appendChild(enhanceTab);
     tabs.appendChild(translateTab);
     menu.appendChild(tabs);
+
+    // Enhance Tab Content
+    const enhanceContent = document.createElement("div");
+    enhanceContent.className = "ai-pocket-tab-content active";
 
     // Custom Prompt Input
     const customPromptContainer = document.createElement("div");
@@ -1653,7 +2186,7 @@ class UniversalTextEnhancer {
     customPromptWrapper.appendChild(customPromptInput);
     customPromptWrapper.appendChild(customPromptBtn);
     customPromptContainer.appendChild(customPromptWrapper);
-    menu.appendChild(customPromptContainer);
+    enhanceContent.appendChild(customPromptContainer);
 
     // Preset buttons in grid
     const presetsGrid = document.createElement("div");
@@ -1681,7 +2214,7 @@ class UniversalTextEnhancer {
       presetsGrid.appendChild(optionButton);
     });
 
-    menu.appendChild(presetsGrid);
+    enhanceContent.appendChild(presetsGrid);
 
     // Add Preset Button
     const addPresetBtn = document.createElement("button");
@@ -1703,7 +2236,123 @@ class UniversalTextEnhancer {
       console.log("[TextEnhancer] Add preset clicked - feature coming soon");
     });
 
-    menu.appendChild(addPresetBtn);
+    enhanceContent.appendChild(addPresetBtn);
+    menu.appendChild(enhanceContent);
+
+    // Translate Tab Content
+    const translateContent = document.createElement("div");
+    translateContent.className = "ai-pocket-tab-content";
+
+    // Language dropdowns
+    const dropdownsContainer = document.createElement("div");
+    dropdownsContainer.className = "ai-pocket-translate-dropdowns";
+
+    // Source language dropdown
+    const sourceDropdown = document.createElement("select");
+    sourceDropdown.className = "ai-pocket-language-dropdown";
+    sourceDropdown.setAttribute("aria-label", "Source language");
+
+    const detectOption = document.createElement("option");
+    detectOption.value = "detect";
+    detectOption.textContent = "detect language";
+    sourceDropdown.appendChild(detectOption);
+
+    this.supportedLanguages.forEach((lang) => {
+      const option = document.createElement("option");
+      option.value = lang.code;
+      option.textContent = lang.name;
+      sourceDropdown.appendChild(option);
+    });
+
+    // Arrow
+    const arrow = document.createElement("span");
+    arrow.className = "ai-pocket-translate-arrow";
+    arrow.textContent = "→";
+
+    // Target language dropdown
+    const targetDropdown = document.createElement("select");
+    targetDropdown.className = "ai-pocket-language-dropdown";
+    targetDropdown.setAttribute("aria-label", "Target language");
+
+    this.supportedLanguages.forEach((lang) => {
+      const option = document.createElement("option");
+      option.value = lang.code;
+      option.textContent = lang.name;
+      if (lang.code === "en") {
+        option.selected = true;
+      }
+      targetDropdown.appendChild(option);
+    });
+
+    dropdownsContainer.appendChild(sourceDropdown);
+    dropdownsContainer.appendChild(arrow);
+    dropdownsContainer.appendChild(targetDropdown);
+    translateContent.appendChild(dropdownsContainer);
+
+    // Quick language buttons
+    const languageGrid = document.createElement("div");
+    languageGrid.className = "ai-pocket-language-grid";
+
+    const quickLanguages = [
+      { code: "es", name: "spanish" },
+      { code: "bn", name: "bengali" },
+      { code: "fr", name: "french" },
+      { code: "en", name: "english" },
+      { code: "ja", name: "japanese" },
+      { code: "zh", name: "chinese" },
+    ];
+
+    quickLanguages.forEach((lang) => {
+      const langBtn = document.createElement("button");
+      langBtn.className = "ai-pocket-language-btn";
+      langBtn.textContent = lang.name;
+      langBtn.setAttribute("type", "button");
+      langBtn.setAttribute("data-lang-code", lang.code);
+      langBtn.addEventListener("click", () => {
+        targetDropdown.value = lang.code;
+        this.selectedTargetLanguage = lang.code;
+        if (this.currentTextField) {
+          this.handleTranslation(this.currentTextField);
+        }
+      });
+      languageGrid.appendChild(langBtn);
+    });
+
+    translateContent.appendChild(languageGrid);
+
+    // Add Language Button
+    const addLanguageBtn = document.createElement("button");
+    addLanguageBtn.className = "ai-pocket-add-language-btn";
+    addLanguageBtn.setAttribute("type", "button");
+    addLanguageBtn.setAttribute("aria-label", "Save more languages");
+
+    const addLangIcon = document.createElement("span");
+    addLangIcon.className = "ai-pocket-add-language-icon";
+    addLangIcon.textContent = "+";
+
+    const addLangLabel = document.createElement("span");
+    addLangLabel.textContent = "Save more languages";
+
+    addLanguageBtn.appendChild(addLangIcon);
+    addLanguageBtn.appendChild(addLangLabel);
+    addLanguageBtn.addEventListener("click", () => {
+      // TODO: Implement language saving functionality
+      console.log("[TextEnhancer] Add language clicked - feature coming soon");
+    });
+
+    translateContent.appendChild(addLanguageBtn);
+    menu.appendChild(translateContent);
+
+    // Dropdown change handlers
+    targetDropdown.addEventListener("change", () => {
+      this.selectedTargetLanguage = targetDropdown.value;
+    });
+
+    sourceDropdown.addEventListener("change", () => {
+      if (sourceDropdown.value !== "detect") {
+        this.detectedSourceLanguage = sourceDropdown.value;
+      }
+    });
 
     // Keyboard navigation
     this.setupMenuKeyboardNavigation(menu);
