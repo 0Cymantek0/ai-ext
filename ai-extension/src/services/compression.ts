@@ -103,13 +103,15 @@ export interface CompressionService {
 
 export class CompressionError extends Error {
   readonly cause: unknown;
-  readonly code?: string;
+  readonly code: string | undefined;
 
   constructor(message: string, cause?: unknown, code?: string) {
     super(message);
     this.name = "CompressionError";
     this.cause = cause;
-    this.code = code;
+    if (code !== undefined) {
+      this.code = code;
+    }
   }
 }
 
@@ -180,9 +182,8 @@ class DefaultCompressionRuntimeAdapter implements CompressionRuntimeAdapter {
       if (!ImageCtor) {
         throw new CompressionError("Image constructor unavailable in current context");
       }
-      const globalObject = globalThis as typeof globalThis & { webkitURL?: typeof URL };
-      const urlApi = globalObject.URL ?? globalObject.webkitURL;
-      if (!urlApi) {
+      const urlApi = globalThis.URL;
+      if (!urlApi || typeof urlApi.createObjectURL !== "function") {
         throw new CompressionError("URL API unavailable for blob decoding");
       }
 
@@ -242,7 +243,11 @@ class DefaultCompressionRuntimeAdapter implements CompressionRuntimeAdapter {
           );
         },
         async toBlob(mimeType, quality) {
-          return await canvas.convertToBlob({ type: mimeType, quality });
+          const options =
+            typeof quality === "number"
+              ? { type: mimeType, quality }
+              : { type: mimeType };
+          return await canvas.convertToBlob(options);
         },
       };
     }
@@ -654,10 +659,10 @@ export class DefaultCompressionService implements CompressionService {
 
         if (maxSentences && usedSentences >= maxSentences && usedSentences < sentences.length) {
           truncated = true;
-          if (ellipsisEnabled && !ellipsisApplied) {
-            excerptParts[excerptParts.length - 1] = appendEllipsis(
-              excerptParts[excerptParts.length - 1],
-            );
+          if (ellipsisEnabled && !ellipsisApplied && excerptParts.length > 0) {
+            const lastIndex = excerptParts.length - 1;
+            const lastValue = excerptParts[lastIndex]!;
+            excerptParts[lastIndex] = appendEllipsis(lastValue);
             ellipsisApplied = true;
           }
         }
@@ -683,9 +688,9 @@ export class DefaultCompressionService implements CompressionService {
     if (!truncated && accumulatedWords < totalWords) {
       truncated = true;
       if (ellipsisEnabled && excerptParts.length > 0 && !ellipsisApplied) {
-        excerptParts[excerptParts.length - 1] = appendEllipsis(
-          excerptParts[excerptParts.length - 1],
-        );
+        const lastIndex = excerptParts.length - 1;
+        const lastValue = excerptParts[lastIndex]!;
+        excerptParts[lastIndex] = appendEllipsis(lastValue);
         ellipsisApplied = true;
       }
     }
@@ -887,12 +892,17 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
     return bufferCtor.from(buffer).toString("base64");
   }
   const bytes = new Uint8Array(buffer);
-  let binary = "";
   const chunkSize = 0x8000;
+  const chunks: string[] = [];
   for (let i = 0; i < bytes.length; i += chunkSize) {
     const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
+    const characters = new Array<string>(chunk.length);
+    for (let j = 0; j < chunk.length; j++) {
+      characters[j] = String.fromCharCode(chunk[j]!);
+    }
+    chunks.push(characters.join(""));
   }
+  const binary = chunks.join("");
   if (typeof btoa === "function") {
     return btoa(binary);
   }

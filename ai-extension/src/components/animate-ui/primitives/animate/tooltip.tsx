@@ -170,7 +170,7 @@ function TooltipProvider({
         referenceElRef,
       }}
     >
-      <LayoutGroup>{children}</LayoutGroup>
+      <LayoutGroupCompat>{children}</LayoutGroupCompat>
       <TooltipOverlay />
     </GlobalTooltipProvider>
   );
@@ -194,23 +194,25 @@ const [FloatingProvider, useFloatingContext] =
   getStrictContext<FloatingContextType>("FloatingContext");
 
 const MotionTooltipArrow = motion.create(FloatingArrow);
+const LayoutGroupCompat = LayoutGroup as unknown as React.ComponentType<{
+  children?: React.ReactNode;
+}>;
 
 type TooltipArrowProps = Omit<
   React.ComponentProps<typeof MotionTooltipArrow>,
-  "context"
+  "context" | "ref"
 > & {
   withTransition?: boolean;
 };
 
-function TooltipArrow({
-  ref,
-  withTransition = true,
-  ...props
-}: TooltipArrowProps) {
+const TooltipArrow = React.forwardRef<
+  SVGSVGElement | null,
+  TooltipArrowProps
+>(({ withTransition = true, ...props }, ref) => {
   const { side, align, open } = useRenderedTooltip();
   const { context, arrowRef } = useFloatingContext();
   const { transition, globalId } = useGlobalTooltip();
-  React.useImperativeHandle(ref, () => arrowRef.current as SVGSVGElement);
+  React.useImperativeHandle(ref, () => arrowRef.current, [arrowRef]);
 
   const deg = { top: 0, right: 90, bottom: 180, left: -90 }[side];
 
@@ -228,7 +230,9 @@ function TooltipArrow({
       {...props}
     />
   );
-}
+});
+
+TooltipArrow.displayName = "TooltipArrow";
 
 type TooltipPortalProps = React.ComponentProps<typeof FloatingPortal>;
 
@@ -430,18 +434,21 @@ function TooltipContent({ asChild = false, ...props }: TooltipContentProps) {
   return null;
 }
 
-type TooltipTriggerProps = WithAsChild<HTMLMotionProps<"div">>;
+type TooltipTriggerProps = WithAsChild<Omit<HTMLMotionProps<"div">, "ref">>;
 
-function TooltipTrigger({
-  ref,
-  onMouseEnter,
-  onMouseLeave,
-  onFocus,
-  onBlur,
-  onPointerDown,
-  asChild = false,
-  ...props
-}: TooltipTriggerProps) {
+const TooltipTrigger = React.forwardRef<HTMLDivElement | null, TooltipTriggerProps>(
+  (
+    {
+      onMouseEnter,
+      onMouseLeave,
+      onFocus,
+      onBlur,
+      onPointerDown,
+      asChild = false,
+      ...props
+    },
+    ref,
+  ) => {
   const {
     props: contentProps,
     asChild: contentAsChild,
@@ -460,7 +467,7 @@ function TooltipTrigger({
   } = useGlobalTooltip();
 
   const triggerRef = React.useRef<HTMLDivElement>(null);
-  React.useImperativeHandle(ref, () => triggerRef.current as HTMLDivElement);
+  React.useImperativeHandle(ref, () => triggerRef.current, [triggerRef]);
 
   const suppressNextFocusRef = React.useRef(false);
 
@@ -554,7 +561,9 @@ function TooltipTrigger({
       {...props}
     />
   );
-}
+});
+
+TooltipTrigger.displayName = "TooltipTrigger";
 
 export {
   TooltipProvider,
