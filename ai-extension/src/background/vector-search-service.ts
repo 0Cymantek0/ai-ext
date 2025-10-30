@@ -18,12 +18,7 @@ import type {
   ChunkSearchResult,
   ChunkSearchOptions,
 } from "./vector-chunk-types.js";
-
-export interface SearchResult<T> {
-  item: T;
-  relevanceScore: number;
-  matchedFields?: string[];
-}
+import type { SearchResult } from "../types/search-interfaces.js";
 
 export class VectorSearchService {
   private embeddingCache = new Map<string, number[]>();

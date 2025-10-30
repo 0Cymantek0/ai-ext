@@ -5,6 +5,12 @@
  */
 
 import { logger } from "./monitoring.js";
+import { ContentType, ProcessingStatus } from "../types/content.js";
+import type {
+  ContentMetadata,
+  ContentStorageReference,
+  ContentChunk,
+} from "../types/content.js";
 import type { FileArchiveDescriptor } from "./storage/tiered-storage-types.js";
 
 const DB_NAME = "ai-pocket-db";
@@ -20,27 +26,9 @@ export enum StoreName {
   SYNC_QUEUE = "syncQueue",
 }
 
-export enum ContentType {
-  TEXT = "text",
-  SNIPPET = "snippet",
-  IMAGE = "image",
-  AUDIO = "audio",
-  VIDEO = "video",
-  ELEMENT = "element",
-  PAGE = "page",
-  NOTE = "note",
-  PDF = "pdf",
-  DOCUMENT = "document",
-  SPREADSHEET = "spreadsheet",
-  FILE = "file",
-}
-
-export enum ProcessingStatus {
-  PENDING = "pending",
-  PROCESSING = "processing",
-  COMPLETED = "completed",
-  FAILED = "failed",
-}
+// Re-export types from shared types for backward compatibility
+export { ContentType, ProcessingStatus };
+export type { ContentMetadata, ContentStorageReference };
 
 export type AISource = "gemini-nano" | "gemini-flash" | "gemini-pro";
 
@@ -54,32 +42,6 @@ export interface Pocket {
   tags: string[];
   color: string;
   icon?: string;
-}
-
-export interface ContentStorageReference {
-  tier: "indexeddb" | "filesystem";
-  archive?: FileArchiveDescriptor;
-  fallbackPreview?: string;
-  reason?: string;
-}
-
-export interface ContentMetadata {
-  timestamp: number;
-  title?: string;
-  tags?: string[];
-  category?: string;
-  updatedAt?: number;
-  selectionContext?: string;
-  elementSelector?: string;
-  dimensions?: { width: number; height: number };
-  fileSize?: number;
-  fileType?: string;
-  fileExtension?: string;
-  storage?: ContentStorageReference;
-  excerpt?: string;
-  preview?: string;
-  summary?: string;
-  fallbackPreview?: string;
 }
 
 export interface CapturedContent {
@@ -167,29 +129,12 @@ export interface Embedding {
   createdAt: number;
 }
 
-export interface StoredChunk {
-  id: string;
-  contentId: string;
-  pocketId: string;
-  text: string;
-  embedding: number[];
-  metadata: {
-    contentId: string;
-    pocketId: string;
-    sourceType: ContentType;
-    sourceUrl: string;
-    chunkIndex: number;
-    totalChunks: number;
-    startOffset: number;
-    endOffset: number;
-    capturedAt: number;
-    chunkedAt: number;
-    title?: string | undefined;
-    category?: string | undefined;
-    textPreview: string;
-  };
-  createdAt: number;
-}
+/**
+ * Re-export StoredChunk from shared types for backward compatibility
+ * The type alias allows existing code to continue working while
+ * future code can use the shared ContentChunk type from src/types/
+ */
+export type StoredChunk = ContentChunk;
 
 export interface SyncQueueItem {
   id: string;
