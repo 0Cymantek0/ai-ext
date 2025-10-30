@@ -484,15 +484,24 @@ Example format:
         sections: [{
           title: "Overview",
           content: [
-            { type: "text", data: { content: "Report generation encountered an issue. Please try again." } }
+            { 
+              type: "text", 
+              data: { 
+                content: "Report generation encountered an issue. Please try again." 
+              } 
+            }
           ]
         }],
         footer: {
           sources: this.extractSources(contents)
+        },
+        metadata: {
+          generatedAt: Date.now(),
+          totalItems: contents.length
         }
       };
     }
-  }
+  }               
 
   /**
    * Generate hero background image using Gemini image generation
