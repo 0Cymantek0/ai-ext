@@ -393,8 +393,6 @@ export class VectorIndexingQueue {
       const embedding = embeddings[i]!;
 
       const metadata: ChunkMetadata = {
-        contentId: content.id,
-        pocketId: content.pocketId,
         sourceType: content.type,
         sourceUrl: content.sourceUrl,
         chunkIndex: textChunk.chunkIndex,

@@ -220,12 +220,6 @@ export interface Content {
   id: string;
 
   /**
-   * Optional alias for {@link id}. Use when explicitly referring to content IDs
-   * to avoid confusion with other ID fields.
-   */
-  contentId?: string;
-
-  /**
    * ID of the pocket containing this content
    */
   pocketId: string;
@@ -315,18 +309,11 @@ export interface Content {
  * Content chunk metadata
  * Metadata specific to a chunk of text extracted from larger content
  * for vector search and RAG applications
+ *
+ * Note: contentId and pocketId are stored at the ContentChunk level,
+ * not duplicated here to avoid redundancy.
  */
 export interface ChunkMetadata {
-  /**
-   * Original content ID this chunk was extracted from
-   */
-  contentId: string;
-
-  /**
-   * Pocket ID containing the source content
-   */
-  pocketId: string;
-
   /**
    * Type of the source content
    */
@@ -358,9 +345,9 @@ export interface ChunkMetadata {
   endOffset: number;
 
   /**
-   * Timestamp when the source content was originally captured
+   * Timestamp when the source content was originally captured (optional)
    */
-  capturedAt: number;
+  capturedAt?: number;
 
   /**
    * Timestamp when this chunk was created during processing
