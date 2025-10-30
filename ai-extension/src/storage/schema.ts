@@ -896,7 +896,10 @@ export class DatabaseManager implements StorageDatabaseContract {
     storeName: StoreName,
   ): void {
     const config = STORE_CONFIGS[storeName];
-    let store: IDBPObjectStore<AiPocketDBSchema, StoreName[], StoreName, "versionchange">;
+    
+    // Using 'any' here to work around TypeScript's inability to narrow union types
+    // in generic contexts when accessing dynamic properties
+    let store: any;
 
     if (db.objectStoreNames.contains(storeName)) {
       store = transaction.objectStore(storeName);
