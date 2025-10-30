@@ -63,9 +63,11 @@ describe("FsAccessManager", () => {
 
     expect(result.granted).toBe(true);
     expect(storage.set).toHaveBeenCalledWith({
-      [FS_ACCESS_STORAGE_KEY]: expect.objectContaining({ granted: true }),
+      [FS_ACCESS_STORAGE_KEY]: expect.objectContaining({
+        workspace: expect.objectContaining({ granted: true }),
+      }),
     });
-    expect(storage.store[FS_ACCESS_STORAGE_KEY]?.granted).toBe(true);
+    expect(storage.store[FS_ACCESS_STORAGE_KEY]?.workspace?.granted).toBe(true);
     expect(handle.queryPermission).toHaveBeenCalled();
   });
 
@@ -94,7 +96,7 @@ describe("FsAccessManager", () => {
     expect(result).toEqual({ granted: false, reason: "aborted" });
     expect(storage.remove).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(
-      "FsAccessManager",
+      "FilesystemAccessService",
       "Directory picker request failed",
       expect.objectContaining({ reason: "aborted" }),
     );
@@ -117,13 +119,23 @@ describe("FsAccessManager", () => {
   it("reports availability when cached handle retains permission", async () => {
     const handle = createHandle({ query: "granted" });
     const manager = new FsAccessManager(storage);
-    (manager as any).directoryHandle = handle;
+    (manager as any).setHandle("workspace", handle);
 
     const result = await manager.hasValidAccess();
     expect(result).toEqual({ available: true });
   });
 
   it("detects missing handle when flag persists", async () => {
+    storage.store[FS_ACCESS_STORAGE_KEY] = {
+      workspace: { granted: true, timestamp: Date.now() },
+    };
+    const manager = new FsAccessManager(storage);
+
+    const result = await manager.hasValidAccess();
+    expect(result).toEqual({ available: false, reason: "missing-handle" });
+  });
+
+  it("supports legacy persisted flag structure", async () => {
     storage.store[FS_ACCESS_STORAGE_KEY] = { granted: true, timestamp: Date.now() };
     const manager = new FsAccessManager(storage);
 
@@ -132,7 +144,9 @@ describe("FsAccessManager", () => {
   });
 
   it("clears cached state on revoke", async () => {
-    storage.store[FS_ACCESS_STORAGE_KEY] = { granted: true, timestamp: Date.now() };
+    storage.store[FS_ACCESS_STORAGE_KEY] = {
+      workspace: { granted: true, timestamp: Date.now() },
+    };
     const manager = new FsAccessManager(storage);
 
     const result = await manager.revokeAccess();
