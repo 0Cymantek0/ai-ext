@@ -160,7 +160,7 @@ export interface EmbeddingGenerator {
   getCacheStats(): { size: number; capacity: number };
 }
 
-const DEFAULT_CONFIG: Required<
+type RequiredConfigFields = Required<
   Pick<
     EmbeddingGeneratorConfig,
     | "batchSize"
@@ -172,8 +172,14 @@ const DEFAULT_CONFIG: Required<
     | "rateLimitIntervalMs"
     | "maxRequestsPerInterval"
   >
-> &
-  Pick<EmbeddingGeneratorConfig, "chunking" | "instrumentation"> = {
+>;
+
+type ResolvedConfig = RequiredConfigFields & {
+  chunking: Required<ChunkingOptions>;
+  instrumentation?: EmbeddingGeneratorInstrumentation;
+};
+
+const DEFAULT_CONFIG: ResolvedConfig = {
   batchSize: 16,
   preferNano: true,
   cacheSize: 256,
@@ -188,7 +194,6 @@ const DEFAULT_CONFIG: Required<
     respectSentences: true,
     respectParagraphs: true,
   },
-  instrumentation: undefined,
 };
 
 class LRUCache<K, V> {
@@ -246,7 +251,7 @@ interface RequestContext {
 }
 
 export class EmbeddingGeneratorService implements EmbeddingGenerator {
-  private readonly config: typeof DEFAULT_CONFIG & EmbeddingGeneratorConfig;
+  private readonly config: ResolvedConfig;
   private readonly engine: Pick<
     EmbeddingEngine,
     "generateEmbedding" | "generateEmbeddingsBatch"
@@ -263,14 +268,20 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
     config: EmbeddingGeneratorConfig = {},
     dependencies: EmbeddingGeneratorDependencies = {},
   ) {
-    const mergedConfig = {
+    const { chunking: chunkOverrides, instrumentation, ...restConfig } = config;
+
+    const mergedConfig: ResolvedConfig = {
       ...DEFAULT_CONFIG,
-      ...config,
+      ...restConfig,
       chunking: {
         ...DEFAULT_CONFIG.chunking,
-        ...config.chunking,
+        ...chunkOverrides,
       },
     };
+
+    if (instrumentation !== undefined) {
+      mergedConfig.instrumentation = instrumentation;
+    }
 
     this.config = mergedConfig;
     this.engine = dependencies.engine ?? defaultEmbeddingEngine;
@@ -427,27 +438,33 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
       return [];
     }
 
-    const config = {
-      ...this.config.chunking,
-      ...options,
-    } satisfies Required<ChunkingOptions>;
+    const chunkConfig: Required<ChunkingOptions> = {
+      wordsPerChunk:
+        options.wordsPerChunk ?? this.config.chunking.wordsPerChunk,
+      overlapWords:
+        options.overlapWords ?? this.config.chunking.overlapWords,
+      respectSentences:
+        options.respectSentences ?? this.config.chunking.respectSentences,
+      respectParagraphs:
+        options.respectParagraphs ?? this.config.chunking.respectParagraphs,
+    };
 
     const allWords = this.countWords(normalized);
     const avgWordLength = allWords > 0 ? normalized.length / allWords : 5;
     const maxChunkSize = Math.max(
       200,
-      Math.round(config.wordsPerChunk * avgWordLength),
+      Math.round(chunkConfig.wordsPerChunk * avgWordLength),
     );
     const overlapSize = Math.max(
       0,
-      Math.round(config.overlapWords * avgWordLength),
+      Math.round(chunkConfig.overlapWords * avgWordLength),
     );
 
     const chunkOptions: BackgroundChunkOptions = {
       maxChunkSize,
       overlapSize,
-      respectSentences: config.respectSentences,
-      respectParagraphs: config.respectParagraphs,
+      respectSentences: chunkConfig.respectSentences,
+      respectParagraphs: chunkConfig.respectParagraphs,
     };
 
     const rawChunks = this.chunker.chunkText(normalized, chunkOptions);
