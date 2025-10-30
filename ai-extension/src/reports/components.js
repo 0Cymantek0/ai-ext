@@ -73,7 +73,7 @@ export const ReportComponents = {
       // Download button
       const downloadBtn = document.createElement('button');
       downloadBtn.innerHTML = '⬇';
-      downloadBtn.title = 'Download Report';
+      downloadBtn.title = 'Download Report as PDF';
       downloadBtn.style.cssText = `
         width: 48px;
         height: 48px;
@@ -97,16 +97,53 @@ export const ReportComponents = {
         downloadBtn.style.background = 'rgba(255,255,255,0.1)';
         downloadBtn.style.transform = 'scale(1)';
       };
-      downloadBtn.onclick = () => {
-        // Export report as HTML
-        const reportHtml = document.documentElement.outerHTML;
-        const blob = new Blob([reportHtml], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `report-${Date.now()}.html`;
-        a.click();
-        URL.revokeObjectURL(url);
+      downloadBtn.onclick = async () => {
+        // Hide sidebar and expand button before printing
+        const sidebar = document.getElementById('reportSidebar');
+        const expandBtn = document.getElementById('sidebarExpandBtn');
+        const mainContent = document.getElementById('reportMainContent');
+        const hero = document.querySelector('.report-hero');
+        
+        const sidebarDisplay = sidebar ? sidebar.style.display : '';
+        const expandBtnDisplay = expandBtn ? expandBtn.style.display : '';
+        const mainMargin = mainContent ? mainContent.style.marginLeft : '';
+        const heroMargin = hero ? hero.style.marginLeft : '';
+        
+        // Hide sidebar elements for PDF
+        if (sidebar) sidebar.style.display = 'none';
+        if (expandBtn) expandBtn.style.display = 'none';
+        if (mainContent) mainContent.style.marginLeft = '0';
+        if (hero) hero.style.marginLeft = '0';
+        
+        // Add print styles
+        const printStyle = document.createElement('style');
+        printStyle.id = 'print-styles';
+        printStyle.textContent = `
+          @media print {
+            body { background: white !important; }
+            .report-sidebar { display: none !important; }
+            #sidebarExpandBtn { display: none !important; }
+            #reportMainContent { margin-left: 0 !important; }
+            .report-hero { margin-left: 0 !important; }
+          }
+        `;
+        document.head.appendChild(printStyle);
+        
+        // Trigger print dialog (which allows saving as PDF)
+        setTimeout(() => {
+          window.print();
+          
+          // Restore original state after print dialog closes
+          setTimeout(() => {
+            if (sidebar) sidebar.style.display = sidebarDisplay;
+            if (expandBtn) expandBtn.style.display = expandBtnDisplay;
+            if (mainContent) mainContent.style.marginLeft = mainMargin;
+            if (hero) hero.style.marginLeft = heroMargin;
+            
+            const printStyleEl = document.getElementById('print-styles');
+            if (printStyleEl) printStyleEl.remove();
+          }, 100);
+        }, 100);
       };
       topBar.appendChild(downloadBtn);
       contentWrapper.appendChild(topBar);
