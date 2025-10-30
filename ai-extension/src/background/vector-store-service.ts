@@ -17,14 +17,16 @@ export class VectorStoreService {
    */
   async storeChunk(
     id: string,
+    contentId: string,
+    pocketId: string,
     text: string,
     embedding: number[],
     metadata: ChunkMetadata,
   ): Promise<void> {
     const chunk: Omit<StoredChunk, "createdAt"> = {
       id,
-      contentId: metadata.contentId,
-      pocketId: metadata.pocketId,
+      contentId,
+      pocketId,
       text,
       embedding,
       metadata,
@@ -40,8 +42,8 @@ export class VectorStoreService {
     const storedChunks: Omit<StoredChunk, "createdAt">[] = chunks.map(
       (chunk) => ({
         id: chunk.id,
-        contentId: chunk.metadata.contentId,
-        pocketId: chunk.metadata.pocketId,
+        contentId: chunk.contentId,
+        pocketId: chunk.pocketId,
         text: chunk.text,
         embedding: chunk.embedding,
         metadata: chunk.metadata,
@@ -52,7 +54,7 @@ export class VectorStoreService {
 
     logger.info("VectorStoreService", "Batch stored", {
       count: chunks.length,
-      pocketId: chunks[0]?.metadata.pocketId,
+      pocketId: chunks[0]?.pocketId,
     });
   }
 
@@ -64,9 +66,12 @@ export class VectorStoreService {
 
     return storedChunks.map((chunk) => ({
       id: chunk.id,
+      contentId: chunk.contentId,
+      pocketId: chunk.pocketId,
       text: chunk.text,
       embedding: chunk.embedding,
       metadata: chunk.metadata,
+      createdAt: chunk.createdAt,
     }));
   }
 
@@ -78,9 +83,12 @@ export class VectorStoreService {
 
     return storedChunks.map((chunk) => ({
       id: chunk.id,
+      contentId: chunk.contentId,
+      pocketId: chunk.pocketId,
       text: chunk.text,
       embedding: chunk.embedding,
       metadata: chunk.metadata,
+      createdAt: chunk.createdAt,
     }));
   }
 
@@ -110,9 +118,12 @@ export class VectorStoreService {
 
     return storedChunks.map((chunk) => ({
       id: chunk.id,
+      contentId: chunk.contentId,
+      pocketId: chunk.pocketId,
       text: chunk.text,
       embedding: chunk.embedding,
       metadata: chunk.metadata,
+      createdAt: chunk.createdAt,
     }));
   }
 

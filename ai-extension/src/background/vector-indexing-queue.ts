@@ -393,8 +393,6 @@ export class VectorIndexingQueue {
       const embedding = embeddings[i]!;
 
       const metadata: ChunkMetadata = {
-        contentId: content.id,
-        pocketId: content.pocketId,
         sourceType: content.type,
         sourceUrl: content.sourceUrl,
         chunkIndex: textChunk.chunkIndex,
@@ -403,16 +401,19 @@ export class VectorIndexingQueue {
         endOffset: textChunk.endIndex,
         capturedAt: content.capturedAt,
         chunkedAt: Date.now(),
-        title: content.metadata.title,
-        category: content.metadata.category,
+        title: content.metadata.title ?? undefined,
+        category: content.metadata.category ?? undefined,
         textPreview: textChunk.text.slice(0, 100),
       };
 
       vectorChunks.push({
         id: textChunk.id,
+        contentId: content.id,
+        pocketId: content.pocketId,
         text: textChunk.text,
         embedding,
         metadata,
+        createdAt: Date.now(),
       });
 
       // Update progress (emit every 5 chunks or on last chunk to reduce overhead)

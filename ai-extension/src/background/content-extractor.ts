@@ -176,9 +176,11 @@ export function extractLLMContentFromChunk(chunk: VectorChunk): string {
       parts.push(`Part ${metadata.chunkIndex + 1} of ${metadata.totalChunks}`);
     }
 
-    // Add timestamp
-    const capturedDate = new Date(metadata.capturedAt).toLocaleDateString();
-    parts.push(`Captured: ${capturedDate}`);
+    // Add timestamp if available
+    if (metadata.capturedAt) {
+      const capturedDate = new Date(metadata.capturedAt).toLocaleDateString();
+      parts.push(`Captured: ${capturedDate}`);
+    }
 
     // Add the actual text content
     parts.push(""); // Empty line for separation

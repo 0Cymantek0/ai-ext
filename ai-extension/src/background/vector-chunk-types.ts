@@ -5,47 +5,22 @@
  * Requirements: 7.2 (Vector search with chunk-level granularity)
  */
 
-import type { ContentType } from "./indexeddb-manager.js";
+import type {
+  ChunkMetadata as SharedChunkMetadata,
+  ContentChunk,
+} from "../types/content.js";
 
 /**
  * Metadata for a text chunk
+ * Re-exported from shared content types for backward compatibility.
  */
-export interface ChunkMetadata {
-  // Source identification
-  contentId: string; // Original content ID
-  pocketId: string; // Pocket this belongs to
-  sourceType: ContentType; // Type of source content
-  sourceUrl: string; // URL where content was captured
-
-  // Chunk positioning
-  chunkIndex: number; // Position in content (0, 1, 2...)
-  totalChunks: number; // Total chunks from this content
-  startOffset: number; // Character offset in original content
-  endOffset: number; // End character offset
-
-  // Timestamps
-  capturedAt: number; // When original content was captured
-  chunkedAt: number; // When chunk was created
-
-  // Content metadata
-  title?: string | undefined; // Title of source content
-  category?: string | undefined; // Category/tag
-
-  // Preview
-  textPreview: string; // First 100 chars for display
-}
+export type ChunkMetadata = SharedChunkMetadata;
 
 /**
  * A vector chunk with embedding and metadata
  * This is the primary unit for RAG retrieval
  */
-export interface VectorChunk {
-  id: string; // Unique chunk ID
-  text: string; // Full chunk text
-  embedding: number[]; // Vector embedding
-  metadata: ChunkMetadata; // Rich metadata
-  relevanceScore?: number; // Similarity score (set during search)
-}
+export type VectorChunk = ContentChunk;
 
 /**
  * Search result containing a chunk
@@ -68,13 +43,6 @@ export interface ChunkSearchOptions {
 
 /**
  * Chunk storage record in IndexedDB
+ * Alias maintained for legacy imports.
  */
-export interface StoredChunk {
-  id: string;
-  contentId: string;
-  pocketId: string;
-  text: string;
-  embedding: number[];
-  metadata: ChunkMetadata;
-  createdAt: number;
-}
+export type StoredChunk = ContentChunk;

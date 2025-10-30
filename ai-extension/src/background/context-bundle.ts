@@ -8,10 +8,8 @@
  */
 
 import { logger } from "./monitoring.js";
-import {
-  vectorSearchService,
-  type SearchResult,
-} from "./vector-search-service.js";
+import { vectorSearchService } from "./vector-search-service.js";
+import type { SearchResult } from "../types/search-interfaces.js";
 import type { CapturedContent } from "./indexeddb-manager.js";
 import { conversationContextLoader } from "./conversation-context-loader.js";
 import {
@@ -768,9 +766,11 @@ export function serializeContextBundle(
         );
       }
 
-      // Add timestamp
-      const capturedDate = new Date(metadata.capturedAt).toLocaleDateString();
-      parts.push(`Captured: ${capturedDate}`);
+      // Add timestamp if available
+      if (metadata.capturedAt) {
+        const capturedDate = new Date(metadata.capturedAt).toLocaleDateString();
+        parts.push(`Captured: ${capturedDate}`);
+      }
 
       // Add chunk text
       parts.push(`\nContent:\n${chunk.text}`);
