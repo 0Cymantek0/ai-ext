@@ -14,10 +14,10 @@ import {
   type FilesystemReadOptions,
   type FilesystemDeleteOptions,
 } from "./filesystem-access.js";
-import type {
+import {
   ResearchAssetKind,
-  FileArchiveDescriptor,
-  ArchiveCompression,
+  type FileArchiveDescriptor,
+  type ArchiveCompression,
 } from "../background/storage/tiered-storage-types.js";
 
 export const FILESYSTEM_SIZE_THRESHOLD_BYTES = 50 * 1024; // 50 KB
@@ -288,13 +288,19 @@ export class TieredStorageService implements TieredStorage {
 
   async saveContent(options: SaveContentOptions): Promise<SaveContentResult> {
     const dataSize = calculateDataSize(options.data);
+    
+    const decisionOptions: { forceFilesystem?: boolean; forceIndexedDb?: boolean } = {};
+    if (options.forceFilesystem !== undefined) {
+      decisionOptions.forceFilesystem = options.forceFilesystem;
+    }
+    if (options.forceIndexedDb !== undefined) {
+      decisionOptions.forceIndexedDb = options.forceIndexedDb;
+    }
+    
     const decision = await this.shouldArchiveToFilesystem(
       options.assetKind,
       dataSize,
-      {
-        forceFilesystem: options.forceFilesystem,
-        forceIndexedDb: options.forceIndexedDb,
-      },
+      decisionOptions,
     );
 
     if (decision.tier === "indexeddb") {
@@ -315,7 +321,7 @@ export class TieredStorageService implements TieredStorage {
       handleId: this.config.handleId,
       relativePath,
       data: options.data,
-      mimeType: options.mimeType,
+      ...(options.mimeType !== undefined ? { mimeType: options.mimeType } : {}),
     };
 
     const result = await this.filesystem.saveFile(writeOptions);
@@ -329,7 +335,7 @@ export class TieredStorageService implements TieredStorage {
         archiveHandleId: this.config.handleId,
         relativePath: result.path,
         estimatedBytes: result.bytesWritten ?? dataSize,
-        mimeType: options.mimeType,
+        ...(options.mimeType !== undefined ? { mimeType: options.mimeType } : {}),
         compression: options.compression ?? "none",
         lastModified: Date.now(),
       };
@@ -340,13 +346,18 @@ export class TieredStorageService implements TieredStorage {
         bytes: result.bytesWritten,
       });
 
-      return {
+      const saveResult: SaveContentResult = {
         success: true,
         tier: "filesystem",
         descriptor,
         reason: decision.reason,
-        bytesWritten: result.bytesWritten,
       };
+      
+      if (result.bytesWritten !== undefined) {
+        saveResult.bytesWritten = result.bytesWritten;
+      }
+      
+      return saveResult;
     }
 
     logger.warn("TieredStorage", "Filesystem write failed, fallback to IndexedDB", {
@@ -401,7 +412,7 @@ export class TieredStorageService implements TieredStorage {
     const readOptions: FilesystemReadOptions = {
       handleId: descriptor.archiveHandleId ?? this.config.handleId,
       relativePath: descriptor.relativePath,
-      encoding: options.encoding,
+      ...(options.encoding !== undefined ? { encoding: options.encoding } : {}),
     };
 
     const result = await this.filesystem.readFile(readOptions);
@@ -414,14 +425,30 @@ export class TieredStorageService implements TieredStorage {
         size: result.size,
       });
 
-      return {
+      const loadResult: LoadContentResult = {
         success: true,
-        data: result.data,
-        text: result.text,
-        mimeType: result.mimeType ?? descriptor.mimeType,
         size: result.size ?? descriptor.estimatedBytes,
-        lastModified: result.lastModified ?? descriptor.lastModified,
       };
+
+      if (result.data !== undefined) {
+        loadResult.data = result.data;
+      }
+
+      if (result.text !== undefined) {
+        loadResult.text = result.text;
+      }
+
+      const mimeType = result.mimeType ?? descriptor.mimeType;
+      if (mimeType !== undefined) {
+        loadResult.mimeType = mimeType;
+      }
+
+      const lastModified = result.lastModified ?? descriptor.lastModified;
+      if (lastModified !== undefined) {
+        loadResult.lastModified = lastModified;
+      }
+
+      return loadResult;
     }
 
     logger.warn("TieredStorage", "Filesystem read failed", {
@@ -429,20 +456,28 @@ export class TieredStorageService implements TieredStorage {
       reason: result.reason,
     });
 
-    if (options.fallbackContent) {
+    if (options.fallbackContent !== undefined) {
       this.metrics.filesystemFallbacks += 1;
-      return {
+
+      const fallbackResult: LoadContentResult = {
         success: true,
         data: options.fallbackContent,
-        reason: `filesystem-read-failed-${result.reason}`,
+        reason: `filesystem-read-failed-${result.reason ?? "unknown"}`,
         usedFallback: true,
       };
+
+      return fallbackResult;
     }
 
-    return {
+    const failureResult: LoadContentResult = {
       success: false,
-      reason: result.reason,
     };
+
+    if (result.reason !== undefined) {
+      failureResult.reason = result.reason;
+    }
+
+    return failureResult;
   }
 
   async deleteContent(options: DeleteContentOptions): Promise<DeleteContentResult> {
@@ -491,10 +526,15 @@ export class TieredStorageService implements TieredStorage {
       reason: result.reason,
     });
 
-    return {
+    const deleteFailureResult: DeleteContentResult = {
       success: false,
-      reason: result.reason,
     };
+
+    if (result.reason !== undefined) {
+      deleteFailureResult.reason = result.reason;
+    }
+
+    return deleteFailureResult;
   }
 
   async hasFilesystemAccess(): Promise<boolean> {

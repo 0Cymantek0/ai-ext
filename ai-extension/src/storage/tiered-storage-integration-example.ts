@@ -7,7 +7,12 @@
  * NOTE: This is an example/reference file, not part of the active codebase.
  */
 
-import { createTieredStorage, type TieredStorage } from "./tiered-storage.js";
+import {
+  createTieredStorage,
+  type TieredStorage,
+  type SaveContentOptions,
+  type LoadContentOptions,
+} from "./tiered-storage.js";
 import { FilesystemAccessService } from "./filesystem-access.js";
 import { ResearchAssetKind } from "../background/storage/tiered-storage-types.js";
 import type {
@@ -45,20 +50,25 @@ async function saveCapturedContentWithTieredStorage(
     throw new Error("Unsupported content data type");
   }
 
-  const result = await tieredStorage.saveContent({
+  const saveOptions: SaveContentOptions = {
     contentId: content.id,
     assetKind,
     data,
-    mimeType: content.metadata.fileType,
-  });
+  };
+
+  if (content.metadata.fileType !== undefined) {
+    saveOptions.mimeType = content.metadata.fileType;
+  }
+
+  const result = await tieredStorage.saveContent(saveOptions);
 
   const storageReference: ContentStorageReference = {
     tier: result.tier,
-    archive: result.descriptor,
-    fallbackPreview: result.tier === "indexeddb" 
-      ? undefined 
-      : content.metadata.preview,
-    reason: result.reason,
+    ...(result.descriptor !== undefined ? { archive: result.descriptor } : {}),
+    ...(result.tier === "filesystem" && content.metadata.preview !== undefined
+      ? { fallbackPreview: content.metadata.preview }
+      : {}),
+    ...(result.reason !== undefined ? { reason: result.reason } : {}),
   };
 
   return {
@@ -84,11 +94,26 @@ async function loadContentFromTieredStorage(
     return storage.fallbackPreview ?? metadata.preview ?? null;
   }
 
-  const result = await tieredStorage.loadContent({
-    descriptor: storage.archive,
-    fallbackContent: storage.fallbackPreview ?? metadata.preview,
-    encoding: metadata.fileType?.startsWith("text/") ? "utf-8" : undefined,
-  });
+  const archiveDescriptor = storage.archive;
+  if (!archiveDescriptor) {
+    // Satisfy TypeScript narrow, though earlier guard should prevent this path.
+    return storage.fallbackPreview ?? metadata.preview ?? null;
+  }
+
+  const loadOptions: LoadContentOptions = {
+    descriptor: archiveDescriptor,
+  };
+
+  const fallbackCandidate = storage.fallbackPreview ?? metadata.preview;
+  if (fallbackCandidate !== undefined) {
+    loadOptions.fallbackContent = fallbackCandidate;
+  }
+
+  if (metadata.fileType?.startsWith("text/") === true) {
+    loadOptions.encoding = "utf-8";
+  }
+
+  const result = await tieredStorage.loadContent(loadOptions);
 
   if (result.success) {
     return result.data ?? null;
