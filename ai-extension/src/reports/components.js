@@ -30,19 +30,95 @@ export const ReportComponents = {
         transition: margin-left 0.3s ease;
       `;
       
+      // Add dark gradient overlay
+      const gradientOverlay = document.createElement('div');
+      gradientOverlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(0,20,40,0.95) 0%, rgba(0,10,30,0.85) 100%);
+        z-index: 0;
+      `;
+      hero.appendChild(gradientOverlay);
+      
+      // Content wrapper
+      const contentWrapper = document.createElement('div');
+      contentWrapper.style.cssText = `
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+      `;
+      
       // Add responsive class
       hero.classList.add('report-hero-responsive');
 
+      // Top bar with pocket name and download button
+      const topBar = document.createElement('div');
+      topBar.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+      `;
+
       if (data.pocketName) {
-        hero.appendChild(this.pocketBadge.render(data.pocketName));
-      }
-      if (data.title) {
-        hero.appendChild(this.title.render(data.title));
-      }
-      if (data.subtitle) {
-        hero.appendChild(this.subtitle.render(data.subtitle));
+        topBar.appendChild(this.pocketBadge.render(data.pocketName));
+      } else {
+        topBar.appendChild(document.createElement('div')); // Spacer
       }
 
+      // Download button
+      const downloadBtn = document.createElement('button');
+      downloadBtn.innerHTML = '⬇';
+      downloadBtn.title = 'Download Report';
+      downloadBtn.style.cssText = `
+        width: 48px;
+        height: 48px;
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 50%;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      downloadBtn.onmouseenter = () => {
+        downloadBtn.style.background = 'rgba(255,255,255,0.15)';
+        downloadBtn.style.transform = 'scale(1.05)';
+      };
+      downloadBtn.onmouseleave = () => {
+        downloadBtn.style.background = 'rgba(255,255,255,0.1)';
+        downloadBtn.style.transform = 'scale(1)';
+      };
+      downloadBtn.onclick = () => {
+        // Export report as HTML
+        const reportHtml = document.documentElement.outerHTML;
+        const blob = new Blob([reportHtml], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `report-${Date.now()}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+      topBar.appendChild(downloadBtn);
+      contentWrapper.appendChild(topBar);
+
+      if (data.title) {
+        contentWrapper.appendChild(this.title.render(data.title));
+      }
+      if (data.subtitle) {
+        contentWrapper.appendChild(this.subtitle.render(data.subtitle));
+      }
+
+      hero.appendChild(contentWrapper);
       return hero;
     },
 
@@ -192,6 +268,9 @@ export const ReportComponents = {
         sidebar.appendChild(this.textSizeControl.render());
       }
 
+      // Theme selector
+      sidebar.appendChild(this.themeControl.render());
+
       // Index
       if (data.index) {
         sidebar.appendChild(this.index.render(data.index));
@@ -252,49 +331,79 @@ export const ReportComponents = {
     textSizeControl: {
       render() {
         const control = document.createElement('div');
-        control.style.cssText = 'margin-bottom: 32px;';
+        control.style.cssText = 'margin-bottom: 24px;';
         control.innerHTML = `
           <div style="font-size: 11px; margin-bottom: 12px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px;">text size</div>
-          <div style="display: flex; gap: 8px;">
-            <button class="text-size-btn" data-size="small" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s;">A</button>
-            <button class="text-size-btn active" data-size="medium" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s;">A</button>
-            <button class="text-size-btn" data-size="large" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s;">A</button>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="text-size-decrease" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s;">◀</button>
+            <span class="text-size-value" style="color: rgba(255,255,255,0.9); font-size: 14px; min-width: 30px; text-align: center;">15</span>
+            <button class="text-size-increase" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s;">▶</button>
           </div>
         `;
 
         // Add event listeners
         setTimeout(() => {
-          control.querySelectorAll('.text-size-btn').forEach(btn => {
-            btn.onmouseenter = () => {
-              if (!btn.classList.contains('active')) {
-                btn.style.background = 'rgba(255,255,255,0.08)';
-              }
-            };
-            btn.onmouseleave = () => {
-              if (!btn.classList.contains('active')) {
-                btn.style.background = 'rgba(255,255,255,0.05)';
-              }
-            };
-            btn.onclick = () => {
-              const size = btn.dataset.size;
-              const content = document.getElementById('reportMainContent');
-              if (content) {
-                content.className = `text-size-${size}`;
-              }
-              
-              // Update active state
-              control.querySelectorAll('.text-size-btn').forEach(b => {
-                b.classList.remove('active');
-                b.style.background = 'rgba(255,255,255,0.05)';
-                b.style.borderColor = 'rgba(255,255,255,0.1)';
-                b.style.color = 'rgba(255,255,255,0.7)';
-              });
-              btn.classList.add('active');
-              btn.style.background = 'rgba(255,255,255,0.1)';
-              btn.style.borderColor = 'rgba(255,255,255,0.2)';
-              btn.style.color = 'white';
-            };
-          });
+          let currentSize = 15;
+          const valueDisplay = control.querySelector('.text-size-value');
+          const decreaseBtn = control.querySelector('.text-size-decrease');
+          const increaseBtn = control.querySelector('.text-size-increase');
+          
+          const updateSize = (newSize) => {
+            currentSize = Math.max(12, Math.min(20, newSize));
+            valueDisplay.textContent = currentSize;
+            const content = document.getElementById('reportMainContent');
+            if (content) {
+              content.style.fontSize = `${currentSize}px`;
+            }
+          };
+
+          decreaseBtn.onmouseenter = () => decreaseBtn.style.background = 'rgba(255,255,255,0.08)';
+          decreaseBtn.onmouseleave = () => decreaseBtn.style.background = 'rgba(255,255,255,0.05)';
+          decreaseBtn.onclick = () => updateSize(currentSize - 1);
+
+          increaseBtn.onmouseenter = () => increaseBtn.style.background = 'rgba(255,255,255,0.08)';
+          increaseBtn.onmouseleave = () => increaseBtn.style.background = 'rgba(255,255,255,0.05)';
+          increaseBtn.onclick = () => updateSize(currentSize + 1);
+        }, 0);
+
+        return control;
+      }
+    },
+
+    themeControl: {
+      render() {
+        const control = document.createElement('div');
+        control.style.cssText = 'margin-bottom: 32px;';
+        control.innerHTML = `
+          <div style="font-size: 11px; margin-bottom: 12px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px;">theme</div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="theme-prev" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s;">◀</button>
+            <span class="theme-value" style="color: rgba(255,255,255,0.9); font-size: 14px; flex: 1; text-align: center;">auto</span>
+            <button class="theme-next" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s;">▶</button>
+          </div>
+        `;
+
+        // Add event listeners
+        setTimeout(() => {
+          const themes = ['auto', 'dark', 'light'];
+          let currentThemeIndex = 0;
+          const valueDisplay = control.querySelector('.theme-value');
+          const prevBtn = control.querySelector('.theme-prev');
+          const nextBtn = control.querySelector('.theme-next');
+          
+          const updateTheme = (index) => {
+            currentThemeIndex = (index + themes.length) % themes.length;
+            valueDisplay.textContent = themes[currentThemeIndex];
+            // Theme switching logic can be added here if needed
+          };
+
+          prevBtn.onmouseenter = () => prevBtn.style.background = 'rgba(255,255,255,0.08)';
+          prevBtn.onmouseleave = () => prevBtn.style.background = 'rgba(255,255,255,0.05)';
+          prevBtn.onclick = () => updateTheme(currentThemeIndex - 1);
+
+          nextBtn.onmouseenter = () => nextBtn.style.background = 'rgba(255,255,255,0.08)';
+          nextBtn.onmouseleave = () => nextBtn.style.background = 'rgba(255,255,255,0.05)';
+          nextBtn.onclick = () => updateTheme(currentThemeIndex + 1);
         }, 0);
 
         return control;
@@ -440,43 +549,7 @@ export const ReportComponents = {
     }
   },
 
-  abstract: {
-    render(data) {
-      const abstract = document.createElement('div');
-      abstract.className = 'abstract';
-      abstract.style.cssText = `
-        background: rgba(255,255,255,0.03);
-        border-left: 4px solid #667eea;
-        padding: 24px;
-        margin-bottom: 32px;
-        border-radius: 8px;
-      `;
 
-      if (data.title) {
-        const title = document.createElement('h3');
-        title.style.cssText = `
-          font-size: 20px;
-          font-weight: 600;
-          margin: 0 0 16px 0;
-          color: rgba(255,255,255,0.95);
-        `;
-        title.textContent = data.title;
-        abstract.appendChild(title);
-      }
-
-      const content = document.createElement('p');
-      content.style.cssText = `
-        font-size: 15px;
-        line-height: 1.7;
-        color: rgba(255,255,255,0.7);
-        margin: 0;
-      `;
-      content.textContent = data.content;
-      abstract.appendChild(content);
-
-      return abstract;
-    }
-  },
 
   // ============ LIST COMPONENTS ============
   list: {
