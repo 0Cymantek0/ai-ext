@@ -766,9 +766,11 @@ export function serializeContextBundle(
         );
       }
 
-      // Add timestamp
-      const capturedDate = new Date(metadata.capturedAt).toLocaleDateString();
-      parts.push(`Captured: ${capturedDate}`);
+      // Add timestamp if available
+      if (metadata.capturedAt) {
+        const capturedDate = new Date(metadata.capturedAt).toLocaleDateString();
+        parts.push(`Captured: ${capturedDate}`);
+      }
 
       // Add chunk text
       parts.push(`\nContent:\n${chunk.text}`);
