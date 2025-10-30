@@ -448,14 +448,22 @@ export class StorageManagerImpl implements StorageManager {
           });
 
           if (loadResult.success && loadResult.data !== undefined) {
-            let payload = loadResult.data;
-            if (typeof Blob !== "undefined" && payload instanceof Blob) {
-              payload = await payload.arrayBuffer();
+            let payload: string | ArrayBuffer;
+
+            if (typeof Blob !== "undefined" && loadResult.data instanceof Blob) {
+              // Convert Blob to string for text-based content types, ArrayBuffer for binary
+              if (this.isTextBasedContentType(content.type)) {
+                payload = await loadResult.data.text();
+              } else {
+                payload = await loadResult.data.arrayBuffer();
+              }
+            } else {
+              payload = loadResult.data as string | ArrayBuffer;
             }
 
             return {
               ...content,
-              content: payload as string | ArrayBuffer,
+              content: payload,
             };
           }
         } catch (error) {
@@ -515,8 +523,7 @@ export class StorageManagerImpl implements StorageManager {
 
       if (options.metadata !== undefined) {
         updates.metadata = {
-          ...existing.metadata,
-          ...options.metadata,
+          ...this.mergeMetadata(existing.metadata, options.metadata),
           updatedAt: Date.now(),
         };
       }
@@ -680,17 +687,9 @@ export class StorageManagerImpl implements StorageManager {
         if (typeof navigator.storage.persisted === "function") {
           persistent = await navigator.storage.persisted();
         }
-
-        // Estimate IndexedDB usage (subtract chrome.storage if needed)
-        indexedDBUsage = totalUsage;
-        indexedDBQuota = totalQuota * 0.6; // Assume 60% allocated to IndexedDB
       }
 
-      const indexedDBPercent =
-        indexedDBQuota > 0 ? (indexedDBUsage / indexedDBQuota) * 100 : 0;
-      const totalPercent = totalQuota > 0 ? (totalUsage / totalQuota) * 100 : 0;
-
-      // Check filesystem availability
+      // Check filesystem availability and usage
       let filesystemUsage = 0;
       let filesystemAvailable = false;
       if (this.tieredStorage) {
@@ -700,6 +699,37 @@ export class StorageManagerImpl implements StorageManager {
           filesystemUsage = metrics.totalBytesOffloaded;
         }
       }
+
+      // Estimate chrome.storage.local usage
+      let chromeStorageUsage = 0;
+      if (
+        typeof chrome !== "undefined" &&
+        chrome.storage &&
+        chrome.storage.local &&
+        typeof chrome.storage.local.getBytesInUse === "function"
+      ) {
+        try {
+          chromeStorageUsage = await new Promise<number>((resolve) => {
+            chrome.storage.local.getBytesInUse(null, (bytes) => {
+              resolve(bytes || 0);
+            });
+          });
+        } catch (error) {
+          logger.debug("StorageManager", "Could not get chrome.storage.local usage", error);
+        }
+      }
+
+      // Calculate IndexedDB usage: total usage minus known external storage
+      // Browser storage is a unified pool, so IndexedDB shares the same quota
+      indexedDBUsage = Math.max(
+        0,
+        totalUsage - chromeStorageUsage - filesystemUsage,
+      );
+      indexedDBQuota = totalQuota; // Quota is for the entire origin, not just IndexedDB
+
+      const indexedDBPercent =
+        indexedDBQuota > 0 ? (indexedDBUsage / indexedDBQuota) * 100 : 0;
+      const totalPercent = totalQuota > 0 ? (totalUsage / totalQuota) * 100 : 0;
 
       // Generate recommendations
       const recommendations = this.generateRecommendations(
@@ -781,6 +811,7 @@ export class StorageManagerImpl implements StorageManager {
 
       // Add embeddings if requested
       if (options.includeEmbeddings) {
+        // TODO: optimize by batching when DatabaseManager exposes a bulk fetch method.
         const embeddings: Embedding[] = [];
         for (const content of contents) {
           const embedding = await this.database.getEmbeddingByContentId(
@@ -892,11 +923,71 @@ export class StorageManagerImpl implements StorageManager {
     return 0;
   }
 
+  private mergeMetadata(
+    base: ContentMetadata,
+    updates: Partial<ContentMetadata>,
+  ): ContentMetadata {
+    if (!updates || Object.keys(updates).length === 0) {
+      return { ...base };
+    }
+
+    return this.deepMergeObjects(base, updates);
+  }
+
+  private deepMergeObjects<T>(target: T, source: Partial<T>): T {
+    const isTargetArray = Array.isArray(target);
+    const output: any = isTargetArray
+      ? [...(target as unknown[])]
+      : { ...(target as Record<string, unknown>) };
+
+    for (const key of Object.keys(source) as Array<keyof T>) {
+      const sourceValue = source[key];
+      if (sourceValue === undefined) {
+        continue;
+      }
+
+      const targetValue = (target as Record<string, unknown>)[key as string];
+      if (
+        sourceValue &&
+        typeof sourceValue === "object" &&
+        !Array.isArray(sourceValue) &&
+        targetValue &&
+        typeof targetValue === "object" &&
+        !Array.isArray(targetValue)
+      ) {
+        output[key as string] = this.deepMergeObjects(
+          targetValue,
+          sourceValue as any,
+        );
+      } else if (Array.isArray(sourceValue)) {
+        output[key as string] = [...sourceValue];
+      } else {
+        output[key as string] = sourceValue as unknown;
+      }
+    }
+
+    return output as T;
+  }
+
+  private normalizeContentType(value: ContentType | string): string {
+    return typeof value === "string"
+      ? value.toLowerCase()
+      : String(value).toLowerCase();
+  }
+
+  private isTextBasedContentType(value: ContentType | string): boolean {
+    const normalized = this.normalizeContentType(value);
+    return normalized === "text"
+      || normalized === "snippet"
+      || normalized === "note"
+      || normalized === "page";
+  }
+
   /**
    * Map content type to research asset kind for tiered storage
    */
   private mapContentTypeToAssetKind(type: ContentType): ResearchAssetKind {
-    const normalized = String(type).toLowerCase();
+    const normalized = this.normalizeContentType(type);
 
     switch (normalized) {
       case "text":

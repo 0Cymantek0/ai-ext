@@ -54,7 +54,9 @@ function createChromeStub(): ChromeStorageStub {
         set: vi.fn().mockResolvedValue(undefined),
         get: vi.fn().mockResolvedValue({}),
         remove: vi.fn().mockResolvedValue(undefined),
-        getBytesInUse: vi.fn().mockResolvedValue(0),
+        getBytesInUse: vi.fn().mockImplementation((keys, callback) => {
+          callback(1000000); // 1MB
+        }),
       },
     },
   };
@@ -632,24 +634,29 @@ describe("StorageManagerImpl", () => {
     it("should return comprehensive storage statistics", async () => {
       const stats = await storageManager.getStorageStats();
 
+      const expectedIndexedDbUsage = 50_000_000 - 1_000_000 - 5_000;
+
       expect(stats).toMatchObject({
         indexedDB: {
-          usage: expect.any(Number),
-          quota: expect.any(Number),
-          percentUsed: expect.any(Number),
+          usage: expectedIndexedDbUsage,
+          quota: 100_000_000,
         },
         filesystem: {
-          usage: expect.any(Number),
+          usage: 5_000,
           available: true,
         },
         total: {
-          usage: 50000000,
-          quota: 100000000,
-          percentUsed: 50,
+          usage: 50_000_000,
+          quota: 100_000_000,
         },
         persistent: true,
-        recommendations: expect.any(Array),
       });
+      expect(stats.indexedDB.percentUsed).toBeCloseTo(
+        (expectedIndexedDbUsage / 100_000_000) * 100,
+        5,
+      );
+      expect(stats.total.percentUsed).toBeCloseTo(50, 5);
+      expect(Array.isArray(stats.recommendations)).toBe(true);
     });
 
     it("should generate warning recommendations when usage is high", async () => {
