@@ -85,7 +85,7 @@ function Slot<T extends HTMLElement = HTMLElement>({
       typeof elementType === "function" ||
       (typeof elementType === "object" && elementType !== null)
     ) {
-      return motion.create(elementType as React.ComponentType);
+      return motion.create(elementType as any);
     }
 
     return elementType as React.ElementType;

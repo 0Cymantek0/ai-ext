@@ -212,7 +212,11 @@ const TooltipArrow = React.forwardRef<
   const { side, align, open } = useRenderedTooltip();
   const { context, arrowRef } = useFloatingContext();
   const { transition, globalId } = useGlobalTooltip();
-  React.useImperativeHandle(ref, () => arrowRef.current, [arrowRef]);
+  React.useImperativeHandle(
+    ref,
+    () => arrowRef.current || ({} as SVGSVGElement),
+    [arrowRef],
+  );
 
   const deg = { top: 0, right: 90, bottom: 180, left: -90 }[side];
 
@@ -467,7 +471,11 @@ const TooltipTrigger = React.forwardRef<HTMLDivElement | null, TooltipTriggerPro
   } = useGlobalTooltip();
 
   const triggerRef = React.useRef<HTMLDivElement>(null);
-  React.useImperativeHandle(ref, () => triggerRef.current, [triggerRef]);
+  React.useImperativeHandle(
+    ref,
+    () => triggerRef.current || ({} as HTMLDivElement),
+    [triggerRef],
+  );
 
   const suppressNextFocusRef = React.useRef(false);
 
