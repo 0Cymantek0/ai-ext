@@ -21,6 +21,7 @@ import {
   type DBSchema,
   type IDBPDatabase,
   type IDBPTransaction,
+  type IDBPObjectStore,
 } from "idb";
 import { logger } from "../background/monitoring.js";
 import type {
@@ -59,12 +60,12 @@ export type StoreName = (typeof STORE_NAMES)[keyof typeof STORE_NAMES];
 
 interface StoreIndexConfig {
   name: string;
-  keyPath: IDBKeyPath;
+  keyPath: string | string[];
   options?: IDBIndexParameters;
 }
 
 interface StoreConfig {
-  keyPath: IDBKeyPath;
+  keyPath: string | string[];
   autoIncrement?: boolean;
   indexes?: ReadonlyArray<StoreIndexConfig>;
 }
@@ -422,10 +423,13 @@ export class DatabaseManager implements StorageDatabaseContract {
         this.db?.close();
       },
       terminated: () => {
-        throw new DatabaseError(
-          DatabaseErrorType.DATABASE_ERROR,
-          "Database connection terminated unexpectedly",
+        logger.error(
+          "DatabaseManager",
+          "Database connection terminated unexpectedly. Resetting state.",
         );
+        this.db?.close();
+        this.db = null;
+        this.dbPromise = null;
       },
     });
 
@@ -443,10 +447,17 @@ export class DatabaseManager implements StorageDatabaseContract {
    * Close the underlying database connection and clear cached promises.
    */
   async close(): Promise<void> {
-    if (this.db) {
-      this.db.close();
-      this.db = null;
-      this.dbPromise = null;
+    const pendingDb = this.dbPromise
+      ? await this.dbPromise.catch(() => null)
+      : null;
+
+    const dbToClose = this.db ?? pendingDb;
+
+    this.db = null;
+    this.dbPromise = null;
+
+    if (dbToClose) {
+      dbToClose.close();
       logger.info("DatabaseManager", "Database closed");
     }
   }
@@ -722,7 +733,7 @@ export class DatabaseManager implements StorageDatabaseContract {
             term,
             weight: entry.weight ?? 1,
             createdAt: entry.createdAt ?? now,
-            metadata: entry.metadata ? { ...entry.metadata } : undefined,
+            ...(entry.metadata ? { metadata: { ...entry.metadata } } : {}),
           };
           await store.put(record);
         }
@@ -771,11 +782,11 @@ export class DatabaseManager implements StorageDatabaseContract {
     const id = crypto.randomUUID();
     const timestamp = Date.now();
     const record: Pocket = {
+      ...pocket,
       id,
       createdAt: timestamp,
       updatedAt: timestamp,
       contentIds: pocket.contentIds ?? [],
-      ...pocket,
     };
 
     await this.runTransaction([STORE_NAMES.POCKETS], "readwrite", async (tx) => {
@@ -885,15 +896,16 @@ export class DatabaseManager implements StorageDatabaseContract {
     storeName: StoreName,
   ): void {
     const config = STORE_CONFIGS[storeName];
-    let store: IDBObjectStore;
+    let store: IDBPObjectStore<AiPocketDBSchema, StoreName[], StoreName, "versionchange">;
 
     if (db.objectStoreNames.contains(storeName)) {
       store = transaction.objectStore(storeName);
     } else {
-      store = db.createObjectStore(storeName, {
-        keyPath: config.keyPath,
-        autoIncrement: config.autoIncrement,
-      });
+      const options =
+        config.autoIncrement !== undefined
+          ? { keyPath: config.keyPath, autoIncrement: config.autoIncrement }
+          : { keyPath: config.keyPath };
+      store = db.createObjectStore(storeName, options);
     }
 
     for (const index of config.indexes ?? []) {
@@ -905,32 +917,48 @@ export class DatabaseManager implements StorageDatabaseContract {
 
   private createMetadataRecord(content: CapturedContent): ContentMetadataRecord {
     const metadata: ContentMetadata = {
-      timestamp: content.capturedAt,
       ...(content.metadata ?? {}),
     };
 
-    if (typeof metadata.timestamp !== "number" || Number.isNaN(metadata.timestamp)) {
-      metadata.timestamp = content.capturedAt;
-    }
+    const timestamp =
+      typeof metadata.timestamp === "number" && !Number.isNaN(metadata.timestamp)
+        ? metadata.timestamp
+        : content.capturedAt;
 
-    if (typeof metadata.updatedAt !== "number" || Number.isNaN(metadata.updatedAt)) {
-      metadata.updatedAt = Date.now();
-    }
+    const updatedAt =
+      typeof metadata.updatedAt === "number" && !Number.isNaN(metadata.updatedAt)
+        ? metadata.updatedAt
+        : Date.now();
 
     const tags = Array.isArray(metadata.tags)
       ? metadata.tags.filter((tag): tag is string => typeof tag === "string")
       : [];
 
-    return {
+    const normalizedMetadata: ContentMetadata = {
+      ...metadata,
+      timestamp,
+      updatedAt,
+      tags,
+    };
+
+    const record: ContentMetadataRecord = {
       contentId: content.id,
       pocketId: content.pocketId,
-      timestamp: metadata.timestamp,
-      updatedAt: metadata.updatedAt,
+      timestamp,
+      updatedAt,
       tags,
-      category: metadata.category,
-      title: metadata.title,
-      metadata: { ...metadata, tags },
+      metadata: normalizedMetadata,
     };
+
+    if (normalizedMetadata.category !== undefined) {
+      record.category = normalizedMetadata.category;
+    }
+
+    if (normalizedMetadata.title !== undefined) {
+      record.title = normalizedMetadata.title;
+    }
+
+    return record;
   }
 
   private async removeLinkedData(
@@ -940,32 +968,32 @@ export class DatabaseManager implements StorageDatabaseContract {
     const embeddingIndex = tx
       .objectStore(STORE_NAMES.EMBEDDINGS)
       .index("contentId");
-    let cursor = await embeddingIndex.openCursor(contentId);
-    while (cursor) {
-      await cursor.delete();
-      cursor = await cursor.continue();
+    let embeddingCursor = await embeddingIndex.openCursor(contentId);
+    while (embeddingCursor) {
+      await embeddingCursor.delete();
+      embeddingCursor = await embeddingCursor.continue();
     }
 
     const chunkIndex = tx.objectStore(STORE_NAMES.VECTOR_CHUNKS).index("contentId");
-    cursor = await chunkIndex.openCursor(contentId);
-    while (cursor) {
-      await cursor.delete();
-      cursor = await cursor.continue();
+    let chunkCursor = await chunkIndex.openCursor(contentId);
+    while (chunkCursor) {
+      await chunkCursor.delete();
+      chunkCursor = await chunkCursor.continue();
     }
 
     const searchIndex = tx.objectStore(STORE_NAMES.SEARCH_INDEX).index("contentId");
-    cursor = await searchIndex.openCursor(contentId);
-    while (cursor) {
-      await cursor.delete();
-      cursor = await cursor.continue();
+    let searchCursor = await searchIndex.openCursor(contentId);
+    while (searchCursor) {
+      await searchCursor.delete();
+      searchCursor = await searchCursor.continue();
     }
   }
 
-  private async runTransaction<Result>(
+  private async runTransaction<Mode extends IDBTransactionMode, Result>(
     storeNames: StoreName[],
-    mode: IDBTransactionMode,
+    mode: Mode,
     handler: (
-      tx: IDBPTransaction<AiPocketDBSchema, StoreName[], typeof mode>,
+      tx: IDBPTransaction<AiPocketDBSchema, StoreName[], Mode>,
     ) => Promise<Result>,
   ): Promise<Result> {
     const db = await this.open();
