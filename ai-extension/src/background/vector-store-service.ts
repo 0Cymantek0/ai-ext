@@ -64,9 +64,12 @@ export class VectorStoreService {
 
     return storedChunks.map((chunk) => ({
       id: chunk.id,
+      contentId: chunk.contentId,
+      pocketId: chunk.pocketId,
       text: chunk.text,
       embedding: chunk.embedding,
       metadata: chunk.metadata,
+      createdAt: chunk.createdAt,
     }));
   }
 
@@ -78,9 +81,12 @@ export class VectorStoreService {
 
     return storedChunks.map((chunk) => ({
       id: chunk.id,
+      contentId: chunk.contentId,
+      pocketId: chunk.pocketId,
       text: chunk.text,
       embedding: chunk.embedding,
       metadata: chunk.metadata,
+      createdAt: chunk.createdAt,
     }));
   }
 
@@ -110,9 +116,12 @@ export class VectorStoreService {
 
     return storedChunks.map((chunk) => ({
       id: chunk.id,
+      contentId: chunk.contentId,
+      pocketId: chunk.pocketId,
       text: chunk.text,
       embedding: chunk.embedding,
       metadata: chunk.metadata,
+      createdAt: chunk.createdAt,
     }));
   }
 

@@ -370,12 +370,12 @@ export interface ChunkMetadata {
   /**
    * Title of the source content
    */
-  title?: string;
+  title?: string | undefined;
 
   /**
    * Category of the source content
    */
-  category?: string;
+  category?: string | undefined;
 
   /**
    * Preview text (first 100 characters of the chunk for display)
