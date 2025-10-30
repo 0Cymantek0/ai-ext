@@ -304,9 +304,18 @@ function toArrayBufferView(
   }
 
   if (ArrayBuffer.isView(data)) {
+    if (data instanceof Uint8Array) {
+      return {
+        payload: data,
+        byteLength: data.byteLength,
+      };
+    }
+
+    const view = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+
     return {
-      payload: data,
-      byteLength: data.byteLength,
+      payload: view,
+      byteLength: view.byteLength,
     };
   }
 
