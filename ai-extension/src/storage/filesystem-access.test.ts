@@ -99,7 +99,6 @@ describe("FilesystemAccessService", () => {
       path: "AI Pocket/pockets/demo/entry.txt",
       handleId: "workspace",
       bytesWritten: 11,
-      mimeType: undefined,
     });
 
     const readResult = await service.readFile({

@@ -119,7 +119,7 @@ describe("FsAccessManager", () => {
   it("reports availability when cached handle retains permission", async () => {
     const handle = createHandle({ query: "granted" });
     const manager = new FsAccessManager(storage);
-    (manager as any).directoryHandle = handle;
+    (manager as any).setHandle("workspace", handle);
 
     const result = await manager.hasValidAccess();
     expect(result).toEqual({ available: true });

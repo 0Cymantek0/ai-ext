@@ -234,7 +234,7 @@ function sanitizeSegments(
     return null;
   }
 
-  if (normalized.some((segment) => segment.includes(".."))) {
+  if (normalized.some((segment) => segment === "..")) {
     return null;
   }
 
@@ -304,11 +304,9 @@ function toArrayBufferView(
   }
 
   if (ArrayBuffer.isView(data)) {
-    const view = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-    const buffer = view.slice().buffer;
     return {
-      payload: buffer,
-      byteLength: view.byteLength,
+      payload: data,
+      byteLength: data.byteLength,
     };
   }
 
@@ -320,7 +318,7 @@ function toArrayBufferView(
 
     const encoder = new TextEncoder();
     const bytes = encoder.encode(data);
-    return { payload: data, byteLength: bytes.byteLength };
+    return { payload: bytes, byteLength: bytes.byteLength };
   }
 
   throw new TypeError("Unsupported data type for filesystem write");
@@ -330,10 +328,9 @@ export class FilesystemAccessService {
   protected readonly storage: LocalStorageLike;
   protected readonly defaultHandleId: string;
   protected readonly rootDirectoryName: string;
-  protected directoryHandle: DirectoryHandleLike | null = null;
   private readonly now: () => number;
-  private readonly directoryPickerOverride?: DirectoryPickerLike;
-  private readonly handles = new Map<string, DirectoryHandleLike>();
+  private readonly directoryPickerOverride: DirectoryPickerLike | undefined;
+  protected readonly handles = new Map<string, DirectoryHandleLike>();
 
   constructor(options: FilesystemAccessServiceOptions = {}) {
     this.storage = options.storage ?? new ChromeLocalStorage();
@@ -594,13 +591,18 @@ export class FilesystemAccessService {
       await writable.write(payload);
       await writable.close();
 
-      return {
+      const result: FileWriteResult = {
         success: true,
         path: segments.normalizedPath,
         handleId,
         bytesWritten: byteLength,
-        mimeType: options.mimeType,
       };
+
+      if (options.mimeType) {
+        result.mimeType = options.mimeType;
+      }
+
+      return result;
     } catch (error) {
       const reason = normalizeErrorReason(error);
       logger.warn("FilesystemAccessService", "Failed to save file", {
@@ -685,16 +687,30 @@ export class FilesystemAccessService {
         text = encodeBase64(new Uint8Array(data));
       }
 
-      return {
+      const result: FileReadResult = {
         success: true,
         path: segments.normalizedPath,
         handleId,
         data,
-        text,
-        size: file.size,
-        mimeType: file.type,
-        lastModified: file.lastModified,
       };
+
+      if (text !== undefined) {
+        result.text = text;
+      }
+
+      if (typeof file.size === "number") {
+        result.size = file.size;
+      }
+
+      if (typeof file.type === "string" && file.type.length > 0) {
+        result.mimeType = file.type;
+      }
+
+      if (typeof file.lastModified === "number") {
+        result.lastModified = file.lastModified;
+      }
+
+      return result;
     } catch (error) {
       const reason = normalizeErrorReason(error);
       logger.warn("FilesystemAccessService", "Failed to read file", {
@@ -889,13 +905,20 @@ export class FilesystemAccessService {
       "granted" in raw &&
       typeof (raw as { granted?: unknown }).granted === "boolean"
     ) {
+      const legacyRecord = raw as { granted?: unknown; timestamp?: unknown };
+      if (legacyRecord.granted !== true) {
+        return {};
+      }
+
+      const timestamp =
+        typeof legacyRecord.timestamp === "number"
+          ? legacyRecord.timestamp
+          : this.now();
+
       return {
         [this.defaultHandleId]: {
-          granted: Boolean((raw as { granted: boolean }).granted),
-          timestamp:
-            typeof (raw as { timestamp?: unknown }).timestamp === "number"
-              ? Number((raw as { timestamp: number }).timestamp)
-              : this.now(),
+          granted: true,
+          timestamp,
         },
       };
     }
@@ -908,12 +931,17 @@ export class FilesystemAccessService {
         "granted" in value &&
         typeof (value as { granted?: unknown }).granted === "boolean"
       ) {
+        const record = value as { granted?: unknown; timestamp?: unknown };
+        if (record.granted !== true) {
+          continue;
+        }
+
+        const timestamp =
+          typeof record.timestamp === "number" ? record.timestamp : this.now();
+
         entries[key] = {
-          granted: Boolean((value as { granted: boolean }).granted),
-          timestamp:
-            typeof (value as { timestamp?: unknown }).timestamp === "number"
-              ? Number((value as { timestamp: number }).timestamp)
-              : this.now(),
+          granted: true,
+          timestamp,
         };
       }
     }
@@ -931,25 +959,16 @@ export class FilesystemAccessService {
     );
   }
 
-  private getCachedHandle(handleId: string): DirectoryHandleLike | null {
-    if (handleId === this.defaultHandleId && this.directoryHandle) {
-      return this.directoryHandle;
-    }
+  protected getCachedHandle(handleId: string): DirectoryHandleLike | null {
     return this.handles.get(handleId) ?? null;
   }
 
-  private setHandle(handleId: string, handle: DirectoryHandleLike): void {
+  protected setHandle(handleId: string, handle: DirectoryHandleLike): void {
     this.handles.set(handleId, handle);
-    if (handleId === this.defaultHandleId) {
-      this.directoryHandle = handle;
-    }
   }
 
-  private clearHandle(handleId: string): void {
+  protected clearHandle(handleId: string): void {
     this.handles.delete(handleId);
-    if (handleId === this.defaultHandleId) {
-      this.directoryHandle = null;
-    }
   }
 }
 
