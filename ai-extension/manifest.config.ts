@@ -26,6 +26,7 @@ export default defineManifest({
     "contextMenus",
     "webRequest",
     "webRequestBlocking",
+    "cookies",
   ],
   host_permissions: ["<all_urls>"],
   side_panel: {
