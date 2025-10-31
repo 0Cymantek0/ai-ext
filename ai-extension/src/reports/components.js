@@ -338,25 +338,54 @@ export const ReportComponents = {
         control.innerHTML = `
           <div style="font-size: 11px; margin-bottom: 12px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px;">text size</div>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="text-size-decrease" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s;">◀</button>
-            <span class="text-size-value" style="color: rgba(255,255,255,0.9); font-size: 14px; min-width: 30px; text-align: center;">15</span>
-            <button class="text-size-increase" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s;">▶</button>
+            <button class="text-size-decrease" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">◀</button>
+            <span class="text-size-value" style="color: rgba(255,255,255,0.9); font-size: 14px; min-width: 30px; text-align: center;">16</span>
+            <button class="text-size-increase" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">▶</button>
           </div>
         `;
 
         // Add event listeners
         setTimeout(() => {
-          let currentSize = 15;
+          let currentSize = 16;
           const valueDisplay = control.querySelector('.text-size-value');
           const decreaseBtn = control.querySelector('.text-size-decrease');
           const increaseBtn = control.querySelector('.text-size-increase');
           
           const updateSize = (newSize) => {
-            currentSize = Math.max(12, Math.min(20, newSize));
+            currentSize = Math.max(12, Math.min(22, newSize));
             valueDisplay.textContent = currentSize;
             const content = document.getElementById('reportMainContent');
             if (content) {
+              // Update all text elements in the report
               content.style.fontSize = `${currentSize}px`;
+              
+              // Update paragraphs
+              const paragraphs = content.querySelectorAll('p');
+              paragraphs.forEach(p => {
+                p.style.fontSize = `${currentSize}px`;
+              });
+              
+              // Update list items
+              const listItems = content.querySelectorAll('li');
+              listItems.forEach(li => {
+                li.style.fontSize = `${currentSize}px`;
+              });
+              
+              // Scale headings proportionally
+              const h2s = content.querySelectorAll('h2');
+              h2s.forEach(h2 => {
+                h2.style.fontSize = `${currentSize * 2}px`;
+              });
+              
+              const h3s = content.querySelectorAll('h3');
+              h3s.forEach(h3 => {
+                h3.style.fontSize = `${currentSize * 1.5}px`;
+              });
+              
+              const h4s = content.querySelectorAll('h4');
+              h4s.forEach(h4 => {
+                h4.style.fontSize = `${currentSize}px`;
+              });
             }
           };
 
@@ -380,9 +409,9 @@ export const ReportComponents = {
         control.innerHTML = `
           <div style="font-size: 11px; margin-bottom: 12px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px;">theme</div>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="theme-prev" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s;">◀</button>
+            <button class="theme-prev" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">◀</button>
             <span class="theme-value" style="color: rgba(255,255,255,0.9); font-size: 14px; flex: 1; text-align: center;">auto</span>
-            <button class="theme-next" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s;">▶</button>
+            <button class="theme-next" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">▶</button>
           </div>
         `;
 
