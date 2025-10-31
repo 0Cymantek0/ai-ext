@@ -111,6 +111,7 @@ import { registerFsAccessHandlers } from "./storage/fs-access-manager.js";
 import { WorkflowManager } from "../browser-agent/workflow-manager.js";
 import { BrowserToolRegistry } from "../browser-agent/tool-registry.js";
 import { ALL_BROWSER_TOOLS } from "../browser-agent/tools/index.js";
+import { createVisionManager, type CaptureResult } from "../browser-agent/vision.js";
 import { createDatabaseManager } from "../storage/schema.js";
 
 // Initialize formatter and background processor
@@ -124,6 +125,41 @@ const backgroundProcessor = new ContentProcessorBackground(geminiFormatter);
 // Initialize browser agent workflow manager
 const browserToolRegistry = new BrowserToolRegistry(logger, performanceMonitor);
 const database = createDatabaseManager();
+
+// Initialize vision manager
+const visionManager = createVisionManager(logger);
+
+logger.info("ServiceWorker", "Vision manager initialized (disabled by default)");
+
+function normalizeScreenshotInput(input: any): string | CaptureResult {
+  if (typeof input === "string") {
+    return input;
+  }
+
+  if (input && typeof input === "object" && typeof input.dataUrl === "string") {
+    return {
+      dataUrl: input.dataUrl,
+      format: (input.format ?? "png") as "png" | "jpeg",
+      width: input.width ?? 0,
+      height: input.height ?? 0,
+      timestamp: input.timestamp ?? Date.now(),
+      tabId: input.tabId,
+      tabUrl: input.tabUrl,
+      devicePixelRatio: input.devicePixelRatio,
+      elementMappings: input.elementMappings,
+    } satisfies CaptureResult;
+  }
+
+  throw new Error("Invalid screenshot payload");
+}
+
+function toCaptureResult(input: any): CaptureResult {
+  const normalized = normalizeScreenshotInput(input);
+  if (typeof normalized === "string") {
+    throw new Error("Expected structured screenshot payload");
+  }
+  return normalized;
+}
 
 // Register all browser agent tools
 ALL_BROWSER_TOOLS.forEach((tool) => {
@@ -2117,6 +2153,218 @@ messageRouter.registerHandler("CAPTURE_SCREENSHOT", async (payload, sender) => {
     logger.error("Handler", "CAPTURE_SCREENSHOT error", error);
     return { success: false, screenshot: null, error: String(error) };
   }
+});
+
+messageRouter.registerHandler("VISION_CAPTURE_FOR_ANALYSIS", async (payload: any, sender) => {
+  logger.info("Handler", "VISION_CAPTURE_FOR_ANALYSIS", {
+    senderTabId: sender?.tab?.id,
+  });
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
+    return {
+      success: false,
+      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+    };
+  }
+
+  const requestedTabId = typeof payload?.tabId === "number" ? payload.tabId : sender?.tab?.id;
+
+  if (!requestedTabId) {
+    return {
+      success: false,
+      error: "No tab context provided for vision capture",
+    };
+  }
+
+  try {
+    const capture = await visionManager.captureForVision({
+      tabId: requestedTabId,
+      format: payload?.format,
+      quality: payload?.quality,
+      annotateElements: payload?.annotateElements ?? false,
+      includeMappings: true,
+    });
+
+    return {
+      success: true,
+      dataUrl: capture.dataUrl,
+      format: capture.format,
+      width: capture.width,
+      height: capture.height,
+      timestamp: capture.timestamp,
+      tabId: capture.tabId,
+      tabUrl: capture.tabUrl,
+      devicePixelRatio: capture.devicePixelRatio,
+      elementMappings: capture.elementMappings,
+    };
+  } catch (error) {
+    logger.error("Handler", "VISION_CAPTURE_FOR_ANALYSIS error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+messageRouter.registerHandler("VISION_ANALYZE_SCREENSHOT", async (payload: any, sender) => {
+  logger.info("Handler", "VISION_ANALYZE_SCREENSHOT", {
+    senderTabId: sender?.tab?.id,
+  });
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
+    return {
+      success: false,
+      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+    };
+  }
+
+  if (!payload?.screenshot || !payload?.prompt) {
+    return {
+      success: false,
+      error: "VISION_ANALYZE_SCREENSHOT requires screenshot and prompt",
+    };
+  }
+
+  const screenshotInput = normalizeScreenshotInput(payload.screenshot);
+
+  try {
+    const analysisOptions: Parameters<typeof visionManager.analyzeScreenshot>[1] = {
+      prompt: payload.prompt,
+      model: payload.model,
+      useCache: payload.useCache,
+      maxTokens: payload.maxTokens,
+      temperature: payload.temperature,
+    };
+
+    if (sender?.tab?.url) {
+      analysisOptions.tabUrl = sender.tab.url;
+    }
+
+    const result = await visionManager.analyzeScreenshot(screenshotInput, analysisOptions);
+
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    logger.error("Handler", "VISION_ANALYZE_SCREENSHOT error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+messageRouter.registerHandler("VISION_DETECT_PAGE_STATE", async (payload: any, sender) => {
+  logger.info("Handler", "VISION_DETECT_PAGE_STATE", {
+    senderTabId: sender?.tab?.id,
+  });
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
+    return {
+      success: false,
+      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+    };
+  }
+
+  if (!payload?.screenshot) {
+    return {
+      success: false,
+      error: "VISION_DETECT_PAGE_STATE requires a screenshot",
+    };
+  }
+
+  let screenshotInput: string | CaptureResult;
+  try {
+    screenshotInput = normalizeScreenshotInput(payload.screenshot);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  try {
+    const result = await visionManager.detectPageState(screenshotInput);
+
+    if (result.requiresHumanIntervention) {
+      logger.warn("Handler", "Vision detection flagged human escalation", result);
+    }
+
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    logger.error("Handler", "VISION_DETECT_PAGE_STATE error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+messageRouter.registerHandler("VISION_FIND_ELEMENT", async (payload: any, sender) => {
+  logger.info("Handler", "VISION_FIND_ELEMENT", {
+    senderTabId: sender?.tab?.id,
+  });
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
+    return {
+      success: false,
+      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+    };
+  }
+
+  if (!payload?.screenshot || !payload?.description) {
+    return {
+      success: false,
+      error: "VISION_FIND_ELEMENT requires screenshot and description",
+    };
+  }
+
+  let captureResult: CaptureResult;
+  try {
+    captureResult = toCaptureResult(payload.screenshot);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  try {
+    const result = await visionManager.findElementByDescription(
+      captureResult,
+      payload.description,
+    );
+
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    logger.error("Handler", "VISION_FIND_ELEMENT error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+messageRouter.registerHandler("VISION_GET_USAGE_STATS", async () => {
+  if (!visionManager) {
+    return {
+      success: false,
+      error: "Vision manager not initialized",
+    };
+  }
+
+  const stats = visionManager.getUsageStats();
+  return {
+    success: true,
+    stats,
+  };
 });
 
 messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
