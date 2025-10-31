@@ -113,6 +113,23 @@ import { BrowserToolRegistry } from "../browser-agent/tool-registry.js";
 import { ALL_BROWSER_TOOLS } from "../browser-agent/tools/index.js";
 import { createVisionManager, type CaptureResult } from "../browser-agent/vision.js";
 import { createDatabaseManager } from "../storage/schema.js";
+import {
+  apiRequest as performApiRequest,
+  startNetworkMonitoring,
+  stopNetworkMonitoring,
+  getNetworkLogs,
+  setAuthToken as storeAuthToken,
+  clearAuthToken as removeAuthToken,
+} from "../browser-agent/api-testing.js";
+import type {
+  ApiRequestPayload,
+  ApiRequestResponsePayload,
+  ApiStartNetworkMonitoringPayload,
+  ApiStopNetworkMonitoringPayload,
+  ApiNetworkLogsResponsePayload,
+  ApiSetAuthTokenPayload,
+  ApiAuthResponsePayload,
+} from "../shared/types/index.d.ts";
 
 // Initialize formatter and background processor
 const storageWrapper = new ChromeLocalStorage();
@@ -3511,6 +3528,105 @@ messageRouter.registerHandler("BROWSER_AGENT_APPROVAL_RESPONSE", async (payload:
     return { success: true, acknowledged: true };
   } catch (error) {
     logger.error("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE error", error);
+    throw error;
+  }
+});
+
+// API Testing Handlers
+messageRouter.registerHandler("API_REQUEST", async (payload: ApiRequestPayload) => {
+  logger.info("Handler", "API_REQUEST", {
+    method: payload.method,
+    url: payload.url,
+  });
+  try {
+    const response = await performApiRequest(payload);
+    const result: ApiRequestResponsePayload = {
+      success: true,
+      response,
+    };
+    
+    logger.info("Handler", "API_REQUEST success", {
+      status: response.status,
+      durationMs: response.timing.durationMs,
+      retryCount: response.retryCount,
+    });
+    
+    return result;
+  } catch (error) {
+    logger.error("Handler", "API_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    } as ApiRequestResponsePayload;
+  }
+});
+
+messageRouter.registerHandler("API_START_NETWORK_MONITORING", async (payload: ApiStartNetworkMonitoringPayload) => {
+  logger.info("Handler", "API_START_NETWORK_MONITORING", payload);
+  try {
+    startNetworkMonitoring(payload.tabId);
+    logger.info("Handler", "API_START_NETWORK_MONITORING success");
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "API_START_NETWORK_MONITORING error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("API_STOP_NETWORK_MONITORING", async (payload: ApiStopNetworkMonitoringPayload) => {
+  logger.info("Handler", "API_STOP_NETWORK_MONITORING", payload);
+  try {
+    const logs = stopNetworkMonitoring(payload.tabId);
+    logger.info("Handler", "API_STOP_NETWORK_MONITORING success", {
+      logsCount: logs.length,
+    });
+    return {
+      success: true,
+      logs,
+    } as ApiNetworkLogsResponsePayload;
+  } catch (error) {
+    logger.error("Handler", "API_STOP_NETWORK_MONITORING error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("API_GET_NETWORK_LOGS", async (payload: { tabId?: number }) => {
+  logger.info("Handler", "API_GET_NETWORK_LOGS", payload);
+  try {
+    const logs = getNetworkLogs(payload.tabId);
+    logger.info("Handler", "API_GET_NETWORK_LOGS success", {
+      logsCount: logs.length,
+    });
+    return {
+      success: true,
+      logs,
+    } as ApiNetworkLogsResponsePayload;
+  } catch (error) {
+    logger.error("Handler", "API_GET_NETWORK_LOGS error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("API_SET_AUTH_TOKEN", async (payload: ApiSetAuthTokenPayload) => {
+  logger.info("Handler", "API_SET_AUTH_TOKEN");
+  try {
+    await storeAuthToken(payload.token);
+    logger.info("Handler", "API_SET_AUTH_TOKEN success");
+    return { success: true } as ApiAuthResponsePayload;
+  } catch (error) {
+    logger.error("Handler", "API_SET_AUTH_TOKEN error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("API_CLEAR_AUTH_TOKEN", async () => {
+  logger.info("Handler", "API_CLEAR_AUTH_TOKEN");
+  try {
+    await removeAuthToken();
+    logger.info("Handler", "API_CLEAR_AUTH_TOKEN success");
+    return { success: true } as ApiAuthResponsePayload;
+  } catch (error) {
+    logger.error("Handler", "API_CLEAR_AUTH_TOKEN error", error);
     throw error;
   }
 });

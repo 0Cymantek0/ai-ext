@@ -1,3 +1,9 @@
+import type {
+  ApiRequestOptions,
+  ApiResponse,
+  NetworkRequestLog,
+} from "../../browser-agent/api-testing.js";
+
 export type MessageKind =
   | "PING"
   | "CAPTURE_REQUEST"
@@ -87,6 +93,12 @@ export type MessageKind =
   | "VISION_FIND_ELEMENT"
   | "VISION_GET_USAGE_STATS"
   | "EXTRACT_ELEMENT_MAPPINGS"
+  | "API_REQUEST"
+  | "API_START_NETWORK_MONITORING"
+  | "API_STOP_NETWORK_MONITORING"
+  | "API_GET_NETWORK_LOGS"
+  | "API_SET_AUTH_TOKEN"
+  | "API_CLEAR_AUTH_TOKEN"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -812,6 +824,36 @@ export interface BrowserAgentWorkflowErrorPayload {
   workflowId: string;
   error: string;
   timestamp: number;
+}
+
+// API Testing Payloads
+export interface ApiRequestPayload extends ApiRequestOptions {}
+
+export interface ApiRequestResponsePayload<T = any> {
+  success: boolean;
+  response?: ApiResponse<T>;
+  error?: string;
+}
+
+export interface ApiStartNetworkMonitoringPayload {
+  tabId?: number;
+}
+
+export interface ApiStopNetworkMonitoringPayload {
+  tabId?: number;
+}
+
+export interface ApiNetworkLogsResponsePayload {
+  success: boolean;
+  logs: NetworkRequestLog[];
+}
+
+export interface ApiSetAuthTokenPayload {
+  token: string;
+}
+
+export interface ApiAuthResponsePayload {
+  success: boolean;
 }
 
 // Storage Keys

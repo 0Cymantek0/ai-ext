@@ -24,6 +24,8 @@ export default defineManifest({
     "notifications",
     "unlimitedStorage",
     "contextMenus",
+    "webRequest",
+    "webRequestBlocking",
   ],
   host_permissions: ["<all_urls>"],
   side_panel: {
