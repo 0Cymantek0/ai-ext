@@ -124,29 +124,51 @@ const backgroundProcessor = new ContentProcessorBackground(geminiFormatter);
 // Initialize browser agent workflow manager
 const browserToolRegistry = new BrowserToolRegistry(logger, performanceMonitor);
 const database = createDatabaseManager();
-const workflowManager = new WorkflowManager(browserToolRegistry, database, logger);
 
 // Register all browser agent tools
 ALL_BROWSER_TOOLS.forEach((tool) => {
   browserToolRegistry.register(tool);
 });
 
-logger.info("ServiceWorker", "WorkflowManager initialized", {
+logger.info("ServiceWorker", "Browser tool registry initialized", {
   totalTools: browserToolRegistry.getAllTools().length,
 });
 
-// Resume incomplete workflows on startup
-void workflowManager.resumeIncompleteWorkflows().catch((error) => {
-  logger.error("ServiceWorker", "Failed to resume incomplete workflows", error);
-});
+// Initialize workflow manager - ensure DB is ready first
+let workflowManager: WorkflowManager;
 
-// Periodic cleanup of stale checkpoints (>1 hour)
-const WORKFLOW_CHECKPOINT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
-setInterval(() => {
-  void workflowManager.cleanupStaleCheckpoints().catch((error) => {
-    logger.error("ServiceWorker", "Checkpoint cleanup failed", error);
-  });
-}, WORKFLOW_CHECKPOINT_CLEANUP_INTERVAL_MS);
+// Safe initialization after DB is ready
+async function initializeWorkflowManager(): Promise<void> {
+  try {
+    // Ensure database is opened and upgraded to v4 before using workflow manager
+    await database.open();
+    logger.info("ServiceWorker", "Database ready for workflow manager");
+
+    workflowManager = new WorkflowManager(browserToolRegistry, database, logger);
+    logger.info("ServiceWorker", "WorkflowManager initialized");
+
+    // Resume incomplete workflows after manager is ready
+    await workflowManager.resumeIncompleteWorkflows();
+    logger.info("ServiceWorker", "Incomplete workflows resumed");
+
+    // Periodic cleanup of stale checkpoints (>1 hour)
+    const WORKFLOW_CHECKPOINT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+    setInterval(() => {
+      void workflowManager.cleanupStaleCheckpoints().catch((error) => {
+        logger.error("ServiceWorker", "Checkpoint cleanup failed", error);
+      });
+    }, WORKFLOW_CHECKPOINT_CLEANUP_INTERVAL_MS);
+  } catch (error) {
+    logger.error(
+      "ServiceWorker",
+      "Failed to initialize workflow manager",
+      error,
+    );
+  }
+}
+
+// Initialize workflow manager asynchronously
+void initializeWorkflowManager();
 
 /**
  * Context Menu Management
@@ -1088,6 +1110,12 @@ class ServiceWorkerLifecycle {
         activeRequests: this.state.activeRequests.size,
       });
 
+      // Keep service worker alive with Chrome API call
+      // This prevents the 30-second termination timeout
+      chrome.runtime.getPlatformInfo(() => {
+        // Empty callback - just keeping SW alive
+      });
+
       // Persist state periodically
       this.persistState();
 
@@ -1162,6 +1190,11 @@ class ServiceWorkerLifecycle {
       this.state.activeRequests.size,
       "count",
     );
+    
+    // Ensure heartbeat is running when we have active requests
+    if (this.state.activeRequests.size === 1) {
+      this.startHeartbeat();
+    }
   }
 
   /**
@@ -3100,6 +3133,9 @@ messageRouter.registerHandler("ABBREVIATION_EXPAND", async (payload: any) => {
 messageRouter.registerHandler("BROWSER_AGENT_START_WORKFLOW", async (payload: any) => {
   logger.info("Handler", "BROWSER_AGENT_START_WORKFLOW", payload);
   try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
     const state = await workflowManager.startWorkflow({
       workflowId: payload.workflowId,
       variables: payload.variables || {},
@@ -3120,6 +3156,9 @@ messageRouter.registerHandler("BROWSER_AGENT_START_WORKFLOW", async (payload: an
 messageRouter.registerHandler("BROWSER_AGENT_PAUSE_WORKFLOW", async (payload: any) => {
   logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW", payload);
   try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
     await workflowManager.pauseWorkflow(payload.workflowId, payload.reason);
     logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW success", {
       workflowId: payload.workflowId,
@@ -3134,6 +3173,9 @@ messageRouter.registerHandler("BROWSER_AGENT_PAUSE_WORKFLOW", async (payload: an
 messageRouter.registerHandler("BROWSER_AGENT_RESUME_WORKFLOW", async (payload: any) => {
   logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW", payload);
   try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
     await workflowManager.resumeWorkflow(payload.workflowId, payload.userInput);
     logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW success", {
       workflowId: payload.workflowId,
@@ -3148,6 +3190,9 @@ messageRouter.registerHandler("BROWSER_AGENT_RESUME_WORKFLOW", async (payload: a
 messageRouter.registerHandler("BROWSER_AGENT_CANCEL_WORKFLOW", async (payload: any) => {
   logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW", payload);
   try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
     await workflowManager.cancelWorkflow(payload.workflowId, payload.options);
     logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW success", {
       workflowId: payload.workflowId,
@@ -3162,6 +3207,9 @@ messageRouter.registerHandler("BROWSER_AGENT_CANCEL_WORKFLOW", async (payload: a
 messageRouter.registerHandler("BROWSER_AGENT_WORKFLOW_STATUS", async (payload: any) => {
   logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS", payload);
   try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
     const status = await workflowManager.getWorkflowStatus(payload.workflowId);
     logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS success", {
       workflowId: payload.workflowId,
@@ -3177,6 +3225,9 @@ messageRouter.registerHandler("BROWSER_AGENT_WORKFLOW_STATUS", async (payload: a
 messageRouter.registerHandler("BROWSER_AGENT_LIST_WORKFLOWS", async (_payload: any) => {
   logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS");
   try {
+    if (!workflowManager) {
+      return { success: true, data: [] };
+    }
     const workflows = workflowManager.getAllWorkflows();
     logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS success", {
       count: workflows.length,
@@ -3184,6 +3235,34 @@ messageRouter.registerHandler("BROWSER_AGENT_LIST_WORKFLOWS", async (_payload: a
     return { success: true, data: workflows };
   } catch (error) {
     logger.error("Handler", "BROWSER_AGENT_LIST_WORKFLOWS error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_APPROVAL_RESPONSE", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE", payload);
+  try {
+    const { requestId, approved, modifiedParams } = payload;
+    
+    if (!requestId) {
+      throw new Error("No requestId provided for approval response");
+    }
+    
+    // Store approval decision for workflow manager to retrieve
+    await lifecycle.setSessionData(`approval:${requestId}`, {
+      approved,
+      modifiedParams,
+      timestamp: Date.now(),
+    });
+    
+    logger.info("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE recorded", {
+      requestId,
+      approved,
+    });
+    
+    return { success: true, acknowledged: true };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE error", error);
     throw error;
   }
 });

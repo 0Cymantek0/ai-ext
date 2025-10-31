@@ -4,7 +4,7 @@
  * Requirements: Task 9 - LangGraph State Manager (Phase 2)
  */
 
-import { LangGraphStateManager, type BrowserAgentState, type WorkflowDefinition } from "./agent-state.js";
+import { WorkflowStateMachine, type BrowserAgentState, type WorkflowDefinition } from "./agent-state.js";
 import { IndexedDBCheckpointManager } from "./checkpoint-manager.js";
 import type { BrowserToolRegistry } from "./tool-registry.js";
 import type { DatabaseManager } from "../storage/schema.js";
@@ -35,7 +35,7 @@ export interface WorkflowStatusResponse {
  * Manages workflow lifecycle and integrates with messaging system
  */
 export class WorkflowManager {
-  private stateManager: LangGraphStateManager;
+  private stateManager: WorkflowStateMachine;
   private checkpointManager: IndexedDBCheckpointManager;
   private logger: Logger;
   
@@ -46,7 +46,7 @@ export class WorkflowManager {
   ) {
     this.logger = logger;
     this.checkpointManager = new IndexedDBCheckpointManager(database, logger);
-    this.stateManager = new LangGraphStateManager(
+    this.stateManager = new WorkflowStateMachine(
       toolRegistry,
       logger,
       this.checkpointManager,
@@ -96,6 +96,11 @@ export class WorkflowManager {
    * Execute workflow asynchronously
    */
   private async executeWorkflowAsync(workflowId: string): Promise<void> {
+    // Keep service worker alive during workflow execution
+    const heartbeatInterval = setInterval(() => {
+      chrome.runtime.getPlatformInfo(() => {});
+    }, 20000); // Every 20 seconds
+    
     try {
       await this.stateManager.executeWorkflow(workflowId);
     } catch (error) {
@@ -103,6 +108,30 @@ export class WorkflowManager {
         workflowId,
         error,
       });
+      
+      // Propagate error via message to UI
+      try {
+        await chrome.runtime.sendMessage({
+          kind: "BROWSER_AGENT_WORKFLOW_ERROR",
+          payload: {
+            workflowId,
+            error: error instanceof Error ? error.message : String(error),
+            timestamp: Date.now(),
+          },
+        });
+      } catch (msgError) {
+        this.logger.warn("WorkflowManager", "Failed to send error message", msgError);
+      }
+      
+      // Update workflow state to failed
+      const state = this.stateManager.getWorkflowStatus(workflowId);
+      if (state) {
+        state.status = "failed";
+        await this.checkpointManager.saveWorkflowState(state);
+      }
+    } finally {
+      // Always clear heartbeat when workflow completes/fails
+      clearInterval(heartbeatInterval);
     }
   }
   
@@ -280,7 +309,7 @@ export class WorkflowManager {
   /**
    * Get the state manager for advanced operations
    */
-  getStateManager(): LangGraphStateManager {
+  getStateManager(): WorkflowStateMachine {
     return this.stateManager;
   }
   

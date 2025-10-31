@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
-  LangGraphStateManager,
+  WorkflowStateMachine,
   WorkflowStep,
   type BrowserAgentState,
   type CheckpointManager,
@@ -85,8 +85,8 @@ class MockCheckpointManager implements CheckpointManager {
   }
 }
 
-describe("LangGraphStateManager", () => {
-  let stateManager: LangGraphStateManager;
+describe("WorkflowStateMachine", () => {
+  let stateManager: WorkflowStateMachine;
   let toolRegistry: BrowserToolRegistry;
   let checkpointManager: MockCheckpointManager;
   
@@ -95,7 +95,7 @@ describe("LangGraphStateManager", () => {
     
     toolRegistry = new BrowserToolRegistry(mockLogger as any, mockPerformanceMonitor as any);
     checkpointManager = new MockCheckpointManager();
-    stateManager = new LangGraphStateManager(
+    stateManager = new WorkflowStateMachine(
       toolRegistry,
       mockLogger as any,
       checkpointManager,

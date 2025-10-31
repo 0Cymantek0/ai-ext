@@ -31,6 +31,13 @@ async function clickElementHandler(
   if (!tabId) {
     throw new Error("No tab ID provided");
   }
+  
+  // Validate tab exists and is accessible
+  try {
+    await chrome.tabs.get(tabId);
+  } catch (error) {
+    throw new Error(`Tab ${tabId} no longer exists or is not accessible`);
+  }
 
   const response = await chrome.tabs.sendMessage(tabId, {
     kind: "CLICK_ELEMENT",
@@ -84,6 +91,13 @@ async function typeTextHandler(
   if (!tabId) {
     throw new Error("No tab ID provided");
   }
+  
+  // Validate tab exists and is accessible
+  try {
+    await chrome.tabs.get(tabId);
+  } catch (error) {
+    throw new Error(`Tab ${tabId} no longer exists or is not accessible`);
+  }
 
   const response = await chrome.tabs.sendMessage(tabId, {
     kind: "TYPE_TEXT",
@@ -136,6 +150,13 @@ async function scrollToElementHandler(
   
   if (!tabId) {
     throw new Error("No tab ID provided");
+  }
+  
+  // Validate tab exists and is accessible
+  try {
+    await chrome.tabs.get(tabId);
+  } catch (error) {
+    throw new Error(`Tab ${tabId} no longer exists or is not accessible`);
   }
 
   const response = await chrome.tabs.sendMessage(tabId, {

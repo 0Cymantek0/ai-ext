@@ -152,7 +152,13 @@ export type NodeFunction = (
  * State Manager
  * Orchestrates multi-step browser agent workflows
  */
-export class LangGraphStateManager {
+/**
+ * State machine for browser agent workflows.
+ * 
+ * Note: This is a custom implementation designed for Chrome extension service workers.
+ * It does NOT use the @langchain/langgraph library despite historical naming.
+ */
+export class WorkflowStateMachine {
   private toolRegistry: BrowserToolRegistry;
   private logger: Logger;
   private checkpointManager: CheckpointManager;
@@ -173,7 +179,7 @@ export class LangGraphStateManager {
     // Register default node functions
     this.registerDefaultNodeFunctions();
     
-    this.logger.info("LangGraphStateManager", "Initialized");
+    this.logger.info("WorkflowStateMachine", "Initialized");
   }
   
   /**
@@ -348,7 +354,7 @@ export class LangGraphStateManager {
    */
   registerNodeFunction(step: WorkflowStep, fn: NodeFunction): void {
     this.nodeFunctions.set(step, fn);
-    this.logger.info("LangGraphStateManager", `Registered custom node function for ${step}`);
+    this.logger.info("WorkflowStateMachine", `Registered custom node function for ${step}`);
   }
   
   /**
@@ -370,7 +376,7 @@ export class LangGraphStateManager {
     try {
       // Check if paused
       if (state.paused) {
-        this.logger.info("LangGraphStateManager", `Workflow ${state.workflowId} is paused at ${step}`);
+        this.logger.info("WorkflowStateMachine", `Workflow ${state.workflowId} is paused at ${step}`);
         return { currentStep: step };
       }
       
@@ -383,7 +389,7 @@ export class LangGraphStateManager {
         throw new Error(`No node function registered for step: ${step}`);
       }
       
-      this.logger.info("LangGraphStateManager", `Executing step ${step}`, {
+      this.logger.info("WorkflowStateMachine", `Executing step ${step}`, {
         workflowId: state.workflowId,
       });
       
@@ -409,7 +415,7 @@ export class LangGraphStateManager {
         ...updatedState,
       } as BrowserAgentState);
       
-      this.logger.info("LangGraphStateManager", `Step ${step} completed`, {
+      this.logger.info("WorkflowStateMachine", `Step ${step} completed`, {
         workflowId: state.workflowId,
         duration: Date.now() - startTime,
       });
@@ -418,7 +424,7 @@ export class LangGraphStateManager {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      this.logger.error("LangGraphStateManager", `Step ${step} failed`, {
+      this.logger.error("WorkflowStateMachine", `Step ${step} failed`, {
         workflowId: state.workflowId,
         error: errorMessage,
       });
@@ -461,7 +467,7 @@ export class LangGraphStateManager {
         if (attempt < state.maxRetries) {
           const backoff = state.backoffMs * Math.pow(2, attempt);
           
-          this.logger.warn("LangGraphStateManager", `Step ${step} failed, retrying in ${backoff}ms`, {
+          this.logger.warn("WorkflowStateMachine", `Step ${step} failed, retrying in ${backoff}ms`, {
             workflowId: state.workflowId,
             attempt: attempt + 1,
             maxRetries: state.maxRetries,
@@ -599,18 +605,24 @@ export class LangGraphStateManager {
     try {
       await this.checkpointManager.saveCheckpoint(checkpoint);
       
-      this.logger.debug("LangGraphStateManager", "Checkpoint saved", {
+      this.logger.debug("WorkflowStateMachine", "Checkpoint saved", {
         checkpointId: checkpoint.checkpointId,
         workflowId,
         step,
       });
     } catch (error) {
-      this.logger.error("LangGraphStateManager", "Failed to save checkpoint", {
+      this.logger.error("WorkflowStateMachine", "CRITICAL: Failed to save checkpoint", {
         workflowId,
         step,
         error,
       });
-      // Don't throw - checkpoint failure shouldn't stop workflow
+      
+      // CRITICAL: Checkpoint persistence failure means workflow cannot recover
+      // Fail fast rather than continuing without persistence
+      throw new Error(
+        `Checkpoint persistence failed for ${workflowId} at ${step}. ` +
+        `Workflow cannot continue safely. Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
   
@@ -662,7 +674,7 @@ export class LangGraphStateManager {
     
     this.workflowStates.set(workflowId, state);
     
-    this.logger.info("LangGraphStateManager", "Workflow started", {
+    this.logger.info("WorkflowStateMachine", "Workflow started", {
       workflowId,
       config,
     });
@@ -734,7 +746,7 @@ export class LangGraphStateManager {
     // Save checkpoint
     await this.saveCheckpoint(workflowId, state.currentStep, state);
     
-    this.logger.info("LangGraphStateManager", "Workflow paused", {
+    this.logger.info("WorkflowStateMachine", "Workflow paused", {
       workflowId,
       reason,
     });
@@ -781,7 +793,7 @@ export class LangGraphStateManager {
     
     this.workflowStates.set(workflowId, state);
     
-    this.logger.info("LangGraphStateManager", "Workflow resumed", {
+    this.logger.info("WorkflowStateMachine", "Workflow resumed", {
       workflowId,
       hasUserInput: !!userInput,
     });
@@ -805,7 +817,7 @@ export class LangGraphStateManager {
         try {
           await chrome.tabs.remove(state.tabId);
         } catch (error) {
-          this.logger.warn("LangGraphStateManager", "Failed to close tab", {
+          this.logger.warn("WorkflowStateMachine", "Failed to close tab", {
             workflowId,
             tabId: state.tabId,
             error,
@@ -821,7 +833,7 @@ export class LangGraphStateManager {
     
     this.workflowStates.delete(workflowId);
     
-    this.logger.info("LangGraphStateManager", "Workflow cancelled", {
+    this.logger.info("WorkflowStateMachine", "Workflow cancelled", {
       workflowId,
       options,
     });
@@ -855,7 +867,7 @@ export class LangGraphStateManager {
     const oneHourMs = 60 * 60 * 1000;
     const deleted = await this.checkpointManager.cleanupStaleCheckpoints(oneHourMs);
     
-    this.logger.info("LangGraphStateManager", "Cleaned up stale checkpoints", {
+    this.logger.info("WorkflowStateMachine", "Cleaned up stale checkpoints", {
       deleted,
     });
   }

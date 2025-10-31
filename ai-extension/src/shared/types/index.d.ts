@@ -74,6 +74,13 @@ export type MessageKind =
   | "BROWSER_AGENT_CANCEL_WORKFLOW"
   | "BROWSER_AGENT_WORKFLOW_STATUS"
   | "BROWSER_AGENT_LIST_WORKFLOWS"
+  | "BROWSER_AGENT_APPROVAL_REQUEST"
+  | "BROWSER_AGENT_APPROVAL_RESPONSE"
+  | "BROWSER_AGENT_TOOL_EXECUTION"
+  | "BROWSER_AGENT_WORKFLOW_ERROR"
+  | "CLICK_ELEMENT"
+  | "TYPE_TEXT"
+  | "SCROLL_TO_ELEMENT"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -654,6 +661,54 @@ export type AriaRunStatusResponse = AriaRunResult;
 
 // Legacy event payload alias (use AriaEventPayload for new code)
 export type AriaControllerEventPayload = AriaControllerEventDetail;
+
+// Browser Agent Message Payloads
+export interface ClickElementPayload {
+  selector: string;
+  waitAfterClick?: number;
+}
+
+export interface TypeTextPayload {
+  selector: string;
+  text: string;
+  clear?: boolean;
+}
+
+export interface ScrollToElementPayload {
+  selector: string;
+  behavior?: "auto" | "smooth";
+}
+
+export interface BrowserAgentApprovalRequestPayload {
+  workflowId: string;
+  toolName: string;
+  params: unknown;
+  reason: string;
+  requiresConfirmation: boolean;
+  requestId: string;
+  timestamp: number;
+}
+
+export interface BrowserAgentApprovalResponsePayload {
+  requestId: string;
+  approved: boolean;
+  modifiedParams?: unknown;
+}
+
+export interface BrowserAgentToolExecutionPayload {
+  workflowId: string;
+  toolName: string;
+  status: "started" | "completed" | "failed";
+  result?: unknown;
+  error?: { message: string; code?: string };
+  timestamp: number;
+}
+
+export interface BrowserAgentWorkflowErrorPayload {
+  workflowId: string;
+  error: string;
+  timestamp: number;
+}
 
 // Storage Keys
 export const STORAGE_KEYS = {

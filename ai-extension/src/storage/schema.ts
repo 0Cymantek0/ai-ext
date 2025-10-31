@@ -1079,3 +1079,6 @@ export class DatabaseManager implements StorageDatabaseContract {
 export function createDatabaseManager(): DatabaseManager {
   return new DatabaseManager();
 }
+
+// Re-export checkpoint manager for backward compatibility
+export { IndexedDBCheckpointManager } from "../browser-agent/checkpoint-manager.js";
