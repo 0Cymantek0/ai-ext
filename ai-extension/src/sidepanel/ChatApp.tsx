@@ -419,19 +419,6 @@ export function ChatApp() {
   }, []);
 
   const handleSubmit = async (text: string, files?: File[]) => {
-    // Consent check for cloud models
-    if (
-      selectedModel === "flash" ||
-      selectedModel === "flash-lite" ||
-      selectedModel === "pro"
-    ) {
-      const confirmed = confirm(
-        `This will use a cloud model (${selectedModel === "pro" ? "Gemini 2.5 Pro" : selectedModel === "flash" ? "Gemini 2.5 Flash" : "Gemini 2.5 Flash Lite"}). Your data may be sent to the cloud. Continue?`,
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
     const hasText = Boolean(text?.trim());
     const hasFiles = Array.isArray(files) && files.length > 0;
 

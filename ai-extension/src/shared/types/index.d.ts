@@ -93,6 +93,14 @@ export type MessageKind =
   | "VISION_FIND_ELEMENT"
   | "VISION_GET_USAGE_STATS"
   | "EXTRACT_ELEMENT_MAPPINGS"
+  | "PAGE_CONTEXT_REQUEST"
+  | "PAGE_CONTEXT_RESPONSE"
+  | "TAB_CONTEXT_REQUEST"
+  | "TAB_CONTEXT_RESPONSE"
+  | "SELECTION_CONTEXT_REQUEST"
+  | "SELECTION_CONTEXT_RESPONSE"
+  | "INPUT_CONTEXT_REQUEST"
+  | "INPUT_CONTEXT_RESPONSE"
   | "API_REQUEST"
   | "API_START_NETWORK_MONITORING"
   | "API_STOP_NETWORK_MONITORING"
@@ -208,6 +216,69 @@ export interface VisionUsageStatsPayload {
     estimatedCostUSD: number;
     cacheHits: number;
     cacheMisses: number;
+  };
+  error?: string;
+}
+
+// Context collection payloads
+export interface PageContextRequestPayload {
+  requestId?: string;
+}
+
+export interface PageContextResponsePayload {
+  success: boolean;
+  context?: {
+    title: string;
+    url: string;
+    domain: string;
+    contextType: "general" | "sensitive" | "work" | "social";
+    metaDescription?: string;
+    metaKeywords?: string[];
+  };
+  error?: string;
+}
+
+export interface TabContextRequestPayload {
+  requestId?: string;
+  maxTabs?: number; // Default 6
+}
+
+export interface TabContextResponsePayload {
+  success: boolean;
+  tabs?: Array<{
+    title: string;
+    url: string;
+    domain: string;
+    contextType: "general" | "sensitive" | "work" | "social";
+  }>;
+  error?: string;
+}
+
+export interface SelectionContextRequestPayload {
+  requestId?: string;
+}
+
+export interface SelectionContextResponsePayload {
+  success: boolean;
+  context?: {
+    text: string;
+    surroundingText?: string;
+  };
+  error?: string;
+}
+
+export interface InputContextRequestPayload {
+  requestId?: string;
+}
+
+export interface InputContextResponsePayload {
+  success: boolean;
+  context?: {
+    tagName: string;
+    type: string;
+    role?: string;
+    placeholder?: string;
+    intent?: string;
   };
   error?: string;
 }

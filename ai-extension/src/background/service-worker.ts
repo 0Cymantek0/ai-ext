@@ -2981,6 +2981,354 @@ messageRouter.registerHandler(
   },
 );
 
+// Register context collection handlers for auto context engine
+messageRouter.registerHandler("PAGE_CONTEXT_REQUEST", async (payload: any) => {
+  logger.info("Handler", "PAGE_CONTEXT_REQUEST", payload);
+  
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) {
+      throw new Error("No active tab found");
+    }
+
+    // Inject content script to get page context
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        // This function runs in the content script context
+        const pageContext: {
+          title: string;
+          url: string;
+          domain: string;
+          contextType: "general";
+          metaDescription?: string;
+          metaKeywords?: string[];
+          headings?: string[];
+          mainContent?: string;
+          pageType?: string;
+          language?: string;
+        } = {
+          title: document.title,
+          url: window.location.href,
+          domain: window.location.hostname,
+          // Detect context type based on URL patterns
+          contextType: "general" as const
+        };
+
+        // Try to get meta description
+        const metaDesc = document.querySelector('meta[name="description"]');
+        const metaDescContent = metaDesc?.getAttribute('content');
+        if (metaDescContent) {
+          pageContext.metaDescription = metaDescContent;
+        }
+
+        // Try to get meta keywords
+        const metaKeywords = document.querySelector('meta[name="keywords"]');
+        const metaKeywordsContent = metaKeywords?.getAttribute('content');
+        if (metaKeywordsContent) {
+          pageContext.metaKeywords = metaKeywordsContent.split(',').map(k => k.trim());
+        }
+
+        // Extract main headings (H1, H2)
+        const headings: string[] = [];
+        const h1Elements = document.querySelectorAll('h1');
+        const h2Elements = document.querySelectorAll('h2');
+        
+        h1Elements.forEach(h => {
+          const text = h.textContent?.trim();
+          if (text && text.length > 0 && text.length < 200) {
+            headings.push(text);
+          }
+        });
+        
+        h2Elements.forEach(h => {
+          const text = h.textContent?.trim();
+          if (text && text.length > 0 && text.length < 200 && headings.length < 10) {
+            headings.push(text);
+          }
+        });
+        
+        if (headings.length > 0) {
+          pageContext.headings = headings;
+        }
+
+        // Extract main content intelligently
+        let mainContent = '';
+        
+        // Try to find main content area
+        const mainElement = document.querySelector('main, article, [role="main"], .main-content, #main-content, #content');
+        
+        if (mainElement) {
+          // Get text from main element, excluding scripts and styles
+          const clone = mainElement.cloneNode(true) as HTMLElement;
+          clone.querySelectorAll('script, style, nav, header, footer, aside').forEach(el => el.remove());
+          mainContent = clone.textContent || '';
+        } else {
+          // Fallback: get body text
+          const bodyClone = document.body.cloneNode(true) as HTMLElement;
+          bodyClone.querySelectorAll('script, style, nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]').forEach(el => el.remove());
+          mainContent = bodyClone.textContent || '';
+        }
+        
+        // Clean and truncate main content
+        mainContent = mainContent
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 2000); // Limit to 2000 characters
+        
+        if (mainContent.length > 100) {
+          pageContext.mainContent = mainContent;
+        }
+
+        // Detect page type
+        const ogType = document.querySelector('meta[property="og:type"]')?.getAttribute('content');
+        if (ogType) {
+          pageContext.pageType = ogType;
+        } else {
+          // Infer from structure
+          if (document.querySelector('article')) {
+            pageContext.pageType = 'article';
+          } else if (document.querySelector('form[role="search"], input[type="search"]')) {
+            pageContext.pageType = 'search';
+          } else if (document.querySelector('.product, [itemtype*="Product"]')) {
+            pageContext.pageType = 'product';
+          }
+        }
+
+        // Get page language
+        const lang = document.documentElement.lang || document.querySelector('meta[http-equiv="content-language"]')?.getAttribute('content');
+        if (lang) {
+          pageContext.language = lang;
+        }
+
+        return pageContext;
+      }
+    });
+
+    if (results && results[0] && results[0].result) {
+      logger.info("Handler", "PAGE_CONTEXT_REQUEST success", results[0].result);
+      return {
+        success: true,
+        context: results[0].result
+      };
+    } else {
+      throw new Error("Failed to get page context");
+    }
+  } catch (error) {
+    logger.error("Handler", "PAGE_CONTEXT_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+messageRouter.registerHandler("TAB_CONTEXT_REQUEST", async (payload: any) => {
+  logger.info("Handler", "TAB_CONTEXT_REQUEST", payload);
+  
+  try {
+    const maxTabs = payload.maxTabs || 6;
+    
+    // Get recent tabs from all windows
+    const tabs = await chrome.tabs.query({});
+    
+    // Filter and map tabs
+    const tabContexts = tabs
+      .filter(tab => tab.url && tab.title && !tab.url.startsWith('chrome://'))
+      .slice(0, maxTabs)
+      .map(tab => {
+        const url = new URL(tab.url!);
+        const domain = url.hostname;
+        
+        // Basic context type detection for tabs
+        let contextType: "general" | "sensitive" | "work" | "social" = "general";
+        if (domain.includes('bank') || domain.includes('health') || domain.includes('gov')) {
+          contextType = "sensitive";
+        } else if (domain.includes('work') || domain.includes('company') || domain.includes('office')) {
+          contextType = "work";
+        } else if (domain.includes('social') || domain.includes('twitter') || domain.includes('facebook')) {
+          contextType = "social";
+        }
+        
+        return {
+          title: tab.title!,
+          url: tab.url!,
+          domain: domain,
+          contextType
+        };
+      });
+
+    logger.info("Handler", "TAB_CONTEXT_REQUEST success", { 
+      tabsCount: tabContexts.length 
+    });
+    
+    return {
+      success: true,
+      tabs: tabContexts
+    };
+  } catch (error) {
+    logger.error("Handler", "TAB_CONTEXT_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+messageRouter.registerHandler("SELECTION_CONTEXT_REQUEST", async (payload: any) => {
+  logger.info("Handler", "SELECTION_CONTEXT_REQUEST", payload);
+  
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) {
+      throw new Error("No active tab found");
+    }
+
+    // Inject content script to get selection context
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+          return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString().trim();
+        
+        if (!selectedText) {
+          return null;
+        }
+
+        // Get surrounding context (characters before and after)
+        const container = range.commonAncestorContainer;
+        const fullText = container.textContent || '';
+        const offset = fullText.indexOf(selectedText);
+        
+        let surroundingText = '';
+        if (offset !== -1) {
+          const contextRadius = 200; // characters before and after
+          const start = Math.max(0, offset - contextRadius);
+          const end = Math.min(fullText.length, offset + selectedText.length + contextRadius);
+          surroundingText = fullText.substring(start, end);
+        }
+
+        return {
+          text: selectedText,
+          surroundingText: surroundingText
+        };
+      }
+    });
+
+    if (results && results[0] && results[0].result) {
+      logger.info("Handler", "SELECTION_CONTEXT_REQUEST success", { 
+        textLength: results[0].result.text.length 
+      });
+      
+      return {
+        success: true,
+        context: results[0].result
+      };
+    } else {
+      // No selection
+      return {
+        success: true,
+        context: null
+      };
+    }
+  } catch (error) {
+    logger.error("Handler", "SELECTION_CONTEXT_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+messageRouter.registerHandler("INPUT_CONTEXT_REQUEST", async (payload: any) => {
+  logger.info("Handler", "INPUT_CONTEXT_REQUEST", payload);
+  
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) {
+      throw new Error("No active tab found");
+    }
+
+    // Inject content script to get input context
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        // Get focused element
+        const activeElement = document.activeElement;
+        if (!activeElement) {
+          return null;
+        }
+
+        const tagName = activeElement.tagName.toLowerCase();
+        const type = (activeElement as HTMLInputElement).type || '';
+        const role = activeElement.getAttribute('role') || undefined;
+        const placeholder = (activeElement as HTMLInputElement).placeholder || undefined;
+        
+        // Basic intent detection based on input attributes and form context
+        let intent = '';
+        if (tagName === 'input' || tagName === 'textarea') {
+          if (type === 'search') {
+            intent = 'search';
+          } else if (type === 'email') {
+            intent = 'email';
+          } else if (type === 'password') {
+            intent = 'password';
+          } else if (type === 'tel') {
+            intent = 'phone';
+          } else if (placeholder) {
+            if (placeholder.toLowerCase().includes('search')) {
+              intent = 'search';
+            } else if (placeholder.toLowerCase().includes('email')) {
+              intent = 'email';
+            } else if (placeholder.toLowerCase().includes('message')) {
+              intent = 'message';
+            }
+          }
+        } else if (tagName === 'select') {
+          intent = 'selection';
+        }
+
+        return {
+          tagName,
+          type,
+          role,
+          placeholder,
+          intent
+        };
+      }
+    });
+
+    if (results && results[0] && results[0].result) {
+      logger.info("Handler", "INPUT_CONTEXT_REQUEST success", results[0].result);
+      
+      return {
+        success: true,
+        context: results[0].result
+      };
+    } else {
+      // No focused input
+      return {
+        success: true,
+        context: null
+      };
+    }
+  } catch (error) {
+    logger.error("Handler", "INPUT_CONTEXT_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
 // Register conversation handlers (Requirement 8.8, 7.6)
 messageRouter.registerHandler("CONVERSATION_LIST", async (payload) => {
   logger.info("Handler", "CONVERSATION_LIST", payload);
