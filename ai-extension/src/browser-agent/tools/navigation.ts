@@ -34,11 +34,16 @@ async function navigateToUrlHandler(
       throw new Error("Failed to create tab");
     }
     
-    return {
+    const result: { success: boolean; url: string; title?: string } = {
       success: true,
       url: input.url,
-      title: tab.title ?? undefined,
     };
+
+    if (typeof tab.title === "string" && tab.title.length > 0) {
+      result.title = tab.title;
+    }
+
+    return result;
   }
 
   await chrome.tabs.update(tabId, { url: input.url });
@@ -66,11 +71,16 @@ async function navigateToUrlHandler(
 
   const tab = await chrome.tabs.get(tabId);
 
-  return {
+  const result: { success: boolean; url: string; title?: string } = {
     success: true,
     url: tab.url || input.url,
-    title: tab.title ?? undefined,
   };
+
+  if (typeof tab.title === "string" && tab.title.length > 0) {
+    result.title = tab.title;
+  }
+
+  return result;
 }
 
 export const navigateToUrlTool: BrowserToolDefinition = {
