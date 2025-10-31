@@ -131,10 +131,10 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Get LangChain-compatible tools
+   * Get tool definitions for integration purposes
    */
-  getLangChainTools() {
-    return this.registry.toLangChainTools();
+  getToolDefinitions() {
+    return this.registry.toToolDefinitions();
   }
 
   /**

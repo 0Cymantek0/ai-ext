@@ -520,8 +520,8 @@ describe("BrowserToolRegistry", () => {
     });
   });
 
-  describe("LangChain Integration", () => {
-    it("should convert tools to LangChain format", () => {
+  describe("Tool Definition Export", () => {
+    it("should return tool definitions for integration", () => {
       const tool: BrowserToolDefinition = {
         name: "test_tool",
         description: "A test tool",
@@ -534,10 +534,10 @@ describe("BrowserToolRegistry", () => {
 
       registry.register(tool);
 
-      const langChainTools = registry.toLangChainTools();
-      expect(langChainTools).toHaveLength(1);
-      expect(langChainTools[0].name).toBe("test_tool");
-      expect(langChainTools[0].description).toBe("A test tool");
+      const toolDefs = registry.toToolDefinitions();
+      expect(toolDefs).toHaveLength(1);
+      expect(toolDefs[0].name).toBe("test_tool");
+      expect(toolDefs[0].description).toBe("A test tool");
     });
   });
 });
