@@ -2228,14 +2228,19 @@ messageRouter.registerHandler("VISION_ANALYZE_SCREENSHOT", async (payload: any, 
   const screenshotInput = normalizeScreenshotInput(payload.screenshot);
 
   try {
-    const result = await visionManager.analyzeScreenshot(screenshotInput, {
+    const analysisOptions: Parameters<typeof visionManager.analyzeScreenshot>[1] = {
       prompt: payload.prompt,
       model: payload.model,
       useCache: payload.useCache,
       maxTokens: payload.maxTokens,
       temperature: payload.temperature,
-      tabUrl: sender?.tab?.url,
-    });
+    };
+
+    if (sender?.tab?.url) {
+      analysisOptions.tabUrl = sender.tab.url;
+    }
+
+    const result = await visionManager.analyzeScreenshot(screenshotInput, analysisOptions);
 
     return {
       success: true,

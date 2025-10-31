@@ -3,7 +3,11 @@
  * Provides screenshot capture and analysis using Gemini Vision models.
  */
 
-import { GoogleGenerativeAI, type GenerativeModel } from "@google/generative-ai";
+import {
+  GoogleGenerativeAI,
+  type GenerativeModel,
+  type GenerateContentRequest,
+} from "@google/generative-ai";
 import type { Logger } from "../background/monitoring.js";
 
 /**
@@ -58,7 +62,7 @@ export interface CaptureOptions {
   quality?: number;
   annotateElements?: boolean;
   includeMappings?: boolean;
-  tabId?: number;
+  tabId?: number | undefined;
 }
 
 export interface BoundingBox {
@@ -85,28 +89,28 @@ export interface CaptureResult {
   width: number;
   height: number;
   timestamp: number;
-  tabId?: number;
-  tabUrl?: string;
-  devicePixelRatio?: number;
-  elementMappings?: ElementMapping[];
+  tabId?: number | undefined;
+  tabUrl?: string | undefined;
+  devicePixelRatio?: number | undefined;
+  elementMappings?: ElementMapping[] | undefined;
 }
 
 export interface AnalysisOptions {
   prompt: string;
-  model?: VisionModelType;
-  tabUrl?: string;
-  useCache?: boolean;
-  maxTokens?: number;
-  temperature?: number;
+  model?: VisionModelType | undefined;
+  tabUrl?: string | undefined;
+  useCache?: boolean | undefined;
+  maxTokens?: number | undefined;
+  temperature?: number | undefined;
 }
 
 export interface AnalysisResult {
   text: string;
   model: VisionModelType;
-  tokensUsed?: number;
+  tokensUsed?: number | undefined;
   processingTimeMs: number;
   fromCache: boolean;
-  cost?: number;
+  cost?: number | undefined;
 }
 
 export interface DetectionResult {
@@ -449,22 +453,34 @@ export class VisionManager {
     const generativeModel = this.getModel(model);
     const { mimeType, base64Data } = this.extractImageData(dataUrl);
 
-    const requestArgs: Parameters<GenerativeModel["generateContent"]>[0] = [
-      {
-        inlineData: {
-          mimeType,
-          data: base64Data,
+    const request: GenerateContentRequest = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              },
+            },
+            { text: options.prompt },
+          ],
         },
-      },
-      { text: options.prompt },
-    ];
+      ],
+    };
 
-    const result = await generativeModel.generateContent(requestArgs, {
-      generationConfig: {
-        maxOutputTokens: options.maxTokens,
-        temperature: options.temperature,
-      },
-    });
+    if (options.maxTokens !== undefined || options.temperature !== undefined) {
+      request.generationConfig = {};
+      if (options.maxTokens !== undefined) {
+        request.generationConfig.maxOutputTokens = options.maxTokens;
+      }
+      if (options.temperature !== undefined) {
+        request.generationConfig.temperature = options.temperature;
+      }
+    }
+
+    const result = await generativeModel.generateContent(request);
 
     const response = result.response;
     const text = response.text();
@@ -739,7 +755,9 @@ export class VisionManager {
   private dataUrlToBlob(dataUrl: string): Blob {
     const { mimeType, base64Data } = this.extractImageData(dataUrl);
     const bytes = base64ToUint8Array(base64Data);
-    return new Blob([bytes], { type: mimeType });
+    return new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)], {
+      type: mimeType,
+    });
   }
 
   /** Convert blob to data URL. */

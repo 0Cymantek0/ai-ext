@@ -38,7 +38,7 @@ async function captureForVisionHandler(
     boundingBox: any;
     tagName: string;
     text?: string;
-  }>;
+  }> | undefined;
 }> {
   const visionManager = getVisionManager();
   
@@ -46,13 +46,19 @@ async function captureForVisionHandler(
     throw new Error("Vision features are not available. Please enable and configure API key.");
   }
 
-  const result = await visionManager.captureForVision({
-    tabId: input.tabId || context.tabId,
+  const captureOptions: Parameters<typeof visionManager.captureForVision>[0] = {
     format: input.format,
     quality: input.quality,
     annotateElements: input.annotateElements,
     includeMappings: true,
-  });
+  };
+
+  const resolvedTabId = input.tabId ?? context.tabId;
+  if (resolvedTabId !== undefined) {
+    captureOptions.tabId = resolvedTabId;
+  }
+
+  const result = await visionManager.captureForVision(captureOptions);
 
   return {
     dataUrl: result.dataUrl,
