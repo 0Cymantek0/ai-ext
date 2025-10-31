@@ -81,6 +81,12 @@ export type MessageKind =
   | "CLICK_ELEMENT"
   | "TYPE_TEXT"
   | "SCROLL_TO_ELEMENT"
+  | "VISION_CAPTURE_FOR_ANALYSIS"
+  | "VISION_ANALYZE_SCREENSHOT"
+  | "VISION_DETECT_PAGE_STATE"
+  | "VISION_FIND_ELEMENT"
+  | "VISION_GET_USAGE_STATS"
+  | "EXTRACT_ELEMENT_MAPPINGS"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -94,6 +100,104 @@ export interface CaptureRequestPayload {
   mode: "full-page" | "selection" | "element" | "note";
   pocketId: string;
   showPreview?: boolean; // Whether to show preview UI for selection mode
+}
+
+export interface VisionCapturePayload {
+  tabId?: number;
+  format?: "png" | "jpeg";
+  quality?: number;
+  annotateElements?: boolean;
+}
+
+export interface VisionCaptureResponsePayload {
+  success: boolean;
+  dataUrl?: string;
+  format?: "png" | "jpeg";
+  width?: number;
+  height?: number;
+  timestamp?: number;
+  tabId?: number;
+  tabUrl?: string;
+  devicePixelRatio?: number;
+  elementMappings?: Array<{
+    index: number;
+    selector: string;
+    boundingBox: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    tagName: string;
+    text?: string;
+    attributes?: Record<string, string>;
+  }>;
+  error?: string;
+}
+
+export interface VisionAnalyzePayload {
+  screenshot: string | VisionCaptureResponsePayload;
+  prompt: string;
+  model?: "gemini-2.5-pro" | "gemini-2.5-flash" | "gemini-2.5-flash-lite";
+  useCache?: boolean;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export interface VisionAnalyzeResponsePayload {
+  success: boolean;
+  result?: {
+    text: string;
+    model: string;
+    tokensUsed?: number;
+    processingTimeMs: number;
+    fromCache: boolean;
+    cost?: number;
+  };
+  error?: string;
+}
+
+export interface VisionDetectionPayload {
+  screenshot: string | VisionCaptureResponsePayload;
+}
+
+export interface VisionDetectionResponsePayload {
+  success: boolean;
+  result?: {
+    detected: boolean;
+    type: "captcha" | "auth-required" | "error-page" | "rate-limited" | "unknown";
+    confidence: number;
+    details?: string;
+    requiresHumanIntervention: boolean;
+  };
+  error?: string;
+}
+
+export interface VisionFindElementPayload {
+  screenshot: VisionCaptureResponsePayload;
+  description: string;
+}
+
+export interface VisionFindElementResponsePayload {
+  success: boolean;
+  result?: {
+    index: number;
+    selector: string;
+    confidence: number;
+  } | null;
+  error?: string;
+}
+
+export interface VisionUsageStatsPayload {
+  success: boolean;
+  stats?: {
+    totalCalls: number;
+    callsByModel: Record<string, number>;
+    estimatedCostUSD: number;
+    cacheHits: number;
+    cacheMisses: number;
+  };
+  error?: string;
 }
 
 export interface CaptureMultiSelectionPayload {

@@ -6,6 +6,7 @@
 export * from "./dom-extraction.js";
 export * from "./navigation.js";
 export * from "./interaction.js";
+export * from "./vision-tools.js";
 
 import {
   extractPageTitleTool,
@@ -25,6 +26,13 @@ import {
   typeTextTool,
   scrollToElementTool,
 } from "./interaction.js";
+
+import {
+  captureForVisionTool,
+  analyzeScreenshotTool,
+  detectPageStateTool,
+  findElementByVisionTool,
+} from "./vision-tools.js";
 
 import type { BrowserToolDefinition } from "../tool-registry.js";
 
@@ -47,4 +55,10 @@ export const ALL_BROWSER_TOOLS: BrowserToolDefinition[] = [
   clickElementTool,
   typeTextTool,
   scrollToElementTool,
+
+  // Vision (disabled by default, requires configuration)
+  captureForVisionTool,
+  analyzeScreenshotTool,
+  detectPageStateTool,
+  findElementByVisionTool,
 ];

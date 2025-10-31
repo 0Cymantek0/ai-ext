@@ -17,6 +17,7 @@ import {
   type SnippetOptions,
 } from "./snippet-utils.js";
 import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
+import { registerVisionHelper } from "./vision-helper.js";
 import "./content-logging-setup.js";
 
 const documentRef = typeof document !== "undefined" ? document : null;
@@ -136,6 +137,9 @@ class ContentScriptManager {
 
       // Initialize message listener
       initializeMessageListener();
+
+      // Register vision helper for element mappings
+      registerVisionHelper();
 
       // Register message handlers
       this.registerMessageHandlers();
