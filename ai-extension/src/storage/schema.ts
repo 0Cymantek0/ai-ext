@@ -345,6 +345,26 @@ export interface AiPocketDBSchema extends DBSchema {
       storeName: string;
     };
   };
+  browserAgentWorkflows: {
+    key: string;
+    value: BrowserAgentState;
+    indexes: {
+      status: string;
+      startTime: number;
+      lastUpdate: number;
+      userId: string;
+    };
+  };
+  browserAgentCheckpoints: {
+    key: string;
+    value: StateCheckpoint;
+    indexes: {
+      workflowId: string;
+      timestamp: number;
+      step: WorkflowStep;
+      workflowId_timestamp: [string, number];
+    };
+  };
 }
 
 /**
@@ -906,6 +926,11 @@ export class DatabaseManager implements StorageDatabaseContract {
       this.ensureStore(db, transaction, STORE_NAMES.SEARCH_INDEX);
     }
 
+    if (oldVersion < 4) {
+      this.ensureStore(db, transaction, STORE_NAMES.BROWSER_AGENT_WORKFLOWS);
+      this.ensureStore(db, transaction, STORE_NAMES.BROWSER_AGENT_CHECKPOINTS);
+    }
+
     // Ensure indexes stay up to date regardless of upgrade path
     this.ensureStore(db, transaction, STORE_NAMES.POCKETS);
     this.ensureStore(db, transaction, STORE_NAMES.CAPTURED_CONTENT);
@@ -916,6 +941,8 @@ export class DatabaseManager implements StorageDatabaseContract {
     this.ensureStore(db, transaction, STORE_NAMES.METADATA);
     this.ensureStore(db, transaction, STORE_NAMES.SEARCH_INDEX);
     this.ensureStore(db, transaction, STORE_NAMES.SYNC_QUEUE);
+    this.ensureStore(db, transaction, STORE_NAMES.BROWSER_AGENT_WORKFLOWS);
+    this.ensureStore(db, transaction, STORE_NAMES.BROWSER_AGENT_CHECKPOINTS);
   }
 
   private ensureStore(

@@ -594,6 +594,17 @@ export class LangGraphStateManager {
   createInitialState(workflowId: string, config?: WorkflowDefinition): BrowserAgentState {
     const now = Date.now();
     
+    const workflowConfig = config
+      ? {
+          ...(Array.isArray(config.steps) ? { maxSteps: config.steps.length } : {}),
+          ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
+          ...(config.requireValidation !== undefined
+            ? { requireValidation: config.requireValidation }
+            : {}),
+          ...(config.branchingLogic ? { branchingLogic: config.branchingLogic } : {}),
+        }
+      : undefined;
+    
     return {
       workflowId,
       currentStep: WorkflowStep.START,
@@ -607,12 +618,7 @@ export class LangGraphStateManager {
       retryCount: 0,
       maxRetries: config?.maxRetries ?? 3,
       backoffMs: 1000,
-      config: config ? {
-        maxSteps: config.steps?.length,
-        timeoutMs: config.timeoutMs,
-        requireValidation: config.requireValidation,
-        branchingLogic: config.branchingLogic,
-      } : undefined,
+      ...(workflowConfig ? { config: workflowConfig } : {}),
     };
   }
   
@@ -688,7 +694,11 @@ export class LangGraphStateManager {
     }
     
     state.paused = true;
-    state.pauseReason = reason;
+    if (reason !== undefined) {
+      state.pauseReason = reason;
+    } else {
+      delete state.pauseReason;
+    }
     state.pauseTimestamp = Date.now();
     state.status = "paused";
     state.lastUpdate = Date.now();
@@ -730,8 +740,8 @@ export class LangGraphStateManager {
     }
     
     state.paused = false;
-    state.pauseReason = undefined;
-    state.pauseTimestamp = undefined;
+    delete state.pauseReason;
+    delete state.pauseTimestamp;
     state.status = "running";
     state.lastUpdate = Date.now();
     
@@ -796,6 +806,13 @@ export class LangGraphStateManager {
    */
   getWorkflowStatus(workflowId: string): BrowserAgentState | undefined {
     return this.workflowStates.get(workflowId);
+  }
+  
+  /**
+   * Hydrate workflow state from persistence
+   */
+  hydrateWorkflowState(state: BrowserAgentState): void {
+    this.workflowStates.set(state.workflowId, state);
   }
   
   /**

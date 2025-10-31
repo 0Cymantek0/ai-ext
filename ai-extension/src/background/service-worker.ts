@@ -108,6 +108,10 @@ import {
   IndexingOperation,
 } from "./vector-indexing-queue.js";
 import { registerFsAccessHandlers } from "./storage/fs-access-manager.js";
+import { WorkflowManager } from "../browser-agent/workflow-manager.js";
+import { BrowserToolRegistry } from "../browser-agent/tool-registry.js";
+import { ALL_BROWSER_TOOLS } from "../browser-agent/tools/index.js";
+import { createDatabaseManager } from "../storage/schema.js";
 
 // Initialize formatter and background processor
 const storageWrapper = new ChromeLocalStorage();
@@ -116,6 +120,33 @@ const geminiFormatter = new GeminiNanoFormatter(
   storageWrapper,
 );
 const backgroundProcessor = new ContentProcessorBackground(geminiFormatter);
+
+// Initialize browser agent workflow manager
+const browserToolRegistry = new BrowserToolRegistry(logger, performanceMonitor);
+const database = createDatabaseManager();
+const workflowManager = new WorkflowManager(browserToolRegistry, database, logger);
+
+// Register all browser agent tools
+ALL_BROWSER_TOOLS.forEach((tool) => {
+  browserToolRegistry.register(tool);
+});
+
+logger.info("ServiceWorker", "WorkflowManager initialized", {
+  totalTools: browserToolRegistry.getAllTools().length,
+});
+
+// Resume incomplete workflows on startup
+void workflowManager.resumeIncompleteWorkflows().catch((error) => {
+  logger.error("ServiceWorker", "Failed to resume incomplete workflows", error);
+});
+
+// Periodic cleanup of stale checkpoints (>1 hour)
+const WORKFLOW_CHECKPOINT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+setInterval(() => {
+  void workflowManager.cleanupStaleCheckpoints().catch((error) => {
+    logger.error("ServiceWorker", "Checkpoint cleanup failed", error);
+  });
+}, WORKFLOW_CHECKPOINT_CLEANUP_INTERVAL_MS);
 
 /**
  * Context Menu Management
@@ -3061,6 +3092,98 @@ messageRouter.registerHandler("ABBREVIATION_EXPAND", async (payload: any) => {
     return { success: true, data: result };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_EXPAND error", error);
+    throw error;
+  }
+});
+
+// Browser Agent Workflow Handlers
+messageRouter.registerHandler("BROWSER_AGENT_START_WORKFLOW", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_START_WORKFLOW", payload);
+  try {
+    const state = await workflowManager.startWorkflow({
+      workflowId: payload.workflowId,
+      variables: payload.variables || {},
+      config: payload.config,
+      tabId: payload.tabId,
+      userId: payload.userId,
+    });
+    logger.info("Handler", "BROWSER_AGENT_START_WORKFLOW success", {
+      workflowId: state.workflowId,
+    });
+    return { success: true, data: state };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_START_WORKFLOW error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_PAUSE_WORKFLOW", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW", payload);
+  try {
+    await workflowManager.pauseWorkflow(payload.workflowId, payload.reason);
+    logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW success", {
+      workflowId: payload.workflowId,
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_RESUME_WORKFLOW", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW", payload);
+  try {
+    await workflowManager.resumeWorkflow(payload.workflowId, payload.userInput);
+    logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW success", {
+      workflowId: payload.workflowId,
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_RESUME_WORKFLOW error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_CANCEL_WORKFLOW", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW", payload);
+  try {
+    await workflowManager.cancelWorkflow(payload.workflowId, payload.options);
+    logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW success", {
+      workflowId: payload.workflowId,
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_WORKFLOW_STATUS", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS", payload);
+  try {
+    const status = await workflowManager.getWorkflowStatus(payload.workflowId);
+    logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS success", {
+      workflowId: payload.workflowId,
+      found: !!status,
+    });
+    return { success: true, data: status };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_WORKFLOW_STATUS error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_LIST_WORKFLOWS", async (_payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS");
+  try {
+    const workflows = workflowManager.getAllWorkflows();
+    logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS success", {
+      count: workflows.length,
+    });
+    return { success: true, data: workflows };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_LIST_WORKFLOWS error", error);
     throw error;
   }
 });
