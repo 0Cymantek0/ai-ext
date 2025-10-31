@@ -35,11 +35,16 @@ import type {
   ContentMetadata,
 } from "../background/indexeddb-manager.js";
 import type {
+  BrowserAgentState,
+  StateCheckpoint,
+  WorkflowStep,
+} from "../browser-agent/agent-state.js";
+import type {
   DatabaseManager as StorageDatabaseContract,
 } from "../services/storage-manager.js";
 
 const DB_NAME = "ai-pocket-db";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 /**
  * Object store names used throughout the database schema.
@@ -54,6 +59,8 @@ export const STORE_NAMES = {
   VECTOR_CHUNKS: "vectorChunks",
   SEARCH_INDEX: "searchIndex",
   SYNC_QUEUE: "syncQueue",
+  BROWSER_AGENT_WORKFLOWS: "browserAgentWorkflows",
+  BROWSER_AGENT_CHECKPOINTS: "browserAgentCheckpoints",
 } as const;
 
 export type StoreName = (typeof STORE_NAMES)[keyof typeof STORE_NAMES];
@@ -165,6 +172,27 @@ const STORE_CONFIGS: Record<StoreName, StoreConfig> = {
       { name: "timestamp", keyPath: "timestamp" },
       { name: "operation", keyPath: "operation" },
       { name: "storeName", keyPath: "storeName" },
+    ],
+  },
+  [STORE_NAMES.BROWSER_AGENT_WORKFLOWS]: {
+    keyPath: "workflowId",
+    indexes: [
+      { name: "status", keyPath: "status" },
+      { name: "startTime", keyPath: "startTime" },
+      { name: "lastUpdate", keyPath: "lastUpdate" },
+      { name: "userId", keyPath: "userId" },
+    ],
+  },
+  [STORE_NAMES.BROWSER_AGENT_CHECKPOINTS]: {
+    keyPath: "checkpointId",
+    indexes: [
+      { name: "workflowId", keyPath: "workflowId" },
+      { name: "timestamp", keyPath: "timestamp" },
+      { name: "step", keyPath: "step" },
+      {
+        name: "workflowId_timestamp",
+        keyPath: ["workflowId", "timestamp"],
+      },
     ],
   },
 };
