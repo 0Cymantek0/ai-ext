@@ -5,7 +5,6 @@
  */
 
 import { z } from "zod";
-import { DynamicStructuredTool } from "langchain";
 import type { Logger, PerformanceMonitor } from "../background/monitoring.js";
 
 /**
@@ -546,32 +545,19 @@ export class BrowserToolRegistry {
   }
 
   /**
-   * Convert tool definitions to LangChain StructuredTool instances
+   * Convert tool definitions to a format compatible with LLM tool calling
+   * Returns tool definitions with name, description, and schema
    */
-  toLangChainTools(): DynamicStructuredTool[] {
-    return Array.from(this.tools.values()).map((tool) =>
-      new DynamicStructuredTool({
-        name: tool.name,
-        description: tool.description,
-        schema: tool.parametersSchema,
-        func: async (input: any) => {
-          // Create a minimal context for LangChain execution
-          const context: ToolExecutionContext = {
-            workflowId: `langchain-${Date.now()}`,
-            stepNumber: 0,
-            timestamp: Date.now(),
-          };
-
-          const result = await this.execute(tool.name, input, context);
-          
-          if (!result.success) {
-            throw new Error(result.error?.message || "Tool execution failed");
-          }
-
-          return JSON.stringify(result.data);
-        },
-      }),
-    );
+  toToolDefinitions(): Array<{
+    name: string;
+    description: string;
+    parameters: any;
+  }> {
+    return Array.from(this.tools.values()).map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parametersSchema,
+    }));
   }
 
   /**
