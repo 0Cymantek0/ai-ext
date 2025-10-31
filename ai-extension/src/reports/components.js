@@ -410,23 +410,123 @@ export const ReportComponents = {
           <div style="font-size: 11px; margin-bottom: 12px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px;">theme</div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <button class="theme-prev" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">◀</button>
-            <span class="theme-value" style="color: rgba(255,255,255,0.9); font-size: 14px; flex: 1; text-align: center;">auto</span>
+            <span class="theme-value" style="color: rgba(255,255,255,0.9); font-size: 14px; flex: 1; text-align: center;">dark</span>
             <button class="theme-next" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">▶</button>
           </div>
         `;
 
         // Add event listeners
         setTimeout(() => {
-          const themes = ['auto', 'dark', 'light'];
-          let currentThemeIndex = 0;
+          const themes = ['dark', 'light'];
+          let currentThemeIndex = 0; // Start with dark theme
           const valueDisplay = control.querySelector('.theme-value');
           const prevBtn = control.querySelector('.theme-prev');
           const nextBtn = control.querySelector('.theme-next');
           
+          const applyTheme = (themeName) => {
+            const container = document.getElementById('reportContainer');
+            const body = document.body;
+            const mainContent = document.getElementById('reportMainContent');
+            const sidebar = document.getElementById('reportSidebar');
+            const hero = document.querySelector('.report-hero');
+            
+            if (themeName === 'dark') {
+              // Dark theme
+              if (container) container.style.background = '#0a0a0a';
+              if (body) {
+                body.style.background = '#0a0a0a';
+                body.style.color = 'rgba(255,255,255,0.9)';
+              }
+              if (mainContent) mainContent.style.color = 'rgba(255,255,255,0.9)';
+              if (sidebar) {
+                sidebar.style.background = '#0f0f0f';
+                sidebar.style.borderRight = '1px solid rgba(255,255,255,0.05)';
+              }
+              
+              // Update all text elements
+              const allText = document.querySelectorAll('p, li, h2, h3, h4, span');
+              allText.forEach(el => {
+                if (el.closest('.report-section')) {
+                  if (el.tagName === 'P' || el.tagName === 'LI') {
+                    el.style.color = 'rgba(255,255,255,0.7)';
+                  } else if (el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'H4') {
+                    el.style.color = 'rgba(255,255,255,0.95)';
+                  }
+                }
+              });
+              
+              // Update sidebar controls
+              const sidebarControls = sidebar?.querySelectorAll('button, .theme-value, .text-size-value');
+              sidebarControls?.forEach(el => {
+                if (el.classList.contains('theme-value') || el.classList.contains('text-size-value')) {
+                  el.style.color = 'rgba(255,255,255,0.9)';
+                } else if (el.tagName === 'BUTTON') {
+                  el.style.background = 'rgba(255,255,255,0.05)';
+                  el.style.borderColor = 'rgba(255,255,255,0.1)';
+                  el.style.color = 'rgba(255,255,255,0.7)';
+                }
+              });
+              
+            } else if (themeName === 'light') {
+              // Light theme
+              if (container) container.style.background = '#ffffff';
+              if (body) {
+                body.style.background = '#ffffff';
+                body.style.color = '#1a1a1a';
+              }
+              if (mainContent) mainContent.style.color = '#1a1a1a';
+              if (sidebar) {
+                sidebar.style.background = '#f5f5f5';
+                sidebar.style.borderRight = '1px solid rgba(0,0,0,0.1)';
+              }
+              
+              // Update all text elements
+              const allText = document.querySelectorAll('p, li, h2, h3, h4, span');
+              allText.forEach(el => {
+                if (el.closest('.report-section')) {
+                  if (el.tagName === 'P' || el.tagName === 'LI') {
+                    el.style.color = 'rgba(0,0,0,0.8)';
+                  } else if (el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'H4') {
+                    el.style.color = '#1a1a1a';
+                  }
+                }
+              });
+              
+              // Update sidebar controls
+              const sidebarControls = sidebar?.querySelectorAll('button, .theme-value, .text-size-value');
+              sidebarControls?.forEach(el => {
+                if (el.classList.contains('theme-value') || el.classList.contains('text-size-value')) {
+                  el.style.color = '#1a1a1a';
+                } else if (el.tagName === 'BUTTON') {
+                  el.style.background = 'rgba(0,0,0,0.05)';
+                  el.style.borderColor = 'rgba(0,0,0,0.1)';
+                  el.style.color = 'rgba(0,0,0,0.7)';
+                }
+              });
+              
+              // Update sidebar text
+              const sidebarText = sidebar?.querySelectorAll('div, a');
+              sidebarText?.forEach(el => {
+                if (el.style.color && el.style.color.includes('255,255,255')) {
+                  if (el.style.opacity === '0.5') {
+                    el.style.color = 'rgba(0,0,0,0.5)';
+                  } else if (el.style.color.includes('0.6')) {
+                    el.style.color = 'rgba(0,0,0,0.6)';
+                  } else if (el.style.color.includes('0.4')) {
+                    el.style.color = 'rgba(0,0,0,0.4)';
+                  } else {
+                    el.style.color = '#1a1a1a';
+                  }
+                }
+              });
+            }
+          };
+          
           const updateTheme = (index) => {
             currentThemeIndex = (index + themes.length) % themes.length;
-            valueDisplay.textContent = themes[currentThemeIndex];
-            // Theme switching logic can be added here if needed
+            const themeName = themes[currentThemeIndex];
+            valueDisplay.textContent = themeName;
+            applyTheme(themeName);
           };
 
           prevBtn.onmouseenter = () => prevBtn.style.background = 'rgba(255,255,255,0.08)';
@@ -436,6 +536,9 @@ export const ReportComponents = {
           nextBtn.onmouseenter = () => nextBtn.style.background = 'rgba(255,255,255,0.08)';
           nextBtn.onmouseleave = () => nextBtn.style.background = 'rgba(255,255,255,0.05)';
           nextBtn.onclick = () => updateTheme(currentThemeIndex + 1);
+          
+          // Apply dark theme by default
+          applyTheme('dark');
         }, 0);
 
         return control;
