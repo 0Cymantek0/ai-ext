@@ -49,22 +49,23 @@ async function navigateToUrlHandler(
   await chrome.tabs.update(tabId, { url: input.url });
 
   if (input.waitForLoad) {
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       const listener = (
         updatedTabId: number,
         changeInfo: any, // chrome.tabs.TabChangeInfo not available in @types/chrome
       ) => {
         if (updatedTabId === tabId && changeInfo.status === "complete") {
           chrome.tabs.onUpdated.removeListener(listener);
+          clearTimeout(timeoutId);
           resolve();
         }
       };
       chrome.tabs.onUpdated.addListener(listener);
       
       // Timeout after 30 seconds
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
+        reject(new Error("Page load timed out after 30 seconds"));
       }, 30000);
     });
   }

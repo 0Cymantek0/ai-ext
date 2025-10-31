@@ -185,6 +185,7 @@ export class AgentOrchestrator {
     toolName: string,
     input: any,
     stepNumber: number,
+    options: { skipApprovalCheck?: boolean } = {},
   ): Promise<ToolExecutionEvent> {
     const startTime = Date.now();
 
@@ -195,9 +196,9 @@ export class AgentOrchestrator {
         throw new Error(`Workflow not found: ${workflowId}`);
       }
 
-      // Check if tool requires human approval
+      // Check if tool requires human approval (unless skipping approval check)
       const tool = this.registry.getTool(toolName);
-      if (tool?.requiresHumanApproval) {
+      if (tool?.requiresHumanApproval && !options.skipApprovalCheck) {
         // Pause workflow and request approval
         this.registry.pauseWorkflow(workflowId);
         workflow.status = "paused";
@@ -373,11 +374,12 @@ export class AgentOrchestrator {
 
     this.pendingApprovals.delete(workflowId);
 
+    const workflow = this.workflows.get(workflowId);
+
     if (approved) {
       // Resume workflow
       this.registry.resumeWorkflow(workflowId);
 
-      const workflow = this.workflows.get(workflowId);
       if (workflow) {
         workflow.status = "running";
         workflow.message = "Approval granted, resuming...";
@@ -391,31 +393,33 @@ export class AgentOrchestrator {
 
       await this.sendWorkflowStatus(workflowId);
 
-      // Continue execution
+      // Continue execution, skipping approval check this time
       await this.executeTool(
         workflowId,
         approval.toolName,
         approval.input,
-        this.workflows.get(workflowId)?.currentStep || 0,
+        workflow?.currentStep ?? 0,
+        { skipApprovalCheck: true },
       );
-    } else {
-      // Cancel workflow
-      this.registry.cancelWorkflow(workflowId);
 
-      const workflow = this.workflows.get(workflowId);
-      if (workflow) {
-        workflow.status = "cancelled";
-        workflow.message = "User rejected approval";
-        workflow.lastUpdate = Date.now();
-      }
-
-      this.logger.info("AgentOrchestrator", "Tool execution rejected", {
-        workflowId,
-        toolName: approval.toolName,
-      });
-
-      await this.sendWorkflowStatus(workflowId);
+      return;
     }
+
+    // Cancel workflow
+    this.registry.cancelWorkflow(workflowId);
+
+    if (workflow) {
+      workflow.status = "cancelled";
+      workflow.message = "User rejected approval";
+      workflow.lastUpdate = Date.now();
+    }
+
+    this.logger.info("AgentOrchestrator", "Tool execution rejected", {
+      workflowId,
+      toolName: approval.toolName,
+    });
+
+    await this.sendWorkflowStatus(workflowId);
   }
 
   /**
