@@ -563,24 +563,31 @@ export async function removeCookie(
 
 /**
  * Check if specific permissions are granted
+ * Runs permission checks concurrently for better performance
  */
 export async function checkPermissions(
   permissions: string[],
 ): Promise<{ [key: string]: boolean }> {
-  const result: { [key: string]: boolean } = {};
-
-  for (const permission of permissions) {
+  const permissionChecks = permissions.map(async (permission) => {
     try {
       const hasPermission = await chrome.permissions.contains({
         permissions: [permission as chrome.runtime.ManifestPermissions],
       });
-      result[permission] = hasPermission;
+      return { permission, hasPermission };
     } catch {
-      result[permission] = false;
+      return { permission, hasPermission: false };
     }
-  }
+  });
 
-  return result;
+  const results = await Promise.all(permissionChecks);
+
+  return results.reduce(
+    (acc, { permission, hasPermission }) => {
+      acc[permission] = hasPermission;
+      return acc;
+    },
+    {} as { [key: string]: boolean },
+  );
 }
 
 /**

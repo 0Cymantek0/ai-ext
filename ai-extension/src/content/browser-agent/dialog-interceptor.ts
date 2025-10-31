@@ -2,6 +2,17 @@
  * Dialog Interceptor Content Script
  * Injects into MAIN world at document_start to override native dialog functions
  * and bridge them to the extension for workflow integration
+ *
+ * LIMITATION: window.confirm() and window.prompt() are synchronous functions
+ * that require immediate return values. This interceptor captures dialog events
+ * for logging and workflow tracking, but cannot block execution to wait for
+ * extension responses. The dialogs fall back to native browser behavior to
+ * maintain page functionality.
+ *
+ * window.alert() works correctly as it doesn't require a return value.
+ *
+ * For true dialog control, pages would need to use async alternatives or
+ * advanced techniques like SharedArrayBuffer-based blocking (complex).
  */
 
 // This script runs in MAIN world to intercept page dialogs
@@ -88,8 +99,12 @@
       timestamp: Date.now(),
     });
 
-    // Confirm dialogs require a synchronous boolean return
-    // We fall back to original behavior until extension can respond synchronously
+    // LIMITATION: Confirm dialogs require a synchronous boolean return.
+    // We cannot wait for the extension's async response without breaking
+    // the page's execution flow. We fall back to native behavior to maintain
+    // page functionality while capturing the event for logging/tracking.
+    // To suppress the native dialog, we would need to return a default value,
+    // but this would break page logic that expects user input.
     return originalConfirm.call(window, message);
   };
 
@@ -124,7 +139,10 @@
 
     bridgeDialogToExtension(dialogData);
 
-    // Prompt dialogs expect string/null return synchronously
+    // LIMITATION: Prompt dialogs expect string|null return synchronously.
+    // Same limitation as confirm - we cannot wait for async extension response.
+    // We fall back to native behavior to maintain page functionality while
+    // capturing the event for logging/tracking.
     return originalPrompt.call(window, message, defaultValue);
   };
 
