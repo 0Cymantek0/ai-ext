@@ -161,7 +161,7 @@ async function fetchVectorChunks(pocketId: string): Promise<VectorChunk[]> {
  */
 function openVectorDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("ai-pocket-db", 2);
+    const request = indexedDB.open("ai-pocket-db", 4);
 
     request.onsuccess = () => {
       resolve(request.result);
@@ -174,7 +174,11 @@ function openVectorDB(): Promise<IDBDatabase> {
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
 
-      // Create vectorChunks object store if it doesn't exist
+      // Note: This upgrade handler is minimal since the main database managers
+      // (IndexedDBManager and DatabaseManager) handle the full schema creation.
+      // This is only used for reading vector chunks during export.
+      
+      // Create vectorChunks object store if it doesn't exist (version 2)
       if (!db.objectStoreNames.contains("vectorChunks")) {
         const store = db.createObjectStore("vectorChunks", { keyPath: "id" });
         store.createIndex("pocketId", "pocketId", { unique: false });

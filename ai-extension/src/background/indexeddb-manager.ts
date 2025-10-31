@@ -14,16 +14,20 @@ import type {
 import type { FileArchiveDescriptor } from "./storage/tiered-storage-types.js";
 
 const DB_NAME = "ai-pocket-db";
-const DB_VERSION = 2; // Bumped for vectorChunks store
+const DB_VERSION = 4; // Synced with DatabaseManager to prevent version conflicts
 
 export enum StoreName {
   POCKETS = "pockets",
   CAPTURED_CONTENT = "capturedContent",
+  METADATA = "metadata",
   CONVERSATIONS = "conversations",
   AI_RESPONSES = "aiResponses",
   EMBEDDINGS = "embeddings",
-  VECTOR_CHUNKS = "vectorChunks", // New store for chunk-level RAG
+  VECTOR_CHUNKS = "vectorChunks",
+  SEARCH_INDEX = "searchIndex",
   SYNC_QUEUE = "syncQueue",
+  BROWSER_AGENT_WORKFLOWS = "browserAgentWorkflows",
+  BROWSER_AGENT_CHECKPOINTS = "browserAgentCheckpoints",
 }
 
 // Re-export types from shared types for backward compatibility
@@ -197,6 +201,8 @@ export class IndexedDBManager {
 
   private createSchema(db: IDBDatabase): void {
     logger.info("IndexedDBManager", "Creating schema", { version: DB_VERSION });
+
+    // Version 1: Baseline stores
     if (!db.objectStoreNames.contains(StoreName.POCKETS)) {
       const store = db.createObjectStore(StoreName.POCKETS, { keyPath: "id" });
       store.createIndex("name", "name", { unique: false });
@@ -244,6 +250,16 @@ export class IndexedDBManager {
       store.createIndex("model", "model", { unique: false });
       store.createIndex("createdAt", "createdAt", { unique: false });
     }
+    if (!db.objectStoreNames.contains(StoreName.SYNC_QUEUE)) {
+      const store = db.createObjectStore(StoreName.SYNC_QUEUE, {
+        keyPath: "id",
+      });
+      store.createIndex("timestamp", "timestamp", { unique: false });
+      store.createIndex("operation", "operation", { unique: false });
+      store.createIndex("storeName", "storeName", { unique: false });
+    }
+
+    // Version 2: Vector chunks for RAG
     if (!db.objectStoreNames.contains(StoreName.VECTOR_CHUNKS)) {
       const store = db.createObjectStore(StoreName.VECTOR_CHUNKS, {
         keyPath: "id",
@@ -255,14 +271,52 @@ export class IndexedDBManager {
       });
       store.createIndex("createdAt", "createdAt", { unique: false });
     }
-    if (!db.objectStoreNames.contains(StoreName.SYNC_QUEUE)) {
-      const store = db.createObjectStore(StoreName.SYNC_QUEUE, {
+
+    // Version 3: Metadata and search index stores
+    if (!db.objectStoreNames.contains(StoreName.METADATA)) {
+      const store = db.createObjectStore(StoreName.METADATA, {
+        keyPath: "contentId",
+      });
+      store.createIndex("pocketId", "pocketId", { unique: false });
+      store.createIndex("timestamp", "timestamp", { unique: false });
+      store.createIndex("updatedAt", "updatedAt", { unique: false });
+      store.createIndex("tags", "tags", { unique: false, multiEntry: true });
+      store.createIndex("category", "category", { unique: false });
+    }
+    if (!db.objectStoreNames.contains(StoreName.SEARCH_INDEX)) {
+      const store = db.createObjectStore(StoreName.SEARCH_INDEX, {
         keyPath: "id",
       });
-      store.createIndex("timestamp", "timestamp", { unique: false });
-      store.createIndex("operation", "operation", { unique: false });
-      store.createIndex("storeName", "storeName", { unique: false });
+      store.createIndex("contentId", "contentId", { unique: false });
+      store.createIndex("pocketId", "pocketId", { unique: false });
+      store.createIndex("term", "term", { unique: false });
+      store.createIndex("term_pocket", ["term", "pocketId"], { unique: false });
+      store.createIndex("contentId_term", ["contentId", "term"], { unique: true });
+      store.createIndex("weight", "weight", { unique: false });
     }
+
+    // Version 4: Browser agent workflow stores
+    if (!db.objectStoreNames.contains(StoreName.BROWSER_AGENT_WORKFLOWS)) {
+      const store = db.createObjectStore(StoreName.BROWSER_AGENT_WORKFLOWS, {
+        keyPath: "workflowId",
+      });
+      store.createIndex("status", "status", { unique: false });
+      store.createIndex("startTime", "startTime", { unique: false });
+      store.createIndex("lastUpdate", "lastUpdate", { unique: false });
+      store.createIndex("userId", "userId", { unique: false });
+    }
+    if (!db.objectStoreNames.contains(StoreName.BROWSER_AGENT_CHECKPOINTS)) {
+      const store = db.createObjectStore(StoreName.BROWSER_AGENT_CHECKPOINTS, {
+        keyPath: "checkpointId",
+      });
+      store.createIndex("workflowId", "workflowId", { unique: false });
+      store.createIndex("timestamp", "timestamp", { unique: false });
+      store.createIndex("step", "step", { unique: false });
+      store.createIndex("workflowId_timestamp", ["workflowId", "timestamp"], {
+        unique: false,
+      });
+    }
+
     logger.info("IndexedDBManager", "Schema created");
   }
   private async executeTransaction<T>(
@@ -621,8 +675,8 @@ export class IndexedDBManager {
         // Only add message if it doesn't already exist
         const updatedMessages = messageExists
           ? existing.messages.map((m: Message) =>
-              m.id === message.id ? message : m,
-            ) // Update existing message
+            m.id === message.id ? message : m,
+          ) // Update existing message
           : [...existing.messages, message]; // Add new message
 
         const updated: Conversation = {

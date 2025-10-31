@@ -108,6 +108,7 @@ import {
   IndexingOperation,
 } from "./vector-indexing-queue.js";
 import { registerFsAccessHandlers } from "./storage/fs-access-manager.js";
+import { MetadataQueueManager } from "./metadata-queue-manager.js";
 import { WorkflowManager } from "../browser-agent/workflow-manager.js";
 import { BrowserToolRegistry } from "../browser-agent/tool-registry.js";
 import { ALL_BROWSER_TOOLS } from "../browser-agent/tools/index.js";
@@ -2665,22 +2666,6 @@ messageRouter.registerHandler(
 );
 
 // Register content handlers (Requirement 2.6, 7.6)
-messageRouter.registerHandler("CONTENT_LIST", async (payload: any) => {
-  logger.info("Handler", "CONTENT_LIST", payload);
-  try {
-    await indexedDBManager.init();
-    const content = await indexedDBManager.getContentByPocket(payload.pocketId);
-    logger.info("Handler", "CONTENT_LIST result", {
-      pocketId: payload.pocketId,
-      count: content.length,
-    });
-    return { content };
-  } catch (error) {
-    logger.error("Handler", "CONTENT_LIST error", error);
-    throw error;
-  }
-});
-
 messageRouter.registerHandler("CONTENT_GET", async (payload: any) => {
   logger.info("Handler", "CONTENT_GET", payload);
   try {
@@ -2903,23 +2888,16 @@ const cloudAIManager = new CloudAIManager();
 const streamingHandler = getStreamingHandler(aiManager, cloudAIManager);
 
 // Initialize metadata queue manager for background metadata generation
-let metadataQueueManager:
-  | import("./metadata-queue-manager.js").MetadataQueueManager
-  | null = null;
+let metadataQueueManager: MetadataQueueManager | null = null;
 
 // Initialize metadata queue manager after a short delay to avoid blocking startup
-setTimeout(async () => {
+setTimeout(() => {
   try {
     logger.info("ServiceWorker", "Initializing metadata queue manager...");
 
     if (!aiManager) {
       throw new Error("AIManager not available for metadata queue manager");
     }
-
-    const { MetadataQueueManager } = await import(
-      "./metadata-queue-manager.js"
-    );
-    logger.info("ServiceWorker", "MetadataQueueManager module loaded");
 
     metadataQueueManager = new MetadataQueueManager(aiManager);
     logger.info("ServiceWorker", "MetadataQueueManager instance created");
