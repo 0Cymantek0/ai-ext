@@ -361,19 +361,31 @@ Example format:
    * PHASE 2: Generate detailed report content following the plan
    */
   private async generateReportContent(plan: any, analysisData: string, contents: CapturedContent[], pocketName?: string): Promise<ReportData> {
-    const prompt = `Create detailed content for this report following the structure plan:
+    const prompt = `You are writing the ACTUAL CONTENT for a professional report. Analyze the data provided and write real, substantive content - NOT descriptions of what should be written.
 
 PLAN:
 ${JSON.stringify(plan, null, 2)}
 
-DATA:
+DATA TO ANALYZE:
 ${analysisData}
 
+CRITICAL INSTRUCTIONS:
+1. Write ACTUAL analysis, insights, and findings based on the data
+2. DO NOT write meta-descriptions like "Report purpose and scope..." or "Overview of the collection..."
+3. Instead, write the actual content: "This collection contains X items focused on Y topics..."
+4. Use specific numbers, statistics, and examples from the data
+5. Each text paragraph should be 2-4 sentences of actual analysis
+
+WRONG (meta-description):
+"Report purpose and scope. Overview of the collection's primary focus (LSTM networks). Key findings regarding content types and themes."
+
+RIGHT (actual content):
+"This collection contains 47 items primarily focused on LSTM neural networks and deep learning architectures. The content spans from foundational tutorials to advanced research papers, with 65% being technical articles and 35% code examples. Key themes include sequence modeling, natural language processing, and time series prediction."
+
 For each section in the plan, generate:
-- Detailed text content (paragraphs, insights, analysis)
-- Specific data for charts (with labels and values)
-- Key findings as bullet points
-- Any relevant statistics
+- Text paragraphs with ACTUAL analysis and insights (not descriptions)
+- Lists with SPECIFIC findings from the data
+- Use real numbers and statistics from the provided data
 
 CRITICAL RULES:
 - Return ONLY valid JSON
@@ -387,9 +399,8 @@ Example format:
     {
       "title": "Section Title",
       "content": [
-        { "type": "text", "data": { "content": "paragraph text" } },
-        { "type": "abstract", "data": { "title": "Key Point", "content": "summary" } },
-        { "type": "list", "data": { "items": ["item1", "item2"] } }
+        { "type": "text", "data": { "content": "This collection contains 47 items with a primary focus on machine learning. The content was captured over a 3-month period, showing consistent interest in neural network architectures." } },
+        { "type": "list", "data": { "items": ["65% of content is technical documentation", "Most common tags: python, tensorflow, keras", "Average content length: 2,500 words"] } }
       ]
     }
   ]
@@ -587,7 +598,7 @@ The image should be:
             {
               type: "text",
               data: {
-                content: `${planSection.topics?.join(', ') || 'Content analysis and insights'}.`
+                content: `This section covers ${planSection.topics?.join(', ') || 'content analysis and insights'}. The AI content generation encountered an issue. Please try regenerating the report for detailed analysis.`
               }
             }
           ]
@@ -603,7 +614,7 @@ The image should be:
           {
             type: "text",
             data: {
-              content: "Report content generation encountered an issue. Please try generating the report again."
+              content: "Report content generation encountered an issue. Please try generating the report again to see detailed analysis and insights."
             }
           }
         ]
