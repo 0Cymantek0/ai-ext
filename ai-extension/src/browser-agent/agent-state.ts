@@ -189,7 +189,7 @@ export class LangGraphStateManager {
       }
       
       const result = await context.toolRegistry.execute(
-        "navigate",
+        "navigate_to_url",
         { url: targetUrl, waitForLoad: true },
         {
           workflowId: state.workflowId,
@@ -206,6 +206,7 @@ export class LangGraphStateManager {
       
       return {
         currentUrl: targetUrl,
+        targetUrl,
         variables: {
           ...state.variables,
           navigationResult: result.data,
@@ -218,8 +219,8 @@ export class LangGraphStateManager {
       const { selector } = state.variables;
       
       const result = await context.toolRegistry.execute(
-        "extractDOM",
-        { selector: selector || "body", includeMetadata: true },
+        "extract_page_content",
+        { selector: selector as string | undefined || undefined, sanitize: true },
         {
           workflowId: state.workflowId,
           stepNumber: state.completedSteps.length + 1,
@@ -247,15 +248,40 @@ export class LangGraphStateManager {
       const { interactions } = state.variables;
       
       if (!Array.isArray(interactions)) {
-        throw new Error("Interact step requires 'interactions' array variable");
+        // If no interactions array, skip this step
+        return {
+          interactionResults: [],
+          variables: {
+            ...state.variables,
+            interactionResults: [],
+          },
+        };
       }
       
       const results: unknown[] = [];
       
       for (const interaction of interactions) {
+        const { type, ...params } = interaction as any;
+        let toolName: string;
+        
+        // Map interaction type to tool name
+        switch (type) {
+          case "click":
+            toolName = "click_element";
+            break;
+          case "type":
+            toolName = "type_text";
+            break;
+          case "scroll":
+            toolName = "scroll_to_element";
+            break;
+          default:
+            throw new Error(`Unknown interaction type: ${type}`);
+        }
+        
         const result = await context.toolRegistry.execute(
-          "interact",
-          interaction,
+          toolName,
+          params,
           {
             workflowId: state.workflowId,
             stepNumber: state.completedSteps.length + 1,
