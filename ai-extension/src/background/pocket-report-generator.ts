@@ -91,7 +91,7 @@ export class PocketReportGenerator {
 
       // PHASE 2: Generate detailed content following the plan
       logger.info("PocketReport", "Phase 2: Generating report content", "");
-      const reportData = await this.generateReportContent(reportPlan, analysisData, contents);
+      const reportData = await this.generateReportContent(reportPlan, analysisData, contents, pockets[0]?.name);
       logger.info("PocketReport", "Report content generated", "");
 
       // Generate hero background image (optional - gracefully handle failures)
@@ -360,7 +360,7 @@ Example format:
   /**
    * PHASE 2: Generate detailed report content following the plan
    */
-  private async generateReportContent(plan: any, analysisData: string, contents: CapturedContent[]): Promise<ReportData> {
+  private async generateReportContent(plan: any, analysisData: string, contents: CapturedContent[], pocketName?: string): Promise<ReportData> {
     const prompt = `Create detailed content for this report following the structure plan:
 
 PLAN:
@@ -446,7 +446,7 @@ Example format:
       // Build complete report structure
       const reportData: ReportData = {
         hero: {
-          ...(contents[0]?.pocketId && { pocketName: "Pocket Collection" }),
+          ...(pocketName && { pocketName: pocketName }),
           title: plan.title || "Content Analysis Report",
           subtitle: plan.subtitle || "Comprehensive insights from your saved content"
         },
@@ -587,7 +587,7 @@ The image should be:
             {
               type: "text",
               data: {
-                content: `This section covers: ${planSection.topics?.join(', ') || 'various topics'}.`
+                content: `${planSection.topics?.join(', ') || 'Content analysis and insights'}.`
               }
             }
           ]

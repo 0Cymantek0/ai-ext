@@ -10,10 +10,11 @@ export const ReportComponents = {
       const hero = document.createElement('div');
       hero.className = 'report-hero report-hero-responsive';
 
-      // Background with subtle overlay to keep image visible
+      // Background with dark overlay for good text contrast
+      const randomImageUrl = `https://picsum.photos/1920/500?random=${Date.now()}`;
       const backgroundStyle = data.backgroundImage
-        ? `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url('${data.backgroundImage}')`
-        : 'linear-gradient(135deg, #1a2332 0%, #0f1419 100%)';
+        ? `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)), url('${data.backgroundImage}')`
+        : `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)), url('${randomImageUrl}')`;
 
       hero.style.cssText = `
         position: relative;
@@ -158,9 +159,13 @@ export const ReportComponents = {
           font-weight: 700;
           margin: 0 0 24px 0;
           line-height: 1.1;
-          max-width: 900px;
+          max-width: 75%;
           letter-spacing: -0.01em;
           text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         `;
         title.textContent = text;
         return title;
@@ -174,10 +179,14 @@ export const ReportComponents = {
           font-size: 16px;
           line-height: 1.7;
           margin: 0;
-          max-width: 800px;
+          max-width: 75%;
           opacity: 0.9;
           color: rgba(255,255,255,0.95);
           text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         `;
         subtitle.textContent = text;
         return subtitle;
