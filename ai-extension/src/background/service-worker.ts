@@ -2160,7 +2160,7 @@ messageRouter.registerHandler("VISION_CAPTURE_FOR_ANALYSIS", async (payload: any
     senderTabId: sender?.tab?.id,
   });
 
-  if (!visionManager || !visionManager.isAvailable()) {
+  if (!visionManager || !(await visionManager.isAvailable())) {
     return {
       success: false,
       error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
@@ -2211,7 +2211,7 @@ messageRouter.registerHandler("VISION_ANALYZE_SCREENSHOT", async (payload: any, 
     senderTabId: sender?.tab?.id,
   });
 
-  if (!visionManager || !visionManager.isAvailable()) {
+  if (!visionManager || !(await visionManager.isAvailable())) {
     return {
       success: false,
       error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
@@ -2260,7 +2260,7 @@ messageRouter.registerHandler("VISION_DETECT_PAGE_STATE", async (payload: any, s
     senderTabId: sender?.tab?.id,
   });
 
-  if (!visionManager || !visionManager.isAvailable()) {
+  if (!visionManager || !(await visionManager.isAvailable())) {
     return {
       success: false,
       error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
@@ -2309,7 +2309,7 @@ messageRouter.registerHandler("VISION_FIND_ELEMENT", async (payload: any, sender
     senderTabId: sender?.tab?.id,
   });
 
-  if (!visionManager || !visionManager.isAvailable()) {
+  if (!visionManager || !(await visionManager.isAvailable())) {
     return {
       success: false,
       error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",

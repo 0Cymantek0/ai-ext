@@ -41,8 +41,8 @@ async function captureForVisionHandler(
   }> | undefined;
 }> {
   const visionManager = getVisionManager();
-  
-  if (!visionManager || !visionManager.isAvailable()) {
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
     throw new Error("Vision features are not available. Please enable and configure API key.");
   }
 
@@ -109,8 +109,8 @@ async function analyzeScreenshotHandler(
   cost?: number;
 }> {
   const visionManager = getVisionManager();
-  
-  if (!visionManager || !visionManager.isAvailable()) {
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
     throw new Error("Vision features are not available. Please enable and configure API key.");
   }
 
@@ -156,8 +156,8 @@ async function detectPageStateHandler(
   requiresHumanIntervention: boolean;
 }> {
   const visionManager = getVisionManager();
-  
-  if (!visionManager || !visionManager.isAvailable()) {
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
     throw new Error("Vision features are not available. Please enable and configure API key.");
   }
 
@@ -208,8 +208,8 @@ async function findElementByVisionHandler(
   confidence: number;
 } | null> {
   const visionManager = getVisionManager();
-  
-  if (!visionManager || !visionManager.isAvailable()) {
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
     throw new Error("Vision features are not available. Please enable and configure API key.");
   }
 

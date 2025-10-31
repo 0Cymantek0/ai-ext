@@ -105,7 +105,7 @@ describe("VisionManager", () => {
       manager = new VisionManager(logger, { apiKey: testApiKey, enabled: true });
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(manager.isAvailable()).toBe(true);
+      await expect(manager.isAvailable()).resolves.toBe(true);
       expect(logger.info).toHaveBeenCalledWith(
         "VisionManager",
         expect.stringContaining("initialized"),
@@ -117,7 +117,7 @@ describe("VisionManager", () => {
       manager = new VisionManager(logger);
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(manager.isAvailable()).toBe(false);
+      await expect(manager.isAvailable()).resolves.toBe(false);
     });
   });
 

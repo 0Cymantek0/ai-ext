@@ -101,6 +101,7 @@ export function extractElementMappings(): ElementMapping[] {
 
 /**
  * Generate a unique CSS selector for an element
+ * Prioritizes stable attributes for reliability
  */
 function generateSelector(element: Element): string {
   // If element has an ID, use it
@@ -108,32 +109,40 @@ function generateSelector(element: Element): string {
     return `#${CSS.escape(element.id)}`;
   }
 
-  // Build path from root
+  // Prioritize stable test attributes
+  const testId = element.getAttribute("data-testid");
+  if (testId) {
+    return `[data-testid="${CSS.escape(testId)}"]`;
+  }
+
+  const dataTest = element.getAttribute("data-test");
+  if (dataTest) {
+    return `[data-test="${CSS.escape(dataTest)}"]`;
+  }
+
+  const name = element.getAttribute("name");
+  if (name) {
+    const tagName = element.tagName.toLowerCase();
+    return `${tagName}[name="${CSS.escape(name)}"]`;
+  }
+
+  // Build path from root using nth-of-type for better stability
   const path: string[] = [];
   let current: Element | null = element;
 
-  while (current && current !== document.body && current !== document.documentElement) {
-    let selector = current.tagName.toLowerCase();
+  while (current && current.parentElement && current !== document.body && current !== document.documentElement) {
+    const tagName = current.tagName.toLowerCase();
+    const siblings = Array.from(current.parentElement.children);
+    const sameTagSiblings = siblings.filter(
+      (sibling) => sibling.tagName.toLowerCase() === tagName
+    );
 
-    // Add class if available
-    if (current.className && typeof current.className === "string") {
-      const classes = current.className
-        .split(/\s+/)
-        .filter((c) => c.length > 0)
-        .map((c) => CSS.escape(c))
-        .join(".");
-      if (classes) {
-        selector += `.${classes}`;
-      }
-    }
+    let selector = tagName;
 
-    // Add nth-child if needed
-    if (current.parentElement) {
-      const siblings = Array.from(current.parentElement.children);
-      const index = siblings.indexOf(current);
-      if (siblings.length > 1) {
-        selector += `:nth-child(${index + 1})`;
-      }
+    // Use nth-of-type instead of nth-child for more stable selectors
+    if (sameTagSiblings.length > 1) {
+      const index = sameTagSiblings.indexOf(current);
+      selector += `:nth-of-type(${index + 1})`;
     }
 
     path.unshift(selector);
