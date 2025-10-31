@@ -766,7 +766,11 @@ Respond ONLY with JSON in the form {"index": number, "confidence": number, "reas
   private dataUrlToBlob(dataUrl: string): Blob {
     const { mimeType, base64Data } = this.extractImageData(dataUrl);
     const bytes = base64ToUint8Array(base64Data);
-    return new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)], {
+    // Create a new ArrayBuffer to avoid SharedArrayBuffer issues
+    const buffer = new ArrayBuffer(bytes.byteLength);
+    const view = new Uint8Array(buffer);
+    view.set(bytes);
+    return new Blob([buffer], {
       type: mimeType,
     });
   }

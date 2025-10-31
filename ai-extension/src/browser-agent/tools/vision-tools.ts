@@ -103,10 +103,10 @@ async function analyzeScreenshotHandler(
 ): Promise<{
   text: string;
   model: string;
-  tokensUsed?: number;
+  tokensUsed?: number | undefined;
   processingTimeMs: number;
   fromCache: boolean;
-  cost?: number;
+  cost?: number | undefined;
 }> {
   const visionManager = getVisionManager();
 
@@ -120,7 +120,14 @@ async function analyzeScreenshotHandler(
     useCache: input.useCache,
   });
 
-  return result;
+  return {
+    text: result.text,
+    model: result.model,
+    tokensUsed: result.tokensUsed,
+    processingTimeMs: result.processingTimeMs,
+    fromCache: result.fromCache,
+    cost: result.cost,
+  };
 }
 
 export const analyzeScreenshotTool: BrowserToolDefinition = {
