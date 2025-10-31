@@ -97,7 +97,9 @@ class DialogQueueManager {
           id: dialog.id,
           type: dialog.type,
           accepted: true,
-          value: dialog.type === "prompt" ? dialog.defaultValue || "" : undefined,
+          ...(dialog.type === "prompt" && dialog.defaultValue
+            ? { value: dialog.defaultValue }
+            : {}),
         };
         this.resolveDialog(dialog.id, response);
       }
@@ -157,7 +159,9 @@ class DialogQueueManager {
       case "confirm":
         return this.config.autoAcceptConfirms;
       case "prompt":
-        return this.config.autoAcceptPromptsWithDefault && !!dialog.defaultValue;
+        return (
+          this.config.autoAcceptPromptsWithDefault && !!dialog.defaultValue
+        );
       default:
         return false;
     }
@@ -252,7 +256,9 @@ class FileUploadManager {
    * Get all pending file upload requests
    */
   getPendingRequests(): FileUploadRequest[] {
-    return Array.from(this.pendingRequests.values()).map((item) => item.request);
+    return Array.from(this.pendingRequests.values()).map(
+      (item) => item.request,
+    );
   }
 
   /**
@@ -298,8 +304,10 @@ export async function handleAlert(
     type: "alert",
     message,
     timestamp: Date.now(),
-    tabId: options?.tabId,
-    workflowId: options?.workflowId,
+    ...(options?.tabId !== undefined ? { tabId: options.tabId } : {}),
+    ...(options?.workflowId !== undefined
+      ? { workflowId: options.workflowId }
+      : {}),
   };
 
   await dialogQueueManager.enqueue(dialog);
@@ -318,8 +326,10 @@ export async function handleConfirm(
     type: "confirm",
     message,
     timestamp: Date.now(),
-    tabId: options?.tabId,
-    workflowId: options?.workflowId,
+    ...(options?.tabId !== undefined ? { tabId: options.tabId } : {}),
+    ...(options?.workflowId !== undefined
+      ? { workflowId: options.workflowId }
+      : {}),
   };
 
   const response = await dialogQueueManager.enqueue(dialog);
@@ -339,10 +349,12 @@ export async function handlePrompt(
     id: dialogId,
     type: "prompt",
     message,
-    defaultValue,
     timestamp: Date.now(),
-    tabId: options?.tabId,
-    workflowId: options?.workflowId,
+    ...(defaultValue !== undefined ? { defaultValue } : {}),
+    ...(options?.tabId !== undefined ? { tabId: options.tabId } : {}),
+    ...(options?.workflowId !== undefined
+      ? { workflowId: options.workflowId }
+      : {}),
   };
 
   const response = await dialogQueueManager.enqueue(dialog);
@@ -352,7 +364,10 @@ export async function handlePrompt(
 /**
  * Resolve a pending dialog
  */
-export function resolveDialog(dialogId: string, response: DialogResponse): boolean {
+export function resolveDialog(
+  dialogId: string,
+  response: DialogResponse,
+): boolean {
   return dialogQueueManager.resolveDialog(dialogId, response);
 }
 
@@ -404,12 +419,18 @@ export async function requestFileUpload(
   const requestId = crypto.randomUUID();
   const request: FileUploadRequest = {
     id: requestId,
-    elementSelector: options?.elementSelector,
-    acceptedTypes: options?.acceptedTypes,
     message,
     timestamp: Date.now(),
-    tabId: options?.tabId,
-    workflowId: options?.workflowId,
+    ...(options?.elementSelector !== undefined
+      ? { elementSelector: options.elementSelector }
+      : {}),
+    ...(options?.acceptedTypes !== undefined
+      ? { acceptedTypes: options.acceptedTypes }
+      : {}),
+    ...(options?.tabId !== undefined ? { tabId: options.tabId } : {}),
+    ...(options?.workflowId !== undefined
+      ? { workflowId: options.workflowId }
+      : {}),
   };
 
   return fileUploadManager.requestFileUpload(request);
@@ -418,7 +439,10 @@ export async function requestFileUpload(
 /**
  * Resolve file upload request
  */
-export function resolveFileUpload(requestId: string, filePath: string): boolean {
+export function resolveFileUpload(
+  requestId: string,
+  filePath: string,
+): boolean {
   return fileUploadManager.resolveFileUpload(requestId, filePath);
 }
 
@@ -449,7 +473,9 @@ export async function downloadRemoteFile(
 /**
  * Get cookies matching the provided filter
  */
-export async function getCookies(options: CookieOptions = {}): Promise<chrome.cookies.Cookie[]> {
+export async function getCookies(
+  options: CookieOptions = {},
+): Promise<chrome.cookies.Cookie[]> {
   try {
     const details: chrome.cookies.GetAllDetails = {};
 
@@ -474,7 +500,9 @@ export async function getCookies(options: CookieOptions = {}): Promise<chrome.co
 /**
  * Set a cookie with the provided options
  */
-export async function setCookie(options: SetCookieOptions): Promise<chrome.cookies.Cookie> {
+export async function setCookie(
+  options: SetCookieOptions,
+): Promise<chrome.cookies.Cookie> {
   try {
     const details: chrome.cookies.SetDetails = {
       url: options.url,
@@ -512,14 +540,13 @@ export async function removeCookie(
   url: string,
   name: string,
   storeId?: string,
-): Promise<chrome.cookies.Details | null> {
+): Promise<chrome.cookies.CookieDetails | null> {
   try {
-    const details: chrome.cookies.Details = {
+    const details = {
       url,
       name,
+      ...(storeId !== undefined ? { storeId } : {}),
     };
-
-    if (storeId) details.storeId = storeId;
 
     const result = await chrome.cookies.remove(details);
     return result;
@@ -545,10 +572,10 @@ export async function checkPermissions(
   for (const permission of permissions) {
     try {
       const hasPermission = await chrome.permissions.contains({
-        permissions: [permission],
+        permissions: [permission as chrome.runtime.ManifestPermissions],
       });
       result[permission] = hasPermission;
-    } catch (error) {
+    } catch {
       result[permission] = false;
     }
   }
@@ -559,10 +586,12 @@ export async function checkPermissions(
 /**
  * Request additional permissions from user
  */
-export async function requestPermissions(permissions: string[]): Promise<boolean> {
+export async function requestPermissions(
+  permissions: string[],
+): Promise<boolean> {
   try {
     const granted = await chrome.permissions.request({
-      permissions,
+      permissions: permissions as chrome.runtime.ManifestPermissions[],
     });
     return granted;
   } catch (error) {

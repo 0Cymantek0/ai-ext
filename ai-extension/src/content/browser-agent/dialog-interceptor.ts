@@ -44,13 +44,16 @@
         });
       } catch (error) {
         // If runtime messaging fails, keep interceptors active but log
-        console.warn("AI Pocket dialog interceptor failed to bridge event", error);
+        console.warn(
+          "AI Pocket dialog interceptor failed to bridge event",
+          error,
+        );
       }
     }
   }
 
   // Override window.alert
-  window.alert = function (message?: any): void {
+  window.alert = function (message?: unknown): void {
     if (!interceptorsActive) {
       return originalAlert.call(window, message);
     }
@@ -70,7 +73,7 @@
   };
 
   // Override window.confirm
-  window.confirm = function (message?: any): boolean {
+  window.confirm = function (message?: unknown): boolean {
     if (!interceptorsActive) {
       return originalConfirm.call(window, message);
     }
@@ -91,22 +94,35 @@
   };
 
   // Override window.prompt
-  window.prompt = function (message?: any, defaultValue?: any): string | null {
+  window.prompt = function (
+    message?: unknown,
+    defaultValue?: unknown,
+  ): string | null {
     if (!interceptorsActive) {
       return originalPrompt.call(window, message, defaultValue);
     }
 
     const dialogId = crypto.randomUUID();
     const messageStr = String(message ?? "");
-    const defaultStr = defaultValue !== undefined ? String(defaultValue) : undefined;
 
-    bridgeDialogToExtension({
+    const dialogData: {
+      id: string;
+      type: "prompt";
+      message: string;
+      timestamp: number;
+      defaultValue?: string;
+    } = {
       id: dialogId,
       type: "prompt",
       message: messageStr,
-      defaultValue: defaultStr,
       timestamp: Date.now(),
-    });
+    };
+
+    if (defaultValue !== undefined) {
+      dialogData.defaultValue = String(defaultValue);
+    }
+
+    bridgeDialogToExtension(dialogData);
 
     // Prompt dialogs expect string/null return synchronously
     return originalPrompt.call(window, message, defaultValue);
