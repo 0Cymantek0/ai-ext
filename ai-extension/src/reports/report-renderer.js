@@ -18,7 +18,7 @@ export class ReportRenderer {
     // Clear container
     this.container.innerHTML = '';
     this.container.style.cssText = `
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #0a0a0a;
       min-height: 100vh;
       color: rgba(255,255,255,0.9);
