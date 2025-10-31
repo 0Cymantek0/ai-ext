@@ -13,8 +13,8 @@ export const ReportComponents = {
       // Background with dark overlay for good text contrast
       const randomImageUrl = `https://picsum.photos/1920/500?random=${Date.now()}`;
       const backgroundStyle = data.backgroundImage
-        ? `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)), url('${data.backgroundImage}')`
-        : `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)), url('${randomImageUrl}')`;
+        ? `linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.85)), url('${data.backgroundImage}')`
+        : `linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.85)), url('${randomImageUrl}')`;
 
       hero.style.cssText = `
         position: relative;
