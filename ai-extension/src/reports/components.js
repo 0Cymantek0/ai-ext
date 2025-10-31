@@ -194,16 +194,16 @@ export const ReportComponents = {
       sidebar.className = 'report-sidebar';
       sidebar.id = 'reportSidebar';
       sidebar.style.cssText = `
-        position: fixed;
+        position: absolute;
         left: 0;
         top: 500px;
         width: 280px;
-        height: calc(100vh - 500px);
+        min-height: calc(100vh - 500px);
         background: #0f0f0f;
         color: white;
         padding: 24px;
         overflow-y: auto;
-        transition: transform 0.3s ease, top 0.3s ease;
+        transition: transform 0.3s ease;
         z-index: 1000;
         border-right: 1px solid rgba(255,255,255,0.05);
       `;
@@ -282,7 +282,7 @@ export const ReportComponents = {
       expandBtn.id = 'sidebarExpandBtn';
       expandBtn.innerHTML = '☰';
       expandBtn.style.cssText = `
-        position: fixed;
+        position: absolute;
         left: 20px;
         top: 520px;
         width: 48px;
