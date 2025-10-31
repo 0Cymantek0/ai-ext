@@ -8,66 +8,42 @@ export const ReportComponents = {
   hero: {
     render(data) {
       const hero = document.createElement('div');
-      hero.className = 'report-hero';
+      hero.className = 'report-hero report-hero-responsive';
 
-      // Use black background if no image provided
+      // Background with subtle overlay to keep image visible
       const backgroundStyle = data.backgroundImage
-        ? `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url('${data.backgroundImage}')`
-        : '#0a0a0a';
+        ? `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url('${data.backgroundImage}')`
+        : 'linear-gradient(135deg, #1a2332 0%, #0f1419 100%)';
 
       hero.style.cssText = `
         position: relative;
-        min-height: 450px;
+        min-height: 500px;
         background: ${backgroundStyle};
         background-size: cover;
         background-position: center;
         color: white;
-        padding: 80px 60px 60px 60px;
+        padding: 60px;
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
-        margin-left: 280px;
+        justify-content: space-between;
+        margin-left: 0;
+        width: 100%;
         transition: margin-left 0.3s ease;
       `;
-      
-      // Add dark gradient overlay
-      const gradientOverlay = document.createElement('div');
-      gradientOverlay.style.cssText = `
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(0,20,40,0.95) 0%, rgba(0,10,30,0.85) 100%);
-        z-index: 0;
-      `;
-      hero.appendChild(gradientOverlay);
-      
-      // Content wrapper
-      const contentWrapper = document.createElement('div');
-      contentWrapper.style.cssText = `
-        position: relative;
-        z-index: 1;
-        display: flex;
-        flex-direction: column;
-      `;
-      
-      // Add responsive class
-      hero.classList.add('report-hero-responsive');
 
       // Top bar with pocket name and download button
       const topBar = document.createElement('div');
       topBar.style.cssText = `
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 40px;
+        align-items: flex-start;
+        margin-bottom: auto;
       `;
 
       if (data.pocketName) {
         topBar.appendChild(this.pocketBadge.render(data.pocketName));
       } else {
-        topBar.appendChild(document.createElement('div')); // Spacer
+        topBar.appendChild(document.createElement('div'));
       }
 
       // Download button
@@ -75,14 +51,14 @@ export const ReportComponents = {
       downloadBtn.innerHTML = '⬇';
       downloadBtn.title = 'Download Report as PDF';
       downloadBtn.style.cssText = `
-        width: 48px;
-        height: 48px;
-        background: rgba(255,255,255,0.1);
+        width: 56px;
+        height: 56px;
+        background: rgba(255,255,255,0.15);
         backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
         border-radius: 50%;
         color: white;
-        font-size: 20px;
+        font-size: 24px;
         cursor: pointer;
         transition: all 0.2s;
         display: flex;
@@ -90,32 +66,28 @@ export const ReportComponents = {
         justify-content: center;
       `;
       downloadBtn.onmouseenter = () => {
-        downloadBtn.style.background = 'rgba(255,255,255,0.15)';
+        downloadBtn.style.background = 'rgba(255,255,255,0.25)';
         downloadBtn.style.transform = 'scale(1.05)';
       };
       downloadBtn.onmouseleave = () => {
-        downloadBtn.style.background = 'rgba(255,255,255,0.1)';
+        downloadBtn.style.background = 'rgba(255,255,255,0.15)';
         downloadBtn.style.transform = 'scale(1)';
       };
-      downloadBtn.onclick = async () => {
-        // Hide sidebar and expand button before printing
+      downloadBtn.onclick = () => {
         const sidebar = document.getElementById('reportSidebar');
         const expandBtn = document.getElementById('sidebarExpandBtn');
         const mainContent = document.getElementById('reportMainContent');
-        const hero = document.querySelector('.report-hero');
+        const heroEl = document.querySelector('.report-hero');
         
-        const sidebarDisplay = sidebar ? sidebar.style.display : '';
-        const expandBtnDisplay = expandBtn ? expandBtn.style.display : '';
-        const mainMargin = mainContent ? mainContent.style.marginLeft : '';
-        const heroMargin = hero ? hero.style.marginLeft : '';
+        const sidebarDisplay = sidebar?.style.display || '';
+        const expandBtnDisplay = expandBtn?.style.display || '';
+        const mainMargin = mainContent?.style.marginLeft || '';
+        const heroMargin = heroEl?.style.marginLeft || '';
         
-        // Hide sidebar elements for PDF
         if (sidebar) sidebar.style.display = 'none';
         if (expandBtn) expandBtn.style.display = 'none';
         if (mainContent) mainContent.style.marginLeft = '0';
-        if (hero) hero.style.marginLeft = '0';
         
-        // Add print styles
         const printStyle = document.createElement('style');
         printStyle.id = 'print-styles';
         printStyle.textContent = `
@@ -124,38 +96,36 @@ export const ReportComponents = {
             .report-sidebar { display: none !important; }
             #sidebarExpandBtn { display: none !important; }
             #reportMainContent { margin-left: 0 !important; }
-            .report-hero { margin-left: 0 !important; }
           }
         `;
         document.head.appendChild(printStyle);
         
-        // Trigger print dialog (which allows saving as PDF)
         setTimeout(() => {
           window.print();
-          
-          // Restore original state after print dialog closes
           setTimeout(() => {
             if (sidebar) sidebar.style.display = sidebarDisplay;
             if (expandBtn) expandBtn.style.display = expandBtnDisplay;
             if (mainContent) mainContent.style.marginLeft = mainMargin;
-            if (hero) hero.style.marginLeft = heroMargin;
-            
             const printStyleEl = document.getElementById('print-styles');
             if (printStyleEl) printStyleEl.remove();
           }, 100);
         }, 100);
       };
       topBar.appendChild(downloadBtn);
-      contentWrapper.appendChild(topBar);
+      hero.appendChild(topBar);
 
+      // Content section at bottom
+      const contentSection = document.createElement('div');
+      contentSection.style.cssText = 'margin-top: auto;';
+      
       if (data.title) {
-        contentWrapper.appendChild(this.title.render(data.title));
+        contentSection.appendChild(this.title.render(data.title));
       }
       if (data.subtitle) {
-        contentWrapper.appendChild(this.subtitle.render(data.subtitle));
+        contentSection.appendChild(this.subtitle.render(data.subtitle));
       }
 
-      hero.appendChild(contentWrapper);
+      hero.appendChild(contentSection);
       return hero;
     },
 
@@ -166,17 +136,18 @@ export const ReportComponents = {
         badge.style.cssText = `
           display: inline-flex;
           align-items: center;
-          gap: 10px;
-          background: rgba(255,255,255,0.15);
+          gap: 12px;
+          background: rgba(255,255,255,0.95);
           backdrop-filter: blur(10px);
-          padding: 10px 20px;
-          border-radius: 24px;
-          font-size: 14px;
-          margin-bottom: 24px;
+          padding: 14px 28px;
+          border-radius: 30px;
+          font-size: 16px;
+          font-weight: 500;
+          color: #1a1a1a;
           width: fit-content;
-          border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         `;
-        badge.innerHTML = `<span style="font-size: 16px;">📁</span><span>${name}</span>`;
+        badge.innerHTML = `<span style="font-size: 18px;">📁</span><span>pocket name</span>`;
         return badge;
       }
     },
@@ -185,12 +156,13 @@ export const ReportComponents = {
       render(text) {
         const title = document.createElement('h1');
         title.style.cssText = `
-          font-size: 56px;
+          font-size: 64px;
           font-weight: 700;
-          margin: 0 0 20px 0;
+          margin: 0 0 24px 0;
           line-height: 1.1;
           max-width: 900px;
-          letter-spacing: -0.02em;
+          letter-spacing: -0.01em;
+          text-shadow: 0 2px 8px rgba(0,0,0,0.3);
         `;
         title.textContent = text;
         return title;
@@ -201,12 +173,13 @@ export const ReportComponents = {
       render(text) {
         const subtitle = document.createElement('p');
         subtitle.style.cssText = `
-          font-size: 15px;
-          line-height: 1.6;
+          font-size: 16px;
+          line-height: 1.7;
           margin: 0;
-          max-width: 700px;
-          opacity: 0.8;
-          color: rgba(255,255,255,0.9);
+          max-width: 800px;
+          opacity: 0.9;
+          color: rgba(255,255,255,0.95);
+          text-shadow: 0 1px 4px rgba(0,0,0,0.2);
         `;
         subtitle.textContent = text;
         return subtitle;
@@ -223,14 +196,14 @@ export const ReportComponents = {
       sidebar.style.cssText = `
         position: fixed;
         left: 0;
-        top: 0;
+        top: 500px;
         width: 280px;
-        height: 100vh;
+        height: calc(100vh - 500px);
         background: #0f0f0f;
         color: white;
         padding: 24px;
         overflow-y: auto;
-        transition: transform 0.3s ease;
+        transition: transform 0.3s ease, top 0.3s ease;
         z-index: 1000;
         border-right: 1px solid rgba(255,255,255,0.05);
       `;
@@ -272,9 +245,8 @@ export const ReportComponents = {
           expandBtn.style.display = isCollapsed ? 'none' : 'flex';
         }
         
-        // Adjust main content and hero with collapsed class
+        // Adjust main content with collapsed class
         const mainContent = document.getElementById('reportMainContent');
-        const hero = document.querySelector('.report-hero');
         
         if (isCollapsed) {
           // Expanding sidebar
@@ -282,19 +254,11 @@ export const ReportComponents = {
             mainContent.classList.remove('sidebar-collapsed');
             mainContent.style.marginLeft = '280px';
           }
-          if (hero) {
-            hero.classList.remove('sidebar-collapsed');
-            hero.style.marginLeft = '280px';
-          }
         } else {
           // Collapsing sidebar
           if (mainContent) {
             mainContent.classList.add('sidebar-collapsed');
             mainContent.style.marginLeft = '0';
-          }
-          if (hero) {
-            hero.classList.add('sidebar-collapsed');
-            hero.style.marginLeft = '0';
           }
         }
       };
@@ -320,7 +284,7 @@ export const ReportComponents = {
       expandBtn.style.cssText = `
         position: fixed;
         left: 20px;
-        top: 20px;
+        top: 520px;
         width: 48px;
         height: 48px;
         background: rgba(255,255,255,0.1);
@@ -348,16 +312,11 @@ export const ReportComponents = {
         sidebar.style.transform = 'translateX(0)';
         expandBtn.style.display = 'none';
         
-        // Adjust main content and hero - remove collapsed class
+        // Adjust main content - remove collapsed class
         const mainContent = document.getElementById('reportMainContent');
-        const hero = document.querySelector('.report-hero');
         if (mainContent) {
           mainContent.classList.remove('sidebar-collapsed');
           mainContent.style.marginLeft = '280px';
-        }
-        if (hero) {
-          hero.classList.remove('sidebar-collapsed');
-          hero.style.marginLeft = '280px';
         }
       };
       document.body.appendChild(expandBtn);
