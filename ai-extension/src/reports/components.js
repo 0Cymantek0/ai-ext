@@ -35,83 +35,81 @@ export const ReportComponents = {
       const topBar = document.createElement('div');
       topBar.style.cssText = `
         display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
+        align-items: center;
+        gap: 16px;
         margin-bottom: auto;
       `;
 
       if (data.pocketName) {
-        topBar.appendChild(this.pocketBadge.render(data.pocketName));
-      } else {
-        topBar.appendChild(document.createElement('div'));
+        const pocketContainer = document.createElement('div');
+        pocketContainer.style.cssText = 'display: flex; align-items: center; gap: 16px;';
+        pocketContainer.appendChild(this.pocketBadge.render(data.pocketName));
+        
+        // Download button
+        const downloadBtn = document.createElement('button');
+        downloadBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_1_19358)"><path d="M7 12L12 17M12 17L17 12M12 17L12 4" stroke="#292929" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 20H18" stroke="#292929" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_1_19358"><rect width="24" height="24" fill="white"/></clipPath></defs></svg>`;
+        downloadBtn.title = 'Download Report as PDF';
+        downloadBtn.style.cssText = `
+          width: 48px;
+          height: 48px;
+          background: rgba(255,255,255,0.95);
+          border: none;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        downloadBtn.onmouseenter = () => {
+          downloadBtn.style.background = 'rgba(255,255,255,1)';
+          downloadBtn.style.transform = 'scale(1.05)';
+        };
+        downloadBtn.onmouseleave = () => {
+          downloadBtn.style.background = 'rgba(255,255,255,0.95)';
+          downloadBtn.style.transform = 'scale(1)';
+        };
+        downloadBtn.onclick = () => {
+          const sidebar = document.getElementById('reportSidebar');
+          const expandBtn = document.getElementById('sidebarExpandBtn');
+          const mainContent = document.getElementById('reportMainContent');
+          
+          const sidebarDisplay = sidebar?.style.display || '';
+          const expandBtnDisplay = expandBtn?.style.display || '';
+          const mainMargin = mainContent?.style.marginLeft || '';
+          
+          if (sidebar) sidebar.style.display = 'none';
+          if (expandBtn) expandBtn.style.display = 'none';
+          if (mainContent) mainContent.style.marginLeft = '0';
+          
+          const printStyle = document.createElement('style');
+          printStyle.id = 'print-styles';
+          printStyle.textContent = `
+            @media print {
+              body { background: white !important; }
+              .report-sidebar { display: none !important; }
+              #sidebarExpandBtn { display: none !important; }
+              #reportMainContent { margin-left: 0 !important; }
+            }
+          `;
+          document.head.appendChild(printStyle);
+          
+          setTimeout(() => {
+            window.print();
+            setTimeout(() => {
+              if (sidebar) sidebar.style.display = sidebarDisplay;
+              if (expandBtn) expandBtn.style.display = expandBtnDisplay;
+              if (mainContent) mainContent.style.marginLeft = mainMargin;
+              const printStyleEl = document.getElementById('print-styles');
+              if (printStyleEl) printStyleEl.remove();
+            }, 100);
+          }, 100);
+        };
+        pocketContainer.appendChild(downloadBtn);
+        topBar.appendChild(pocketContainer);
       }
 
-      // Download button
-      const downloadBtn = document.createElement('button');
-      downloadBtn.innerHTML = '⬇';
-      downloadBtn.title = 'Download Report as PDF';
-      downloadBtn.style.cssText = `
-        width: 56px;
-        height: 56px;
-        background: rgba(255,255,255,0.15);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.3);
-        border-radius: 50%;
-        color: white;
-        font-size: 24px;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      `;
-      downloadBtn.onmouseenter = () => {
-        downloadBtn.style.background = 'rgba(255,255,255,0.25)';
-        downloadBtn.style.transform = 'scale(1.05)';
-      };
-      downloadBtn.onmouseleave = () => {
-        downloadBtn.style.background = 'rgba(255,255,255,0.15)';
-        downloadBtn.style.transform = 'scale(1)';
-      };
-      downloadBtn.onclick = () => {
-        const sidebar = document.getElementById('reportSidebar');
-        const expandBtn = document.getElementById('sidebarExpandBtn');
-        const mainContent = document.getElementById('reportMainContent');
-        const heroEl = document.querySelector('.report-hero');
-        
-        const sidebarDisplay = sidebar?.style.display || '';
-        const expandBtnDisplay = expandBtn?.style.display || '';
-        const mainMargin = mainContent?.style.marginLeft || '';
-        const heroMargin = heroEl?.style.marginLeft || '';
-        
-        if (sidebar) sidebar.style.display = 'none';
-        if (expandBtn) expandBtn.style.display = 'none';
-        if (mainContent) mainContent.style.marginLeft = '0';
-        
-        const printStyle = document.createElement('style');
-        printStyle.id = 'print-styles';
-        printStyle.textContent = `
-          @media print {
-            body { background: white !important; }
-            .report-sidebar { display: none !important; }
-            #sidebarExpandBtn { display: none !important; }
-            #reportMainContent { margin-left: 0 !important; }
-          }
-        `;
-        document.head.appendChild(printStyle);
-        
-        setTimeout(() => {
-          window.print();
-          setTimeout(() => {
-            if (sidebar) sidebar.style.display = sidebarDisplay;
-            if (expandBtn) expandBtn.style.display = expandBtnDisplay;
-            if (mainContent) mainContent.style.marginLeft = mainMargin;
-            const printStyleEl = document.getElementById('print-styles');
-            if (printStyleEl) printStyleEl.remove();
-          }, 100);
-        }, 100);
-      };
-      topBar.appendChild(downloadBtn);
       hero.appendChild(topBar);
 
       // Content section at bottom
@@ -147,7 +145,7 @@ export const ReportComponents = {
           width: fit-content;
           box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         `;
-        badge.innerHTML = `<span style="font-size: 18px;">📁</span><span>pocket name</span>`;
+        badge.innerHTML = `<span style="font-size: 18px;">📁</span><span>${name}</span>`;
         return badge;
       }
     },
