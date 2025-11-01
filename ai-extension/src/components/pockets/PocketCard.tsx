@@ -97,8 +97,8 @@ export function PocketCard({
 
   const handleReport = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // TODO: Implement report functionality
-    alert("Report functionality coming soon!");
+    const url = chrome.runtime.getURL(`src/reports/report-viewer.html?pocketId=${pocket.id}`);
+    chrome.tabs.create({ url });
   };
 
   if (viewMode === "list") {

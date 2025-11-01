@@ -380,7 +380,8 @@ export class HybridAIEngine {
 
   constructor(aiManager: AIManager, cloudAIManager?: CloudAIManager) {
     this.aiManager = aiManager;
-    this.cloudAIManager = cloudAIManager || new CloudAIManager();
+    const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    this.cloudAIManager = cloudAIManager || new CloudAIManager(geminiApiKey);
     this.taskClassifier = new TaskClassifier();
     this.capabilityDetector = new DeviceCapabilityDetector();
   }
@@ -1027,5 +1028,6 @@ export const createHybridAIEngine = (
 
 // Create default singleton instance
 const aiManager = new AIManager();
-const cloudAI = new CloudAIManager();
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const cloudAI = new CloudAIManager(geminiApiKey);
 export const hybridAIEngine = new HybridAIEngine(aiManager, cloudAI);

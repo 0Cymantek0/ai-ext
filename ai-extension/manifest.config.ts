@@ -51,6 +51,7 @@ export default defineManifest({
     {
       resources: [
         "src/sidepanel/*",
+        "src/reports/*",
         "src/pages/zork/index.html",
         "assets/*",
         "styles/*",

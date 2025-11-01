@@ -96,6 +96,9 @@ export function GlassSort<T extends string>({
         className={cn(
           "bg-transparent outline-none",
           "text-sm px-1 py-1 rounded-md",
+          "text-foreground",
+          "[&>option]:bg-background [&>option]:text-foreground",
+          "dark:[&>option]:bg-slate-900 dark:[&>option]:text-slate-50",
         )}
       >
         {options.map((opt) => (

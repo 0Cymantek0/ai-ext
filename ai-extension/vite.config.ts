@@ -7,7 +7,8 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import manifest from "./manifest.config";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  // Load env from the project root (where .env file is located)
+  const env = loadEnv(mode, __dirname, "");
   const debugRecorderFlag =
     env.VITE_DEBUG_RECORDER === "true" ? "true" : "false";
 
@@ -69,26 +70,6 @@ export default defineConfig(({ mode }) => {
           }
         },
       },
-      {
-        name: "fix-zork-paths",
-        closeBundle() {
-          // Fix absolute paths in Zork HTML to relative paths for Chrome extension
-          const zorkHtmlPath = path.resolve(
-            __dirname,
-            "dist/src/pages/zork/index.html",
-          );
-
-          try {
-            let html = readFileSync(zorkHtmlPath, "utf-8");
-            // Replace absolute paths with relative paths
-            html = html.replace(/\/assets\//g, "../../../assets/");
-            writeFileSync(zorkHtmlPath, html);
-            console.log("✓ Fixed Zork HTML asset paths");
-          } catch (error) {
-            console.error("Failed to fix Zork HTML paths:", error);
-          }
-        },
-      },
     ],
     define: {
       "import.meta.env.VITE_DEBUG_RECORDER": debugRecorderFlag,
@@ -119,17 +100,11 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist",
       // CRXJS handles all entry points from manifest.config.ts
-      // We add additional HTML pages here that aren't in the manifest
+      // Do not manually specify rollupOptions.input as it interferes with TypeScript transformation
       minify: mode === "production" ? "esbuild" : false,
       // Disable module preload polyfill for service workers (they don't support dynamic imports)
       modulePreload: false,
-      // Use relative paths for assets in Chrome extension
-      assetsDir: "assets",
       rollupOptions: {
-        input: {
-          // Add Zork game page as an explicit entry point
-          zork: path.resolve(__dirname, "src/pages/zork/index.html"),
-        },
         output: {
           manualChunks: (id) => {
             // Bundle TensorFlow separately to avoid size issues

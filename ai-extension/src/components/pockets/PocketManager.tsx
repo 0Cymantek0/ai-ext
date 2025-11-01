@@ -425,6 +425,12 @@ export const PocketManager = React.forwardRef<
       reload: loadPockets,
     }));
 
+    // Handle report generation
+    const handleGenerateReport = (pocketId?: string) => {
+      const url = chrome.runtime.getURL(`src/reports/report-viewer.html${pocketId ? `?pocketId=${pocketId}` : ''}`);
+      chrome.tabs.create({ url });
+    };
+
     // If a pocket is selected, show the content list
     if (selectedPocket) {
       return (
@@ -745,5 +751,5 @@ export const PocketManager = React.forwardRef<
         )}
       </div>
     );
-  },
+  }
 );
