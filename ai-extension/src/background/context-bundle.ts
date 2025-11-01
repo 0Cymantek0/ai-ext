@@ -18,6 +18,7 @@ import {
   estimateChunkTokens,
 } from "./content-extractor.js";
 import type { VectorChunk, ChunkSearchResult } from "./vector-chunk-types.js";
+import { searchAllTabs } from "./tab-search-service.js";
 
 /**
  * Context signal types
@@ -55,6 +56,14 @@ export interface TabContext {
   contextType: "general" | "sensitive" | "work" | "social";
 }
 
+export interface TabSearchContext {
+  tabId: number;
+  url: string;
+  title: string;
+  snippet: string;
+  relevanceScore: number;
+}
+
 export interface PocketContext {
   content: CapturedContent;
   relevanceScore: number;
@@ -80,6 +89,7 @@ export interface ContextBundle {
   input?: InputContext;
   page?: PageContext;
   tabs?: TabContext[];
+  tabSearch?: TabSearchContext[]; // Search results from open tabs
   pockets?: PocketContext[];
   chunks?: ChunkContext[]; // Chunk-level RAG results
   history?: HistoryContext[];
@@ -98,6 +108,7 @@ export interface ContextPreferences {
   selection: boolean;
   page: boolean;
   tabs: boolean;
+  tabSearch: boolean; // Enable deep search across tab contents
   input: boolean;
   pockets: boolean;
   history: boolean;
@@ -126,6 +137,7 @@ const DEFAULT_PREFERENCES: ContextPreferences = {
   selection: true,
   page: true,
   tabs: false, // Requires first-use consent
+  tabSearch: true, // Enable deep tab search by default
   input: true,
   pockets: true,
   history: true,
@@ -250,6 +262,15 @@ export class ContextBundleBuilder {
     // Add tabs context if enabled and consented
     if (this.preferences.tabs) {
       remainingTokens = await this.addTabsContext(
+        bundle,
+        options,
+        remainingTokens,
+      );
+    }
+
+    // Add tab search context if enabled and query provided
+    if (this.preferences.tabSearch && options.query) {
+      remainingTokens = await this.addTabSearchContext(
         bundle,
         options,
         remainingTokens,
@@ -963,6 +984,81 @@ export class ContextBundleBuilder {
   }
 
   /**
+   * Add tab search context - deep search across tab contents
+   */
+  private async addTabSearchContext(
+    bundle: ContextBundle,
+    options: ContextBundleOptions,
+    remainingTokens: number,
+  ): Promise<number> {
+    if (!options.query) {
+      return remainingTokens;
+    }
+
+    try {
+      logger.info("ContextBundleBuilder", "Performing tab content search", {
+        query: options.query,
+        remainingTokens,
+      });
+
+      // Perform distributed search across all tabs
+      const searchResponse = await searchAllTabs({
+        query: options.query,
+        maxResults: 5, // Top 5 most relevant tabs
+        timeout: 200, // 200ms timeout per tab
+      });
+
+      if (searchResponse.results.length > 0) {
+        // Convert search results to context format
+        const tabSearchContexts: TabSearchContext[] = searchResponse.results.map(
+          (result) => ({
+            tabId: result.tabId,
+            url: result.url,
+            title: result.title,
+            snippet: result.snippet,
+            relevanceScore: (result.score || 0) / 100, // Normalize to 0-1
+          })
+        );
+
+        // Estimate tokens for search results
+        const searchTokens = tabSearchContexts.reduce(
+          (sum, ctx) => sum + this.estimateTokens(ctx.snippet + ctx.title),
+          0
+        );
+
+        if (searchTokens <= remainingTokens) {
+          bundle.tabSearch = tabSearchContexts;
+          bundle.signals.push("tabSearch");
+          remainingTokens -= searchTokens;
+          bundle.totalTokens += searchTokens;
+
+          logger.info("ContextBundleBuilder", "Added tab search context", {
+            resultsCount: tabSearchContexts.length,
+            tokensUsed: searchTokens,
+            searchDuration: `${searchResponse.duration.toFixed(2)}ms`,
+            searchedTabs: searchResponse.searchedTabs,
+          });
+        } else {
+          logger.warn("ContextBundleBuilder", "Tab search results exceed token budget", {
+            required: searchTokens,
+            available: remainingTokens,
+          });
+        }
+      } else {
+        logger.info("ContextBundleBuilder", "No relevant content found in tabs", {
+          searchedTabs: searchResponse.searchedTabs,
+        });
+      }
+    } catch (error) {
+      logger.error("ContextBundleBuilder", "Failed to add tab search context", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return remainingTokens;
+  }
+
+  /**
    * Determine token budget based on mode and context
    * Centralized logic for token budget allocation
    */
@@ -1188,6 +1284,25 @@ export function serializeContextBundle(
     parts.push(`The user has ${bundle.tabs.length} relevant tabs open:`);
     for (const tab of bundle.tabs) {
       parts.push(`- ${tab.title} (${tab.domain})`);
+    }
+  }
+
+  // Add tab search context
+  if (bundle.tabSearch && bundle.tabSearch.length > 0) {
+    parts.push(`\n## Relevant Content from Open Tabs`);
+    parts.push(
+      `Found ${bundle.tabSearch.length} tab(s) with content relevant to your query:`
+    );
+
+    for (let i = 0; i < bundle.tabSearch.length; i++) {
+      const result = bundle.tabSearch[i];
+      if (!result) continue;
+      
+      parts.push(
+        `\n### Tab ${i + 1}: ${result.title} (Relevance: ${(result.relevanceScore * 100).toFixed(0)}%)`
+      );
+      parts.push(`URL: ${result.url}`);
+      parts.push(`Content excerpt: ${result.snippet}`);
     }
   }
 
