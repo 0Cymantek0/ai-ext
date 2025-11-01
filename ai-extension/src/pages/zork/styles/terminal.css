@@ -1,0 +1,382 @@
+/* ZORK: INFINITE EDITION - Terminal Styles */
+
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+:root {
+  /* Color schemes */
+  --green-bg: #000000;
+  --green-fg: #00ff00;
+  --green-glow: rgba(0, 255, 0, 0.5);
+
+  --amber-bg: #000000;
+  --amber-fg: #ffb000;
+  --amber-glow: rgba(255, 176, 0, 0.5);
+
+  --white-bg: #000000;
+  --white-fg: #ffffff;
+  --white-glow: rgba(255, 255, 255, 0.3);
+
+  --blue-bg: #0000aa;
+  --blue-fg: #00ffff;
+  --blue-glow: rgba(0, 255, 255, 0.5);
+
+  --apple-bg: #000000;
+  --apple-fg: #00ff00;
+  --apple-glow: rgba(128, 0, 128, 0.3);
+}
+
+.zork-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-color, var(--green-bg));
+  color: var(--fg-color, var(--green-fg));
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 18px;
+  line-height: 1.5;
+  overflow: hidden;
+  z-index: 999999;
+}
+
+/* CRT Effect */
+.zork-container.crt-effect::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Screen glow */
+.zork-container.crt-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.5) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Terminal content */
+.terminal-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 40px;
+  overflow-y: auto;
+  z-index: 3;
+  box-sizing: border-box;
+}
+
+/* Text glow effect */
+.terminal-content {
+  text-shadow: 0 0 5px var(--glow-color, var(--green-glow));
+}
+
+/* Output lines */
+.output-line {
+  margin: 0;
+  padding: 2px 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.output-line.command {
+  color: var(--fg-color, var(--green-fg));
+  font-weight: bold;
+}
+
+.output-line.response {
+  color: var(--fg-color, var(--green-fg));
+  opacity: 0.9;
+}
+
+.output-line.error {
+  color: #ff0000;
+  text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+}
+
+.output-line.system {
+  color: var(--fg-color, var(--green-fg));
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Command input */
+.command-input-container {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.command-prompt {
+  margin-right: 5px;
+  font-weight: bold;
+}
+
+.command-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--fg-color, var(--green-fg));
+  font-family: inherit;
+  font-size: inherit;
+  caret-color: var(--fg-color, var(--green-fg));
+}
+
+/* Blinking cursor */
+.cursor {
+  display: inline-block;
+  width: 10px;
+  height: 20px;
+  background: var(--fg-color, var(--green-fg));
+  animation: blink 530ms infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Typewriter effect */
+.typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typing 0.05s steps(1) forwards;
+}
+
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+/* Screen flicker */
+@keyframes flicker {
+  0% {
+    opacity: 1;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  20% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.flicker {
+  animation: flicker 0.15s infinite;
+}
+
+/* Boot sequence */
+.boot-sequence {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  height: 100%;
+  padding: 40px;
+}
+
+.boot-line {
+  margin: 5px 0;
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ASCII Art */
+.ascii-art {
+  font-size: 14px;
+  line-height: 1.2;
+  white-space: pre;
+  margin: 20px 0;
+}
+
+/* Progress bar */
+.progress-bar {
+  width: 300px;
+  height: 20px;
+  border: 2px solid var(--fg-color, var(--green-fg));
+  margin: 10px 0;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--fg-color, var(--green-fg));
+  transition: width 0.3s ease;
+}
+
+/* Color scheme classes */
+.scheme-green {
+  --bg-color: var(--green-bg);
+  --fg-color: var(--green-fg);
+  --glow-color: var(--green-glow);
+}
+
+.scheme-amber {
+  --bg-color: var(--amber-bg);
+  --fg-color: var(--amber-fg);
+  --glow-color: var(--amber-glow);
+}
+
+.scheme-white {
+  --bg-color: var(--white-bg);
+  --fg-color: var(--white-fg);
+  --glow-color: var(--white-glow);
+}
+
+.scheme-blue {
+  --bg-color: var(--blue-bg);
+  --fg-color: var(--blue-fg);
+  --glow-color: var(--blue-glow);
+}
+
+.scheme-apple {
+  --bg-color: var(--apple-bg);
+  --fg-color: var(--apple-fg);
+  --glow-color: var(--apple-glow);
+}
+
+/* Settings panel */
+.settings-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid var(--fg-color, var(--green-fg));
+  padding: 15px;
+  z-index: 10;
+  font-size: 14px;
+}
+
+.settings-panel button {
+  background: transparent;
+  border: 1px solid var(--fg-color, var(--green-fg));
+  color: var(--fg-color, var(--green-fg));
+  padding: 5px 10px;
+  margin: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.settings-panel button:hover {
+  background: var(--fg-color, var(--green-fg));
+  color: var(--bg-color, var(--green-bg));
+}
+
+/* Loading indicator */
+.loading {
+  display: inline-block;
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%,
+  20% {
+    content: '.';
+  }
+  40% {
+    content: '..';
+  }
+  60%,
+  100% {
+    content: '...';
+  }
+}
+
+/* Scrollbar */
+.terminal-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.terminal-content::-webkit-scrollbar-track {
+  background: var(--bg-color, var(--green-bg));
+}
+
+.terminal-content::-webkit-scrollbar-thumb {
+  background: var(--fg-color, var(--green-fg));
+  opacity: 0.5;
+}
+
+.terminal-content::-webkit-scrollbar-thumb:hover {
+  opacity: 1;
+}
+
+/* Fade in animation */
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+/* Achievement notification */
+.achievement {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid var(--fg-color, var(--green-fg));
+  padding: 15px 30px;
+  z-index: 100;
+  animation: slideDown 0.5s ease-out, slideUp 0.5s ease-in 2.5s;
+}
+
+@keyframes slideDown {
+  from {
+    top: -100px;
+  }
+  to {
+    top: 20px;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    top: 20px;
+  }
+  to {
+    top: -100px;
+  }
+}

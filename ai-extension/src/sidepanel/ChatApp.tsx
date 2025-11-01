@@ -46,6 +46,7 @@ import {
 import { importPocket } from "@/lib/pocket-export-service";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { getDevInstrumentation } from "@/devtools/instrumentation";
+import { initKonamiCode, stopKonamiCode } from "@/utils/konami-code-listener";
 
 interface ChatMessage {
   id: string;
@@ -421,6 +422,21 @@ export function ChatApp() {
   // Load conversations on mount
   React.useEffect(() => {
     loadConversations();
+  }, []);
+
+  // Initialize Konami code listener for Zork Easter egg
+  React.useEffect(() => {
+    const handleKonamiCode = () => {
+      // Open Zork game in a new window
+      const zorkUrl = chrome.runtime.getURL('src/pages/zork/index.html');
+      window.open(zorkUrl, '_blank', 'width=1024,height=768');
+    };
+
+    initKonamiCode(handleKonamiCode);
+
+    return () => {
+      stopKonamiCode();
+    };
   }, []);
 
   const handleSubmit = async (text: string, files?: File[]) => {

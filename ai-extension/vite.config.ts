@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import { crx } from "@crxjs/vite-plugin";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
-import { copyFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 import manifest from "./manifest.config";
 
@@ -69,6 +69,26 @@ export default defineConfig(({ mode }) => {
           }
         },
       },
+      {
+        name: "fix-zork-paths",
+        closeBundle() {
+          // Fix absolute paths in Zork HTML to relative paths for Chrome extension
+          const zorkHtmlPath = path.resolve(
+            __dirname,
+            "dist/src/pages/zork/index.html",
+          );
+
+          try {
+            let html = readFileSync(zorkHtmlPath, "utf-8");
+            // Replace absolute paths with relative paths
+            html = html.replace(/\/assets\//g, "../../../assets/");
+            writeFileSync(zorkHtmlPath, html);
+            console.log("✓ Fixed Zork HTML asset paths");
+          } catch (error) {
+            console.error("Failed to fix Zork HTML paths:", error);
+          }
+        },
+      },
     ],
     define: {
       "import.meta.env.VITE_DEBUG_RECORDER": debugRecorderFlag,
@@ -99,11 +119,17 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist",
       // CRXJS handles all entry points from manifest.config.ts
-      // Do not manually specify rollupOptions.input as it interferes with TypeScript transformation
+      // We add additional HTML pages here that aren't in the manifest
       minify: mode === "production" ? "esbuild" : false,
       // Disable module preload polyfill for service workers (they don't support dynamic imports)
       modulePreload: false,
+      // Use relative paths for assets in Chrome extension
+      assetsDir: "assets",
       rollupOptions: {
+        input: {
+          // Add Zork game page as an explicit entry point
+          zork: path.resolve(__dirname, "src/pages/zork/index.html"),
+        },
         output: {
           manualChunks: (id) => {
             // Bundle TensorFlow separately to avoid size issues
