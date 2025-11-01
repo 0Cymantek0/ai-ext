@@ -44,6 +44,7 @@ class UniversalTextEnhancer {
   private observer: MutationObserver | null = null;
   private currentMenu: HTMLElement | null = null;
   private currentTextField: HTMLElement | null = null;
+  private customPromptInputRef: HTMLTextAreaElement | null = null;
   private isDragging: boolean = false;
   private dragStartX: number = 0;
   private dragStartY: number = 0;
@@ -348,28 +349,191 @@ class UniversalTextEnhancer {
   }
 
   /**
-   * Show dialog to add a new custom preset
+   * Show dialog to add a new custom preset from the prompt input
    */
   private showAddPresetDialog(): void {
-    const presetName = prompt("Enter preset name (e.g., 'Formal', 'Casual'):");
-    if (!presetName || presetName.trim() === "") {
+    if (!this.customPromptInputRef) {
+      console.error("[TextEnhancer] Custom prompt input not found");
       return;
     }
 
-    const presetPrompt = prompt(
-      "Enter the enhancement instruction:\n(e.g., 'Make this text more formal and professional')",
-    );
-    if (!presetPrompt || presetPrompt.trim() === "") {
+    const promptValue = this.customPromptInputRef.value.trim();
+    if (!promptValue) {
+      this.showInlineMessage("Please enter a prompt first", "error");
       return;
     }
 
-    const presetIcon = prompt("Enter an emoji icon (optional):") || "✨";
+    const words = promptValue.split(/\s+/);
+    
+    if (words.length === 1) {
+      // Single word: use it as both name and prompt
+      this.addCustomPreset(promptValue, promptValue, "✨");
+      this.customPromptInputRef.value = "";
+      this.showInlineMessage("Preset saved!", "success");
+    } else {
+      // Multiple words: show custom modal for name input
+      this.showPresetNameModal(promptValue);
+    }
+  }
 
-    this.addCustomPreset(
-      presetName.trim(),
-      presetPrompt.trim(),
-      presetIcon.trim(),
-    );
+  /**
+   * Show inline message near the prompt input
+   */
+  private showInlineMessage(message: string, type: "success" | "error"): void {
+    if (!this.customPromptInputRef) return;
+
+    const messageEl = document.createElement("div");
+    messageEl.className = `ai-pocket-inline-message ai-pocket-inline-message-${type}`;
+    messageEl.textContent = message;
+    messageEl.style.cssText = `
+      position: absolute;
+      top: -30px;
+      left: 0;
+      right: 0;
+      padding: 8px 12px;
+      background: ${type === "success" ? "#4caf50" : "#f44336"};
+      color: white;
+      border-radius: 6px;
+      font-size: 13px;
+      text-align: center;
+      z-index: 10001;
+      animation: slideDown 0.3s ease;
+    `;
+
+    const wrapper = this.customPromptInputRef.closest(".ai-pocket-custom-prompt-wrapper") as HTMLElement;
+    if (wrapper) {
+      wrapper.style.position = "relative";
+      wrapper.appendChild(messageEl);
+      setTimeout(() => messageEl.remove(), 3000);
+    }
+  }
+
+  /**
+   * Show custom modal for preset name input
+   */
+  private showPresetNameModal(promptValue: string): void {
+    const overlay = document.createElement("div");
+    overlay.className = "ai-pocket-preset-modal-overlay";
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10002;
+    `;
+
+    const modal = document.createElement("div");
+    modal.className = "ai-pocket-preset-modal";
+    modal.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    `;
+
+    const title = document.createElement("h3");
+    title.textContent = "Name Your Preset";
+    title.style.cssText = `
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    `;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Enter preset name (e.g., 'Formal', 'Casual')";
+    input.style.cssText = `
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    `;
+    input.focus();
+
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    `;
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = `
+      padding: 10px 20px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    `;
+
+    const saveBtn = document.createElement("button");
+    saveBtn.textContent = "Save";
+    saveBtn.style.cssText = `
+      padding: 10px 20px;
+      border: none;
+      background: #2196f3;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    `;
+
+    const handleSave = () => {
+      const name = input.value.trim();
+      if (!name) {
+        input.style.borderColor = "#f44336";
+        return;
+      }
+      this.addCustomPreset(name, promptValue, "✨");
+      if (this.customPromptInputRef) {
+        this.customPromptInputRef.value = "";
+      }
+      overlay.remove();
+      this.showInlineMessage("Preset saved!", "success");
+    };
+
+    const handleCancel = () => {
+      overlay.remove();
+    };
+
+    cancelBtn.addEventListener("click", handleCancel);
+    saveBtn.addEventListener("click", handleSave);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSave();
+      } else if (e.key === "Escape") {
+        handleCancel();
+      }
+    });
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        handleCancel();
+      }
+    });
+
+    buttonContainer.appendChild(cancelBtn);
+    buttonContainer.appendChild(saveBtn);
+    modal.appendChild(title);
+    modal.appendChild(input);
+    modal.appendChild(buttonContainer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
   }
 
   /**
@@ -417,27 +581,128 @@ class UniversalTextEnhancer {
       return;
     }
 
-    const confirmed = confirm(
-      `Delete preset "${preset.label}"?\nThis action cannot be undone.`,
-    );
+    // Show custom confirmation modal
+    this.showDeleteConfirmModal(preset.label, async () => {
+      this.customPresets.splice(index, 1);
+      await this.saveCustomPresets();
 
-    if (!confirmed) {
-      return;
-    }
-
-    this.customPresets.splice(index, 1);
-    await this.saveCustomPresets();
-
-    // Refresh the menu
-    if (this.currentMenu && this.currentTextField) {
-      const button = this.injectedButtons.get(this.currentTextField);
-      if (button) {
-        this.closeEnhancementMenu();
-        this.showEnhancementMenu(this.currentTextField, button);
+      // Refresh the menu
+      if (this.currentMenu && this.currentTextField) {
+        const button = this.injectedButtons.get(this.currentTextField);
+        if (button) {
+          this.closeEnhancementMenu();
+          this.showEnhancementMenu(this.currentTextField, button);
+        }
       }
-    }
 
-    console.info("[TextEnhancer] Custom preset deleted", preset);
+      console.info("[TextEnhancer] Custom preset deleted", preset);
+    });
+  }
+
+  /**
+   * Show custom delete confirmation modal
+   */
+  private showDeleteConfirmModal(presetName: string, onConfirm: () => void): void {
+    const overlay = document.createElement("div");
+    overlay.className = "ai-pocket-preset-modal-overlay";
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10002;
+    `;
+
+    const modal = document.createElement("div");
+    modal.className = "ai-pocket-preset-modal";
+    modal.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    `;
+
+    const title = document.createElement("h3");
+    title.textContent = "Delete Preset?";
+    title.style.cssText = `
+      margin: 0 0 12px 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    `;
+
+    const message = document.createElement("p");
+    message.textContent = `Are you sure you want to delete "${presetName}"? This action cannot be undone.`;
+    message.style.cssText = `
+      margin: 0 0 20px 0;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.5;
+    `;
+
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    `;
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = `
+      padding: 10px 20px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    `;
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "Delete";
+    deleteBtn.style.cssText = `
+      padding: 10px 20px;
+      border: none;
+      background: #f44336;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    `;
+
+    const handleCancel = () => {
+      overlay.remove();
+    };
+
+    const handleDelete = () => {
+      overlay.remove();
+      onConfirm();
+    };
+
+    cancelBtn.addEventListener("click", handleCancel);
+    deleteBtn.addEventListener("click", handleDelete);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        handleCancel();
+      }
+    });
+
+    buttonContainer.appendChild(cancelBtn);
+    buttonContainer.appendChild(deleteBtn);
+    modal.appendChild(title);
+    modal.appendChild(message);
+    modal.appendChild(buttonContainer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
   }
 
   /**
@@ -2723,6 +2988,9 @@ class UniversalTextEnhancer {
     customPromptInput.setAttribute("placeholder", "prompt for enhance");
     customPromptInput.setAttribute("rows", "1");
     customPromptInput.setAttribute("aria-label", "Custom enhancement prompt");
+    
+    // Store reference for preset saving
+    this.customPromptInputRef = customPromptInput;
 
     // Auto-resize textarea
     customPromptInput.addEventListener("input", () => {
@@ -3162,7 +3430,17 @@ class UniversalTextEnhancer {
       );
 
       if (selectedLanguages.length === 0) {
-        alert("Please select at least one language");
+        // Show error in modal instead of alert
+        const errorMsg = document.createElement("div");
+        errorMsg.style.cssText = `
+          color: #f44336;
+          font-size: 13px;
+          margin-top: 8px;
+          text-align: center;
+        `;
+        errorMsg.textContent = "Please select at least one language";
+        footer.insertBefore(errorMsg, footer.firstChild);
+        setTimeout(() => errorMsg.remove(), 3000);
         return;
       }
 
@@ -3190,7 +3468,17 @@ class UniversalTextEnhancer {
         closeModal();
       } catch (error) {
         console.error("[TextEnhancer] Failed to save languages", error);
-        alert("Failed to save languages. Please try again.");
+        // Show error in modal instead of alert
+        const errorMsg = document.createElement("div");
+        errorMsg.style.cssText = `
+          color: #f44336;
+          font-size: 13px;
+          margin-top: 8px;
+          text-align: center;
+        `;
+        errorMsg.textContent = "Failed to save languages. Please try again.";
+        footer.insertBefore(errorMsg, footer.firstChild);
+        setTimeout(() => errorMsg.remove(), 3000);
       }
     });
 
@@ -3262,6 +3550,12 @@ class UniversalTextEnhancer {
     ) as HTMLElement[];
 
     menu.addEventListener("keydown", (e: KeyboardEvent) => {
+      // Allow normal input in textarea and input elements
+      const target = e.target as HTMLElement;
+      if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") {
+        return;
+      }
+
       const currentIndex = options.findIndex(
         (opt) => opt === document.activeElement,
       );

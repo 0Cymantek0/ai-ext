@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
     env.VITE_DEBUG_RECORDER === "true" ? "true" : "false";
 
   return {
+    base: "./",
     plugins: [
       react(),
       crx({ manifest }),
@@ -100,11 +101,15 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist",
       // CRXJS handles all entry points from manifest.config.ts
-      // Do not manually specify rollupOptions.input as it interferes with TypeScript transformation
+      // Additional entry points for custom pages
       minify: mode === "production" ? "esbuild" : false,
       // Disable module preload polyfill for service workers (they don't support dynamic imports)
       modulePreload: false,
       rollupOptions: {
+        input: {
+          // Add Zork page as an explicit entry point
+          zork: path.resolve(__dirname, "src/pages/zork/index.html"),
+        },
         output: {
           manualChunks: (id) => {
             // Bundle TensorFlow separately to avoid size issues
