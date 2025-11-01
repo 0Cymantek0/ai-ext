@@ -46,7 +46,7 @@ export function PocketAttachmentMenu({
       className={cn(
         "absolute bottom-full left-0 mb-2 bg-black/90 dark:bg-gray-950/90 backdrop-blur-xl",
         "border border-white/10 rounded-lg shadow-2xl overflow-hidden min-w-[160px] z-50",
-        disabled && "opacity-50 pointer-events-none"
+        disabled && "opacity-50 pointer-events-none",
       )}
     >
       <button

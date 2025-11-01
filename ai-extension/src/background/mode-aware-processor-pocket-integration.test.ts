@@ -1,6 +1,6 @@
 /**
  * Mode-Aware Processor - Pocket Attachment Integration Tests
- * 
+ *
  * Tests for RAG pipeline integration with conversation pocket attachments
  * Ensures proper reading of attachedPocketId from conversations
  */
@@ -215,9 +215,8 @@ describe("ModeAwareProcessor - Pocket Attachment Integration", () => {
         // Consume
       }
 
-      const conversation = await indexedDBManager.getConversation(
-        testConversationId,
-      );
+      const conversation =
+        await indexedDBManager.getConversation(testConversationId);
       expect(conversation?.attachedPocketId).toBeUndefined();
 
       const { contextBundleBuilder } = await import("./context-bundle.js");
@@ -278,9 +277,8 @@ describe("ModeAwareProcessor - Pocket Attachment Integration", () => {
         // Consume
       }
 
-      const conversation = await indexedDBManager.getConversation(
-        testConversationId,
-      );
+      const conversation =
+        await indexedDBManager.getConversation(testConversationId);
       expect(conversation?.attachedPocketId).toBeUndefined();
     });
   });

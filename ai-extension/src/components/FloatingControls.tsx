@@ -75,7 +75,12 @@ interface SortProps<T extends string> {
   className?: string;
 }
 
-export function GlassSort<T extends string>({ value, options, onChange, className }: SortProps<T>) {
+export function GlassSort<T extends string>({
+  value,
+  options,
+  onChange,
+  className,
+}: SortProps<T>) {
   return (
     <label
       className={cn(
@@ -94,7 +99,9 @@ export function GlassSort<T extends string>({ value, options, onChange, classNam
         )}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
         ))}
       </select>
     </label>

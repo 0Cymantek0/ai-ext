@@ -1,6 +1,6 @@
 /**
  * Pocket Export Service
- * 
+ *
  * Handles complete export of pockets including:
  * - Pocket metadata
  * - All content items (captures, notes)
@@ -91,7 +91,9 @@ export async function exportPocket(pocket: PocketData): Promise<void> {
     console.log(`Exported pocket "${pocket.name}" successfully`);
   } catch (error) {
     console.error("Error exporting pocket:", error);
-    throw new Error(`Failed to export pocket: ${error instanceof Error ? error.message : "Unknown error"}`);
+    throw new Error(
+      `Failed to export pocket: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 }
 
@@ -110,7 +112,9 @@ async function fetchPocketContents(pocketId: string): Promise<ContentItem[]> {
 
     // The response structure is { success: true, data: { content: [...] } }
     if (response.success && response.data?.content) {
-      console.log(`Fetched ${response.data.content.length} content items for pocket ${pocketId}`);
+      console.log(
+        `Fetched ${response.data.content.length} content items for pocket ${pocketId}`,
+      );
       return response.data.content;
     }
     console.warn("No content found or invalid response structure");
@@ -157,7 +161,7 @@ async function fetchVectorChunks(pocketId: string): Promise<VectorChunk[]> {
  */
 function openVectorDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("ai-pocket-db", 2);
+    const request = indexedDB.open("ai-pocket-db", 4);
 
     request.onsuccess = () => {
       resolve(request.result);
@@ -170,12 +174,18 @@ function openVectorDB(): Promise<IDBDatabase> {
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
 
-      // Create vectorChunks object store if it doesn't exist
+      // Note: This upgrade handler is minimal since the main database managers
+      // (IndexedDBManager and DatabaseManager) handle the full schema creation.
+      // This is only used for reading vector chunks during export.
+      
+      // Create vectorChunks object store if it doesn't exist (version 2)
       if (!db.objectStoreNames.contains("vectorChunks")) {
         const store = db.createObjectStore("vectorChunks", { keyPath: "id" });
         store.createIndex("pocketId", "pocketId", { unique: false });
         store.createIndex("contentId", "contentId", { unique: false });
-        store.createIndex("pocketId_contentId", ["pocketId", "contentId"], { unique: false });
+        store.createIndex("pocketId_contentId", ["pocketId", "contentId"], {
+          unique: false,
+        });
         store.createIndex("createdAt", "createdAt", { unique: false });
       }
     };
@@ -257,13 +267,18 @@ export async function importPocket(file: File): Promise<void> {
               metadata: {
                 type: content.type,
                 ...content.metadata,
-                timestamp: content.metadata?.timestamp || content.capturedAt || Date.now(),
+                timestamp:
+                  content.metadata?.timestamp ||
+                  content.capturedAt ||
+                  Date.now(),
               },
             },
           });
 
           if (response.success) {
-            console.log(`✅ Imported content item: ${response.data.contentId} (type: ${content.type})`);
+            console.log(
+              `✅ Imported content item: ${response.data.contentId} (type: ${content.type})`,
+            );
           } else {
             console.error(`❌ Failed to import content item:`, response.error);
           }
@@ -288,14 +303,19 @@ export async function importPocket(file: File): Promise<void> {
     console.log(`Imported pocket "${pocketData.name}" successfully`);
   } catch (error) {
     console.error("Error importing pocket:", error);
-    throw new Error(`Failed to import pocket: ${error instanceof Error ? error.message : "Unknown error"}`);
+    throw new Error(
+      `Failed to import pocket: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 }
 
 /**
  * Import vector chunks into IndexedDB
  */
-async function importVectorChunks(newPocketId: string, chunks: VectorChunk[]): Promise<void> {
+async function importVectorChunks(
+  newPocketId: string,
+  chunks: VectorChunk[],
+): Promise<void> {
   try {
     const db = await openVectorDB();
     const transaction = db.transaction(["vectorChunks"], "readwrite");

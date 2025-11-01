@@ -57,6 +57,9 @@ ai-extension/TASK-4.4-SUMMARY.md
 ai-extension/STREAMING-FLOW.md
 ai-extension/src/content/CONTENT-SCRIPT.md
 ai-extension/TASK-5.1-SUMMARY.md
+!/ai-extension/docs/phase2-complete.md
+!/ai-extension/docs/phase1-verification.md
+!/ai-extension/docs/vision-integration.md
 ai-extension/ai_docs/
 ai-extension/dist
 ai-extension/icons

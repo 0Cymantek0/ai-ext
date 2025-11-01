@@ -1,6 +1,17 @@
 "use client";
 
-import { Cloud, CornerRightUp, Cpu, FileUp, Plus, Sparkles, X, Zap, Mic, MicOff } from "lucide-react";
+import {
+  Cloud,
+  CornerRightUp,
+  Cpu,
+  FileUp,
+  Plus,
+  Sparkles,
+  X,
+  Zap,
+  Mic,
+  MicOff,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -13,7 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/animate-ui/components/animate/tooltip";
 import {
   PocketAttachmentMenu,
   PocketSelector,
@@ -36,12 +52,19 @@ interface AIInputWithFileProps {
   className?: string;
   disabled?: boolean;
   model?: "auto" | "nano" | "flash-lite" | "flash" | "pro";
-  onModelChange?: (model: "auto" | "nano" | "flash-lite" | "flash" | "pro") => void;
+  onModelChange?: (
+    model: "auto" | "nano" | "flash-lite" | "flash" | "pro",
+  ) => void;
   autoContext?: boolean;
   onAutoContextChange?: (enabled: boolean) => void;
   attachedPocketId?: string | null; // Deprecated: use attachedPocketIds
   attachedPocketIds?: string[];
-  attachedPockets?: Array<{id: string; name: string; description?: string; color?: string}>;
+  attachedPockets?: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+  }>;
   onAttachPocket?: (pocketId: string) => void;
   onDetachPocket?: (pocketId?: string) => void;
 }
@@ -78,12 +101,16 @@ export function AIInputWithFile({
   // Pocket attachment state
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showPocketSelector, setShowPocketSelector] = useState(false);
-  
+
   // Element mention state
   const [showElementMention, setShowElementMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
-  const [mentionPosition, setMentionPosition] = useState<{ top: number; left: number } | undefined>();
-  const [mentionedElements, setMentionedElements] = useState<MentionedElement[]>([]);
+  const [mentionPosition, setMentionPosition] = useState<
+    { top: number; left: number } | undefined
+  >();
+  const [mentionedElements, setMentionedElements] = useState<
+    MentionedElement[]
+  >([]);
   const {
     error,
     files,
@@ -108,46 +135,61 @@ export function AIInputWithFile({
   });
 
   // Process transcript with Gemini Nano for grammar/spelling correction and filler removal
-  const processTranscriptWithNano = useCallback(async (transcript: string): Promise<string> => {
-    console.log("🎤 [Voice Processing] Starting Nano processing for:", transcript);
+  const processTranscriptWithNano = useCallback(
+    async (transcript: string): Promise<string> => {
+      console.log(
+        "🎤 [Voice Processing] Starting Nano processing for:",
+        transcript,
+      );
 
-    try {
-      // Send to background worker for processing (window.ai not available in sidepanel)
-      console.log("� [Voiice Processing] Sending to background worker...");
+      try {
+        // Send to background worker for processing (window.ai not available in sidepanel)
+        console.log("� [Voiice Processing] Sending to background worker...");
 
-      const response = await chrome.runtime.sendMessage({
-        kind: "AI_PROCESS_TEXT_CORRECTION",
-        requestId: crypto.randomUUID(),
-        payload: {
-          text: transcript
-        }
-      });
-
-      console.log("📥 [Voice Processing] Response from background:", response);
-
-      if (response.success && response.data?.correctedText) {
-        const correctedText = response.data.correctedText;
-        console.log("✨ [Voice Processing] Nano processing complete:", {
-          original: transcript,
-          corrected: correctedText
+        const response = await chrome.runtime.sendMessage({
+          kind: "AI_PROCESS_TEXT_CORRECTION",
+          requestId: crypto.randomUUID(),
+          payload: {
+            text: transcript,
+          },
         });
-        return correctedText.trim();
-      } else {
-        console.warn("⚠️ [Voice Processing] No corrected text in response, using original");
+
+        console.log(
+          "📥 [Voice Processing] Response from background:",
+          response,
+        );
+
+        if (response.success && response.data?.correctedText) {
+          const correctedText = response.data.correctedText;
+          console.log("✨ [Voice Processing] Nano processing complete:", {
+            original: transcript,
+            corrected: correctedText,
+          });
+          return correctedText.trim();
+        } else {
+          console.warn(
+            "⚠️ [Voice Processing] No corrected text in response, using original",
+          );
+          return transcript;
+        }
+      } catch (error) {
+        console.error(
+          "❌ [Voice Processing] Error processing transcript with Nano:",
+          error,
+        );
+        // Fall back to raw transcript on error
         return transcript;
       }
-    } catch (error) {
-      console.error("❌ [Voice Processing] Error processing transcript with Nano:", error);
-      // Fall back to raw transcript on error
-      return transcript;
-    }
-  }, []);
+    },
+    [],
+  );
 
   // Initialize Web Speech API recognition
   useEffect(() => {
     const hasSpeech =
       typeof window !== "undefined" &&
-      (((window as any).SpeechRecognition) || ((window as any).webkitSpeechRecognition));
+      ((window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition);
     setIsSpeechSupported(Boolean(hasSpeech));
 
     if (!hasSpeech) return;
@@ -156,9 +198,10 @@ export function AIInputWithFile({
       const resolveRecognitionLang = (): string => {
         try {
           const uiLang = (window as any)?.chrome?.i18n?.getUILanguage?.();
-          const browserLangs: readonly string[] = Array.isArray(navigator.languages) && navigator.languages.length > 0
-            ? navigator.languages
-            : [navigator.language].filter(Boolean) as string[];
+          const browserLangs: readonly string[] =
+            Array.isArray(navigator.languages) && navigator.languages.length > 0
+              ? navigator.languages
+              : ([navigator.language].filter(Boolean) as string[]);
           const candidate = (uiLang || browserLangs[0] || "en-US") as string;
           if (!candidate) return "en-US";
           // Map generic English to US default for better accuracy
@@ -168,7 +211,9 @@ export function AIInputWithFile({
           return "en-US";
         }
       };
-      const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SR: any =
+        (window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition;
       const rec: any = new SR();
       // Use continuous mode with manual timeout for better control
       rec.continuous = true;
@@ -193,7 +238,7 @@ export function AIInputWithFile({
         silenceTimeoutRef.current = setTimeout(() => {
           try {
             rec.stop();
-          } catch { }
+          } catch {}
           setIsListening(false);
         }, 2000); // 2 seconds of silence before stopping
       };
@@ -220,7 +265,10 @@ export function AIInputWithFile({
           }
         }
         if (finalTranscript) {
-          console.log("🎙️ [Voice Input] Final transcript received:", finalTranscript);
+          console.log(
+            "🎙️ [Voice Input] Final transcript received:",
+            finalTranscript,
+          );
 
           // Process transcript with Gemini Nano
           setIsProcessingVoice(true);
@@ -228,7 +276,9 @@ export function AIInputWithFile({
 
           processTranscriptWithNano(finalTranscript)
             .then((processedText) => {
-              console.log("✅ [Voice Input] Processing complete, updating input value");
+              console.log(
+                "✅ [Voice Input] Processing complete, updating input value",
+              );
               setInputValue((prev) => {
                 const next = (prev ? prev + " " : "") + processedText.trim();
                 // Ensure textarea grows as text is added
@@ -237,7 +287,10 @@ export function AIInputWithFile({
               });
             })
             .catch((error) => {
-              console.error("❌ [Voice Input] Error processing transcript:", error);
+              console.error(
+                "❌ [Voice Input] Error processing transcript:",
+                error,
+              );
               // Fall back to raw transcript
               setInputValue((prev) => {
                 const next = (prev ? prev + " " : "") + finalTranscript.trim();
@@ -246,7 +299,9 @@ export function AIInputWithFile({
               });
             })
             .finally(() => {
-              console.log("🏁 [Voice Input] Processing complete, setting state to false");
+              console.log(
+                "🏁 [Voice Input] Processing complete, setting state to false",
+              );
               setIsProcessingVoice(false);
             });
         }
@@ -255,7 +310,8 @@ export function AIInputWithFile({
         const err: string = event?.error || "unknown";
         let message = "Speech recognition error";
         if (err === "not-allowed" || err === "service-not-allowed") {
-          message = "Microphone permission denied. Enable mic access to use voice.";
+          message =
+            "Microphone permission denied. Enable mic access to use voice.";
         } else if (err === "no-speech") {
           message = "No speech detected. Please try again.";
         } else if (err === "aborted") {
@@ -269,7 +325,7 @@ export function AIInputWithFile({
       return () => {
         try {
           rec.stop();
-        } catch { }
+        } catch {}
         if (silenceTimeoutRef.current) {
           clearTimeout(silenceTimeoutRef.current);
           silenceTimeoutRef.current = null;
@@ -291,7 +347,7 @@ export function AIInputWithFile({
       try {
         rec?.stop();
       } catch (e) {
-        console.error('Error stopping recognition:', e);
+        console.error("Error stopping recognition:", e);
       }
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current);
@@ -311,11 +367,13 @@ export function AIInputWithFile({
         // Simply start the recognition - this will trigger the browser's native permission dialog
         rec?.start();
       } catch (e: any) {
-        console.error('Error starting recognition:', e);
-        const errMsg = e?.message || '';
-        if (errMsg.includes('already started')) {
+        console.error("Error starting recognition:", e);
+        const errMsg = e?.message || "";
+        if (errMsg.includes("already started")) {
           // Recognition is already running, stop it first
-          try { rec?.stop(); } catch { }
+          try {
+            rec?.stop();
+          } catch {}
         } else {
           setVoiceError("Unable to start voice input. Please try again.");
         }
@@ -369,7 +427,7 @@ export function AIInputWithFile({
 
   // Convert attachedPockets to PocketInfo format
   const pocketInfos: PocketInfo[] = useMemo(() => {
-    return attachedPockets.map(p => ({
+    return attachedPockets.map((p) => ({
       id: p.id,
       name: p.name,
       description: p.description || "",
@@ -403,21 +461,23 @@ export function AIInputWithFile({
       ...element,
       mentionId: crypto.randomUUID(),
     };
-    
+
     setMentionedElements((prev) => [...prev, mentionedElement]);
-    
+
     // Insert mention into input at cursor position
     const mentionText = `@${element.title}`;
     setInputValue((prev) => {
       // Replace the @ and query with the mention
       const beforeMention = prev.slice(0, prev.lastIndexOf("@"));
-      const afterMention = prev.slice(prev.lastIndexOf("@") + mentionQuery.length + 1);
+      const afterMention = prev.slice(
+        prev.lastIndexOf("@") + mentionQuery.length + 1,
+      );
       return beforeMention + mentionText + " " + afterMention;
     });
-    
+
     setShowElementMention(false);
     setMentionQuery("");
-    
+
     // Focus back on textarea
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
@@ -439,12 +499,12 @@ export function AIInputWithFile({
 
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
-      
+
       // Check if there's a space after @ (which would end the mention)
       if (!textAfterAt.includes(" ")) {
         setMentionQuery(textAfterAt);
         setShowElementMention(true);
-        
+
         // Calculate position for mention dropdown
         if (textareaRef.current) {
           const rect = textareaRef.current.getBoundingClientRect();
@@ -468,11 +528,11 @@ export function AIInputWithFile({
     const hasText = Boolean(inputValue.trim());
     const hasFiles = Array.isArray(files) && files.length > 0;
     if (!hasText && !hasFiles) return;
-    
+
     // TODO: Include selectedPockets and mentionedElements in submission
     // This will need to be passed to the backend for RAG context
     onSubmit?.(inputValue, hasFiles ? files : undefined);
-    
+
     setInputValue("");
     setMentionedElements([]);
     adjustHeight(true);
@@ -535,7 +595,7 @@ export function AIInputWithFile({
           className={cn(
             "relative max-w-lg w-full mx-auto",
             isDragging &&
-            "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-3xl"
+              "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-3xl",
           )}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -552,12 +612,14 @@ export function AIInputWithFile({
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:cursor-pointer hover:bg-black/40 dark:hover:bg-white/15",
                 )}
-                onClick={() => !disabled && setShowAttachmentMenu(!showAttachmentMenu)}
+                onClick={() =>
+                  !disabled && setShowAttachmentMenu(!showAttachmentMenu)
+                }
                 title="Add file or pocket"
               >
                 <Plus className="w-3.5 sm:w-4 h-3.5 sm:h-4 dark:text-white" />
               </div>
-              
+
               <PocketAttachmentMenu
                 isOpen={showAttachmentMenu}
                 onClose={() => setShowAttachmentMenu(false)}
@@ -633,9 +695,11 @@ export function AIInputWithFile({
               onClick={toggleListening}
               className={cn(
                 "absolute right-10 sm:right-12 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/30 dark:bg-white/10 backdrop-blur-sm border border-white/10 p-0 flex items-center justify-center",
-                disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-black/40 dark:hover:bg-white/15",
+                disabled
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-black/40 dark:hover:bg-white/15",
                 isListening && "ring-1 ring-red-400/60",
-                isProcessingVoice && "ring-1 ring-cyan-400/60"
+                isProcessingVoice && "ring-1 ring-cyan-400/60",
               )}
               type="button"
               disabled={disabled || isProcessingVoice}
@@ -667,10 +731,12 @@ export function AIInputWithFile({
                 {isListening ? (
                   <MicOff className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-red-400" />
                 ) : (
-                  <Mic className={cn(
-                    "w-3.5 sm:w-4 h-3.5 sm:h-4 dark:text-white",
-                    isProcessingVoice && "text-cyan-400 animate-pulse"
-                  )} />
+                  <Mic
+                    className={cn(
+                      "w-3.5 sm:w-4 h-3.5 sm:h-4 dark:text-white",
+                      isProcessingVoice && "text-cyan-400 animate-pulse",
+                    )}
+                  />
                 )}
               </span>
             </button>
@@ -684,19 +750,30 @@ export function AIInputWithFile({
               )}
               type="button"
               disabled={disabled}
-              title={inputValue || (files && files.length) ? "Send message" : "Type a message or select files"}
+              title={
+                inputValue || (files && files.length)
+                  ? "Send message"
+                  : "Type a message or select files"
+              }
             >
               <CornerRightUp
                 className={cn(
                   "w-3.5 sm:w-4 h-3.5 sm:h-4 transition-opacity dark:text-white",
-                  inputValue || (files && files.length) ? "opacity-100" : "opacity-30",
+                  inputValue || (files && files.length)
+                    ? "opacity-100"
+                    : "opacity-30",
                 )}
               />
             </button>
           </div>
 
           {/* Model Selector and Auto-Context Toggle row below input */}
-          <div className={cn("mt-2 flex items-center gap-2", disabled && "opacity-60 pointer-events-none")}>
+          <div
+            className={cn(
+              "mt-2 flex items-center gap-2",
+              disabled && "opacity-60 pointer-events-none",
+            )}
+          >
             <Tooltip sideOffset={6}>
               <TooltipTrigger asChild>
                 <Select
@@ -747,11 +824,8 @@ export function AIInputWithFile({
                   </SelectContent>
                 </Select>
               </TooltipTrigger>
-              <TooltipContent>
-                {getModelTooltip(model)}
-              </TooltipContent>
+              <TooltipContent>{getModelTooltip(model)}</TooltipContent>
             </Tooltip>
-
 
             {/* Auto-Context Toggle Button */}
             {onAutoContextChange && (
@@ -767,7 +841,7 @@ export function AIInputWithFile({
                         autoContext
                           ? "bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/70"
                           : "bg-white/10 border-white/10 text-white/60 hover:bg-white/15 hover:text-white/80",
-                        disabled && "opacity-50 cursor-not-allowed"
+                        disabled && "opacity-50 cursor-not-allowed",
                       )}
                       aria-pressed={autoContext}
                     >
@@ -775,7 +849,7 @@ export function AIInputWithFile({
                       <svg
                         className={cn(
                           "w-3.5 h-3.5 transition-colors",
-                          autoContext ? "text-cyan-400/90" : "text-white/60"
+                          autoContext ? "text-cyan-400/90" : "text-white/60",
                         )}
                         fill="none"
                         stroke="currentColor"
@@ -793,12 +867,17 @@ export function AIInputWithFile({
                       <span
                         className={cn(
                           "font-medium relative",
-                          autoContext && "chromatic-text"
+                          autoContext && "chromatic-text",
                         )}
-                        style={autoContext ? {
-                          color: '#e0f2fe',
-                          textShadow: '0.5px 0 0 rgba(255, 0, 255, 0.3), -0.5px 0 0 rgba(0, 255, 255, 0.3)'
-                        } : undefined}
+                        style={
+                          autoContext
+                            ? {
+                                color: "#e0f2fe",
+                                textShadow:
+                                  "0.5px 0 0 rgba(255, 0, 255, 0.3), -0.5px 0 0 rgba(0, 255, 255, 0.3)",
+                              }
+                            : undefined
+                        }
                       >
                         Auto context
                       </span>
@@ -843,6 +922,3 @@ export function AIInputWithFile({
     </div>
   );
 }
-
-
-

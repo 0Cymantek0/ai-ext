@@ -1,6 +1,6 @@
 /**
  * Conversation Metadata Generator
- * 
+ *
  * Generates comprehensive metadata for conversations using Gemini Nano
  * for intelligent semantic search capabilities.
  */
@@ -19,7 +19,9 @@ export class ConversationMetadataGenerator {
   /**
    * Generate metadata for a conversation
    */
-  async generateMetadata(messages: Message[]): Promise<ConversationMetadata | null> {
+  async generateMetadata(
+    messages: Message[],
+  ): Promise<ConversationMetadata | null> {
     try {
       // Filter out system messages and combine user/assistant messages
       const conversationText = messages
@@ -28,7 +30,10 @@ export class ConversationMetadataGenerator {
         .join("\n\n");
 
       if (!conversationText.trim()) {
-        logger.warn("MetadataGenerator", "No content to generate metadata from");
+        logger.warn(
+          "MetadataGenerator",
+          "No content to generate metadata from",
+        );
         return null;
       }
 
@@ -62,9 +67,13 @@ Respond ONLY with valid JSON, no other text:`;
       // Parse JSON response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        logger.error("MetadataGenerator", "Could not extract JSON from response", {
-          response: response.slice(0, 200),
-        });
+        logger.error(
+          "MetadataGenerator",
+          "Could not extract JSON from response",
+          {
+            response: response.slice(0, 200),
+          },
+        );
         return this.generateFallbackMetadata(messages);
       }
 
@@ -76,15 +85,21 @@ Respond ONLY with valid JSON, no other text:`;
         keywords: Array.isArray(metadata.keywords)
           ? metadata.keywords.slice(0, 10).map((k: string) => k.toLowerCase())
           : [],
-        topics: Array.isArray(metadata.topics) ? metadata.topics.slice(0, 5) : [],
-        entities: Array.isArray(metadata.entities) ? metadata.entities.slice(0, 10) : [],
+        topics: Array.isArray(metadata.topics)
+          ? metadata.topics.slice(0, 5)
+          : [],
+        entities: Array.isArray(metadata.entities)
+          ? metadata.entities.slice(0, 10)
+          : [],
         mainQuestions: Array.isArray(metadata.mainQuestions)
           ? metadata.mainQuestions.slice(0, 3)
           : [],
         generatedAt: Date.now(),
       };
     } catch (error) {
-      logger.error("MetadataGenerator", "Failed to generate metadata", { error });
+      logger.error("MetadataGenerator", "Failed to generate metadata", {
+        error,
+      });
       return this.generateFallbackMetadata(messages);
     }
   }
@@ -104,11 +119,15 @@ Respond ONLY with valid JSON, no other text:`;
       .slice(0, 5);
 
     return {
-      summary: firstUserMessage.slice(0, 100) + (firstUserMessage.length > 100 ? "..." : ""),
+      summary:
+        firstUserMessage.slice(0, 100) +
+        (firstUserMessage.length > 100 ? "..." : ""),
       keywords: words,
       topics: [],
       entities: [],
-      mainQuestions: userMessages.slice(0, 2).map((m) => m.content.slice(0, 100)),
+      mainQuestions: userMessages
+        .slice(0, 2)
+        .map((m) => m.content.slice(0, 100)),
       generatedAt: Date.now(),
     };
   }

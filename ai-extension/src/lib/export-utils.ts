@@ -87,28 +87,49 @@ export function exportToJSON(messages: ChatMessage[]): void {
  */
 function generateConversationTitle(messages: ChatMessage[]): string {
   // Get first user message content
-  const firstUserMessage = messages.find(m => m.role === 'user')?.content || '';
+  const firstUserMessage =
+    messages.find((m) => m.role === "user")?.content || "";
 
   // Extract key words (simple approach)
   const words = firstUserMessage
     .toLowerCase()
-    .replace(/[^\w\s]/g, '')
+    .replace(/[^\w\s]/g, "")
     .split(/\s+/)
-    .filter(w => w.length > 3 && !['what', 'how', 'when', 'where', 'why', 'this', 'that', 'with', 'from', 'have', 'been'].includes(w));
+    .filter(
+      (w) =>
+        w.length > 3 &&
+        ![
+          "what",
+          "how",
+          "when",
+          "where",
+          "why",
+          "this",
+          "that",
+          "with",
+          "from",
+          "have",
+          "been",
+        ].includes(w),
+    );
 
-  if (words.length === 0) return 'AI Conversation';
+  if (words.length === 0) return "AI Conversation";
 
   // Take first 3-5 meaningful words and capitalize
-  const titleWords = words.slice(0, Math.min(5, words.length))
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1));
+  const titleWords = words
+    .slice(0, Math.min(5, words.length))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1));
 
-  return titleWords.join(' ');
+  return titleWords.join(" ");
 }
 
 /**
  * Helper function to check if we need a new page and add one if necessary
  */
-function checkAndAddPage(ctx: PDFRenderContext, requiredSpace: number = 5): void {
+function checkAndAddPage(
+  ctx: PDFRenderContext,
+  requiredSpace: number = 5,
+): void {
   if (ctx.yPosition + requiredSpace > ctx.pageHeight - ctx.bottomMargin) {
     ctx.doc.addPage();
     ctx.yPosition = ctx.margin;
@@ -118,8 +139,13 @@ function checkAndAddPage(ctx: PDFRenderContext, requiredSpace: number = 5): void
 /**
  * Parse inline formatting markers - process bold first, then italic, then code
  */
-function parseInlineFormatting(text: string): Array<{ type: 'normal' | 'bold' | 'italic' | 'code', text: string }> {
-  const segments: Array<{ type: 'normal' | 'bold' | 'italic' | 'code', text: string }> = [];
+function parseInlineFormatting(
+  text: string,
+): Array<{ type: "normal" | "bold" | "italic" | "code"; text: string }> {
+  const segments: Array<{
+    type: "normal" | "bold" | "italic" | "code";
+    text: string;
+  }> = [];
 
   // Process in order: bold, then code, then italic (to avoid conflicts)
   const boldRegex = /\*\*(.+?)\*\*/g;
@@ -130,59 +156,66 @@ function parseInlineFormatting(text: string): Array<{ type: 'normal' | 'bold' | 
 
   // Replace bold first (to avoid conflict with italic)
   processedText = processedText.replace(boldRegex, (_match, bold) => {
-    segments.push({ type: 'bold', text: bold });
+    segments.push({ type: "bold", text: bold });
     return `\x00${segments.length - 1}\x00`;
   });
 
   // Replace inline code
   processedText = processedText.replace(inlineCodeRegex, (_match, code) => {
-    segments.push({ type: 'code', text: code });
+    segments.push({ type: "code", text: code });
     return `\x00${segments.length - 1}\x00`;
   });
 
   // Replace italic (single asterisk, not part of bold)
   processedText = processedText.replace(italicRegex, (_match, italic) => {
-    segments.push({ type: 'italic', text: italic });
+    segments.push({ type: "italic", text: italic });
     return `\x00${segments.length - 1}\x00`;
   });
 
   // Split by markers and reconstruct
   const parts = processedText.split(/\x00(\d+)\x00/);
-  const result: Array<{ type: 'normal' | 'bold' | 'italic' | 'code', text: string }> = [];
+  const result: Array<{
+    type: "normal" | "bold" | "italic" | "code";
+    text: string;
+  }> = [];
 
   parts.forEach((part, index) => {
     if (index % 2 === 0) {
-      if (part) result.push({ type: 'normal', text: part });
+      if (part) result.push({ type: "normal", text: part });
     } else {
       const segment = segments[parseInt(part)];
       if (segment) result.push(segment);
     }
   });
 
-  return result.length > 0 ? result : [{ type: 'normal', text }];
+  return result.length > 0 ? result : [{ type: "normal", text }];
 }
 
 /**
  * Render segments on current line
  */
-function renderSegmentsOnLine(ctx: PDFRenderContext, segments: Array<{ text: string, type: string, width: number }>, startX?: number): void {
+function renderSegmentsOnLine(
+  ctx: PDFRenderContext,
+  segments: Array<{ text: string; type: string; width: number }>,
+  startX?: number,
+): void {
   let xPos = startX ?? ctx.margin;
 
-  segments.forEach(seg => {
-    ctx.doc.setFontSize(seg.type === 'code' ? 9 : 10);
+  segments.forEach((seg) => {
+    ctx.doc.setFontSize(seg.type === "code" ? 9 : 10);
 
-    if (seg.type === 'bold') {
+    if (seg.type === "bold") {
       ctx.doc.setFont("helvetica", "bold");
       ctx.doc.setTextColor(0, 0, 0);
-    } else if (seg.type === 'italic') {
+    } else if (seg.type === "italic") {
       ctx.doc.setFont("helvetica", "italic");
       ctx.doc.setTextColor(0, 0, 0);
-    } else if (seg.type === 'code') {
+    } else if (seg.type === "code") {
       ctx.doc.setFont("courier", "normal");
       ctx.doc.setTextColor(200, 50, 50);
       // Add background for inline code with padding
       ctx.doc.setFillColor(245, 245, 250);
-      ctx.doc.rect(xPos - 1, ctx.yPosition - 3.5, seg.width + 2, 4.5, 'F');
+      ctx.doc.rect(xPos - 1, ctx.yPosition - 3.5, seg.width + 2, 4.5, "F");
     } else {
       ctx.doc.setFont("helvetica", "normal");
       ctx.doc.setTextColor(0, 0, 0);
@@ -199,30 +232,37 @@ function renderSegmentsOnLine(ctx: PDFRenderContext, segments: Array<{ text: str
 function renderLineWithFormatting(ctx: PDFRenderContext, line: string): void {
   const segments = parseInlineFormatting(line);
   let xPosition = ctx.margin;
-  let currentLineSegments: Array<{ text: string, type: string, width: number }> = [];
+  let currentLineSegments: Array<{
+    text: string;
+    type: string;
+    width: number;
+  }> = [];
 
-  segments.forEach(segment => {
-    ctx.doc.setFontSize(segment.type === 'code' ? 9 : 10);
+  segments.forEach((segment) => {
+    ctx.doc.setFontSize(segment.type === "code" ? 9 : 10);
 
-    if (segment.type === 'bold') {
+    if (segment.type === "bold") {
       ctx.doc.setFont("helvetica", "bold");
-    } else if (segment.type === 'italic') {
+    } else if (segment.type === "italic") {
       ctx.doc.setFont("helvetica", "italic");
-    } else if (segment.type === 'code') {
+    } else if (segment.type === "code") {
       ctx.doc.setFont("courier", "normal");
     } else {
       ctx.doc.setFont("helvetica", "normal");
     }
 
     // Split segment text by words to handle wrapping
-    const words = segment.text.split(' ');
+    const words = segment.text.split(" ");
 
     words.forEach((word, idx) => {
-      const textToAdd = idx === 0 ? word : ' ' + word;
+      const textToAdd = idx === 0 ? word : " " + word;
       const textWidth = ctx.doc.getTextWidth(textToAdd);
 
       // Check if we need to wrap to next line
-      if (xPosition + textWidth > ctx.pageWidth - ctx.margin && xPosition > ctx.margin) {
+      if (
+        xPosition + textWidth > ctx.pageWidth - ctx.margin &&
+        xPosition > ctx.margin
+      ) {
         // Render current line
         renderSegmentsOnLine(ctx, currentLineSegments);
         currentLineSegments = [];
@@ -234,7 +274,7 @@ function renderLineWithFormatting(ctx: PDFRenderContext, line: string): void {
       currentLineSegments.push({
         text: textToAdd,
         type: segment.type,
-        width: textWidth
+        width: textWidth,
       });
       xPosition += textWidth;
     });
@@ -250,14 +290,18 @@ function renderLineWithFormatting(ctx: PDFRenderContext, line: string): void {
 /**
  * Render code block with background and monospace font - allows page breaks
  */
-function renderCodeBlock(ctx: PDFRenderContext, code: string, language?: string): void {
+function renderCodeBlock(
+  ctx: PDFRenderContext,
+  code: string,
+  language?: string,
+): void {
   checkAndAddPage(ctx, 15);
 
   // Add language label header with dark background (like in the image)
   if (language) {
     // Draw dark header background with increased height
     ctx.doc.setFillColor(50, 50, 50);
-    ctx.doc.rect(ctx.margin, ctx.yPosition, ctx.maxWidth, 9, 'F');
+    ctx.doc.rect(ctx.margin, ctx.yPosition, ctx.maxWidth, 9, "F");
 
     // Add language text in white with better vertical positioning
     ctx.doc.setFontSize(9);
@@ -268,9 +312,9 @@ function renderCodeBlock(ctx: PDFRenderContext, code: string, language?: string)
   }
 
   // Process code line by line with proper wrapping and page breaks
-  const codeLines = code.trim().split('\n');
+  const codeLines = code.trim().split("\n");
   const codePadding = 5; // Increased padding inside code block
-  const codeMaxWidth = ctx.maxWidth - (codePadding * 2);
+  const codeMaxWidth = ctx.maxWidth - codePadding * 2;
 
   ctx.doc.setFontSize(8);
   ctx.doc.setFont("courier", "normal");
@@ -279,16 +323,16 @@ function renderCodeBlock(ctx: PDFRenderContext, code: string, language?: string)
   // Add top padding for first line
   ctx.yPosition += 3;
 
-  codeLines.forEach(line => {
+  codeLines.forEach((line) => {
     // Wrap long lines to fit within code block width
-    const wrappedLines = ctx.doc.splitTextToSize(line || ' ', codeMaxWidth);
+    const wrappedLines = ctx.doc.splitTextToSize(line || " ", codeMaxWidth);
 
     wrappedLines.forEach((wrappedLine: string) => {
       checkAndAddPage(ctx, 5);
 
       // Draw light gray background for this line with increased height
       ctx.doc.setFillColor(245, 247, 250);
-      ctx.doc.rect(ctx.margin, ctx.yPosition - 3.5, ctx.maxWidth, 6, 'F');
+      ctx.doc.rect(ctx.margin, ctx.yPosition - 3.5, ctx.maxWidth, 6, "F");
 
       // Add code text with proper padding
       ctx.doc.text(wrappedLine, ctx.margin + codePadding, ctx.yPosition);
@@ -303,10 +347,13 @@ function renderCodeBlock(ctx: PDFRenderContext, code: string, language?: string)
 /**
  * Render text with inline formatting (bold, italic, inline code)
  */
-function renderTextWithInlineFormatting(ctx: PDFRenderContext, text: string): void {
-  const lines = text.split('\n');
+function renderTextWithInlineFormatting(
+  ctx: PDFRenderContext,
+  text: string,
+): void {
+  const lines = text.split("\n");
 
-  lines.forEach(line => {
+  lines.forEach((line) => {
     if (!line.trim()) {
       ctx.yPosition += 3;
       return;
@@ -351,24 +398,24 @@ function renderTextWithInlineFormatting(ctx: PDFRenderContext, text: string): vo
       let xPos = ctx.margin + 7;
       const bulletRightMargin = ctx.pageWidth - ctx.margin;
 
-      segments.forEach(seg => {
-        ctx.doc.setFontSize(seg.type === 'code' ? 9 : 10);
+      segments.forEach((seg) => {
+        ctx.doc.setFontSize(seg.type === "code" ? 9 : 10);
 
-        if (seg.type === 'bold') {
+        if (seg.type === "bold") {
           ctx.doc.setFont("helvetica", "bold");
-        } else if (seg.type === 'italic') {
+        } else if (seg.type === "italic") {
           ctx.doc.setFont("helvetica", "italic");
-        } else if (seg.type === 'code') {
+        } else if (seg.type === "code") {
           ctx.doc.setFont("courier", "normal");
         } else {
           ctx.doc.setFont("helvetica", "normal");
         }
 
         // Split segment into words for wrapping
-        const words = seg.text.split(' ');
+        const words = seg.text.split(" ");
 
         words.forEach((word, idx) => {
-          const textToRender = idx === 0 ? word : ' ' + word;
+          const textToRender = idx === 0 ? word : " " + word;
           const textWidth = ctx.doc.getTextWidth(textToRender);
 
           // Check if we need to wrap to next line
@@ -380,15 +427,21 @@ function renderTextWithInlineFormatting(ctx: PDFRenderContext, text: string): vo
           }
 
           // Set colors and render
-          if (seg.type === 'bold') {
+          if (seg.type === "bold") {
             ctx.doc.setTextColor(0, 0, 0);
-          } else if (seg.type === 'italic') {
+          } else if (seg.type === "italic") {
             ctx.doc.setTextColor(0, 0, 0);
-          } else if (seg.type === 'code') {
+          } else if (seg.type === "code") {
             ctx.doc.setTextColor(200, 50, 50);
             // Add background for inline code with padding
             ctx.doc.setFillColor(245, 245, 250);
-            ctx.doc.rect(xPos - 1, ctx.yPosition - 3.5, textWidth + 2, 4.5, 'F');
+            ctx.doc.rect(
+              xPos - 1,
+              ctx.yPosition - 3.5,
+              textWidth + 2,
+              4.5,
+              "F",
+            );
           } else {
             ctx.doc.setTextColor(0, 0, 0);
           }
@@ -413,19 +466,27 @@ function renderTextWithInlineFormatting(ctx: PDFRenderContext, text: string): vo
 function renderFormattedText(ctx: PDFRenderContext, text: string): void {
   // Split content into code blocks and regular text
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-  const parts: Array<{ type: 'code' | 'text', content: string, language?: string }> = [];
+  const parts: Array<{
+    type: "code" | "text";
+    content: string;
+    language?: string;
+  }> = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = codeBlockRegex.exec(text)) !== null) {
     // Add text before code block
     if (match.index > lastIndex) {
-      parts.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+      parts.push({ type: "text", content: text.slice(lastIndex, match.index) });
     }
     // Add code block
-    const codePart: { type: 'code' | 'text', content: string, language?: string } = {
-      type: 'code',
-      content: match[2] || ''
+    const codePart: {
+      type: "code" | "text";
+      content: string;
+      language?: string;
+    } = {
+      type: "code",
+      content: match[2] || "",
     };
     if (match[1]) {
       codePart.language = match[1];
@@ -435,12 +496,12 @@ function renderFormattedText(ctx: PDFRenderContext, text: string): void {
   }
   // Add remaining text
   if (lastIndex < text.length) {
-    parts.push({ type: 'text', content: text.slice(lastIndex) });
+    parts.push({ type: "text", content: text.slice(lastIndex) });
   }
 
   // Render each part
-  parts.forEach(part => {
-    if (part.type === 'code') {
+  parts.forEach((part) => {
+    if (part.type === "code") {
       renderCodeBlock(ctx, part.content, part.language);
     } else {
       renderTextWithInlineFormatting(ctx, part.content);
@@ -468,7 +529,7 @@ export function exportToPDF(messages: ChatMessage[]): void {
   const maxWidth = pageWidth - 2 * margin;
   const lineHeight = 5;
   const bottomMargin = 20; // Increased bottom margin
-  
+
   // Create rendering context
   const ctx: PDFRenderContext = {
     doc,
@@ -478,7 +539,7 @@ export function exportToPDF(messages: ChatMessage[]): void {
     pageWidth,
     pageHeight,
     lineHeight,
-    bottomMargin
+    bottomMargin,
   };
 
   // Generate dynamic title
@@ -496,31 +557,51 @@ export function exportToPDF(messages: ChatMessage[]): void {
   ctx.doc.setFont("helvetica", "italic");
   ctx.doc.setTextColor(120, 120, 120);
   checkAndAddPage(ctx, ctx.lineHeight);
-  ctx.doc.text(`Exported: ${new Date().toLocaleString()}`, ctx.margin, ctx.yPosition);
+  ctx.doc.text(
+    `Exported: ${new Date().toLocaleString()}`,
+    ctx.margin,
+    ctx.yPosition,
+  );
   ctx.yPosition += 8;
 
   // Decorative separator line
   checkAndAddPage(ctx, ctx.lineHeight);
   ctx.doc.setDrawColor(30, 60, 120);
   ctx.doc.setLineWidth(0.5);
-  ctx.doc.line(ctx.margin, ctx.yPosition, ctx.pageWidth - ctx.margin, ctx.yPosition);
+  ctx.doc.line(
+    ctx.margin,
+    ctx.yPosition,
+    ctx.pageWidth - ctx.margin,
+    ctx.yPosition,
+  );
   ctx.yPosition += 12;
 
   // Messages
   messages.forEach((message, index) => {
     // Pill-shaped chip for role
-    const roleColors: Record<string, { pill: [number, number, number], text: [number, number, number] }> = {
+    const roleColors: Record<
+      string,
+      { pill: [number, number, number]; text: [number, number, number] }
+    > = {
       user: { pill: [200, 220, 255], text: [20, 60, 140] },
       assistant: { pill: [200, 240, 200], text: [20, 100, 20] },
-      system: { pill: [255, 240, 200], text: [160, 100, 20] }
+      system: { pill: [255, 240, 200], text: [160, 100, 20] },
     };
 
-    const colors = roleColors[message.role] ?? { pill: [255, 240, 200] as [number, number, number], text: [160, 100, 20] as [number, number, number] };
+    const colors = roleColors[message.role] ?? {
+      pill: [255, 240, 200] as [number, number, number],
+      text: [160, 100, 20] as [number, number, number],
+    };
 
     // Draw pill-shaped chip
     checkAndAddPage(ctx, 10);
 
-    const roleText = message.role === "user" ? "You" : message.role === "assistant" ? "AI Assistant" : "System";
+    const roleText =
+      message.role === "user"
+        ? "You"
+        : message.role === "assistant"
+          ? "AI Assistant"
+          : "System";
 
     ctx.doc.setFontSize(9);
     ctx.doc.setFont("helvetica", "bold");
@@ -531,7 +612,15 @@ export function exportToPDF(messages: ChatMessage[]): void {
 
     // Draw rounded rectangle (pill shape)
     ctx.doc.setFillColor(colors.pill[0], colors.pill[1], colors.pill[2]);
-    ctx.doc.roundedRect(ctx.margin, ctx.yPosition - 1, chipWidth, chipHeight, chipRadius, chipRadius, 'F');
+    ctx.doc.roundedRect(
+      ctx.margin,
+      ctx.yPosition - 1,
+      chipWidth,
+      chipHeight,
+      chipRadius,
+      chipRadius,
+      "F",
+    );
 
     // Draw chip text
     ctx.doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
@@ -542,7 +631,11 @@ export function exportToPDF(messages: ChatMessage[]): void {
     ctx.doc.setFont("helvetica", "normal");
     ctx.doc.setTextColor(120, 120, 120);
     const timestampText = new Date(message.timestamp).toLocaleString();
-    ctx.doc.text(timestampText, ctx.margin + chipWidth + 4, ctx.yPosition + 2.5);
+    ctx.doc.text(
+      timestampText,
+      ctx.margin + chipWidth + 4,
+      ctx.yPosition + 2.5,
+    );
 
     ctx.yPosition += 10; // Increased gap between chip and content
 
@@ -572,7 +665,12 @@ export function exportToPDF(messages: ChatMessage[]): void {
       checkAndAddPage(ctx, ctx.lineHeight);
       ctx.doc.setDrawColor(230, 230, 230);
       ctx.doc.setLineWidth(0.2);
-      ctx.doc.line(ctx.margin, ctx.yPosition, ctx.pageWidth - ctx.margin, ctx.yPosition);
+      ctx.doc.line(
+        ctx.margin,
+        ctx.yPosition,
+        ctx.pageWidth - ctx.margin,
+        ctx.yPosition,
+      );
       ctx.yPosition += 8;
     }
   });
@@ -668,7 +766,7 @@ export function exportMessageToPDF(message: ChatMessage): void {
     pageWidth,
     pageHeight,
     lineHeight,
-    bottomMargin
+    bottomMargin,
   };
 
   // Title
@@ -682,24 +780,44 @@ export function exportMessageToPDF(message: ChatMessage): void {
   ctx.doc.setFontSize(9);
   ctx.doc.setFont("helvetica", "italic");
   ctx.doc.setTextColor(120, 120, 120);
-  ctx.doc.text(`Exported: ${new Date().toLocaleString()}`, ctx.margin, ctx.yPosition);
+  ctx.doc.text(
+    `Exported: ${new Date().toLocaleString()}`,
+    ctx.margin,
+    ctx.yPosition,
+  );
   ctx.yPosition += 8;
 
   // Separator line
   ctx.doc.setDrawColor(30, 60, 120);
   ctx.doc.setLineWidth(0.5);
-  ctx.doc.line(ctx.margin, ctx.yPosition, ctx.pageWidth - ctx.margin, ctx.yPosition);
+  ctx.doc.line(
+    ctx.margin,
+    ctx.yPosition,
+    ctx.pageWidth - ctx.margin,
+    ctx.yPosition,
+  );
   ctx.yPosition += 12;
 
   // Role chip
-  const roleColors: Record<string, { pill: [number, number, number], text: [number, number, number] }> = {
+  const roleColors: Record<
+    string,
+    { pill: [number, number, number]; text: [number, number, number] }
+  > = {
     user: { pill: [200, 220, 255], text: [20, 60, 140] },
     assistant: { pill: [200, 240, 200], text: [20, 100, 20] },
-    system: { pill: [255, 240, 200], text: [160, 100, 20] }
+    system: { pill: [255, 240, 200], text: [160, 100, 20] },
   };
 
-  const colors = roleColors[message.role] ?? { pill: [255, 240, 200] as [number, number, number], text: [160, 100, 20] as [number, number, number] };
-  const roleText = message.role === "user" ? "You" : message.role === "assistant" ? "AI Assistant" : "System";
+  const colors = roleColors[message.role] ?? {
+    pill: [255, 240, 200] as [number, number, number],
+    text: [160, 100, 20] as [number, number, number],
+  };
+  const roleText =
+    message.role === "user"
+      ? "You"
+      : message.role === "assistant"
+        ? "AI Assistant"
+        : "System";
 
   ctx.doc.setFontSize(9);
   ctx.doc.setFont("helvetica", "bold");
@@ -709,7 +827,15 @@ export function exportMessageToPDF(message: ChatMessage): void {
   const chipRadius = chipHeight / 2;
 
   ctx.doc.setFillColor(colors.pill[0], colors.pill[1], colors.pill[2]);
-  ctx.doc.roundedRect(ctx.margin, ctx.yPosition - 1, chipWidth, chipHeight, chipRadius, chipRadius, 'F');
+  ctx.doc.roundedRect(
+    ctx.margin,
+    ctx.yPosition - 1,
+    chipWidth,
+    chipHeight,
+    chipRadius,
+    chipRadius,
+    "F",
+  );
   ctx.doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
   ctx.doc.text(roleText, ctx.margin + 3, ctx.yPosition + 2.5);
 
@@ -746,7 +872,11 @@ export function exportMessageToPDF(message: ChatMessage): void {
 /**
  * Helper function to download a file
  */
-function downloadFile(content: string, filename: string, mimeType: string): void {
+function downloadFile(
+  content: string,
+  filename: string,
+  mimeType: string,
+): void {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

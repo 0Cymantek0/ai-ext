@@ -40,7 +40,9 @@ export function AIInputWithFileDemo() {
       />
 
       <div className="text-xs text-muted-foreground space-y-1 bg-muted p-3 rounded-lg">
-        <h3 className="font-semibold text-sm mb-2">Chrome Extension Features:</h3>
+        <h3 className="font-semibold text-sm mb-2">
+          Chrome Extension Features:
+        </h3>
         <p>✅ Click the paperclip to open file picker</p>
         <p>✅ Drag and drop files onto the input area</p>
         <p>✅ Works within Chrome extension security constraints</p>

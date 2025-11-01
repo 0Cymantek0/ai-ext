@@ -10,10 +10,12 @@
 import { logger } from "./monitoring.js";
 import {
   HybridAIEngine,
+  ProcessingLocation,
   TaskOperation,
   type Task,
   type Content,
 } from "./hybrid-ai-engine.js";
+import type { ProcessingOptions } from "./ai-manager.js";
 import {
   conversationContextLoader,
   type ConversationContext,
@@ -35,14 +37,22 @@ export type AIMode = "ask" | "ai-pocket";
 /**
  * Mode-aware request
  */
+export interface RoutingMetadata {
+  reason?: string;
+  confidence?: number;
+  telemetry?: Record<string, unknown>;
+}
+
 export interface ModeAwareRequest {
   prompt: string;
   mode: AIMode;
   conversationId?: string | undefined;
   pocketId?: string | undefined;
   preferLocal?: boolean | undefined;
-  model?: "nano" | "flash" | "pro" | undefined;
+  model?: "nano" | "flash" | "pro" | "auto" | undefined;
   autoContext?: boolean | undefined;
+  targetModel?: "nano" | "flash" | "pro";
+  routingMetadata?: RoutingMetadata;
 }
 
 /**
@@ -98,6 +108,10 @@ export class ModeAwareProcessor {
       conversationId: request.conversationId,
       pocketId: request.pocketId,
       autoContext: request.autoContext,
+      targetModel: request.targetModel,
+      preferLocal: request.preferLocal,
+      routingReason: request.routingMetadata?.reason,
+      routingConfidence: request.routingMetadata?.confidence,
     });
 
     try {
@@ -113,14 +127,32 @@ export class ModeAwareProcessor {
       }
 
       // Process with hybrid AI engine
+      const forcedLocation = request.targetModel
+        ? this.mapTargetModelToProcessingLocation(request.targetModel)
+        : undefined;
+
+      const processingOptions: Partial<ProcessingOptions> = {
+        preferLocal: request.preferLocal ?? true,
+        taskType: "general",
+        priority: "normal",
+        ...(signal && { signal }),
+      };
+
+      if (forcedLocation) {
+        processingOptions.forcedLocation = forcedLocation;
+        if (request.routingMetadata?.reason !== undefined) {
+          processingOptions.forcedLocationReason =
+            request.routingMetadata.reason;
+        }
+        if (request.routingMetadata?.confidence !== undefined) {
+          processingOptions.forcedLocationConfidence =
+            request.routingMetadata.confidence;
+        }
+      }
+
       const streamGenerator = this.hybridEngine.processContentStreaming(
         pipelineResult.task,
-        {
-          preferLocal: request.preferLocal ?? true,
-          taskType: "general",
-          priority: "normal",
-          ...(signal && { signal }),
-        },
+        processingOptions,
         async (decision) => {
           // Consent callback - for now, auto-approve
           // In production, this should prompt the user
@@ -142,7 +174,7 @@ export class ModeAwareProcessor {
       // Calculate metrics
       const processingTime = performance.now() - startTime;
       const tokensUsed = this.estimateTokens(fullResponse);
-      const source = request.preferLocal ? "gemini-nano" : "gemini-flash";
+      const source = this.resolveResponseSource(request);
 
       // Build final response
       const response: ModeAwareResponse = {
@@ -156,6 +188,7 @@ export class ModeAwareProcessor {
 
       logger.info("ModeAwareProcessor", "Request processed successfully", {
         mode: request.mode,
+        targetModel: request.targetModel,
         tokensUsed,
         processingTime: `${processingTime.toFixed(2)}ms`,
         contextSignals: response.contextUsed,
@@ -234,7 +267,10 @@ export class ModeAwareProcessor {
           request.conversationId,
         );
         let attachedPocketIds = conversation?.attachedPocketIds || [];
-        if (conversation?.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation?.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 
@@ -242,7 +278,9 @@ export class ModeAwareProcessor {
           effectivePocketId = attachedPocketIds[0];
 
           // Validate pocket exists
-          const pocket = effectivePocketId ? await indexedDBManager.getPocket(effectivePocketId) : null;
+          const pocket = effectivePocketId
+            ? await indexedDBManager.getPocket(effectivePocketId)
+            : null;
           if (!pocket) {
             logger.warn(
               "ModeAwareProcessor",
@@ -387,7 +425,10 @@ export class ModeAwareProcessor {
           request.conversationId,
         );
         let attachedPocketIds = conversation?.attachedPocketIds || [];
-        if (conversation?.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation?.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 
@@ -395,7 +436,9 @@ export class ModeAwareProcessor {
           effectivePocketId = attachedPocketIds[0];
 
           // Validate pocket exists
-          const pocket = effectivePocketId ? await indexedDBManager.getPocket(effectivePocketId) : null;
+          const pocket = effectivePocketId
+            ? await indexedDBManager.getPocket(effectivePocketId)
+            : null;
           if (!pocket) {
             logger.warn(
               "ModeAwareProcessor",
@@ -531,6 +574,34 @@ export class ModeAwareProcessor {
     return Math.ceil(text.length / 4);
   }
 
+  private mapTargetModelToProcessingLocation(
+    targetModel: "nano" | "flash" | "pro",
+  ): ProcessingLocation {
+    switch (targetModel) {
+      case "flash":
+        return ProcessingLocation.GEMINI_FLASH;
+      case "pro":
+        return ProcessingLocation.GEMINI_PRO;
+      default:
+        return ProcessingLocation.GEMINI_NANO;
+    }
+  }
+
+  private resolveResponseSource(
+    request: ModeAwareRequest,
+  ): ModeAwareResponse["source"] {
+    if (request.targetModel === "pro") {
+      return "gemini-pro";
+    }
+    if (request.targetModel === "flash") {
+      return "gemini-flash";
+    }
+    if (request.targetModel === "nano") {
+      return "gemini-nano";
+    }
+    return request.preferLocal ? "gemini-nano" : "gemini-flash";
+  }
+
   /**
    * Detect mode from UI state
    *
@@ -570,5 +641,3 @@ export function getModeAwareProcessor(
   }
   return modeAwareProcessorInstance;
 }
-
-

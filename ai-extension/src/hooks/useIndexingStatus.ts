@@ -38,7 +38,7 @@ export function useIndexingStatus() {
     const messageListener = (message: any) => {
       if (message.kind === "VECTOR_INDEXING_PROGRESS") {
         const progress = message.payload as IndexingProgress;
-        
+
         setStatus((prev) => {
           const newProgressMap = new Map(prev.progressByContentId);
           newProgressMap.set(progress.contentId, progress);
@@ -46,7 +46,10 @@ export function useIndexingStatus() {
           const newIndexingSet = new Set(prev.indexingContentIds);
           const newFailedSet = new Set(prev.failedContentIds);
 
-          if (progress.status === "pending" || progress.status === "processing") {
+          if (
+            progress.status === "pending" ||
+            progress.status === "processing"
+          ) {
             newIndexingSet.add(progress.contentId);
             newFailedSet.delete(progress.contentId);
           } else if (progress.status === "completed") {
@@ -68,7 +71,7 @@ export function useIndexingStatus() {
     };
 
     chrome.runtime.onMessage.addListener(messageListener);
-    
+
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener);
     };
@@ -78,29 +81,31 @@ export function useIndexingStatus() {
     (contentId: string): IndexingProgress | undefined => {
       return status.progressByContentId.get(contentId);
     },
-    [status.progressByContentId]
+    [status.progressByContentId],
   );
 
   const isContentIndexing = React.useCallback(
     (contentId: string): boolean => {
       return status.indexingContentIds.has(contentId);
     },
-    [status.indexingContentIds]
+    [status.indexingContentIds],
   );
 
   const isContentFailed = React.useCallback(
     (contentId: string): boolean => {
       return status.failedContentIds.has(contentId);
     },
-    [status.failedContentIds]
+    [status.failedContentIds],
   );
 
   const getPocketIndexingStatus = React.useCallback(
     (contentIds: string[]) => {
-      const indexing = contentIds.filter((id) => status.indexingContentIds.has(id));
+      const indexing = contentIds.filter((id) =>
+        status.indexingContentIds.has(id),
+      );
       const failed = contentIds.filter((id) => status.failedContentIds.has(id));
       const completed = contentIds.filter(
-        (id) => status.progressByContentId.get(id)?.status === 'completed'
+        (id) => status.progressByContentId.get(id)?.status === "completed",
       );
 
       return {
@@ -114,7 +119,11 @@ export function useIndexingStatus() {
         failedContentIds: failed,
       };
     },
-    [status.indexingContentIds, status.failedContentIds, status.progressByContentId]
+    [
+      status.indexingContentIds,
+      status.failedContentIds,
+      status.progressByContentId,
+    ],
   );
 
   const retryFailedIndexing = React.useCallback(async (contentId: string) => {

@@ -1,11 +1,14 @@
 /**
  * Chunk-Level RAG Edge Cases Test
- * 
+ *
  * Tests edge cases and error scenarios for RAG implementation
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { ContextBundleBuilder, type ContextBundleOptions } from "./context-bundle";
+import {
+  ContextBundleBuilder,
+  type ContextBundleOptions,
+} from "./context-bundle";
 
 // Mock dependencies
 vi.mock("./monitoring", () => ({
@@ -85,10 +88,10 @@ describe("Chunk-Level RAG Edge Cases", () => {
   describe("Very Large Content Handling", () => {
     it("should truncate when content exceeds budget", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
+
       // Create very large content items
       const largeContent = "A".repeat(20000); // ~5000 tokens
-      
+
       vi.spyOn(vectorSearchService, "searchContent").mockResolvedValue([
         {
           item: {
@@ -115,7 +118,7 @@ describe("Chunk-Level RAG Edge Cases", () => {
             sourceUrl: "https://example.com",
             processingStatus: "completed",
           },
-          relevanceScore: 0.90,
+          relevanceScore: 0.9,
           matchedFields: ["semantic"],
         },
       ]);
@@ -136,10 +139,10 @@ describe("Chunk-Level RAG Edge Cases", () => {
 
     it("should handle content that exceeds entire budget", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
+
       // Create extremely large content
       const hugeContent = "X".repeat(50000); // ~12500 tokens
-      
+
       vi.spyOn(vectorSearchService, "searchContent").mockResolvedValue([
         {
           item: {
@@ -175,7 +178,7 @@ describe("Chunk-Level RAG Edge Cases", () => {
   describe("Special Character Handling", () => {
     it("should handle content with special characters", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
+
       vi.spyOn(vectorSearchService, "searchContent").mockResolvedValue([
         {
           item: {
@@ -209,7 +212,7 @@ describe("Chunk-Level RAG Edge Cases", () => {
 
     it("should handle content with newlines and whitespace", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
+
       vi.spyOn(vectorSearchService, "searchContent").mockResolvedValue([
         {
           item: {
@@ -222,7 +225,7 @@ describe("Chunk-Level RAG Edge Cases", () => {
             sourceUrl: "https://example.com",
             processingStatus: "completed",
           },
-          relevanceScore: 0.80,
+          relevanceScore: 0.8,
           matchedFields: ["semantic"],
         },
       ]);
@@ -244,7 +247,7 @@ describe("Chunk-Level RAG Edge Cases", () => {
   describe("Multiple Pocket Scenarios", () => {
     it("should handle pocketId that doesn't exist", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
+
       // Mock empty results for non-existent pocket
       vi.spyOn(vectorSearchService, "searchContent").mockResolvedValue([]);
 
@@ -264,9 +267,9 @@ describe("Chunk-Level RAG Edge Cases", () => {
 
     it("should handle switching between pockets", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
+
       const searchSpy = vi.spyOn(vectorSearchService, "searchContent");
-      
+
       // First call with pocket-1
       searchSpy.mockResolvedValueOnce([
         {
@@ -280,7 +283,7 @@ describe("Chunk-Level RAG Edge Cases", () => {
             sourceUrl: "https://example.com",
             processingStatus: "completed",
           },
-          relevanceScore: 0.90,
+          relevanceScore: 0.9,
           matchedFields: ["semantic"],
         },
       ]);
@@ -335,7 +338,7 @@ describe("Chunk-Level RAG Edge Cases", () => {
   describe("Relevance Score Edge Cases", () => {
     it("should handle zero relevance scores", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
+
       vi.spyOn(vectorSearchService, "searchContent").mockResolvedValue([
         {
           item: {
@@ -370,7 +373,7 @@ describe("Chunk-Level RAG Edge Cases", () => {
 
     it("should handle perfect relevance scores", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
+
       vi.spyOn(vectorSearchService, "searchContent").mockResolvedValue([
         {
           item: {
@@ -404,7 +407,7 @@ describe("Chunk-Level RAG Edge Cases", () => {
   describe("Concurrent Request Handling", () => {
     it("should handle multiple concurrent requests", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
+
       vi.spyOn(vectorSearchService, "searchContent").mockResolvedValue([
         {
           item: {
@@ -449,23 +452,25 @@ describe("Chunk-Level RAG Edge Cases", () => {
   describe("Mode Switching", () => {
     it("should handle switching from Ask to AI Pocket mode", async () => {
       const { vectorSearchService } = await import("./vector-search-service");
-      
-      const searchSpy = vi.spyOn(vectorSearchService, "searchContent").mockResolvedValue([
-        {
-          item: {
-            id: "content-1",
-            pocketId: "pocket-1",
-            type: "text",
-            content: "Test content",
-            metadata: { timestamp: Date.now() },
-            capturedAt: Date.now(),
-            sourceUrl: "https://example.com",
-            processingStatus: "completed",
+
+      const searchSpy = vi
+        .spyOn(vectorSearchService, "searchContent")
+        .mockResolvedValue([
+          {
+            item: {
+              id: "content-1",
+              pocketId: "pocket-1",
+              type: "text",
+              content: "Test content",
+              metadata: { timestamp: Date.now() },
+              capturedAt: Date.now(),
+              sourceUrl: "https://example.com",
+              processingStatus: "completed",
+            },
+            relevanceScore: 0.85,
+            matchedFields: ["semantic"],
           },
-          relevanceScore: 0.85,
-          matchedFields: ["semantic"],
-        },
-      ]);
+        ]);
 
       // Ask mode with RAG
       const askOptions: ContextBundleOptions = {

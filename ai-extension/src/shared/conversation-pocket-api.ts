@@ -1,6 +1,6 @@
 /**
  * Conversation Pocket Attachment API
- * 
+ *
  * Client-side API for attaching/detaching pockets to conversations
  * Used by UI components to interact with the backend
  */
@@ -14,7 +14,7 @@ import type {
 
 /**
  * Attach a pocket to a conversation for RAG context retrieval
- * 
+ *
  * @param conversationId - ID of the conversation
  * @param pocketId - ID of the pocket to attach
  * @returns Result with attached pocket information
@@ -22,7 +22,7 @@ import type {
  */
 export async function attachPocketToConversation(
   conversationId: string,
-  pocketId: string
+  pocketId: string,
 ): Promise<ConversationAttachedPocketResult> {
   const payload: ConversationAttachPocketPayload = {
     conversationId,
@@ -35,7 +35,9 @@ export async function attachPocketToConversation(
   });
 
   if (!response.success) {
-    throw new Error(`Failed to attach pocket: ${response.error || "Unknown error"}`);
+    throw new Error(
+      `Failed to attach pocket: ${response.error || "Unknown error"}`,
+    );
   }
 
   return {
@@ -48,7 +50,7 @@ export async function attachPocketToConversation(
 
 /**
  * Detach pocket(s) from a conversation
- * 
+ *
  * @param conversationId - ID of the conversation
  * @param pocketId - Optional: ID of specific pocket to detach, or undefined to detach all
  * @returns Result confirming detachment
@@ -56,7 +58,7 @@ export async function attachPocketToConversation(
  */
 export async function detachPocketFromConversation(
   conversationId: string,
-  pocketId?: string
+  pocketId?: string,
 ): Promise<ConversationAttachedPocketResult> {
   const payload: ConversationDetachPocketPayload = {
     conversationId,
@@ -69,7 +71,9 @@ export async function detachPocketFromConversation(
   });
 
   if (!response.success) {
-    throw new Error(`Failed to detach pocket: ${response.error || "Unknown error"}`);
+    throw new Error(
+      `Failed to detach pocket: ${response.error || "Unknown error"}`,
+    );
   }
 
   return {
@@ -81,12 +85,12 @@ export async function detachPocketFromConversation(
 
 /**
  * Get all pockets attached to a conversation
- * 
+ *
  * @param conversationId - ID of the conversation
  * @returns Attached pockets information or empty array if no pockets attached
  */
 export async function getAttachedPocket(
-  conversationId: string
+  conversationId: string,
 ): Promise<ConversationAttachedPocketResult> {
   const payload: ConversationGetAttachedPocketPayload = {
     conversationId,
@@ -98,7 +102,9 @@ export async function getAttachedPocket(
   });
 
   if (!response.success) {
-    throw new Error(`Failed to get attached pocket: ${response.error || "Unknown error"}`);
+    throw new Error(
+      `Failed to get attached pocket: ${response.error || "Unknown error"}`,
+    );
   }
 
   return {
@@ -113,14 +119,19 @@ export async function getAttachedPocket(
 
 /**
  * Check if a conversation has attached pockets
- * 
+ *
  * @param conversationId - ID of the conversation
  * @returns True if at least one pocket is attached, false otherwise
  */
-export async function hasAttachedPocket(conversationId: string): Promise<boolean> {
+export async function hasAttachedPocket(
+  conversationId: string,
+): Promise<boolean> {
   try {
     const result = await getAttachedPocket(conversationId);
-    return (result.attachedPocketIds && result.attachedPocketIds.length > 0) || result.attachedPocketId !== null;
+    return (
+      (result.attachedPocketIds && result.attachedPocketIds.length > 0) ||
+      result.attachedPocketId !== null
+    );
   } catch (error) {
     console.error("Failed to check attached pocket:", error);
     return false;
@@ -129,14 +140,14 @@ export async function hasAttachedPocket(conversationId: string): Promise<boolean
 
 /**
  * Toggle pocket attachment (attach if not attached, detach if attached)
- * 
+ *
  * @param conversationId - ID of the conversation
  * @param pocketId - ID of the pocket to attach (required if currently no pocket attached)
  * @returns Result with new attachment state
  */
 export async function togglePocketAttachment(
   conversationId: string,
-  pocketId?: string
+  pocketId?: string,
 ): Promise<ConversationAttachedPocketResult> {
   const current = await getAttachedPocket(conversationId);
 
@@ -146,7 +157,9 @@ export async function togglePocketAttachment(
   } else {
     // No pocket attached, attach one
     if (!pocketId) {
-      throw new Error("pocketId is required when no pocket is currently attached");
+      throw new Error(
+        "pocketId is required when no pocket is currently attached",
+      );
     }
     return await attachPocketToConversation(conversationId, pocketId);
   }

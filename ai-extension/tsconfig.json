@@ -21,7 +21,7 @@
     "module": "esnext",
     "target": "es2020",
     "types": ["chrome"],
-    "lib": ["es2021", "dom", "dom.iterable"],
+    "lib": ["es2023", "dom", "dom.iterable"],
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
@@ -70,7 +70,7 @@
     "vite.config.ts"
   ],
   "exclude": [
-    "dist", 
+    "dist",
     "node_modules",
     "src/**/*.test.ts",
     "src/**/*.test.tsx",

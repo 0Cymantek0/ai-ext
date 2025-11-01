@@ -17,6 +17,7 @@ import {
   AIModel,
   AIOperation,
 } from "./ai-performance-monitor";
+import type { ProcessingLocation as HybridProcessingLocation } from "./hybrid-ai-engine";
 
 // Type definitions for Chrome's Prompt API
 declare global {
@@ -132,6 +133,9 @@ export interface ProcessingOptions {
   priority: "low" | "normal" | "high";
   maxTokens?: number;
   signal?: AbortSignal;
+  forcedLocation?: HybridProcessingLocation;
+  forcedLocationReason?: string;
+  forcedLocationConfidence?: number;
 }
 
 /**
@@ -174,28 +178,38 @@ export class AIManager {
       }
 
       const result = await LanguageModel.availability();
-      
-      console.log('[AIManager] Availability check result:', result);
-      
+
+      console.log("[AIManager] Availability check result:", result);
+
       // Handle both string and object responses
       let availabilityStatus: string;
-      if (typeof result === 'string') {
+      if (typeof result === "string") {
         availabilityStatus = result;
-      } else if (result && typeof result === 'object' && 'available' in result) {
+      } else if (
+        result &&
+        typeof result === "object" &&
+        "available" in result
+      ) {
         availabilityStatus = (result as any).available;
       } else {
-        console.warn('[AIManager] Unexpected availability result format:', result);
-        this.availability = 'no';
-        return 'no';
+        console.warn(
+          "[AIManager] Unexpected availability result format:",
+          result,
+        );
+        this.availability = "no";
+        return "no";
       }
-      
+
       // Map the API response to our type
-      if (availabilityStatus === 'readily' || availabilityStatus === 'available') {
-        this.availability = 'readily';
-        return 'readily';
-      } else if (availabilityStatus === 'after-download') {
-        this.availability = 'after-download';
-        return 'after-download';
+      if (
+        availabilityStatus === "readily" ||
+        availabilityStatus === "available"
+      ) {
+        this.availability = "readily";
+        return "readily";
+      } else if (availabilityStatus === "after-download") {
+        this.availability = "after-download";
+        return "after-download";
       } else {
         this.availability = "no";
         return "no";

@@ -31,7 +31,7 @@ export function SelectedPocketsPills({
             "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
             "bg-white/10 backdrop-blur-sm border border-white/20",
             "text-sm text-white",
-            disabled && "opacity-50"
+            disabled && "opacity-50",
           )}
         >
           {/* Pocket Icon */}
@@ -47,14 +47,16 @@ export function SelectedPocketsPills({
           </div>
 
           {/* Pocket Name */}
-          <span className="font-medium truncate max-w-[150px]">{pocket.name}</span>
+          <span className="font-medium truncate max-w-[150px]">
+            {pocket.name}
+          </span>
 
           {/* Remove Button */}
           <button
             onClick={() => onRemove(pocket.id)}
             className={cn(
               "p-0.5 rounded-full hover:bg-white/20 transition-colors",
-              disabled && "pointer-events-none"
+              disabled && "pointer-events-none",
             )}
             disabled={disabled}
             title={`Remove ${pocket.name}`}

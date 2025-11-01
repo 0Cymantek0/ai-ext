@@ -4,8 +4,8 @@
  * Requirements: 9.5, 9.6
  */
 
-import { sendMessage } from '../shared/message-client';
-import type { PageContext } from './page-context-detector';
+import { sendMessage } from "../shared/message-client";
+import type { PageContext } from "./page-context-detector";
 
 export interface PocketContent {
   id: string;
@@ -31,39 +31,44 @@ export class PocketContextProvider {
   private static readonly MIN_RELEVANCE_SCORE = 0.3;
   private static readonly CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
-  private static cache: Map<string, { result: PocketContextResult; timestamp: number }> = new Map();
+  private static cache: Map<
+    string,
+    { result: PocketContextResult; timestamp: number }
+  > = new Map();
 
   /**
    * Get relevant pocket content for the current page context
    */
   public static async getRelevantContent(
     pageContext: PageContext,
-    query?: string
+    query?: string,
   ): Promise<PocketContextResult> {
     // Check cache
     const cacheKey = this.getCacheKey(pageContext, query);
     const cached = this.cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION_MS) {
-      console.debug('[PocketContextProvider] Using cached result');
+      console.debug("[PocketContextProvider] Using cached result");
       return cached.result;
     }
 
     try {
       // Query service worker for relevant pockets
       const searchQuery = this.buildSearchQuery(pageContext, query);
-      
-      console.debug('[PocketContextProvider] Searching for relevant content', {
+
+      console.debug("[PocketContextProvider] Searching for relevant content", {
         query: searchQuery,
-        domain: pageContext.domain
+        domain: pageContext.domain,
       });
 
       // Search by domain first
       const domainResults = await this.searchByDomain(pageContext.domain);
-      
+
       // Search by keywords
-      const keywordResults = await this.searchByKeywords(pageContext.keywords || []);
-      
+      const keywordResults = await this.searchByKeywords(
+        pageContext.keywords || [],
+      );
+
       // Search by query if provided
       const queryResults = query ? await this.searchByQuery(query) : [];
 
@@ -72,21 +77,24 @@ export class PocketContextProvider {
         domainResults,
         keywordResults,
         queryResults,
-        pageContext
+        pageContext,
       );
 
       // Filter by relevance score
       const relevantContent = allResults
-        .filter(item => item.relevanceScore >= this.MIN_RELEVANCE_SCORE)
+        .filter((item) => item.relevanceScore >= this.MIN_RELEVANCE_SCORE)
         .slice(0, this.MAX_CONTEXT_ITEMS);
 
       // Generate context summary
-      const contextSummary = this.generateContextSummary(relevantContent, pageContext);
+      const contextSummary = this.generateContextSummary(
+        relevantContent,
+        pageContext,
+      );
 
       const result: PocketContextResult = {
         relevantContent,
         totalFound: allResults.length,
-        contextSummary
+        contextSummary,
       };
 
       // Cache result
@@ -97,13 +105,16 @@ export class PocketContextProvider {
 
       return result;
     } catch (error) {
-      console.error('[PocketContextProvider] Failed to get relevant content', error);
-      
+      console.error(
+        "[PocketContextProvider] Failed to get relevant content",
+        error,
+      );
+
       // Return empty result on error
       return {
         relevantContent: [],
         totalFound: 0,
-        contextSummary: ''
+        contextSummary: "",
       };
     }
   }
@@ -111,17 +122,19 @@ export class PocketContextProvider {
   /**
    * Search pockets by domain
    */
-  private static async searchByDomain(domain: string): Promise<PocketContent[]> {
+  private static async searchByDomain(
+    domain: string,
+  ): Promise<PocketContent[]> {
     try {
-      const response = await sendMessage('POCKET_LIST', {
-        filter: { domain }
+      const response = await sendMessage("POCKET_LIST", {
+        filter: { domain },
       });
 
       if (response.success && response.data) {
         return this.convertToPocketContent(response.data);
       }
     } catch (error) {
-      console.error('[PocketContextProvider] Domain search failed', error);
+      console.error("[PocketContextProvider] Domain search failed", error);
     }
 
     return [];
@@ -130,19 +143,21 @@ export class PocketContextProvider {
   /**
    * Search pockets by keywords
    */
-  private static async searchByKeywords(keywords: string[]): Promise<PocketContent[]> {
+  private static async searchByKeywords(
+    keywords: string[],
+  ): Promise<PocketContent[]> {
     if (keywords.length === 0) return [];
 
     try {
-      const response = await sendMessage('POCKET_LIST', {
-        filter: { keywords }
+      const response = await sendMessage("POCKET_LIST", {
+        filter: { keywords },
       });
 
       if (response.success && response.data) {
         return this.convertToPocketContent(response.data);
       }
     } catch (error) {
-      console.error('[PocketContextProvider] Keyword search failed', error);
+      console.error("[PocketContextProvider] Keyword search failed", error);
     }
 
     return [];
@@ -153,15 +168,15 @@ export class PocketContextProvider {
    */
   private static async searchByQuery(query: string): Promise<PocketContent[]> {
     try {
-      const response = await sendMessage('POCKET_LIST', {
-        filter: { query }
+      const response = await sendMessage("POCKET_LIST", {
+        filter: { query },
       });
 
       if (response.success && response.data) {
         return this.convertToPocketContent(response.data);
       }
     } catch (error) {
-      console.error('[PocketContextProvider] Query search failed', error);
+      console.error("[PocketContextProvider] Query search failed", error);
     }
 
     return [];
@@ -171,26 +186,29 @@ export class PocketContextProvider {
    * Convert raw pocket data to PocketContent
    */
   private static convertToPocketContent(data: any[]): PocketContent[] {
-    return data.map(item => ({
-      id: item.id || '',
-      pocketId: item.pocketId || '',
-      title: item.title || item.name || 'Untitled',
-      snippet: this.extractSnippet(item.content || ''),
-      url: item.url || item.sourceUrl || '',
-      relevanceScore: 0 // Will be calculated later
+    return data.map((item) => ({
+      id: item.id || "",
+      pocketId: item.pocketId || "",
+      title: item.title || item.name || "Untitled",
+      snippet: this.extractSnippet(item.content || ""),
+      url: item.url || item.sourceUrl || "",
+      relevanceScore: 0, // Will be calculated later
     }));
   }
 
   /**
    * Extract snippet from content
    */
-  private static extractSnippet(content: string, maxLength: number = 200): string {
-    if (!content) return '';
-    
-    const text = content.replace(/<[^>]*>/g, '').trim();
+  private static extractSnippet(
+    content: string,
+    maxLength: number = 200,
+  ): string {
+    if (!content) return "";
+
+    const text = content.replace(/<[^>]*>/g, "").trim();
     if (text.length <= maxLength) return text;
-    
-    return text.substring(0, maxLength).trim() + '...';
+
+    return text.substring(0, maxLength).trim() + "...";
   }
 
   /**
@@ -200,19 +218,19 @@ export class PocketContextProvider {
     domainResults: PocketContent[],
     keywordResults: PocketContent[],
     queryResults: PocketContent[],
-    pageContext: PageContext
+    pageContext: PageContext,
   ): PocketContent[] {
     // Create a map to deduplicate
     const resultMap = new Map<string, PocketContent>();
 
     // Add domain results with high score
-    domainResults.forEach(item => {
+    domainResults.forEach((item) => {
       item.relevanceScore = 0.8;
       resultMap.set(item.id, item);
     });
 
     // Add keyword results with medium score
-    keywordResults.forEach(item => {
+    keywordResults.forEach((item) => {
       if (resultMap.has(item.id)) {
         // Boost score if already found
         const existing = resultMap.get(item.id)!;
@@ -224,7 +242,7 @@ export class PocketContextProvider {
     });
 
     // Add query results with variable score
-    queryResults.forEach(item => {
+    queryResults.forEach((item) => {
       if (resultMap.has(item.id)) {
         // Boost score if already found
         const existing = resultMap.get(item.id)!;
@@ -236,8 +254,9 @@ export class PocketContextProvider {
     });
 
     // Convert to array and sort by relevance
-    return Array.from(resultMap.values())
-      .sort((a, b) => b.relevanceScore - a.relevanceScore);
+    return Array.from(resultMap.values()).sort(
+      (a, b) => b.relevanceScore - a.relevanceScore,
+    );
   }
 
   /**
@@ -245,10 +264,10 @@ export class PocketContextProvider {
    */
   private static generateContextSummary(
     content: PocketContent[],
-    pageContext: PageContext
+    pageContext: PageContext,
   ): string {
     if (content.length === 0) {
-      return '';
+      return "";
     }
 
     const parts: string[] = [];
@@ -259,7 +278,7 @@ export class PocketContextProvider {
     // Add relevant content summary
     if (content.length > 0) {
       parts.push(`\nRelevant saved content (${content.length} items):`);
-      
+
       content.forEach((item, index) => {
         parts.push(`${index + 1}. ${item.title}`);
         if (item.snippet) {
@@ -268,13 +287,16 @@ export class PocketContextProvider {
       });
     }
 
-    return parts.join('\n');
+    return parts.join("\n");
   }
 
   /**
    * Build search query from page context
    */
-  private static buildSearchQuery(pageContext: PageContext, userQuery?: string): string {
+  private static buildSearchQuery(
+    pageContext: PageContext,
+    userQuery?: string,
+  ): string {
     const parts: string[] = [];
 
     if (userQuery) {
@@ -289,14 +311,14 @@ export class PocketContextProvider {
       parts.push(pageContext.metadata.category);
     }
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   /**
    * Get cache key
    */
   private static getCacheKey(pageContext: PageContext, query?: string): string {
-    return `${pageContext.domain}:${pageContext.url}:${query || ''}`;
+    return `${pageContext.domain}:${pageContext.url}:${query || ""}`;
   }
 
   /**
@@ -312,7 +334,7 @@ export class PocketContextProvider {
       }
     });
 
-    keysToDelete.forEach(key => this.cache.delete(key));
+    keysToDelete.forEach((key) => this.cache.delete(key));
   }
 
   /**
@@ -325,7 +347,9 @@ export class PocketContextProvider {
   /**
    * Check if context is available
    */
-  public static async hasRelevantContext(pageContext: PageContext): Promise<boolean> {
+  public static async hasRelevantContext(
+    pageContext: PageContext,
+  ): Promise<boolean> {
     const result = await this.getRelevantContent(pageContext);
     return result.relevantContent.length > 0;
   }

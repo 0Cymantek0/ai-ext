@@ -1,6 +1,6 @@
 /**
  * Content Extractor Chunk Tests
- * 
+ *
  * Tests for chunk-specific content extraction functions
  */
 

@@ -20,20 +20,26 @@ interface NoteManagerProps {
   initialEditNote?: NoteData;
 }
 
-export function NoteManager({ 
-  pocketId, 
-  onBack, 
+export function NoteManager({
+  pocketId,
+  onBack,
   className,
   initialShowTemplates = false,
   onTemplateSelectionComplete,
-  initialEditNote
+  initialEditNote,
 }: NoteManagerProps) {
   const [viewMode, setViewMode] = React.useState<ViewMode>(
-    initialEditNote ? "editorPage" : initialShowTemplates ? "templates" : "list"
+    initialEditNote
+      ? "editorPage"
+      : initialShowTemplates
+        ? "templates"
+        : "list",
   );
   const [notes, setNotes] = React.useState<NoteData[]>([]);
   const [filteredNotes, setFilteredNotes] = React.useState<NoteData[]>([]);
-  const [editingNote, setEditingNote] = React.useState<NoteData | null>(initialEditNote || null);
+  const [editingNote, setEditingNote] = React.useState<NoteData | null>(
+    initialEditNote || null,
+  );
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSearching, setIsSearching] = React.useState(false);
@@ -58,7 +64,10 @@ export function NoteManager({
         if (!message || !message.kind) return;
         if (message.kind === "CONTENT_CREATED" && message.payload?.content) {
           const created = message.payload.content as any;
-          if (created.type === "note" && (!pocketId || created.pocketId === pocketId)) {
+          if (
+            created.type === "note" &&
+            (!pocketId || created.pocketId === pocketId)
+          ) {
             const newNote: NoteData = {
               id: created.id,
               title: created.metadata?.title || "Untitled Note",
@@ -69,11 +78,20 @@ export function NoteManager({
               updatedAt: created.metadata?.updatedAt || created.capturedAt,
               pocketId: created.pocketId,
             };
-            setNotes((prev) => [newNote, ...prev.filter((n) => n.id !== newNote.id)]);
+            setNotes((prev) => [
+              newNote,
+              ...prev.filter((n) => n.id !== newNote.id),
+            ]);
           }
-        } else if (message.kind === "CONTENT_UPDATED" && message.payload?.content) {
+        } else if (
+          message.kind === "CONTENT_UPDATED" &&
+          message.payload?.content
+        ) {
           const updated = message.payload.content as any;
-          if (updated.type === "note" && (!pocketId || updated.pocketId === pocketId)) {
+          if (
+            updated.type === "note" &&
+            (!pocketId || updated.pocketId === pocketId)
+          ) {
             const updatedNote: NoteData = {
               id: updated.id,
               title: updated.metadata?.title || "Untitled Note",
@@ -84,9 +102,14 @@ export function NoteManager({
               updatedAt: updated.metadata?.updatedAt || updated.capturedAt,
               pocketId: updated.pocketId,
             };
-            setNotes((prev) => prev.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
+            setNotes((prev) =>
+              prev.map((n) => (n.id === updatedNote.id ? updatedNote : n)),
+            );
           }
-        } else if (message.kind === "CONTENT_DELETED" && message.payload?.contentId) {
+        } else if (
+          message.kind === "CONTENT_DELETED" &&
+          message.payload?.contentId
+        ) {
           const deletedId = message.payload.contentId as string;
           setNotes((prev) => prev.filter((n) => n.id !== deletedId));
         }
@@ -151,13 +174,13 @@ export function NoteManager({
           note.title.toLowerCase().includes(query) ||
           note.content.toLowerCase().includes(query) ||
           note.tags.some((tag) => tag.toLowerCase().includes(query)) ||
-          (note.category && note.category.toLowerCase().includes(query))
+          (note.category && note.category.toLowerCase().includes(query)),
       );
     }
 
     // Apply category filtering
     if (selectedCategory !== "all") {
-      filtered = filtered.filter(note => note.category === selectedCategory);
+      filtered = filtered.filter((note) => note.category === selectedCategory);
     }
 
     // Sort by updated date (newest first)
@@ -180,10 +203,10 @@ export function NoteManager({
       const response = await chrome.runtime.sendMessage({
         kind: "CONTENT_SEARCH",
         requestId: crypto.randomUUID(),
-        payload: { 
-          query, 
+        payload: {
+          query,
           pocketId: pocketId || undefined,
-          limit: 50 
+          limit: 50,
         },
       });
 
@@ -198,7 +221,8 @@ export function NoteManager({
             tags: result.item.metadata?.tags || [],
             category: result.item.metadata?.category,
             createdAt: result.item.capturedAt,
-            updatedAt: result.item.metadata?.updatedAt || result.item.capturedAt,
+            updatedAt:
+              result.item.metadata?.updatedAt || result.item.capturedAt,
             pocketId: result.item.pocketId,
           }));
 
@@ -221,15 +245,15 @@ export function NoteManager({
       content: template?.content || "",
       tags: template?.tags || [],
     };
-    
+
     if (template?.category) {
       newNote.category = template.category;
     }
-    
+
     if (pocketId) {
       newNote.pocketId = pocketId;
     }
-    
+
     setEditingNote(newNote);
     setViewMode("editorPage");
   };
@@ -239,15 +263,17 @@ export function NoteManager({
     setViewMode("editorPage");
   };
 
-  const handleSaveNote = async (noteData: Omit<NoteData, "id" | "createdAt" | "updatedAt">) => {
+  const handleSaveNote = async (
+    noteData: Omit<NoteData, "id" | "createdAt" | "updatedAt">,
+  ) => {
     setIsLoading(true);
     try {
       const targetPocketId = noteData.pocketId || pocketId || "";
-      console.log("Saving note:", { 
-        isUpdate: !!editingNote?.id, 
+      console.log("Saving note:", {
+        isUpdate: !!editingNote?.id,
         noteData,
         pocketId: targetPocketId,
-        propPocketId: pocketId
+        propPocketId: pocketId,
       });
 
       if (editingNote?.id) {
@@ -272,7 +298,10 @@ export function NoteManager({
         console.log("Update response:", response);
 
         if (!response.success) {
-          const errorMsg = response.error?.message || response.error || "Failed to update note";
+          const errorMsg =
+            response.error?.message ||
+            response.error ||
+            "Failed to update note";
           throw new Error(errorMsg);
         }
       } else {
@@ -293,10 +322,18 @@ export function NoteManager({
           },
         });
 
-        console.log("Create response:", response, "pocketId used:", targetPocketId);
+        console.log(
+          "Create response:",
+          response,
+          "pocketId used:",
+          targetPocketId,
+        );
 
         if (!response.success) {
-          const errorMsg = response.error?.message || response.error || "Failed to create note";
+          const errorMsg =
+            response.error?.message ||
+            response.error ||
+            "Failed to create note";
           throw new Error(errorMsg);
         }
       }
@@ -307,7 +344,10 @@ export function NoteManager({
       setEditingNote(null);
     } catch (error) {
       console.error("Error saving note:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save note. Please try again.";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to save note. Please try again.";
       alert(errorMessage);
     } finally {
       setIsLoading(false);
@@ -348,7 +388,9 @@ export function NoteManager({
   };
 
   const categories = React.useMemo(() => {
-    const cats = new Set(notes.map(n => n.category).filter(Boolean) as string[]);
+    const cats = new Set(
+      notes.map((n) => n.category).filter(Boolean) as string[],
+    );
     return ["all", ...Array.from(cats)];
   }, [notes]);
 
@@ -384,8 +426,18 @@ export function NoteManager({
         <div className="flex items-center gap-2">
           {onBack && (
             <Button variant="ghost" size="sm" onClick={onBack}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </Button>
           )}
@@ -408,8 +460,18 @@ export function NoteManager({
             Templates
           </Button>
           <Button size="sm" onClick={() => handleCreateNote()}>
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
             </svg>
             New Note
           </Button>
@@ -426,17 +488,22 @@ export function NoteManager({
             isSearching={isSearching}
             placeholder="Search notes..."
           />
-          
+
           {categories.length > 1 && (
             <div className="flex flex-wrap gap-2">
-              {categories.map(category => (
+              {categories.map((category) => (
                 <Button
                   key={category}
-                  variant={selectedCategory === category ? "default" : "outline"}
+                  variant={
+                    selectedCategory === category ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => setSelectedCategory(category || "all")}
                 >
-                  {category === "all" ? "All" : (category || "").charAt(0).toUpperCase() + (category || "").slice(1)}
+                  {category === "all"
+                    ? "All"
+                    : (category || "").charAt(0).toUpperCase() +
+                      (category || "").slice(1)}
                 </Button>
               ))}
             </div>
@@ -475,7 +542,7 @@ export function NoteManager({
               onClick={(e) => e.stopPropagation()}
             >
               <NoteExporter
-                notes={notes.filter(note => selectedNotes.includes(note.id!))}
+                notes={notes.filter((note) => selectedNotes.includes(note.id!))}
                 onClose={() => setShowExporter(false)}
               />
             </motion.div>

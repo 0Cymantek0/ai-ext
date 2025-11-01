@@ -1,9 +1,9 @@
 /**
  * Content Capture Coordinator - Re-export Module
- * 
+ *
  * This file re-exports the unified ContentCapture implementation from the capture/ folder.
  * All imports should use this file to ensure consistency across the codebase.
- * 
+ *
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 7.1, 7.2, 7.3
  */
 

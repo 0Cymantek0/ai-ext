@@ -4,4 +4,9 @@
  */
 
 export { MediaPreview } from "./MediaPreview";
-export type { CapturedImage, CapturedAudio, CapturedVideo, MediaCaptureResult } from "../../content/media-capture";
+export type {
+  CapturedImage,
+  CapturedAudio,
+  CapturedVideo,
+  MediaCaptureResult,
+} from "../../content/media-capture";

@@ -1,15 +1,18 @@
 /**
  * Vector Indexing Queue Integration Tests
- * 
+ *
  * Tests the integration of vector indexing queue with content ingestion lifecycle.
  * Verifies that CREATE, UPDATE, and DELETE operations properly enqueue vector indexing jobs.
- * 
+ *
  * Requirements: 7.2, 7.3 (Vector search and semantic indexing)
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { contentProcessor } from "../src/background/content-processor.js";
-import { vectorIndexingQueue, IndexingOperation } from "../src/background/vector-indexing-queue.js";
+import {
+  vectorIndexingQueue,
+  IndexingOperation,
+} from "../src/background/vector-indexing-queue.js";
 import { indexedDBManager } from "../src/background/indexeddb-manager.js";
 
 // Mock dependencies
@@ -92,7 +95,10 @@ describe("Vector Indexing Queue Integration", () => {
       const testContent = {
         pocketId: testPocketId,
         mode: "note" as const,
-        content: { text: "This is a test note for vector indexing", type: "note" },
+        content: {
+          text: "This is a test note for vector indexing",
+          type: "note",
+        },
         metadata: {
           title: "Test Note",
           timestamp: Date.now(),
@@ -108,7 +114,7 @@ describe("Vector Indexing Queue Integration", () => {
       expect(result.contentId).toBeDefined();
       expect(enqueueSpy).toHaveBeenCalledWith(
         result.contentId,
-        IndexingOperation.CREATE
+        IndexingOperation.CREATE,
       );
       expect(enqueueSpy).toHaveBeenCalledTimes(1);
     });
@@ -139,7 +145,7 @@ describe("Vector Indexing Queue Integration", () => {
       expect(result.contentId).toBeDefined();
       expect(enqueueSpy).toHaveBeenCalledWith(
         result.contentId,
-        IndexingOperation.CREATE
+        IndexingOperation.CREATE,
       );
     });
 
@@ -150,7 +156,8 @@ describe("Vector Indexing Queue Integration", () => {
         mode: "full-page" as const,
         content: {
           text: {
-            content: "Full page content for vector indexing test with multiple paragraphs and sections",
+            content:
+              "Full page content for vector indexing test with multiple paragraphs and sections",
             wordCount: 12,
             characterCount: 80,
           },
@@ -169,7 +176,7 @@ describe("Vector Indexing Queue Integration", () => {
       expect(result.contentId).toBeDefined();
       expect(enqueueSpy).toHaveBeenCalledWith(
         result.contentId,
-        IndexingOperation.CREATE
+        IndexingOperation.CREATE,
       );
     });
 
@@ -233,13 +240,13 @@ describe("Vector Indexing Queue Integration", () => {
       // Manually enqueue UPDATE (simulating what service-worker does)
       await vectorIndexingQueue.enqueueContent(
         created.contentId,
-        IndexingOperation.UPDATE
+        IndexingOperation.UPDATE,
       );
 
       // Assert
       expect(enqueueSpy).toHaveBeenCalledWith(
         created.contentId,
-        IndexingOperation.UPDATE
+        IndexingOperation.UPDATE,
       );
     });
 
@@ -267,13 +274,13 @@ describe("Vector Indexing Queue Integration", () => {
 
       await vectorIndexingQueue.enqueueContent(
         created.contentId,
-        IndexingOperation.UPDATE
+        IndexingOperation.UPDATE,
       );
 
       // Assert - Verify UPDATE job was enqueued
       expect(enqueueSpy).toHaveBeenCalledWith(
         created.contentId,
-        IndexingOperation.UPDATE
+        IndexingOperation.UPDATE,
       );
       expect(enqueueSpy).toHaveBeenCalledTimes(1);
     });
@@ -303,7 +310,7 @@ describe("Vector Indexing Queue Integration", () => {
       // Assert
       expect(enqueueSpy).toHaveBeenCalledWith(
         created.contentId,
-        IndexingOperation.DELETE
+        IndexingOperation.DELETE,
       );
       expect(enqueueSpy).toHaveBeenCalledTimes(1);
     });
@@ -313,7 +320,10 @@ describe("Vector Indexing Queue Integration", () => {
       const testContent = {
         pocketId: testPocketId,
         mode: "note" as const,
-        content: { text: "Content with embeddings to be deleted", type: "note" },
+        content: {
+          text: "Content with embeddings to be deleted",
+          type: "note",
+        },
         metadata: {
           title: "Test Note",
           timestamp: Date.now(),
@@ -335,16 +345,18 @@ describe("Vector Indexing Queue Integration", () => {
       await contentProcessor.deleteContent(created.contentId);
 
       // Wait for deletion to process
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Assert - Verify content is deleted
-      const deletedContent = await indexedDBManager.getContent(created.contentId);
+      const deletedContent = await indexedDBManager.getContent(
+        created.contentId,
+      );
       expect(deletedContent).toBeNull();
 
       // Verify DELETE job was enqueued
       expect(enqueueSpy).toHaveBeenCalledWith(
         created.contentId,
-        IndexingOperation.DELETE
+        IndexingOperation.DELETE,
       );
     });
 
@@ -395,7 +407,7 @@ describe("Vector Indexing Queue Integration", () => {
       await vectorIndexingQueue.enqueueContent(
         content1.contentId,
         IndexingOperation.UPDATE,
-        "low"
+        "low",
       );
 
       const content2 = await contentProcessor.processContent({
@@ -410,7 +422,7 @@ describe("Vector Indexing Queue Integration", () => {
       await vectorIndexingQueue.enqueueContent(
         content2.contentId,
         IndexingOperation.UPDATE,
-        "high"
+        "high",
       );
 
       // Act - Get queue stats
@@ -436,12 +448,12 @@ describe("Vector Indexing Queue Integration", () => {
       // Act - Enqueue multiple operations
       await vectorIndexingQueue.enqueueContent(
         created.contentId,
-        IndexingOperation.UPDATE
+        IndexingOperation.UPDATE,
       );
 
       await vectorIndexingQueue.enqueueContent(
         created.contentId,
-        IndexingOperation.UPDATE
+        IndexingOperation.UPDATE,
       );
 
       // Assert - Should not duplicate jobs
@@ -466,7 +478,7 @@ describe("Vector Indexing Queue Integration", () => {
 
       // Act & Assert - Should not throw
       await expect(
-        contentProcessor.processContent(testContent)
+        contentProcessor.processContent(testContent),
       ).resolves.toBeDefined();
     });
 

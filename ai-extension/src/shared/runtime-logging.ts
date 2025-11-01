@@ -6,7 +6,10 @@
 
 import { wrapConsole, setConsoleWrapperEnabled } from "./console-wrapper.js";
 import type { LogOrigin } from "./console-wrapper.js";
-import { getLogBridgeClient, type LogBridgeConfig } from "./log-bridge-client.js";
+import {
+  getLogBridgeClient,
+  type LogBridgeConfig,
+} from "./log-bridge-client.js";
 
 export interface RuntimeLoggingOptions {
   origin: LogOrigin;
@@ -47,7 +50,11 @@ export function initializeRuntimeLogging(options: RuntimeLoggingOptions): void {
 
   const shouldAutoToggle = options.autoToggle !== false;
 
-  if (shouldAutoToggle && typeof chrome !== "undefined" && chrome.storage?.local) {
+  if (
+    shouldAutoToggle &&
+    typeof chrome !== "undefined" &&
+    chrome.storage?.local
+  ) {
     // Initialize based on current storage value
     void chrome.storage.local
       .get("debugRecorderEnabled")
@@ -61,7 +68,10 @@ export function initializeRuntimeLogging(options: RuntimeLoggingOptions): void {
 
     // Listen for changes to debugRecorderEnabled
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName !== "local" || !Object.prototype.hasOwnProperty.call(changes, "debugRecorderEnabled")) {
+      if (
+        areaName !== "local" ||
+        !Object.prototype.hasOwnProperty.call(changes, "debugRecorderEnabled")
+      ) {
         return;
       }
 

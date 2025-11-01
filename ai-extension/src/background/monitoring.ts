@@ -281,7 +281,7 @@ export class PerformanceMonitor {
     this.loadMetrics();
     this.checkMemoryApiAvailability();
   }
-  
+
   /**
    * Check if performance.memory API is available
    * This API is not available in Chrome extension service workers
@@ -289,7 +289,7 @@ export class PerformanceMonitor {
   private checkMemoryApiAvailability(): void {
     const chromePerf = performance as ChromePerformance;
     this.memoryApiAvailable = !!chromePerf.memory;
-    
+
     if (!this.memoryApiAvailable && !this.memoryWarningLogged) {
       this.logger.info(
         "PerformanceMonitor",

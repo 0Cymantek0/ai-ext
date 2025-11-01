@@ -5,41 +5,34 @@
  */
 
 import { logger } from "./monitoring.js";
+import { ContentType, ProcessingStatus } from "../types/content.js";
+import type {
+  ContentMetadata,
+  ContentStorageReference,
+  ContentChunk,
+} from "../types/content.js";
+import type { FileArchiveDescriptor } from "./storage/tiered-storage-types.js";
 
 const DB_NAME = "ai-pocket-db";
-const DB_VERSION = 2; // Bumped for vectorChunks store
+const DB_VERSION = 4; // Synced with DatabaseManager to prevent version conflicts
 
 export enum StoreName {
   POCKETS = "pockets",
   CAPTURED_CONTENT = "capturedContent",
+  METADATA = "metadata",
   CONVERSATIONS = "conversations",
   AI_RESPONSES = "aiResponses",
   EMBEDDINGS = "embeddings",
-  VECTOR_CHUNKS = "vectorChunks", // New store for chunk-level RAG
+  VECTOR_CHUNKS = "vectorChunks",
+  SEARCH_INDEX = "searchIndex",
   SYNC_QUEUE = "syncQueue",
+  BROWSER_AGENT_WORKFLOWS = "browserAgentWorkflows",
+  BROWSER_AGENT_CHECKPOINTS = "browserAgentCheckpoints",
 }
 
-export enum ContentType {
-  TEXT = "text",
-  SNIPPET = "snippet",
-  IMAGE = "image",
-  AUDIO = "audio",
-  VIDEO = "video",
-  ELEMENT = "element",
-  PAGE = "page",
-  NOTE = "note",
-  PDF = "pdf",
-  DOCUMENT = "document",
-  SPREADSHEET = "spreadsheet",
-  FILE = "file",
-}
-
-export enum ProcessingStatus {
-  PENDING = "pending",
-  PROCESSING = "processing",
-  COMPLETED = "completed",
-  FAILED = "failed",
-}
+// Re-export types from shared types for backward compatibility
+export { ContentType, ProcessingStatus };
+export type { ContentMetadata, ContentStorageReference };
 
 export type AISource = "gemini-nano" | "gemini-flash" | "gemini-pro";
 
@@ -53,20 +46,6 @@ export interface Pocket {
   tags: string[];
   color: string;
   icon?: string;
-}
-
-export interface ContentMetadata {
-  timestamp: number;
-  title?: string;
-  tags?: string[];
-  category?: string;
-  updatedAt?: number;
-  selectionContext?: string;
-  elementSelector?: string;
-  dimensions?: { width: number; height: number };
-  fileSize?: number;
-  fileType?: string;
-  fileExtension?: string;
 }
 
 export interface CapturedContent {
@@ -154,29 +133,12 @@ export interface Embedding {
   createdAt: number;
 }
 
-export interface StoredChunk {
-  id: string;
-  contentId: string;
-  pocketId: string;
-  text: string;
-  embedding: number[];
-  metadata: {
-    contentId: string;
-    pocketId: string;
-    sourceType: ContentType;
-    sourceUrl: string;
-    chunkIndex: number;
-    totalChunks: number;
-    startOffset: number;
-    endOffset: number;
-    capturedAt: number;
-    chunkedAt: number;
-    title?: string | undefined;
-    category?: string | undefined;
-    textPreview: string;
-  };
-  createdAt: number;
-}
+/**
+ * Re-export StoredChunk from shared types for backward compatibility
+ * The type alias allows existing code to continue working while
+ * future code can use the shared ContentChunk type from src/types/
+ */
+export type StoredChunk = ContentChunk;
 
 export interface SyncQueueItem {
   id: string;
@@ -239,6 +201,8 @@ export class IndexedDBManager {
 
   private createSchema(db: IDBDatabase): void {
     logger.info("IndexedDBManager", "Creating schema", { version: DB_VERSION });
+
+    // Version 1: Baseline stores
     if (!db.objectStoreNames.contains(StoreName.POCKETS)) {
       const store = db.createObjectStore(StoreName.POCKETS, { keyPath: "id" });
       store.createIndex("name", "name", { unique: false });
@@ -286,15 +250,6 @@ export class IndexedDBManager {
       store.createIndex("model", "model", { unique: false });
       store.createIndex("createdAt", "createdAt", { unique: false });
     }
-    if (!db.objectStoreNames.contains(StoreName.VECTOR_CHUNKS)) {
-      const store = db.createObjectStore(StoreName.VECTOR_CHUNKS, {
-        keyPath: "id",
-      });
-      store.createIndex("pocketId", "pocketId", { unique: false });
-      store.createIndex("contentId", "contentId", { unique: false });
-      store.createIndex("pocketId_contentId", ["pocketId", "contentId"], { unique: false });
-      store.createIndex("createdAt", "createdAt", { unique: false });
-    }
     if (!db.objectStoreNames.contains(StoreName.SYNC_QUEUE)) {
       const store = db.createObjectStore(StoreName.SYNC_QUEUE, {
         keyPath: "id",
@@ -303,6 +258,65 @@ export class IndexedDBManager {
       store.createIndex("operation", "operation", { unique: false });
       store.createIndex("storeName", "storeName", { unique: false });
     }
+
+    // Version 2: Vector chunks for RAG
+    if (!db.objectStoreNames.contains(StoreName.VECTOR_CHUNKS)) {
+      const store = db.createObjectStore(StoreName.VECTOR_CHUNKS, {
+        keyPath: "id",
+      });
+      store.createIndex("pocketId", "pocketId", { unique: false });
+      store.createIndex("contentId", "contentId", { unique: false });
+      store.createIndex("pocketId_contentId", ["pocketId", "contentId"], {
+        unique: false,
+      });
+      store.createIndex("createdAt", "createdAt", { unique: false });
+    }
+
+    // Version 3: Metadata and search index stores
+    if (!db.objectStoreNames.contains(StoreName.METADATA)) {
+      const store = db.createObjectStore(StoreName.METADATA, {
+        keyPath: "contentId",
+      });
+      store.createIndex("pocketId", "pocketId", { unique: false });
+      store.createIndex("timestamp", "timestamp", { unique: false });
+      store.createIndex("updatedAt", "updatedAt", { unique: false });
+      store.createIndex("tags", "tags", { unique: false, multiEntry: true });
+      store.createIndex("category", "category", { unique: false });
+    }
+    if (!db.objectStoreNames.contains(StoreName.SEARCH_INDEX)) {
+      const store = db.createObjectStore(StoreName.SEARCH_INDEX, {
+        keyPath: "id",
+      });
+      store.createIndex("contentId", "contentId", { unique: false });
+      store.createIndex("pocketId", "pocketId", { unique: false });
+      store.createIndex("term", "term", { unique: false });
+      store.createIndex("term_pocket", ["term", "pocketId"], { unique: false });
+      store.createIndex("contentId_term", ["contentId", "term"], { unique: true });
+      store.createIndex("weight", "weight", { unique: false });
+    }
+
+    // Version 4: Browser agent workflow stores
+    if (!db.objectStoreNames.contains(StoreName.BROWSER_AGENT_WORKFLOWS)) {
+      const store = db.createObjectStore(StoreName.BROWSER_AGENT_WORKFLOWS, {
+        keyPath: "workflowId",
+      });
+      store.createIndex("status", "status", { unique: false });
+      store.createIndex("startTime", "startTime", { unique: false });
+      store.createIndex("lastUpdate", "lastUpdate", { unique: false });
+      store.createIndex("userId", "userId", { unique: false });
+    }
+    if (!db.objectStoreNames.contains(StoreName.BROWSER_AGENT_CHECKPOINTS)) {
+      const store = db.createObjectStore(StoreName.BROWSER_AGENT_CHECKPOINTS, {
+        keyPath: "checkpointId",
+      });
+      store.createIndex("workflowId", "workflowId", { unique: false });
+      store.createIndex("timestamp", "timestamp", { unique: false });
+      store.createIndex("step", "step", { unique: false });
+      store.createIndex("workflowId_timestamp", ["workflowId", "timestamp"], {
+        unique: false,
+      });
+    }
+
     logger.info("IndexedDBManager", "Schema created");
   }
   private async executeTransaction<T>(
@@ -644,23 +658,27 @@ export class IndexedDBManager {
             IndexedDBErrorType.NOT_FOUND,
             `Conversation ${id} not found`,
           );
-        
+
         // Check if message with same ID already exists
-        const messageExists = existing.messages.some((m: Message) => m.id === message.id);
-        
+        const messageExists = existing.messages.some(
+          (m: Message) => m.id === message.id,
+        );
+
         logger.info("IndexedDBManager", "updateConversation check", {
           conversationId: id,
           messageId: message.id,
           messageExists,
           existingMessageCount: existing.messages.length,
-          messageRole: message.role
+          messageRole: message.role,
         });
-        
+
         // Only add message if it doesn't already exist
-        const updatedMessages = messageExists 
-          ? existing.messages.map((m: Message) => m.id === message.id ? message : m) // Update existing message
+        const updatedMessages = messageExists
+          ? existing.messages.map((m: Message) =>
+            m.id === message.id ? message : m,
+          ) // Update existing message
           : [...existing.messages, message]; // Add new message
-        
+
         const updated: Conversation = {
           ...existing,
           messages: updatedMessages,
@@ -671,7 +689,7 @@ export class IndexedDBManager {
       },
     );
     logger.info("IndexedDBManager", "Conversation updated", { id });
-    
+
     // Trigger metadata regeneration in background
     // This ensures search stays accurate as conversations evolve
     this.triggerMetadataRegeneration(id);
@@ -687,19 +705,31 @@ export class IndexedDBManager {
         // Import dynamically to avoid circular dependencies
         const { metadataQueueManager } = await import("./service-worker.js");
         if (metadataQueueManager) {
-          await metadataQueueManager.enqueueConversation(conversationId, "normal");
-          logger.debug("IndexedDBManager", "Queued metadata regeneration", { conversationId });
+          await metadataQueueManager.enqueueConversation(
+            conversationId,
+            "normal",
+          );
+          logger.debug("IndexedDBManager", "Queued metadata regeneration", {
+            conversationId,
+          });
         }
       } catch (error) {
-        logger.warn("IndexedDBManager", "Failed to queue metadata regeneration", { 
-          conversationId, 
-          error 
-        });
+        logger.warn(
+          "IndexedDBManager",
+          "Failed to queue metadata regeneration",
+          {
+            conversationId,
+            error,
+          },
+        );
       }
     }, 0);
   }
 
-  async updateConversationMetadata(id: string, metadata: ConversationMetadata): Promise<void> {
+  async updateConversationMetadata(
+    id: string,
+    metadata: ConversationMetadata,
+  ): Promise<void> {
     await this.executeTransaction(
       StoreName.CONVERSATIONS,
       "readwrite",
@@ -867,19 +897,21 @@ export class IndexedDBManager {
     );
   }
 
-  async saveChunksBatch(chunks: Omit<StoredChunk, "createdAt">[]): Promise<void> {
+  async saveChunksBatch(
+    chunks: Omit<StoredChunk, "createdAt">[],
+  ): Promise<void> {
     return this.executeTransaction(
       StoreName.VECTOR_CHUNKS,
       "readwrite",
       async (tx) => {
         const store = tx.objectStore(StoreName.VECTOR_CHUNKS);
         const createdAt = Date.now();
-        
+
         for (const chunk of chunks) {
           const newChunk: StoredChunk = { ...chunk, createdAt };
           await this.promisifyRequest(store.put(newChunk));
         }
-        
+
         logger.info("IndexedDBManager", "Chunks batch saved", {
           count: chunks.length,
         });
@@ -903,7 +935,9 @@ export class IndexedDBManager {
       StoreName.VECTOR_CHUNKS,
       "readonly",
       async (tx) => {
-        const index = tx.objectStore(StoreName.VECTOR_CHUNKS).index("contentId");
+        const index = tx
+          .objectStore(StoreName.VECTOR_CHUNKS)
+          .index("contentId");
         return await this.promisifyRequest(index.getAll(contentId));
       },
     );
@@ -917,11 +951,11 @@ export class IndexedDBManager {
         const store = tx.objectStore(StoreName.VECTOR_CHUNKS);
         const index = store.index("contentId");
         const chunks = await this.promisifyRequest(index.getAll(contentId));
-        
+
         for (const chunk of chunks) {
           await this.promisifyRequest(store.delete(chunk.id));
         }
-        
+
         logger.info("IndexedDBManager", "Chunks deleted by content", {
           contentId,
           count: chunks.length,
@@ -938,11 +972,11 @@ export class IndexedDBManager {
         const store = tx.objectStore(StoreName.VECTOR_CHUNKS);
         const index = store.index("pocketId");
         const chunks = await this.promisifyRequest(index.getAll(pocketId));
-        
+
         for (const chunk of chunks) {
           await this.promisifyRequest(store.delete(chunk.id));
         }
-        
+
         logger.info("IndexedDBManager", "Chunks deleted by pocket", {
           pocketId,
           count: chunks.length,
@@ -971,15 +1005,20 @@ export class IndexedDBManager {
    * @param pocketId - ID of the pocket to attach
    * @throws IndexedDBError if conversation or pocket not found
    */
-  async attachPocketToConversation(conversationId: string, pocketId: string): Promise<void> {
+  async attachPocketToConversation(
+    conversationId: string,
+    pocketId: string,
+  ): Promise<void> {
     await this.executeTransaction(
       [StoreName.CONVERSATIONS, StoreName.POCKETS],
       "readwrite",
       async (tx) => {
         // Verify conversation exists
         const conversationStore = tx.objectStore(StoreName.CONVERSATIONS);
-        const conversation = await this.promisifyRequest(conversationStore.get(conversationId));
-        
+        const conversation = await this.promisifyRequest(
+          conversationStore.get(conversationId),
+        );
+
         if (!conversation) {
           throw new IndexedDBError(
             IndexedDBErrorType.NOT_FOUND,
@@ -990,7 +1029,7 @@ export class IndexedDBManager {
         // Verify pocket exists
         const pocketStore = tx.objectStore(StoreName.POCKETS);
         const pocket = await this.promisifyRequest(pocketStore.get(pocketId));
-        
+
         if (!pocket) {
           throw new IndexedDBError(
             IndexedDBErrorType.NOT_FOUND,
@@ -1000,7 +1039,10 @@ export class IndexedDBManager {
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
         let attachedPocketIds = conversation.attachedPocketIds || [];
-        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 
@@ -1033,14 +1075,19 @@ export class IndexedDBManager {
    * @param pocketId - ID of the pocket to detach (optional, if not provided detaches all)
    * @throws IndexedDBError if conversation not found
    */
-  async detachPocketFromConversation(conversationId: string, pocketId?: string): Promise<void> {
+  async detachPocketFromConversation(
+    conversationId: string,
+    pocketId?: string,
+  ): Promise<void> {
     await this.executeTransaction(
       StoreName.CONVERSATIONS,
       "readwrite",
       async (tx) => {
         const store = tx.objectStore(StoreName.CONVERSATIONS);
-        const conversation = await this.promisifyRequest(store.get(conversationId));
-        
+        const conversation = await this.promisifyRequest(
+          store.get(conversationId),
+        );
+
         if (!conversation) {
           throw new IndexedDBError(
             IndexedDBErrorType.NOT_FOUND,
@@ -1050,13 +1097,16 @@ export class IndexedDBManager {
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
         let attachedPocketIds = conversation.attachedPocketIds || [];
-        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 
         // Remove specific pocket or all pockets
         if (pocketId) {
-          attachedPocketIds = attachedPocketIds.filter(id => id !== pocketId);
+          attachedPocketIds = attachedPocketIds.filter((id) => id !== pocketId);
         } else {
           attachedPocketIds = [];
         }
@@ -1090,15 +1140,20 @@ export class IndexedDBManager {
       "readonly",
       async (tx) => {
         const conversationStore = tx.objectStore(StoreName.CONVERSATIONS);
-        const conversation = await this.promisifyRequest(conversationStore.get(conversationId));
-        
+        const conversation = await this.promisifyRequest(
+          conversationStore.get(conversationId),
+        );
+
         if (!conversation) {
           return [];
         }
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
         let attachedPocketIds = conversation.attachedPocketIds || [];
-        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 
@@ -1109,7 +1164,7 @@ export class IndexedDBManager {
         // Fetch all attached pockets
         const pocketStore = tx.objectStore(StoreName.POCKETS);
         const pockets: Pocket[] = [];
-        
+
         for (const pocketId of attachedPocketIds) {
           const pocket = await this.promisifyRequest(pocketStore.get(pocketId));
           if (pocket) {
@@ -1133,15 +1188,20 @@ export class IndexedDBManager {
       "readonly",
       async (tx) => {
         const conversationStore = tx.objectStore(StoreName.CONVERSATIONS);
-        const conversation = await this.promisifyRequest(conversationStore.get(conversationId));
-        
+        const conversation = await this.promisifyRequest(
+          conversationStore.get(conversationId),
+        );
+
         if (!conversation) {
           return null;
         }
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
         let attachedPocketIds = conversation.attachedPocketIds || [];
-        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 
@@ -1151,8 +1211,10 @@ export class IndexedDBManager {
 
         // Return the first attached pocket for backward compatibility
         const pocketStore = tx.objectStore(StoreName.POCKETS);
-        const pocket = await this.promisifyRequest(pocketStore.get(attachedPocketIds[0]));
-        
+        const pocket = await this.promisifyRequest(
+          pocketStore.get(attachedPocketIds[0]),
+        );
+
         return pocket || null;
       },
     );
@@ -1169,15 +1231,20 @@ export class IndexedDBManager {
       "readonly",
       async (tx) => {
         const store = tx.objectStore(StoreName.CONVERSATIONS);
-        const conversation = await this.promisifyRequest(store.get(conversationId));
-        
+        const conversation = await this.promisifyRequest(
+          store.get(conversationId),
+        );
+
         if (!conversation) {
           return [];
         }
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
         let attachedPocketIds = conversation.attachedPocketIds || [];
-        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 
@@ -1197,15 +1264,20 @@ export class IndexedDBManager {
       "readonly",
       async (tx) => {
         const store = tx.objectStore(StoreName.CONVERSATIONS);
-        const conversation = await this.promisifyRequest(store.get(conversationId));
-        
+        const conversation = await this.promisifyRequest(
+          store.get(conversationId),
+        );
+
         if (!conversation) {
           return null;
         }
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
         let attachedPocketIds = conversation.attachedPocketIds || [];
-        if (conversation.attachedPocketId && !attachedPocketIds.includes(conversation.attachedPocketId)) {
+        if (
+          conversation.attachedPocketId &&
+          !attachedPocketIds.includes(conversation.attachedPocketId)
+        ) {
           attachedPocketIds.push(conversation.attachedPocketId);
         }
 

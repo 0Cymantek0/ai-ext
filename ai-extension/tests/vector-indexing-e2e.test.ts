@@ -1,6 +1,6 @@
 /**
  * Vector Indexing End-to-End Regression Tests
- * 
+ *
  * Comprehensive tests for the vector indexing workflow including:
  * - Text chunking
  * - Embedding generation
@@ -13,9 +13,9 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TextChunker } from "../src/background/text-chunker.js";
-import { 
-  VectorIndexingQueue, 
-  IndexingOperation 
+import {
+  VectorIndexingQueue,
+  IndexingOperation,
 } from "../src/background/vector-indexing-queue.js";
 import {
   createMockContent,
@@ -49,7 +49,9 @@ vi.mock("../src/background/hybrid-ai-engine.js", () => ({
 }));
 
 vi.mock("../src/background/indexeddb-manager.js", async () => {
-  const actual = await vi.importActual("../src/background/indexeddb-manager.js");
+  const actual = await vi.importActual(
+    "../src/background/indexeddb-manager.js",
+  );
   return {
     ...actual,
     indexedDBManager: {
@@ -95,7 +97,7 @@ describe("Text Chunker", () => {
       const chunks = chunker.chunkText(text, { maxChunkSize: 500 });
 
       expect(chunks.length).toBeGreaterThan(1);
-      expect(chunks.every(c => c.text.length <= 600)).toBe(true); // Allow some overlap
+      expect(chunks.every((c) => c.text.length <= 600)).toBe(true); // Allow some overlap
     });
 
     it("should handle empty text", () => {
@@ -111,17 +113,19 @@ describe("Text Chunker", () => {
 
   describe("Chunk Boundaries", () => {
     it("should respect sentence boundaries", () => {
-      const text = "First sentence. Second sentence. Third sentence. Fourth sentence.";
+      const text =
+        "First sentence. Second sentence. Third sentence. Fourth sentence.";
       const chunks = chunker.chunkText(text, {
         maxChunkSize: 35,
         respectSentences: true,
       });
 
       // Chunks should end at sentence boundaries
-      chunks.forEach(chunk => {
+      chunks.forEach((chunk) => {
         const trimmed = chunk.text.trim();
-        expect(trimmed.endsWith(".") || chunk.chunkIndex === chunk.totalChunks - 1)
-          .toBe(true);
+        expect(
+          trimmed.endsWith(".") || chunk.chunkIndex === chunk.totalChunks - 1,
+        ).toBe(true);
       });
     });
 
@@ -133,9 +137,9 @@ describe("Text Chunker", () => {
       });
 
       // Chunks should not break words in the middle
-      chunks.forEach(chunk => {
+      chunks.forEach((chunk) => {
         const words = chunk.text.trim().split(/\s+/);
-        words.forEach(word => {
+        words.forEach((word) => {
           expect(word.length).toBeGreaterThan(0);
           expect(word).not.toContain(" ");
         });
@@ -166,7 +170,7 @@ describe("Text Chunker", () => {
         // With overlap, the next chunk should start before the previous ends
         const chunk1End = chunks[0]!.endIndex;
         const chunk2Start = chunks[1]!.startIndex;
-        
+
         // There should be overlap (chunk2 starts before chunk1 ends in the source text)
         expect(chunk1End).toBeGreaterThan(chunk2Start);
       }
@@ -213,7 +217,7 @@ describe("Text Chunker", () => {
       const text = "word ".repeat(500);
       const chunks = chunker.chunkText(text, { maxChunkSize: 200 });
 
-      const ids = new Set(chunks.map(c => c.id));
+      const ids = new Set(chunks.map((c) => c.id));
       expect(ids.size).toBe(chunks.length);
     });
   });
@@ -224,7 +228,7 @@ describe("Text Chunker", () => {
       const chunks = chunker.chunkText(longWord, { maxChunkSize: 500 });
 
       expect(chunks.length).toBeGreaterThan(0);
-      chunks.forEach(chunk => {
+      chunks.forEach((chunk) => {
         expect(chunk.text.length).toBeGreaterThan(0);
       });
     });
@@ -255,7 +259,7 @@ describe("Text Chunker", () => {
     it("should merge chunks back to text", () => {
       const mockChunks = createMockChunks(3, 100);
       const merged = chunker.mergeChunks(mockChunks);
-      
+
       expect(merged).toContain("Chunk 0");
       expect(merged).toContain("Chunk 1");
       expect(merged).toContain("Chunk 2");
@@ -275,8 +279,12 @@ describe("Vector Indexing Queue", () => {
     vi.clearAllMocks();
 
     // Import mocked modules
-    const { hybridAIEngine } = await import("../src/background/hybrid-ai-engine.js");
-    const { indexedDBManager } = await import("../src/background/indexeddb-manager.js");
+    const { hybridAIEngine } = await import(
+      "../src/background/hybrid-ai-engine.js"
+    );
+    const { indexedDBManager } = await import(
+      "../src/background/indexeddb-manager.js"
+    );
 
     mockHybridAI = hybridAIEngine;
     mockIndexedDB = indexedDBManager;
@@ -287,28 +295,30 @@ describe("Vector Indexing Queue", () => {
     mockRouter = new MockMessageRouter();
 
     mockHybridAI.generateEmbedding.mockImplementation((text: string) =>
-      mockEmbeddingGen.generate(text)
+      mockEmbeddingGen.generate(text),
     );
 
     mockIndexedDB.init.mockResolvedValue(undefined);
     mockIndexedDB.getContent.mockImplementation((id: string) =>
-      mockDB.getContent(id)
+      mockDB.getContent(id),
     );
     mockIndexedDB.saveEmbedding.mockImplementation((emb: any) =>
-      mockDB.saveEmbedding(emb)
+      mockDB.saveEmbedding(emb),
     );
     mockIndexedDB.getAllEmbeddings.mockImplementation(() =>
-      mockDB.getAllEmbeddings()
+      mockDB.getAllEmbeddings(),
     );
-    mockIndexedDB.deleteEmbeddingByContentId.mockImplementation((contentId: string) =>
-      mockDB.deleteEmbeddingByContentId(contentId)
+    mockIndexedDB.deleteEmbeddingByContentId.mockImplementation(
+      (contentId: string) => mockDB.deleteEmbeddingByContentId(contentId),
     );
 
     // Mock chrome.runtime.sendMessage
-    (global.chrome.runtime.sendMessage as any).mockImplementation((msg: any) => {
-      mockRouter.send(msg);
-      return Promise.resolve();
-    });
+    (global.chrome.runtime.sendMessage as any).mockImplementation(
+      (msg: any) => {
+        mockRouter.send(msg);
+        return Promise.resolve();
+      },
+    );
 
     queue = new VectorIndexingQueue();
     queue.setProcessingInterval(10); // Speed up for tests
@@ -331,7 +341,7 @@ describe("Vector Indexing Queue", () => {
       const jobId = await queue.enqueueContent(
         content.id,
         IndexingOperation.CREATE,
-        "high"
+        "high",
       );
 
       expect(jobId).toBeDefined();
@@ -390,13 +400,13 @@ describe("Vector Indexing Queue", () => {
       await queue.enqueueContent(content.id, IndexingOperation.CREATE);
       await waitFor(() => queue.getStats().isProcessing === false, 5000);
 
-      const progressMessages = mockRouter.getMessages().filter(
-        m => m.type === "VECTOR_INDEXING_PROGRESS"
-      );
+      const progressMessages = mockRouter
+        .getMessages()
+        .filter((m) => m.type === "VECTOR_INDEXING_PROGRESS");
       expect(progressMessages.length).toBeGreaterThan(0);
 
       // Should have pending, processing, and completed events
-      const statuses = progressMessages.map(m => m.payload.status);
+      const statuses = progressMessages.map((m) => m.payload.status);
       expect(statuses).toContain("pending");
       expect(statuses).toContain("completed");
     });
@@ -430,7 +440,7 @@ describe("Vector Indexing Queue", () => {
     it("should handle update of non-existent content", async () => {
       const jobId = await queue.enqueueContent(
         "nonexistent",
-        IndexingOperation.UPDATE
+        IndexingOperation.UPDATE,
       );
 
       await waitFor(() => queue.getStats().isProcessing === false, 5000);
@@ -477,7 +487,7 @@ describe("Vector Indexing Queue", () => {
       queue.setBatchSize(2);
 
       const contents = Array.from({ length: 5 }, (_, i) =>
-        createMockContent({ id: `content${i}` })
+        createMockContent({ id: `content${i}` }),
       );
 
       for (const content of contents) {
@@ -493,10 +503,10 @@ describe("Vector Indexing Queue", () => {
 
     it("should respect batch size limits", async () => {
       queue.setBatchSize(3);
-      
+
       // Enqueue more jobs than batch size
       const contents = Array.from({ length: 10 }, (_, i) =>
-        createMockContent({ id: `content${i}` })
+        createMockContent({ id: `content${i}` }),
       );
 
       for (const content of contents) {
@@ -573,10 +583,7 @@ describe("Vector Indexing Queue", () => {
       });
 
       await queue.enqueueContent(content.id, IndexingOperation.CREATE);
-      await waitFor(
-        () => queue.getStats().isProcessing === false,
-        10000
-      );
+      await waitFor(() => queue.getStats().isProcessing === false, 10000);
 
       // Should eventually fail
       const stats = queue.getStats();
@@ -585,9 +592,9 @@ describe("Vector Indexing Queue", () => {
 
     it("should handle mixed success and rate limit errors", async () => {
       queue.setRateLimitDelay(50); // Speed up retries
-      
+
       const contents = Array.from({ length: 3 }, (_, i) =>
-        createMockContent({ id: `content${i}` })
+        createMockContent({ id: `content${i}` }),
       );
 
       for (const content of contents) {
@@ -643,7 +650,7 @@ describe("Vector Indexing Queue", () => {
       await mockDB.saveContent(content);
 
       mockHybridAI.generateEmbedding.mockRejectedValue(
-        new Error("Permanent failure")
+        new Error("Permanent failure"),
       );
 
       await queue.enqueueContent(content.id, IndexingOperation.CREATE);
@@ -653,8 +660,13 @@ describe("Vector Indexing Queue", () => {
       expect(stats.jobsFailed).toBe(1);
 
       // Should emit failed event
-      const failedMessages = mockRouter.getMessages()
-        .filter(m => m.type === "VECTOR_INDEXING_PROGRESS" && m.payload.status === "failed");
+      const failedMessages = mockRouter
+        .getMessages()
+        .filter(
+          (m) =>
+            m.type === "VECTOR_INDEXING_PROGRESS" &&
+            m.payload.status === "failed",
+        );
       expect(failedMessages.length).toBeGreaterThan(0);
     });
 
@@ -680,10 +692,11 @@ describe("Vector Indexing Queue", () => {
       await queue.enqueueContent(content.id, IndexingOperation.CREATE);
       await waitFor(() => queue.getStats().isProcessing === false, 5000);
 
-      const messages = mockRouter.getMessages()
-        .filter(m => m.type === "VECTOR_INDEXING_PROGRESS");
-      
-      const statuses = messages.map(m => m.payload.status);
+      const messages = mockRouter
+        .getMessages()
+        .filter((m) => m.type === "VECTOR_INDEXING_PROGRESS");
+
+      const statuses = messages.map((m) => m.payload.status);
       expect(statuses).toContain("pending");
       expect(statuses).toContain("processing");
       expect(statuses).toContain("completed");
@@ -698,12 +711,17 @@ describe("Vector Indexing Queue", () => {
       await queue.enqueueContent(largeContent.id, IndexingOperation.CREATE);
       await waitFor(() => queue.getStats().isProcessing === false, 5000);
 
-      const processingMessages = mockRouter.getMessages()
-        .filter(m => m.type === "VECTOR_INDEXING_PROGRESS" && m.payload.status === "processing");
+      const processingMessages = mockRouter
+        .getMessages()
+        .filter(
+          (m) =>
+            m.type === "VECTOR_INDEXING_PROGRESS" &&
+            m.payload.status === "processing",
+        );
 
       if (processingMessages.length > 0) {
         const hasProgress = processingMessages.some(
-          m => m.payload.chunksTotal > 0 && m.payload.chunksProcessed > 0
+          (m) => m.payload.chunksTotal > 0 && m.payload.chunksProcessed > 0,
         );
         expect(hasProgress).toBe(true);
       }
@@ -714,7 +732,7 @@ describe("Vector Indexing Queue", () => {
       await mockDB.saveContent(content);
 
       mockHybridAI.generateEmbedding.mockRejectedValue(
-        new Error("Test error message")
+        new Error("Test error message"),
       );
 
       mockRouter.clear();
@@ -722,8 +740,13 @@ describe("Vector Indexing Queue", () => {
       await queue.enqueueContent(content.id, IndexingOperation.CREATE);
       await waitFor(() => queue.getStats().isProcessing === false, 10000);
 
-      const failedMessages = mockRouter.getMessages()
-        .filter(m => m.type === "VECTOR_INDEXING_PROGRESS" && m.payload.status === "failed");
+      const failedMessages = mockRouter
+        .getMessages()
+        .filter(
+          (m) =>
+            m.type === "VECTOR_INDEXING_PROGRESS" &&
+            m.payload.status === "failed",
+        );
 
       expect(failedMessages.length).toBeGreaterThan(0);
       expect(failedMessages[0]?.payload.error).toBeDefined();
@@ -733,7 +756,7 @@ describe("Vector Indexing Queue", () => {
   describe("Queue Statistics", () => {
     it("should track jobs processed", async () => {
       const contents = Array.from({ length: 5 }, (_, i) =>
-        createMockContent({ id: `content${i}` })
+        createMockContent({ id: `content${i}` }),
       );
 
       for (const content of contents) {
@@ -791,7 +814,9 @@ describe("Vector Indexing Queue", () => {
       // Due to chunking, there might be multiple embeddings created, but it should
       // be a reasonable number (not like 10x what we expect)
       const embeddings = await mockDB.getAllEmbeddings();
-      expect(embeddings.filter(e => e.contentId === content.id).length).toBeLessThanOrEqual(2);
+      expect(
+        embeddings.filter((e) => e.contentId === content.id).length,
+      ).toBeLessThanOrEqual(2);
     });
   });
 });
@@ -822,10 +847,10 @@ describe("End-to-End Integration", () => {
     }
 
     // 4. Verify embeddings are valid
-    embeddings.forEach(emb => {
+    embeddings.forEach((emb) => {
       expect(Array.isArray(emb)).toBe(true);
       expect(emb.length).toBeGreaterThan(0);
-      expect(emb.every(v => typeof v === "number")).toBe(true);
+      expect(emb.every((v) => typeof v === "number")).toBe(true);
     });
 
     // 5. Calculate similarities

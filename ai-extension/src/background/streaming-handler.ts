@@ -7,13 +7,10 @@
 
 import { AIManager } from "./ai-manager";
 import { CloudAIManager } from "./cloud-ai-manager";
-import { HybridAIEngine, TaskOperation } from "./hybrid-ai-engine";
-import type { Task, Content } from "./hybrid-ai-engine";
+import { HybridAIEngine } from "./hybrid-ai-engine";
 import { logger } from "./monitoring";
-import {
-  conversationContextLoader,
-  type ConversationContext,
-} from "./conversation-context-loader";
+import { conversationContextLoader } from "./conversation-context-loader";
+import { routeQuery, type RoutingDecision, type RouteQueryInput } from "./query-router";
 import {
   getModeAwareProcessor,
   ModeAwareProcessor,
@@ -28,6 +25,20 @@ import type {
   BaseMessage,
 } from "../shared/types/index.d";
 
+type ResolvedModel = "nano" | "flash" | "pro";
+
+interface RoutingSessionDecision
+  extends Omit<RoutingDecision, "preferLocal"> {
+  mode: "ask" | "ai-pocket";
+  preferLocal: boolean;
+}
+
+interface ConversationRoutingMetadata {
+  messageCount?: number;
+  totalTokens?: number;
+  truncated?: boolean;
+}
+
 /**
  * Active streaming session
  */
@@ -38,6 +49,8 @@ interface StreamingSession {
   totalChunks: number;
   conversationId?: string | undefined;
   messageId?: string; // ID of the assistant message being created
+  resolvedModel?: ResolvedModel;
+  routingDecision?: RoutingSessionDecision;
 }
 
 /**
@@ -105,6 +118,34 @@ export class StreamingHandler {
     return "ask";
   }
 
+  private async collectConversationMetadata(
+    conversationId?: string,
+  ): Promise<ConversationRoutingMetadata | undefined> {
+    if (!conversationId) {
+      return undefined;
+    }
+
+    try {
+      const context =
+        await conversationContextLoader.buildConversationContext(conversationId);
+      return {
+        messageCount: context.messages.length,
+        totalTokens: context.totalTokens,
+        truncated: context.truncated,
+      };
+    } catch (error) {
+      logger.warn(
+        "StreamingHandler",
+        "Failed to load conversation metadata for routing",
+        {
+          conversationId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return undefined;
+    }
+  }
+
   /**
    * Start streaming AI response
    * Requirement 8.3: Stream responses in real-time for immediate feedback
@@ -129,18 +170,100 @@ export class StreamingHandler {
       conversationId: payload.conversationId ?? undefined,
     };
 
+    const userSpecifiedModel =
+      payload.model && payload.model !== "auto" ? payload.model : undefined;
+
+    if (userSpecifiedModel) {
+      session.resolvedModel = userSpecifiedModel;
+      logger.info("StreamingHandler", "Using user-selected model", {
+        requestId,
+        conversationId: payload.conversationId,
+        model: userSpecifiedModel,
+      });
+    } else {
+      const mode = this.validateAndDetectMode(payload);
+      const conversationMetadata = await this.collectConversationMetadata(
+        payload.conversationId,
+      );
+
+      try {
+        const routeInput: RouteQueryInput = {
+          prompt: payload.prompt,
+          mode,
+          context: {
+            autoContext: payload.autoContext ?? true,
+            ...(payload.pocketId !== undefined
+              ? { pocketId: payload.pocketId }
+              : {}),
+          },
+        };
+
+        if (payload.conversationId !== undefined || conversationMetadata) {
+          routeInput.conversation = {};
+          if (payload.conversationId !== undefined) {
+            routeInput.conversation.id = payload.conversationId;
+          }
+          if (conversationMetadata) {
+            routeInput.conversation.metadata = conversationMetadata;
+          }
+        }
+
+        const decision = await routeQuery(routeInput);
+
+        const preferLocal =
+          decision.preferLocal ?? decision.targetModel === "nano";
+
+        session.routingDecision = {
+          mode,
+          targetModel: decision.targetModel,
+          reason: decision.reason,
+          confidence: decision.confidence,
+          preferLocal,
+          ...(decision.metadata ? { metadata: decision.metadata } : {}),
+        };
+        session.resolvedModel = decision.targetModel;
+
+        logger.info("StreamingHandler", "Routing decision resolved", {
+          requestId,
+          mode,
+          targetModel: decision.targetModel,
+          preferLocal,
+          reason: decision.reason,
+          confidence: decision.confidence,
+        });
+      } catch (error) {
+        logger.error("StreamingHandler", "Failed to route query", {
+          requestId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     this.activeSessions.set(requestId, session);
+
+    const loggedPreferLocal =
+      userSpecifiedModel !== undefined
+        ? userSpecifiedModel === "nano"
+        : session.routingDecision?.preferLocal ?? payload.preferLocal ?? true;
+
+    if (!session.resolvedModel) {
+      session.resolvedModel = loggedPreferLocal ? "nano" : "flash";
+    }
 
     logger.info("StreamingHandler", "Starting stream", {
       requestId,
       conversationId: payload.conversationId,
-      preferLocal: payload.preferLocal,
+      preferLocal: loggedPreferLocal,
+      resolvedModel: session.resolvedModel ?? userSpecifiedModel,
     });
 
     // Generate message ID for the assistant response
     const messageId = crypto.randomUUID();
     session.messageId = messageId;
-    
+
+    const resolvedModelForStart =
+      session.resolvedModel ?? userSpecifiedModel;
+
     // Send stream start message
     this.sendToSidePanel({
       kind: "AI_PROCESS_STREAM_START",
@@ -148,14 +271,19 @@ export class StreamingHandler {
       payload: {
         requestId,
         conversationId: payload.conversationId,
-        messageId, // Send the message ID to the UI
+        messageId,
+        ...(resolvedModelForStart && { resolvedModel: resolvedModelForStart }),
       },
     });
 
     // Start streaming in background (don't await)
     this.processStream(payload, session, sender).catch((error) => {
       logger.error("StreamingHandler", "Stream processing failed", error);
-      this.sendStreamError(requestId, error.message, payload.conversationId);
+      this.sendStreamError(
+        requestId,
+        error instanceof Error ? error.message : String(error),
+        payload.conversationId,
+      );
       this.activeSessions.delete(requestId);
     });
 
@@ -177,11 +305,57 @@ export class StreamingHandler {
       // Requirement 8.2.1: Create mode detection logic according to UI
       const mode = this.validateAndDetectMode(payload);
 
+      const sessionDecision = session.routingDecision;
+      const manualModel =
+        payload.model && payload.model !== "auto" ? payload.model : undefined;
+
+      let preferLocal = payload.preferLocal;
+
+      if (sessionDecision) {
+        preferLocal = sessionDecision.preferLocal;
+      }
+
+      if (manualModel) {
+        preferLocal = manualModel === "nano";
+      }
+
+      if (preferLocal === undefined) {
+        preferLocal = true;
+      }
+
+      const targetModel = manualModel ?? sessionDecision?.targetModel;
+
+      const routingMetadata = sessionDecision
+        ? {
+            reason: sessionDecision.reason,
+            confidence: sessionDecision.confidence,
+            ...(sessionDecision.metadata
+              ? { telemetry: sessionDecision.metadata }
+              : {}),
+          }
+        : undefined;
+
+      const effectiveResolvedModel =
+        targetModel ?? (preferLocal ? "nano" : "flash");
+
+      if (!session.resolvedModel) {
+        session.resolvedModel = effectiveResolvedModel;
+      }
+
       logger.info("StreamingHandler", "Processing with mode-aware routing", {
         mode,
         conversationId: payload.conversationId,
         pocketId: payload.pocketId,
         autoContext: payload.autoContext,
+        targetModel,
+        preferLocal,
+        routingReason: sessionDecision?.reason,
+        routingConfidence: sessionDecision?.confidence,
+        modelSource: manualModel
+          ? "manual"
+          : sessionDecision
+            ? "router"
+            : "default",
       });
 
       // Build mode-aware request
@@ -190,9 +364,11 @@ export class StreamingHandler {
         mode,
         conversationId: payload.conversationId,
         pocketId: payload.pocketId,
-        preferLocal: payload.preferLocal,
-        model: payload.model,
+        preferLocal,
+        model: manualModel,
         autoContext: payload.autoContext ?? true, // Default to true
+        ...(targetModel && { targetModel }),
+        ...(routingMetadata && { routingMetadata }),
       };
 
       // Process with mode-aware processor
@@ -224,6 +400,9 @@ export class StreamingHandler {
           const response = chunk as any;
           source = response.source;
           contextUsed = response.contextUsed || [];
+          if (typeof response.content === "string" && response.content.length) {
+            fullResponse = response.content;
+          }
           break;
         }
 
@@ -258,6 +437,9 @@ export class StreamingHandler {
         totalTokens,
         source,
         contextUsed,
+        resolvedModel: session.resolvedModel ?? targetModel,
+        routingReason: session.routingDecision?.reason,
+        routingConfidence: session.routingDecision?.confidence,
       });
 
       // Send stream end message

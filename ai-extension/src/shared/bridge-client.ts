@@ -83,7 +83,8 @@ class BridgeIndexedDb {
         }
       };
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error ?? new Error("IndexedDB error"));
+      request.onerror = () =>
+        reject(request.error ?? new Error("IndexedDB error"));
     });
   }
 
@@ -94,7 +95,8 @@ class BridgeIndexedDb {
       const store = tx.objectStore("buffers");
       store.put(value, key);
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("IndexedDB transaction error"));
+      tx.onerror = () =>
+        reject(tx.error ?? new Error("IndexedDB transaction error"));
     });
   }
 
@@ -104,8 +106,10 @@ class BridgeIndexedDb {
       const tx = db.transaction("buffers", "readonly");
       const store = tx.objectStore("buffers");
       const request = store.get(key);
-      request.onsuccess = () => resolve(request.result as PersistedBuffer | undefined);
-      request.onerror = () => reject(request.error ?? new Error("IndexedDB read error"));
+      request.onsuccess = () =>
+        resolve(request.result as PersistedBuffer | undefined);
+      request.onerror = () =>
+        reject(request.error ?? new Error("IndexedDB read error"));
     });
   }
 
@@ -116,7 +120,8 @@ class BridgeIndexedDb {
       const store = tx.objectStore("buffers");
       store.delete(key);
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("IndexedDB transaction error"));
+      tx.onerror = () =>
+        reject(tx.error ?? new Error("IndexedDB transaction error"));
     });
   }
 }
@@ -144,8 +149,12 @@ export class BridgeClient {
   private lastHeartbeatAck: number | null = null;
 
   private readonly idb = BridgeIndexedDb.getInstance();
-  private readonly onCommand: ((command: CommandType, params?: Record<string, unknown>) => void) | undefined;
-  private readonly onStatusChange: ((status: ConnectionStatus) => void) | undefined;
+  private readonly onCommand:
+    | ((command: CommandType, params?: Record<string, unknown>) => void)
+    | undefined;
+  private readonly onStatusChange:
+    | ((status: ConnectionStatus) => void)
+    | undefined;
 
   constructor(config: BridgeClientConfig) {
     this.context = config.context;
@@ -168,11 +177,17 @@ export class BridgeClient {
     }
 
     if (!this.token || !this.sessionId) {
-      console.warn("[BridgeClient] Missing session token or ID; cannot connect");
+      console.warn(
+        "[BridgeClient] Missing session token or ID; cannot connect",
+      );
       return;
     }
 
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.OPEN ||
+        this.ws.readyState === WebSocket.CONNECTING)
+    ) {
       return;
     }
 
@@ -222,7 +237,11 @@ export class BridgeClient {
   /**
    * Update connection details (token, session, host, port).
    */
-  async updateConnectionDetails(details: Partial<Pick<BridgeClientConfig, "sessionId" | "token" | "host" | "port">>): Promise<void> {
+  async updateConnectionDetails(
+    details: Partial<
+      Pick<BridgeClientConfig, "sessionId" | "token" | "host" | "port">
+    >,
+  ): Promise<void> {
     let credentialsChanged = false;
 
     if (details.token && details.token !== this.token) {
@@ -314,7 +333,10 @@ export class BridgeClient {
    * Flush buffered events as a batch.
    */
   private flushBufferedEvents(): void {
-    if (this.bufferedEvents.length === 0 || this.status !== ConnectionStatus.CONNECTED) {
+    if (
+      this.bufferedEvents.length === 0 ||
+      this.status !== ConnectionStatus.CONNECTED
+    ) {
       return;
     }
 
@@ -456,9 +478,14 @@ export class BridgeClient {
   /**
    * Handle handshake acknowledgement.
    */
-  private async handleHandshakeAck(message: BridgeMessage & { type: "HANDSHAKE_ACK" }): Promise<void> {
+  private async handleHandshakeAck(
+    message: BridgeMessage & { type: "HANDSHAKE_ACK" },
+  ): Promise<void> {
     if (!message.payload.accepted) {
-      console.error("[BridgeClient] Handshake rejected:", message.payload.error);
+      console.error(
+        "[BridgeClient] Handshake rejected:",
+        message.payload.error,
+      );
       await this.setEnabled(false);
       return;
     }
@@ -541,7 +568,9 @@ export class BridgeClient {
       const message = JSON.parse(event.data) as BridgeMessage;
       switch (message.type) {
         case "HANDSHAKE_ACK":
-          void this.handleHandshakeAck(message as BridgeMessage & { type: "HANDSHAKE_ACK" });
+          void this.handleHandshakeAck(
+            message as BridgeMessage & { type: "HANDSHAKE_ACK" },
+          );
           break;
         case "HEARTBEAT":
           this.handleHeartbeat(message as HeartbeatMessage);
@@ -560,7 +589,10 @@ export class BridgeClient {
           console.error("[BridgeClient] Server error", message.payload);
           break;
         case "DISCONNECT":
-          console.info("[BridgeClient] Server requested disconnect", message.payload);
+          console.info(
+            "[BridgeClient] Server requested disconnect",
+            message.payload,
+          );
           void this.setEnabled(false);
           break;
         default:
@@ -599,11 +631,14 @@ export class BridgeClient {
     }
 
     const delay = Math.min(
-      BASE_RECONNECT_DELAY_MS * Math.pow(RECONNECT_BACKOFF_MULTIPLIER, this.reconnectAttempts),
+      BASE_RECONNECT_DELAY_MS *
+        Math.pow(RECONNECT_BACKOFF_MULTIPLIER, this.reconnectAttempts),
       MAX_RECONNECT_DELAY_MS,
     );
 
-    console.info(`[BridgeClient] Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
+    console.info(
+      `[BridgeClient] Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1})`,
+    );
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
@@ -627,7 +662,10 @@ export class BridgeClient {
         return;
       }
 
-      if (this.lastHeartbeatAck && Date.now() - this.lastHeartbeatAck > HEARTBEAT_TIMEOUT_MS) {
+      if (
+        this.lastHeartbeatAck &&
+        Date.now() - this.lastHeartbeatAck > HEARTBEAT_TIMEOUT_MS
+      ) {
         console.warn("[BridgeClient] Heartbeat timeout, reconnecting");
         this.cleanupConnection();
         this.setStatus(ConnectionStatus.DISCONNECTED);
@@ -762,11 +800,16 @@ const clientInstances: Map<ClientContext, BridgeClient> = new Map();
 /**
  * Initialize bridge client for a context.
  */
-export async function initializeBridgeClient(config: BridgeClientConfig): Promise<BridgeClient> {
+export async function initializeBridgeClient(
+  config: BridgeClientConfig,
+): Promise<BridgeClient> {
   let client = clientInstances.get(config.context);
 
   if (!config.token || !config.sessionId) {
-    console.warn("[BridgeClient] Missing token or session ID; bridge disabled for", config.context);
+    console.warn(
+      "[BridgeClient] Missing token or session ID; bridge disabled for",
+      config.context,
+    );
     return new BridgeClient({ ...config, enabled: false });
   }
 
@@ -791,7 +834,9 @@ export async function initializeBridgeClient(config: BridgeClientConfig): Promis
 /**
  * Retrieve existing bridge client for context.
  */
-export function getBridgeClient(context: ClientContext): BridgeClient | undefined {
+export function getBridgeClient(
+  context: ClientContext,
+): BridgeClient | undefined {
   return clientInstances.get(context);
 }
 

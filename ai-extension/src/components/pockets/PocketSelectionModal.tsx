@@ -29,17 +29,17 @@ export function PocketSelectionModal({
 }: PocketSelectionModalProps) {
   const [editedTitle, setEditedTitle] = React.useState(selectionText || "");
   const [showTitleEdit, setShowTitleEdit] = React.useState(false);
-  
+
   // Detect if this is an image save (has preview with "Image:" prefix)
   const isImageSave = preview?.startsWith("Image:");
-  
+
   React.useEffect(() => {
     // Auto-show title edit for images
     if (isImageSave) {
       setShowTitleEdit(true);
     }
   }, [isImageSave]);
-  
+
   const truncatedSelection = selectionText?.trim().slice(0, 600);
 
   const handleSelect = (pocketId: string) => {
@@ -65,8 +65,18 @@ export function PocketSelectionModal({
             className="text-muted-foreground transition hover:text-foreground"
             aria-label="Close pocket selection"
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -92,7 +102,9 @@ export function PocketSelectionModal({
                 id="content-title"
                 value={editedTitle}
                 onChange={(e) => setEditedTitle(e.target.value)}
-                placeholder={isImageSave ? "Enter image title..." : "Enter title..."}
+                placeholder={
+                  isImageSave ? "Enter image title..." : "Enter title..."
+                }
                 className="w-full"
                 autoFocus={isImageSave}
               />
@@ -105,8 +117,18 @@ export function PocketSelectionModal({
               onClick={() => setShowTitleEdit(true)}
               className="text-sm text-primary hover:text-primary/80 flex items-center gap-1"
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
               </svg>
               Edit title
             </button>
@@ -115,9 +137,7 @@ export function PocketSelectionModal({
           {/* Preview */}
           {preview && (
             <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
-              <p className="text-sm text-muted-foreground">
-                {preview}
-              </p>
+              <p className="text-sm text-muted-foreground">{preview}</p>
             </div>
           )}
 
@@ -126,7 +146,10 @@ export function PocketSelectionModal({
             <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
               <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                 {truncatedSelection}
-                {selectionText && selectionText.length > truncatedSelection.length ? "…" : ""}
+                {selectionText &&
+                selectionText.length > truncatedSelection.length
+                  ? "…"
+                  : ""}
               </p>
             </div>
           )}
@@ -138,8 +161,18 @@ export function PocketSelectionModal({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80"
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 11-5.656-5.656l1.172-1.172m3.656-3.656a4 4 0 015.656 0l1.172 1.172a4 4 0 010 5.656l-3 3" />
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 11-5.656-5.656l1.172-1.172m3.656-3.656a4 4 0 015.656 0l1.172 1.172a4 4 0 010 5.656l-3 3"
+                />
               </svg>
               {sourceUrl}
             </a>
@@ -152,7 +185,7 @@ export function PocketSelectionModal({
                 onClick={() => handleSelect(pocket.id)}
                 className={cn(
                   "w-full rounded-xl border border-border/60 bg-card px-4 py-3 text-left transition",
-                  "hover:border-primary/60 hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  "hover:border-primary/60 hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/50",
                 )}
               >
                 <div className="flex items-center gap-3">

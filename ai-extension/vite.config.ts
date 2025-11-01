@@ -9,8 +9,9 @@ import manifest from "./manifest.config";
 export default defineConfig(({ mode }) => {
   // Load env from the project root (where .env file is located)
   const env = loadEnv(mode, __dirname, "");
-  const debugRecorderFlag = env.VITE_DEBUG_RECORDER === "true" ? "true" : "false";
-  
+  const debugRecorderFlag =
+    env.VITE_DEBUG_RECORDER === "true" ? "true" : "false";
+
   return {
     plugins: [
       react(),
@@ -64,7 +65,6 @@ export default defineConfig(({ mode }) => {
   ],
   define: {
     "import.meta.env.VITE_DEBUG_RECORDER": debugRecorderFlag,
-    "import.meta.env.VITE_GEMINI_API_KEY": JSON.stringify(env.VITE_GEMINI_API_KEY || ""),
   },
   resolve: {
     alias: {

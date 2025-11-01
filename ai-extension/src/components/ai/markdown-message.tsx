@@ -17,17 +17,17 @@ export function MarkdownMessage({
   const hasMarkdownSyntax = React.useMemo(() => {
     const markdownPatterns = [
       /^#{1,6}\s/m, // Headings
-      /\*\*.*\*\*/,  // Bold
-      /\*.*\*/,      // Italic
-      /~~.*~~/,      // Strikethrough
-      /```/,         // Code blocks
-      /`[^`]+`/,     // Inline code
+      /\*\*.*\*\*/, // Bold
+      /\*.*\*/, // Italic
+      /~~.*~~/, // Strikethrough
+      /```/, // Code blocks
+      /`[^`]+`/, // Inline code
       /^\s*[-*+]\s/m, // Unordered lists
       /^\s*\d+\.\s/m, // Ordered lists
-      /^\s*>\s/m,    // Blockquotes
+      /^\s*>\s/m, // Blockquotes
       /\[.*\]\(.*\)/, // Links
       /!\[.*\]\(.*\)/, // Images
-      /^\s*\|.*\|/m,  // Tables
+      /^\s*\|.*\|/m, // Tables
       /^\s*[-*_]{3,}\s*$/m, // Horizontal rules
     ];
 
@@ -45,10 +45,6 @@ export function MarkdownMessage({
 
   // Render with markdown
   return (
-    <MarkdownRenderer
-      content={content}
-      className={className}
-      theme={theme}
-    />
+    <MarkdownRenderer content={content} className={className} theme={theme} />
   );
 }

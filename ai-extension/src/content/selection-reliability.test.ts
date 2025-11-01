@@ -4,7 +4,7 @@
  * Requirements: 2.1, 2.2, 2.3, 15.1, 17.1, 17.2
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   DOMStabilityMonitor,
   RetryManager,
@@ -12,26 +12,26 @@ import {
   PerformanceMonitor,
   ErrorRecoveryManager,
   ReliableSelectionCapture,
-} from './selection-reliability';
+} from "./selection-reliability";
 
-describe('DOMStabilityMonitor', () => {
+describe("DOMStabilityMonitor", () => {
   let monitor: DOMStabilityMonitor;
 
   beforeEach(() => {
     monitor = new DOMStabilityMonitor();
   });
 
-  it('should detect stable DOM', async () => {
+  it("should detect stable DOM", async () => {
     const result = await monitor.checkStability(document, 100);
-    
+
     expect(result.isStable).toBe(true);
     expect(result.mutationCount).toBeLessThan(5);
-    expect(result.recommendation).toBe('proceed');
+    expect(result.recommendation).toBe("proceed");
   });
 
-  it('should detect unstable DOM with rapid mutations', async () => {
+  it("should detect unstable DOM with rapid mutations", async () => {
     // Create element with rapid mutations
-    const testDiv = document.createElement('div');
+    const testDiv = document.createElement("div");
     document.body.appendChild(testDiv);
 
     // Start stability check
@@ -47,11 +47,11 @@ describe('DOMStabilityMonitor', () => {
     testDiv.remove();
 
     expect(result.mutationCount).toBeGreaterThan(0);
-    expect(result.recommendation).not.toBe('proceed');
+    expect(result.recommendation).not.toBe("proceed");
   });
 
-  it('should detect element mutations', async () => {
-    const testDiv = document.createElement('div');
+  it("should detect element mutations", async () => {
+    const testDiv = document.createElement("div");
     document.body.appendChild(testDiv);
 
     // Start mutation check with lower threshold
@@ -67,34 +67,34 @@ describe('DOMStabilityMonitor', () => {
 
     // In jsdom, mutations might not be detected as reliably as in real browsers
     // So we just verify the method completes without error
-    expect(typeof isMutating).toBe('boolean');
+    expect(typeof isMutating).toBe("boolean");
   });
 });
 
-describe('RetryManager', () => {
+describe("RetryManager", () => {
   let retryManager: RetryManager;
 
   beforeEach(() => {
     retryManager = new RetryManager();
   });
 
-  it('should succeed on first attempt', async () => {
-    const operation = vi.fn().mockResolvedValue('success');
-    
+  it("should succeed on first attempt", async () => {
+    const operation = vi.fn().mockResolvedValue("success");
+
     const result = await retryManager.executeWithRetry(operation);
-    
-    expect(result).toBe('success');
+
+    expect(result).toBe("success");
     expect(operation).toHaveBeenCalledTimes(1);
   });
 
-  it('should retry on failure and eventually succeed', async () => {
+  it("should retry on failure and eventually succeed", async () => {
     let attemptCount = 0;
     const operation = vi.fn().mockImplementation(() => {
       attemptCount++;
       if (attemptCount < 3) {
-        return Promise.reject(new Error('Temporary failure'));
+        return Promise.reject(new Error("Temporary failure"));
       }
-      return Promise.resolve('success');
+      return Promise.resolve("success");
     });
 
     const result = await retryManager.executeWithRetry(operation, {
@@ -103,28 +103,39 @@ describe('RetryManager', () => {
       maxDelay: 100,
     });
 
-    expect(result).toBe('success');
+    expect(result).toBe("success");
     expect(operation).toHaveBeenCalledTimes(3);
   });
 
-  it('should fail after max retries', async () => {
-    const operation = vi.fn().mockRejectedValue(new Error('Persistent failure'));
+  it("should fail after max retries", async () => {
+    const operation = vi
+      .fn()
+      .mockRejectedValue(new Error("Persistent failure"));
 
     await expect(
       retryManager.executeWithRetry(operation, {
         maxRetries: 2,
         initialDelay: 10,
-      })
-    ).rejects.toThrow('Operation failed after 3 attempts');
+      }),
+    ).rejects.toThrow("Operation failed after 3 attempts");
 
     expect(operation).toHaveBeenCalledTimes(3);
   });
 
-  it('should use exponential backoff', () => {
+  it("should use exponential backoff", () => {
     const delays = [
-      retryManager.calculateDelay(0, { initialDelay: 100, backoffMultiplier: 2 }),
-      retryManager.calculateDelay(1, { initialDelay: 100, backoffMultiplier: 2 }),
-      retryManager.calculateDelay(2, { initialDelay: 100, backoffMultiplier: 2 }),
+      retryManager.calculateDelay(0, {
+        initialDelay: 100,
+        backoffMultiplier: 2,
+      }),
+      retryManager.calculateDelay(1, {
+        initialDelay: 100,
+        backoffMultiplier: 2,
+      }),
+      retryManager.calculateDelay(2, {
+        initialDelay: 100,
+        backoffMultiplier: 2,
+      }),
     ];
 
     expect(delays[0]).toBe(100);
@@ -132,7 +143,7 @@ describe('RetryManager', () => {
     expect(delays[2]).toBe(400);
   });
 
-  it('should respect max delay', () => {
+  it("should respect max delay", () => {
     const delay = retryManager.calculateDelay(10, {
       initialDelay: 100,
       backoffMultiplier: 2,
@@ -143,23 +154,23 @@ describe('RetryManager', () => {
   });
 });
 
-describe('SelectionValidator', () => {
+describe("SelectionValidator", () => {
   let validator: SelectionValidator;
 
   beforeEach(() => {
     validator = new SelectionValidator();
   });
 
-  it('should validate null selection', () => {
+  it("should validate null selection", () => {
     const result = validator.validate(null);
 
     expect(result.isValid).toBe(false);
     expect(result.isEmpty).toBe(true);
     expect(result.canRetry).toBe(false);
-    expect(result.errors).toContain('No selection found');
+    expect(result.errors).toContain("No selection found");
   });
 
-  it('should validate empty selection', () => {
+  it("should validate empty selection", () => {
     // Create empty selection
     const selection = window.getSelection();
     selection?.removeAllRanges();
@@ -170,10 +181,10 @@ describe('SelectionValidator', () => {
     expect(result.isEmpty).toBe(true);
   });
 
-  it('should validate valid selection', () => {
+  it("should validate valid selection", () => {
     // Create test element with text
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'Test selection text';
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "Test selection text";
     document.body.appendChild(testDiv);
 
     // Create selection
@@ -193,10 +204,10 @@ describe('SelectionValidator', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('should detect detached element', () => {
+  it("should detect detached element", () => {
     // Create element, attach it, then detach it
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'Detached text';
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "Detached text";
     document.body.appendChild(testDiv);
 
     // Create range on element
@@ -218,17 +229,17 @@ describe('SelectionValidator', () => {
     expect(result.isDetached || result.errors.length > 0).toBe(true);
   });
 
-  it('should validate null element', () => {
+  it("should validate null element", () => {
     const result = validator.validateElement(null);
 
     expect(result.isValid).toBe(false);
     expect(result.isEmpty).toBe(true);
-    expect(result.errors).toContain('Element is null');
+    expect(result.errors).toContain("Element is null");
   });
 
-  it('should validate connected element', () => {
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'Test content';
+  it("should validate connected element", () => {
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "Test content";
     document.body.appendChild(testDiv);
 
     const result = validator.validateElement(testDiv);
@@ -240,9 +251,9 @@ describe('SelectionValidator', () => {
     expect(result.isDetached).toBe(false);
   });
 
-  it('should detect disconnected element', () => {
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'Test content';
+  it("should detect disconnected element", () => {
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "Test content";
 
     const result = validator.validateElement(testDiv);
 
@@ -250,8 +261,8 @@ describe('SelectionValidator', () => {
     expect(result.isDetached).toBe(true);
   });
 
-  it('should detect empty element', () => {
-    const testDiv = document.createElement('div');
+  it("should detect empty element", () => {
+    const testDiv = document.createElement("div");
     document.body.appendChild(testDiv);
 
     const result = validator.validateElement(testDiv);
@@ -263,214 +274,223 @@ describe('SelectionValidator', () => {
   });
 });
 
-describe('PerformanceMonitor', () => {
+describe("PerformanceMonitor", () => {
   let monitor: PerformanceMonitor;
 
   beforeEach(() => {
     monitor = new PerformanceMonitor();
   });
 
-  it('should monitor fast operation', async () => {
-    const operation = vi.fn().mockResolvedValue('result');
+  it("should monitor fast operation", async () => {
+    const operation = vi.fn().mockResolvedValue("result");
     const textLength = 1000;
 
-    const { result, metrics } = await monitor.monitorCapture(operation, textLength);
+    const { result, metrics } = await monitor.monitorCapture(
+      operation,
+      textLength,
+    );
 
-    expect(result).toBe('result');
+    expect(result).toBe("result");
     expect(metrics.duration).toBeGreaterThan(0);
     expect(metrics.textLength).toBe(textLength);
     expect(metrics.throughput).toBeGreaterThan(0);
     expect(metrics.warnings).toHaveLength(0);
   });
 
-  it('should warn about large selections', async () => {
-    const operation = vi.fn().mockResolvedValue('result');
+  it("should warn about large selections", async () => {
+    const operation = vi.fn().mockResolvedValue("result");
     const textLength = 15000; // > 10KB threshold
 
     const { metrics } = await monitor.monitorCapture(operation, textLength);
 
     expect(metrics.warnings.length).toBeGreaterThan(0);
-    expect(metrics.warnings.some(w => w.includes('Large selection'))).toBe(true);
+    expect(metrics.warnings.some((w) => w.includes("Large selection"))).toBe(
+      true,
+    );
   });
 
-  it('should warn about very large selections', async () => {
-    const operation = vi.fn().mockResolvedValue('result');
+  it("should warn about very large selections", async () => {
+    const operation = vi.fn().mockResolvedValue("result");
     const textLength = 150000; // > 100KB threshold
 
     const { metrics } = await monitor.monitorCapture(operation, textLength);
 
-    expect(metrics.warnings.some(w => w.includes('Very large selection'))).toBe(true);
+    expect(
+      metrics.warnings.some((w) => w.includes("Very large selection")),
+    ).toBe(true);
   });
 
-  it('should warn about slow operations', async () => {
+  it("should warn about slow operations", async () => {
     const operation = vi.fn().mockImplementation(() => {
-      return new Promise(resolve => setTimeout(() => resolve('result'), 1100));
+      return new Promise((resolve) =>
+        setTimeout(() => resolve("result"), 1100),
+      );
     });
     const textLength = 1000;
 
     const { metrics } = await monitor.monitorCapture(operation, textLength);
 
     expect(metrics.duration).toBeGreaterThan(1000);
-    expect(metrics.warnings.some(w => w.includes('took'))).toBe(true);
+    expect(metrics.warnings.some((w) => w.includes("took"))).toBe(true);
   });
 
-  it('should optimize large text', () => {
-    const largeText = 'a'.repeat(100000);
+  it("should optimize large text", () => {
+    const largeText = "a".repeat(100000);
     const optimized = monitor.optimizeLargeText(largeText, 50000);
 
     expect(optimized.length).toBeLessThan(largeText.length);
-    expect(optimized).toContain('content truncated');
+    expect(optimized).toContain("content truncated");
   });
 
-  it('should not truncate small text', () => {
-    const smallText = 'Small text';
+  it("should not truncate small text", () => {
+    const smallText = "Small text";
     const optimized = monitor.optimizeLargeText(smallText, 50000);
 
     expect(optimized).toBe(smallText);
   });
 
-  it('should detect too large selections', () => {
+  it("should detect too large selections", () => {
     expect(monitor.isSelectionTooLarge(50000)).toBe(false);
     expect(monitor.isSelectionTooLarge(150000)).toBe(true);
   });
 });
 
-describe('ErrorRecoveryManager', () => {
+describe("ErrorRecoveryManager", () => {
   let recovery: ErrorRecoveryManager;
 
   beforeEach(() => {
     recovery = new ErrorRecoveryManager();
   });
 
-  it('should recommend user prompt for empty selection', () => {
+  it("should recommend user prompt for empty selection", () => {
     const validation = {
       isValid: false,
       isEmpty: true,
       isDetached: false,
       isCrossFrame: false,
-      errors: ['Selection is empty'],
+      errors: ["Selection is empty"],
       canRetry: false,
     };
 
     const strategy = recovery.determineRecoveryStrategy(
-      new Error('Empty selection'),
+      new Error("Empty selection"),
       validation,
-      1
+      1,
     );
 
-    expect(strategy.type).toBe('user-prompt');
-    expect(strategy.message).toContain('No text is selected');
+    expect(strategy.type).toBe("user-prompt");
+    expect(strategy.message).toContain("No text is selected");
   });
 
-  it('should abort for cross-frame selection', () => {
+  it("should abort for cross-frame selection", () => {
     const validation = {
       isValid: false,
       isEmpty: false,
       isDetached: false,
       isCrossFrame: true,
-      errors: ['Cross-frame selection'],
+      errors: ["Cross-frame selection"],
       canRetry: false,
     };
 
     const strategy = recovery.determineRecoveryStrategy(
-      new Error('Cross-frame'),
+      new Error("Cross-frame"),
       validation,
-      1
+      1,
     );
 
-    expect(strategy.type).toBe('abort');
-    expect(strategy.message).toContain('multiple frames');
+    expect(strategy.type).toBe("abort");
+    expect(strategy.message).toContain("multiple frames");
   });
 
-  it('should retry for detached element on first attempt', () => {
+  it("should retry for detached element on first attempt", () => {
     const validation = {
       isValid: false,
       isEmpty: false,
       isDetached: true,
       isCrossFrame: false,
-      errors: ['Element detached'],
+      errors: ["Element detached"],
       canRetry: true,
     };
 
     const strategy = recovery.determineRecoveryStrategy(
-      new Error('Detached'),
+      new Error("Detached"),
       validation,
-      1
+      1,
     );
 
-    expect(strategy.type).toBe('retry');
+    expect(strategy.type).toBe("retry");
   });
 
-  it('should fallback for detached element after retries', () => {
+  it("should fallback for detached element after retries", () => {
     const validation = {
       isValid: false,
       isEmpty: false,
       isDetached: true,
       isCrossFrame: false,
-      errors: ['Element detached'],
+      errors: ["Element detached"],
       canRetry: true,
     };
 
     const strategy = recovery.determineRecoveryStrategy(
-      new Error('Detached'),
+      new Error("Detached"),
       validation,
-      3
+      3,
     );
 
-    expect(strategy.type).toBe('fallback');
+    expect(strategy.type).toBe("fallback");
     expect(strategy.action).toBeDefined();
   });
 
-  it('should retry for generic errors', () => {
+  it("should retry for generic errors", () => {
     const validation = {
       isValid: false,
       isEmpty: false,
       isDetached: false,
       isCrossFrame: false,
-      errors: ['Generic error'],
+      errors: ["Generic error"],
       canRetry: true,
     };
 
     const strategy = recovery.determineRecoveryStrategy(
-      new Error('Generic'),
+      new Error("Generic"),
       validation,
-      1
+      1,
     );
 
-    expect(strategy.type).toBe('retry');
+    expect(strategy.type).toBe("retry");
   });
 
-  it('should fallback after max retries', () => {
+  it("should fallback after max retries", () => {
     const validation = {
       isValid: false,
       isEmpty: false,
       isDetached: false,
       isCrossFrame: false,
-      errors: ['Generic error'],
+      errors: ["Generic error"],
       canRetry: true,
     };
 
     const strategy = recovery.determineRecoveryStrategy(
-      new Error('Generic'),
+      new Error("Generic"),
       validation,
-      4
+      4,
     );
 
-    expect(strategy.type).toBe('fallback');
+    expect(strategy.type).toBe("fallback");
   });
 });
 
-describe('ReliableSelectionCapture - Integration', () => {
+describe("ReliableSelectionCapture - Integration", () => {
   let capture: ReliableSelectionCapture;
 
   beforeEach(() => {
     capture = new ReliableSelectionCapture();
   });
 
-  it('should successfully capture valid selection', async () => {
+  it("should successfully capture valid selection", async () => {
     // Create test element
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'Test selection for capture';
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "Test selection for capture";
     document.body.appendChild(testDiv);
 
     // Create selection
@@ -481,7 +501,7 @@ describe('ReliableSelectionCapture - Integration', () => {
     selection?.addRange(range);
 
     const captureOperation = vi.fn().mockResolvedValue({
-      text: 'Test selection for capture',
+      text: "Test selection for capture",
       success: true,
     });
 
@@ -497,10 +517,10 @@ describe('ReliableSelectionCapture - Integration', () => {
     expect(captureOperation).toHaveBeenCalledTimes(1);
   });
 
-  it('should retry on temporary failure', async () => {
+  it("should retry on temporary failure", async () => {
     // Create test element
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'Test retry';
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "Test retry";
     document.body.appendChild(testDiv);
 
     // Create selection
@@ -514,9 +534,9 @@ describe('ReliableSelectionCapture - Integration', () => {
     const captureOperation = vi.fn().mockImplementation(() => {
       attemptCount++;
       if (attemptCount < 2) {
-        return Promise.reject(new Error('RETRY_REQUESTED'));
+        return Promise.reject(new Error("RETRY_REQUESTED"));
       }
-      return Promise.resolve({ text: 'Test retry', success: true });
+      return Promise.resolve({ text: "Test retry", success: true });
     });
 
     const result = await capture.captureWithReliability(captureOperation, {
@@ -531,14 +551,14 @@ describe('ReliableSelectionCapture - Integration', () => {
     expect(attemptCount).toBeGreaterThan(1);
   });
 
-  it('should capture element with reliability', async () => {
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'Element capture test';
+  it("should capture element with reliability", async () => {
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "Element capture test";
     document.body.appendChild(testDiv);
 
     const captureOperation = vi.fn().mockResolvedValue({
       element: testDiv,
-      text: 'Element capture test',
+      text: "Element capture test",
       success: true,
     });
 
@@ -548,7 +568,7 @@ describe('ReliableSelectionCapture - Integration', () => {
       {
         checkStability: false,
         enableRetry: true,
-      }
+      },
     );
 
     testDiv.remove();
@@ -557,48 +577,48 @@ describe('ReliableSelectionCapture - Integration', () => {
     expect(captureOperation).toHaveBeenCalledTimes(1);
   });
 
-  it('should handle detached element gracefully', async () => {
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'Detached element';
+  it("should handle detached element gracefully", async () => {
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "Detached element";
     // Don't append to document - keep it detached
 
     const captureOperation = vi.fn().mockResolvedValue({
-      text: 'Detached element',
+      text: "Detached element",
     });
 
     await expect(
       capture.captureElementWithReliability(testDiv, captureOperation, {
         checkStability: false,
         enableRetry: false,
-      })
+      }),
     ).rejects.toThrow();
   });
 });
 
-describe('Edge Cases', () => {
+describe("Edge Cases", () => {
   let capture: ReliableSelectionCapture;
 
   beforeEach(() => {
     capture = new ReliableSelectionCapture();
   });
 
-  it('should handle empty selection', async () => {
+  it("should handle empty selection", async () => {
     const selection = window.getSelection();
     selection?.removeAllRanges();
 
-    const captureOperation = vi.fn().mockResolvedValue('result');
+    const captureOperation = vi.fn().mockResolvedValue("result");
 
     await expect(
       capture.captureWithReliability(captureOperation, {
         checkStability: false,
         enableRetry: false,
-      })
+      }),
     ).rejects.toThrow();
   });
 
-  it('should handle very large selection', async () => {
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'a'.repeat(150000); // Very large text
+  it("should handle very large selection", async () => {
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "a".repeat(150000); // Very large text
     document.body.appendChild(testDiv);
 
     const range = document.createRange();
@@ -623,9 +643,9 @@ describe('Edge Cases', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should handle rapidly mutating DOM', async () => {
-    const testDiv = document.createElement('div');
-    testDiv.textContent = 'Initial text';
+  it("should handle rapidly mutating DOM", async () => {
+    const testDiv = document.createElement("div");
+    testDiv.textContent = "Initial text";
     document.body.appendChild(testDiv);
 
     // Create selection

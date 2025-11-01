@@ -5,7 +5,11 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { VectorSearchService } from "./vector-search-service.js";
-import type { Pocket, CapturedContent, Embedding } from "./indexeddb-manager.js";
+import type {
+  Pocket,
+  CapturedContent,
+  Embedding,
+} from "./indexeddb-manager.js";
 
 // Mock dependencies
 vi.mock("./monitoring.js", () => ({
@@ -143,19 +147,21 @@ describe("VectorSearchService", () => {
 
       // Mock embedding generation to return consistent vectors
       let callCount = 0;
-      mockHybridAIEngine.generateEmbedding.mockImplementation((text: string) => {
-        callCount++;
-        // First call is for the query "machine learning"
-        if (callCount === 1) {
-          return Promise.resolve([0.9, 0.1, 0.0]);
-        }
-        // Second call is for pocket1 (contains "Machine Learning")
-        if (text.includes("Machine Learning") || text.includes("ml")) {
-          return Promise.resolve([0.9, 0.1, 0.0]);
-        }
-        // Third call is for pocket2 (Web Development)
-        return Promise.resolve([0.1, 0.9, 0.0]);
-      });
+      mockHybridAIEngine.generateEmbedding.mockImplementation(
+        (text: string) => {
+          callCount++;
+          // First call is for the query "machine learning"
+          if (callCount === 1) {
+            return Promise.resolve([0.9, 0.1, 0.0]);
+          }
+          // Second call is for pocket1 (contains "Machine Learning")
+          if (text.includes("Machine Learning") || text.includes("ml")) {
+            return Promise.resolve([0.9, 0.1, 0.0]);
+          }
+          // Third call is for pocket2 (Web Development)
+          return Promise.resolve([0.1, 0.9, 0.0]);
+        },
+      );
 
       const results = await service.searchPockets("machine learning", 10);
 
@@ -181,7 +187,7 @@ describe("VectorSearchService", () => {
 
       mockIndexedDBManager.listPockets.mockResolvedValue(mockPockets);
       mockHybridAIEngine.generateEmbedding.mockRejectedValue(
-        new Error("Embedding failed")
+        new Error("Embedding failed"),
       );
 
       const results = await service.searchPockets("machine learning", 10);
@@ -275,7 +281,7 @@ describe("VectorSearchService", () => {
       const results = await service.searchContent(
         "machine learning",
         "pocket1",
-        20
+        20,
       );
 
       expect(results).toHaveLength(1);
@@ -392,13 +398,13 @@ describe("VectorSearchService", () => {
 
       mockIndexedDBManager.getContentByPocket.mockResolvedValue(mockContent);
       mockHybridAIEngine.generateEmbedding.mockRejectedValue(
-        new Error("Embedding failed")
+        new Error("Embedding failed"),
       );
 
       const results = await service.searchContent(
         "machine learning",
         "pocket1",
-        20
+        20,
       );
 
       expect(results).toHaveLength(1);
@@ -458,7 +464,7 @@ describe("VectorSearchService", () => {
 
       const results = (service as any).keywordSearchPockets(
         mockPockets,
-        "machine"
+        "machine",
       );
 
       expect(results).toHaveLength(1);
@@ -482,7 +488,7 @@ describe("VectorSearchService", () => {
 
       const results = (service as any).keywordSearchPockets(
         mockPockets,
-        "machine"
+        "machine",
       );
 
       expect(results).toHaveLength(1);
@@ -505,7 +511,7 @@ describe("VectorSearchService", () => {
 
       const results = (service as any).keywordSearchPockets(
         mockPockets,
-        "machine"
+        "machine",
       );
 
       expect(results).toHaveLength(1);
@@ -538,13 +544,13 @@ describe("VectorSearchService", () => {
 
       const results = (service as any).keywordSearchPockets(
         mockPockets,
-        "machine"
+        "machine",
       );
 
       expect(results).toHaveLength(2);
       expect(results[0]?.item.id).toBe("pocket1");
       expect(results[0]?.relevanceScore).toBeGreaterThan(
-        results[1]?.relevanceScore || 0
+        results[1]?.relevanceScore || 0,
       );
     });
   });

@@ -1,9 +1,9 @@
 /**
  * Vector Store Service
- * 
+ *
  * Provides high-level operations for storing and retrieving vector chunks.
  * Wraps IndexedDB operations with business logic and error handling.
- * 
+ *
  * Requirements: 7.2 (Vector storage and retrieval)
  */
 
@@ -17,14 +17,16 @@ export class VectorStoreService {
    */
   async storeChunk(
     id: string,
+    contentId: string,
+    pocketId: string,
     text: string,
     embedding: number[],
-    metadata: ChunkMetadata
+    metadata: ChunkMetadata,
   ): Promise<void> {
     const chunk: Omit<StoredChunk, "createdAt"> = {
       id,
-      contentId: metadata.contentId,
-      pocketId: metadata.pocketId,
+      contentId,
+      pocketId,
       text,
       embedding,
       metadata,
@@ -37,20 +39,22 @@ export class VectorStoreService {
    * Store multiple chunks in a batch (more efficient)
    */
   async storeChunksBatch(chunks: VectorChunk[]): Promise<void> {
-    const storedChunks: Omit<StoredChunk, "createdAt">[] = chunks.map(chunk => ({
-      id: chunk.id,
-      contentId: chunk.metadata.contentId,
-      pocketId: chunk.metadata.pocketId,
-      text: chunk.text,
-      embedding: chunk.embedding,
-      metadata: chunk.metadata,
-    }));
+    const storedChunks: Omit<StoredChunk, "createdAt">[] = chunks.map(
+      (chunk) => ({
+        id: chunk.id,
+        contentId: chunk.contentId,
+        pocketId: chunk.pocketId,
+        text: chunk.text,
+        embedding: chunk.embedding,
+        metadata: chunk.metadata,
+      }),
+    );
 
     await indexedDBManager.saveChunksBatch(storedChunks);
-    
+
     logger.info("VectorStoreService", "Batch stored", {
       count: chunks.length,
-      pocketId: chunks[0]?.metadata.pocketId,
+      pocketId: chunks[0]?.pocketId,
     });
   }
 
@@ -59,12 +63,15 @@ export class VectorStoreService {
    */
   async getChunksByPocket(pocketId: string): Promise<VectorChunk[]> {
     const storedChunks = await indexedDBManager.getChunksByPocket(pocketId);
-    
-    return storedChunks.map(chunk => ({
+
+    return storedChunks.map((chunk) => ({
       id: chunk.id,
+      contentId: chunk.contentId,
+      pocketId: chunk.pocketId,
       text: chunk.text,
       embedding: chunk.embedding,
       metadata: chunk.metadata,
+      createdAt: chunk.createdAt,
     }));
   }
 
@@ -73,12 +80,15 @@ export class VectorStoreService {
    */
   async getChunksByContent(contentId: string): Promise<VectorChunk[]> {
     const storedChunks = await indexedDBManager.getChunksByContent(contentId);
-    
-    return storedChunks.map(chunk => ({
+
+    return storedChunks.map((chunk) => ({
       id: chunk.id,
+      contentId: chunk.contentId,
+      pocketId: chunk.pocketId,
       text: chunk.text,
       embedding: chunk.embedding,
       metadata: chunk.metadata,
+      createdAt: chunk.createdAt,
     }));
   }
 
@@ -87,7 +97,7 @@ export class VectorStoreService {
    */
   async deleteChunksByContent(contentId: string): Promise<void> {
     await indexedDBManager.deleteChunksByContent(contentId);
-    
+
     logger.info("VectorStoreService", "Chunks deleted", { contentId });
   }
 
@@ -96,7 +106,7 @@ export class VectorStoreService {
    */
   async deleteChunksByPocket(pocketId: string): Promise<void> {
     await indexedDBManager.deleteChunksByPocket(pocketId);
-    
+
     logger.info("VectorStoreService", "Pocket chunks deleted", { pocketId });
   }
 
@@ -105,12 +115,15 @@ export class VectorStoreService {
    */
   async getAllChunks(): Promise<VectorChunk[]> {
     const storedChunks = await indexedDBManager.getAllChunks();
-    
-    return storedChunks.map(chunk => ({
+
+    return storedChunks.map((chunk) => ({
       id: chunk.id,
+      contentId: chunk.contentId,
+      pocketId: chunk.pocketId,
       text: chunk.text,
       embedding: chunk.embedding,
       metadata: chunk.metadata,
+      createdAt: chunk.createdAt,
     }));
   }
 

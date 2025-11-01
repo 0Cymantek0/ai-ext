@@ -49,7 +49,7 @@ export class ElementPreviewGenerator {
   async generatePreview(
     element: HTMLElement,
     elementInfo: EnhancedElementInfo,
-    options: PreviewOptions = {}
+    options: PreviewOptions = {},
   ): Promise<ElementPreview> {
     const opts = { ...this.defaultOptions, ...options };
 
@@ -87,7 +87,7 @@ export class ElementPreviewGenerator {
    */
   private generateHTMLPreview(
     element: HTMLElement,
-    elementInfo: EnhancedElementInfo
+    elementInfo: EnhancedElementInfo,
   ): string {
     const parts: string[] = [];
 
@@ -113,7 +113,7 @@ export class ElementPreviewGenerator {
    * Requirements: 2.3, 2.4
    */
   private generateCSSFromComputedStyles(
-    elementInfo: EnhancedElementInfo
+    elementInfo: EnhancedElementInfo,
   ): string {
     const styles = elementInfo.computedStyles;
     const selector = `.preview-${elementInfo.tagName.toLowerCase()}`;
@@ -153,7 +153,8 @@ export class ElementPreviewGenerator {
     if (styles.display?.includes("flex")) {
       if (styles.flexDirection)
         cssProperties.push(`  flex-direction: ${styles.flexDirection};`);
-      if (styles.flexWrap) cssProperties.push(`  flex-wrap: ${styles.flexWrap};`);
+      if (styles.flexWrap)
+        cssProperties.push(`  flex-wrap: ${styles.flexWrap};`);
       if (styles.justifyContent)
         cssProperties.push(`  justify-content: ${styles.justifyContent};`);
       if (styles.alignItems)
@@ -165,7 +166,7 @@ export class ElementPreviewGenerator {
     if (styles.display?.includes("grid")) {
       if (styles.gridTemplateColumns)
         cssProperties.push(
-          `  grid-template-columns: ${styles.gridTemplateColumns};`
+          `  grid-template-columns: ${styles.gridTemplateColumns};`,
         );
       if (styles.gridTemplateRows)
         cssProperties.push(`  grid-template-rows: ${styles.gridTemplateRows};`);
@@ -188,7 +189,7 @@ export class ElementPreviewGenerator {
    */
   private applyStyles(
     element: HTMLElement,
-    elementInfo: EnhancedElementInfo
+    elementInfo: EnhancedElementInfo,
   ): void {
     const styles = elementInfo.computedStyles;
 
@@ -206,7 +207,7 @@ export class ElementPreviewGenerator {
    */
   private async generateVisualPreview(
     element: HTMLElement,
-    options: Required<PreviewOptions>
+    options: Required<PreviewOptions>,
   ): Promise<string> {
     try {
       // Create a canvas to render the element
@@ -217,7 +218,7 @@ export class ElementPreviewGenerator {
       const scale = Math.min(
         options.maxWidth / rect.width,
         options.maxHeight / rect.height,
-        1
+        1,
       );
 
       canvas.width = rect.width * scale;
@@ -261,7 +262,7 @@ export class ElementPreviewGenerator {
    */
   private async generateThumbnail(
     element: HTMLElement,
-    options: Required<PreviewOptions>
+    options: Required<PreviewOptions>,
   ): Promise<string> {
     try {
       const canvas = document.createElement("canvas");
@@ -291,7 +292,7 @@ export class ElementPreviewGenerator {
       ctx.fillText(
         element.tagName.toLowerCase(),
         thumbnailSize / 2,
-        thumbnailSize / 2
+        thumbnailSize / 2,
       );
 
       return canvas.toDataURL("image/png");
@@ -307,7 +308,7 @@ export class ElementPreviewGenerator {
    */
   generateInteractivePreview(
     elementInfo: EnhancedElementInfo,
-    preview: ElementPreview
+    preview: ElementPreview,
   ): string {
     return `
 <!DOCTYPE html>

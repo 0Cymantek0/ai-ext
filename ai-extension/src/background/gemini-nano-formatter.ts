@@ -32,8 +32,14 @@ export class GeminiNanoFormatter {
   /**
    * Format captured text and generate a title using Gemini Nano
    */
-  async formatCapturedText(content: string, contentId: string): Promise<FormattingResult> {
-    logger.info("GeminiNanoFormatter", "Starting format", { contentId, contentLength: content.length });
+  async formatCapturedText(
+    content: string,
+    contentId: string,
+  ): Promise<FormattingResult> {
+    logger.info("GeminiNanoFormatter", "Starting format", {
+      contentId,
+      contentLength: content.length,
+    });
 
     // Check if already processing
     if (this.processingQueue.has(contentId)) {
@@ -43,7 +49,7 @@ export class GeminiNanoFormatter {
         generatedTitle: this.extractFallbackTitle(content),
         success: false,
         usedAI: false,
-        error: "Already processing"
+        error: "Already processing",
       };
     }
 
@@ -67,9 +73,10 @@ export class GeminiNanoFormatter {
         initialPrompts: [
           {
             role: "system",
-            content: "You are an expert content formatter specializing in creating beautifully structured, highly readable markdown documents. Transform raw captured text into professional, well-organized content with rich formatting. Output JSON only."
-          }
-        ]
+            content:
+              "You are an expert content formatter specializing in creating beautifully structured, highly readable markdown documents. Transform raw captured text into professional, well-organized content with rich formatting. Output JSON only.",
+          },
+        ],
       });
 
       try {
@@ -119,7 +126,10 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
 
         if (result.success) {
           await this.updateProcessingStatus(contentId, "processed");
-          logger.info("GeminiNanoFormatter", "Success", { contentId, usedAI: true });
+          logger.info("GeminiNanoFormatter", "Success", {
+            contentId,
+            usedAI: true,
+          });
           return result;
         } else {
           throw new Error("Failed to parse AI response");
@@ -140,7 +150,10 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
   /**
    * Parse AI response and extract title and formatted content
    */
-  private parseAIResponse(aiResult: string, originalContent: string): FormattingResult {
+  private parseAIResponse(
+    aiResult: string,
+    originalContent: string,
+  ): FormattingResult {
     try {
       // Try to extract JSON from response
       let jsonStr = aiResult.trim();
@@ -159,7 +172,7 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
           formattedContent: parsed.formattedContent.trim(),
           generatedTitle: parsed.title.trim().substring(0, 60),
           success: true,
-          usedAI: true
+          usedAI: true,
         };
       }
     } catch (error) {
@@ -171,21 +184,24 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
       formattedContent: this.basicFormat(originalContent),
       generatedTitle: this.extractFallbackTitle(originalContent),
       success: false,
-      usedAI: false
+      usedAI: false,
     };
   }
 
   /**
    * Fallback formatting when AI is not available
    */
-  private async fallbackFormatting(content: string, contentId: string): Promise<FormattingResult> {
+  private async fallbackFormatting(
+    content: string,
+    contentId: string,
+  ): Promise<FormattingResult> {
     await this.updateProcessingStatus(contentId, "processed");
 
     return {
       formattedContent: this.basicFormat(content),
       generatedTitle: this.extractFallbackTitle(content),
       success: true,
-      usedAI: false
+      usedAI: false,
     };
   }
 
@@ -195,7 +211,7 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
   private basicFormat(text: string): string {
     return text
       .split("\n")
-      .map(line => line.trimEnd())
+      .map((line) => line.trimEnd())
       .join("\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
@@ -233,7 +249,7 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
   private async updateProcessingStatus(
     contentId: string,
     status: ProcessingStatus["status"],
-    error?: string
+    error?: string,
   ): Promise<void> {
     try {
       const statusMap = await this.getProcessingStatusMap();
@@ -241,7 +257,7 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
         contentId,
         status,
         lastAttempt: Date.now(),
-        ...(error && { error })
+        ...(error && { error }),
       };
       const dataToStore: Record<string, any> = {};
       dataToStore[this.STORAGE_KEY] = statusMap;
@@ -254,7 +270,9 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
   /**
    * Get processing status for a content item
    */
-  async getProcessingStatus(contentId: string): Promise<ProcessingStatus | null> {
+  async getProcessingStatus(
+    contentId: string,
+  ): Promise<ProcessingStatus | null> {
     try {
       const statusMap = await this.getProcessingStatusMap();
       return statusMap[contentId] || null;
@@ -267,7 +285,9 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
   /**
    * Get all processing statuses
    */
-  private async getProcessingStatusMap(): Promise<Record<string, ProcessingStatus>> {
+  private async getProcessingStatusMap(): Promise<
+    Record<string, ProcessingStatus>
+  > {
     try {
       const result = await this.storageWrapper.get([this.STORAGE_KEY]);
       const data = result as any;
@@ -285,8 +305,11 @@ Return ONLY valid JSON in this exact format (escape newlines properly):
     try {
       const statusMap = await this.getProcessingStatusMap();
       return Object.values(statusMap)
-        .filter(status => status.status === "unprocessed" || status.status === "failed")
-        .map(status => status.contentId);
+        .filter(
+          (status) =>
+            status.status === "unprocessed" || status.status === "failed",
+        )
+        .map((status) => status.contentId);
     } catch (err) {
       logger.error("GeminiNanoFormatter", "Failed to get unprocessed IDs", err);
       return [];

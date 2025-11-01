@@ -27,7 +27,7 @@ describe("Dev Instrumentation", () => {
     it("should return null when VITE_DEBUG_RECORDER is false", () => {
       // In test environment, the flag will be false by default
       const handle = initializeDevInstrumentation("content");
-      
+
       // Depending on the flag value, handle might be null
       if (handle === null) {
         expect(handle).toBeNull();
@@ -37,11 +37,16 @@ describe("Dev Instrumentation", () => {
     });
 
     it("should initialize handle for each surface type", () => {
-      const surfaces = ["content", "background", "sidepanel", "offscreen"] as const;
+      const surfaces = [
+        "content",
+        "background",
+        "sidepanel",
+        "offscreen",
+      ] as const;
 
       surfaces.forEach((surface) => {
         const handle = initializeDevInstrumentation(surface);
-        
+
         if (handle) {
           expect(handle.surface).toBe(surface);
           expect(typeof handle.recordEvent).toBe("function");
@@ -56,7 +61,7 @@ describe("Dev Instrumentation", () => {
     it("should return same handle on multiple initializations", () => {
       const handle1 = initializeDevInstrumentation("content");
       const handle2 = initializeDevInstrumentation("content");
-      
+
       // Both should be the same instance or both null
       expect(handle1).toBe(handle2);
     });
@@ -100,7 +105,7 @@ describe("Dev Instrumentation", () => {
   describe("getDevInstrumentation", () => {
     it("should return null for uninitialized surface", () => {
       const handle = getDevInstrumentation("content");
-      
+
       // Should be null if not initialized or if flag is disabled
       expect(handle === null || handle !== null).toBe(true);
     });
@@ -108,7 +113,7 @@ describe("Dev Instrumentation", () => {
     it("should return handle for initialized surface", () => {
       const initHandle = initializeDevInstrumentation("content");
       const getHandle = getDevInstrumentation("content");
-      
+
       // Both should be the same
       expect(initHandle).toBe(getHandle);
     });
@@ -117,13 +122,13 @@ describe("Dev Instrumentation", () => {
   describe("DevInstrumentationHandle", () => {
     it("should record events", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         handle.recordEvent("test:event", { foo: "bar" });
-        
+
         const history = handle.getEventHistory();
         const testEvents = history.filter((e) => e.event === "test:event");
-        
+
         expect(testEvents.length).toBeGreaterThanOrEqual(1);
         expect(testEvents[0]?.event).toBe("test:event");
         expect(testEvents[0]?.surface).toBe("content");
@@ -132,24 +137,24 @@ describe("Dev Instrumentation", () => {
 
     it("should record snapshots and detect changes", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         const state1 = { count: 1, name: "test" };
         const state2 = { count: 1, name: "test" }; // Same as state1
         const state3 = { count: 2, name: "test" }; // Different
-        
+
         handle.recordSnapshot("myState", state1);
         const keys1 = handle.getSnapshotKeys();
         expect(keys1).toContain("myState");
-        
+
         // Recording same snapshot should not create duplicate event
         const historyLength1 = handle.getEventHistory().length;
         handle.recordSnapshot("myState", state2);
         const historyLength2 = handle.getEventHistory().length;
-        
+
         // Should not have increased because state2 is identical to state1
         expect(historyLength2).toBe(historyLength1);
-        
+
         // Recording different snapshot should create new event
         handle.recordSnapshot("myState", state3);
         const historyLength3 = handle.getEventHistory().length;
@@ -159,34 +164,34 @@ describe("Dev Instrumentation", () => {
 
     it("should provide React Profiler callback", () => {
       const handle = initializeDevInstrumentation("sidepanel");
-      
+
       if (handle) {
         const callback = handle.getProfilerCallback("TestComponent");
-        
+
         expect(typeof callback).toBe("function");
-        
+
         // Call the callback
         callback("TestComponent", "mount", 10, 15, 100, 110);
-        
+
         // Should have recorded a react profiler event
         const history = handle.getEventHistory();
         const reactEvents = history.filter((e) => e.event.startsWith("react:"));
-        
+
         expect(reactEvents.length).toBeGreaterThanOrEqual(1);
       }
     });
 
     it("should limit event history size", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         // Record more than max events (200)
         for (let i = 0; i < 250; i++) {
           handle.recordEvent(`test:event:${i}`, { index: i });
         }
-        
+
         const history = handle.getEventHistory();
-        
+
         // Should not exceed max events
         expect(history.length).toBeLessThanOrEqual(200);
       }
@@ -196,10 +201,10 @@ describe("Dev Instrumentation", () => {
   describe("teardownDevInstrumentation", () => {
     it("should cleanup instrumentation for a surface", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         teardownDevInstrumentation("content");
-        
+
         // After teardown, the surface should be uninitialized
         const registry = (globalThis as any)[GLOBAL_KEY];
         if (registry) {
@@ -211,7 +216,7 @@ describe("Dev Instrumentation", () => {
 
     it("should be safe to call multiple times", () => {
       initializeDevInstrumentation("content");
-      
+
       // Should not throw
       expect(() => {
         teardownDevInstrumentation("content");
@@ -231,14 +236,16 @@ describe("Dev Instrumentation", () => {
         domTarget: mockDocument as any,
       });
 
-      const addListenerCallCount1 = mockDocument.addEventListener.mock.calls.length;
+      const addListenerCallCount1 =
+        mockDocument.addEventListener.mock.calls.length;
 
       // Re-initialize (simulating hot reload)
       const handle2 = initializeDevInstrumentation("content", {
         domTarget: mockDocument as any,
       });
 
-      const addListenerCallCount2 = mockDocument.addEventListener.mock.calls.length;
+      const addListenerCallCount2 =
+        mockDocument.addEventListener.mock.calls.length;
 
       // Should be the same handle
       expect(handle1).toBe(handle2);
@@ -251,11 +258,11 @@ describe("Dev Instrumentation", () => {
   describe("Data sanitization", () => {
     it("should handle circular references in event details", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         const circular: any = { name: "test" };
         circular.self = circular;
-        
+
         // Should not throw when recording circular data
         expect(() => {
           handle.recordEvent("test:circular", circular);
@@ -265,17 +272,17 @@ describe("Dev Instrumentation", () => {
 
     it("should handle Error objects", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         const error = new Error("Test error");
-        
+
         expect(() => {
           handle.recordEvent("test:error", { error });
         }).not.toThrow();
-        
+
         const history = handle.getEventHistory();
         const errorEvent = history.find((e) => e.event === "test:error");
-        
+
         if (errorEvent) {
           expect(errorEvent.detail?.error).toBeDefined();
         }
@@ -284,15 +291,15 @@ describe("Dev Instrumentation", () => {
 
     it("should truncate large strings", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         const largeString = "a".repeat(10000);
-        
+
         handle.recordEvent("test:large", { text: largeString });
-        
+
         const history = handle.getEventHistory();
         const largeEvent = history.find((e) => e.event === "test:large");
-        
+
         // The string should be sanitized/truncated
         if (largeEvent) {
           expect(largeEvent.detail).toBeDefined();
@@ -304,7 +311,7 @@ describe("Dev Instrumentation", () => {
   describe("Edge cases", () => {
     it("should handle undefined and null values", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         expect(() => {
           handle.recordEvent("test:undefined", undefined);
@@ -317,7 +324,7 @@ describe("Dev Instrumentation", () => {
 
     it("should handle empty strings and objects", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         expect(() => {
           handle.recordEvent("test:empty:string", "");
@@ -329,16 +336,16 @@ describe("Dev Instrumentation", () => {
 
     it("should handle deeply nested objects", () => {
       const handle = initializeDevInstrumentation("content");
-      
+
       if (handle) {
         const deep: any = { level: 0 };
         let current = deep;
-        
+
         for (let i = 1; i < 100; i++) {
           current.next = { level: i };
           current = current.next;
         }
-        
+
         expect(() => {
           handle.recordEvent("test:deep", deep);
         }).not.toThrow();

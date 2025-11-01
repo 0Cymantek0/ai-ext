@@ -71,10 +71,16 @@ export class MediaMetadataExtractor {
    * Requirements: 2.1
    */
   detectMediaElements(): MediaDetectionResult {
-    const images = Array.from(document.querySelectorAll("img")) as HTMLImageElement[];
-    const videos = Array.from(document.querySelectorAll("video")) as HTMLVideoElement[];
-    const audios = Array.from(document.querySelectorAll("audio")) as HTMLAudioElement[];
-    
+    const images = Array.from(
+      document.querySelectorAll("img"),
+    ) as HTMLImageElement[];
+    const videos = Array.from(
+      document.querySelectorAll("video"),
+    ) as HTMLVideoElement[];
+    const audios = Array.from(
+      document.querySelectorAll("audio"),
+    ) as HTMLAudioElement[];
+
     // Detect background images
     const backgroundImages = this.detectBackgroundImages();
 
@@ -114,7 +120,7 @@ export class MediaMetadataExtractor {
     if (img.loading) metadata.loading = img.loading as "lazy" | "eager";
     if (img.srcset) metadata.srcset = img.srcset;
     if (img.sizes) metadata.sizes = img.sizes;
-    
+
     const format = this.getImageFormat(img.src);
     if (format) metadata.format = format;
 
@@ -135,13 +141,19 @@ export class MediaMetadataExtractor {
    * Extract background image metadata
    * Requirements: 2.1, 3.6
    */
-  extractBackgroundImageMetadata(element: HTMLElement, url: string): ImageMetadata {
+  extractBackgroundImageMetadata(
+    element: HTMLElement,
+    url: string,
+  ): ImageMetadata {
     const computedStyle = window.getComputedStyle(element);
     const rect = element.getBoundingClientRect();
 
     const metadata: ImageMetadata = {
       src: url,
-      alt: element.getAttribute("aria-label") || element.getAttribute("title") || "",
+      alt:
+        element.getAttribute("aria-label") ||
+        element.getAttribute("title") ||
+        "",
       width: rect.width,
       height: rect.height,
       naturalWidth: 0, // Unknown for background images
@@ -178,7 +190,7 @@ export class MediaMetadataExtractor {
 
     // Add optional properties only if they have values
     if (audio.title) metadata.title = audio.title;
-    
+
     const format = this.getAudioFormat(audio.src || audio.currentSrc);
     if (format) metadata.format = format;
 
@@ -187,7 +199,10 @@ export class MediaMetadataExtractor {
       const additionalMetadata = await this.extractMediaElementMetadata(audio);
       Object.assign(metadata, additionalMetadata);
     } catch (error) {
-      console.warn("[MediaMetadata] Could not extract additional audio metadata", error);
+      console.warn(
+        "[MediaMetadata] Could not extract additional audio metadata",
+        error,
+      );
     }
 
     return metadata;
@@ -220,7 +235,7 @@ export class MediaMetadataExtractor {
     // Add optional properties only if they have values
     if (video.poster) metadata.poster = video.poster;
     if (video.title) metadata.title = video.title;
-    
+
     const format = this.getVideoFormat(video.src || video.currentSrc);
     if (format) metadata.format = format;
 
@@ -239,7 +254,10 @@ export class MediaMetadataExtractor {
    * Detect background images in the page
    * Requirements: 2.1
    */
-  private detectBackgroundImages(): Array<{ element: HTMLElement; url: string }> {
+  private detectBackgroundImages(): Array<{
+    element: HTMLElement;
+    url: string;
+  }> {
     const backgroundImages: Array<{ element: HTMLElement; url: string }> = [];
     const elements = document.querySelectorAll("*");
 
@@ -319,8 +337,17 @@ export class MediaMetadataExtractor {
    */
   private getImageFormat(url: string): string | undefined {
     const extension = url.split(".").pop()?.split("?")[0]?.toLowerCase();
-    const imageFormats = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"];
-    
+    const imageFormats = [
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+      "webp",
+      "svg",
+      "bmp",
+      "ico",
+    ];
+
     if (extension && imageFormats.includes(extension)) {
       return extension;
     }
@@ -334,7 +361,7 @@ export class MediaMetadataExtractor {
   private getAudioFormat(url: string): string | undefined {
     const extension = url.split(".").pop()?.split("?")[0]?.toLowerCase();
     const audioFormats = ["mp3", "wav", "ogg", "m4a", "aac", "flac", "wma"];
-    
+
     if (extension && audioFormats.includes(extension)) {
       return extension;
     }
@@ -348,7 +375,7 @@ export class MediaMetadataExtractor {
   private getVideoFormat(url: string): string | undefined {
     const extension = url.split(".").pop()?.split("?")[0]?.toLowerCase();
     const videoFormats = ["mp4", "webm", "ogg", "mov", "avi", "mkv", "flv"];
-    
+
     if (extension && videoFormats.includes(extension)) {
       return extension;
     }
@@ -363,7 +390,7 @@ export class MediaMetadataExtractor {
     try {
       const response = await fetch(url, { method: "HEAD" });
       const contentLength = response.headers.get("content-length");
-      
+
       if (contentLength) {
         return parseInt(contentLength, 10);
       }
@@ -377,7 +404,9 @@ export class MediaMetadataExtractor {
   /**
    * Extract additional metadata from media element
    */
-  private async extractMediaElementMetadata(media: HTMLMediaElement): Promise<Partial<AudioMetadata>> {
+  private async extractMediaElementMetadata(
+    media: HTMLMediaElement,
+  ): Promise<Partial<AudioMetadata>> {
     // This would use Web Audio API or similar to extract detailed metadata
     // For now, return empty object as this requires more complex implementation
     return {};
@@ -386,7 +415,9 @@ export class MediaMetadataExtractor {
   /**
    * Extract video codec information
    */
-  private async extractVideoCodecInfo(video: HTMLVideoElement): Promise<Partial<VideoMetadata>> {
+  private async extractVideoCodecInfo(
+    video: HTMLVideoElement,
+  ): Promise<Partial<VideoMetadata>> {
     // This would use MediaSource API or similar to extract codec info
     // For now, return empty object as this requires more complex implementation
     return {};

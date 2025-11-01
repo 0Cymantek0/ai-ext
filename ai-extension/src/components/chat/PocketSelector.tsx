@@ -46,18 +46,20 @@ export function PocketSelector({
 
         if (response.success && response.data?.pockets) {
           // Transform to PocketInfo format
-          const pocketInfos: PocketInfo[] = response.data.pockets.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            color: p.color,
-            icon: p.icon,
-            contentCount: p.contentIds?.length || 0,
-            isIndexing: false, // TODO: Get indexing status from indexing service
-          }));
+          const pocketInfos: PocketInfo[] = response.data.pockets.map(
+            (p: any) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              color: p.color,
+              icon: p.icon,
+              contentCount: p.contentIds?.length || 0,
+              isIndexing: false, // TODO: Get indexing status from indexing service
+            }),
+          );
 
           // Filter out indexing pockets
-          const availablePockets = pocketInfos.filter(p => !p.isIndexing);
+          const availablePockets = pocketInfos.filter((p) => !p.isIndexing);
           setPockets(availablePockets);
         } else {
           setError("Failed to load pockets");
@@ -110,7 +112,7 @@ export function PocketSelector({
         className={cn(
           "bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl",
           "w-[90vw] max-w-md max-h-[70vh] flex flex-col",
-          disabled && "opacity-50 pointer-events-none"
+          disabled && "opacity-50 pointer-events-none",
         )}
       >
         {/* Header */}
@@ -139,7 +141,9 @@ export function PocketSelector({
             <div className="text-center py-12">
               <FolderOpen className="w-12 h-12 text-white/30 mx-auto mb-3" />
               <p className="text-white/50 text-sm mb-2">No pockets available</p>
-              <p className="text-white/30 text-xs">Create a pocket to get started</p>
+              <p className="text-white/30 text-xs">
+                Create a pocket to get started
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -155,7 +159,7 @@ export function PocketSelector({
                       "border border-white/10 hover:border-white/20",
                       isSelected
                         ? "bg-cyan-500/20 border-cyan-500/50"
-                        : "bg-white/5 hover:bg-white/10"
+                        : "bg-white/5 hover:bg-white/10",
                     )}
                     disabled={disabled}
                   >
@@ -188,7 +192,8 @@ export function PocketSelector({
                           </p>
                         )}
                         <p className="text-xs text-white/40">
-                          {pocket.contentCount} {pocket.contentCount === 1 ? "item" : "items"}
+                          {pocket.contentCount}{" "}
+                          {pocket.contentCount === 1 ? "item" : "items"}
                         </p>
                       </div>
                     </div>

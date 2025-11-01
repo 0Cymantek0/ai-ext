@@ -1,11 +1,11 @@
 /**
  * Text Chunker Utility
- * 
+ *
  * Splits large text content into manageable chunks for embedding generation.
  * Ensures chunks respect word boundaries and maintain semantic coherence.
- * 
+ *
  * Requirements: 7.2 (Vector search and embeddings)
- * 
+ *
  * TODO: Consider using established text splitting libraries like LangChain's
  * RecursiveCharacterTextSplitter for more advanced chunking strategies.
  */
@@ -41,7 +41,7 @@ export class TextChunker {
    */
   chunkText(text: string, options?: ChunkOptions): TextChunk[] {
     const opts = { ...this.defaultOptions, ...options };
-    
+
     if (!text || text.trim().length === 0) {
       logger.warn("TextChunker", "Empty text provided for chunking");
       return [];
@@ -49,30 +49,28 @@ export class TextChunker {
 
     // If text is smaller than max chunk size, return as single chunk
     if (text.length <= opts.maxChunkSize) {
-      return [{
-        id: this.generateChunkId(0),
-        text: text.trim(),
-        startIndex: 0,
-        endIndex: text.length,
-        chunkIndex: 0,
-        totalChunks: 1,
-      }];
+      return [
+        {
+          id: this.generateChunkId(0),
+          text: text.trim(),
+          startIndex: 0,
+          endIndex: text.length,
+          chunkIndex: 0,
+          totalChunks: 1,
+        },
+      ];
     }
 
     const chunks: TextChunk[] = [];
     let currentIndex = 0;
 
     // Split by paragraphs first if requested
-    const segments = opts.respectParagraphs 
+    const segments = opts.respectParagraphs
       ? this.splitByParagraphs(text)
       : [text];
 
     for (const segment of segments) {
-      const segmentChunks = this.chunkSegment(
-        segment,
-        currentIndex,
-        opts
-      );
+      const segmentChunks = this.chunkSegment(segment, currentIndex, opts);
       chunks.push(...segmentChunks);
       currentIndex += segment.length;
     }
@@ -97,7 +95,7 @@ export class TextChunker {
    * Split text by paragraphs
    */
   private splitByParagraphs(text: string): string[] {
-    return text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+    return text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
   }
 
   /**
@@ -106,7 +104,7 @@ export class TextChunker {
   private chunkSegment(
     segment: string,
     baseIndex: number,
-    options: Required<ChunkOptions>
+    options: Required<ChunkOptions>,
   ): TextChunk[] {
     const chunks: TextChunk[] = [];
     let startIndex = 0;
@@ -114,7 +112,7 @@ export class TextChunker {
     while (startIndex < segment.length) {
       const endIndex = Math.min(
         startIndex + options.maxChunkSize,
-        segment.length
+        segment.length,
       );
 
       let chunkEnd = endIndex;
@@ -124,7 +122,7 @@ export class TextChunker {
         const sentenceEnd = this.findSentenceBoundary(
           segment,
           startIndex,
-          endIndex
+          endIndex,
         );
         if (sentenceEnd > startIndex) {
           chunkEnd = sentenceEnd;
@@ -140,7 +138,7 @@ export class TextChunker {
       }
 
       const chunkText = segment.slice(startIndex, chunkEnd).trim();
-      
+
       if (chunkText.length > 0) {
         chunks.push({
           id: this.generateChunkId(chunks.length),
@@ -176,7 +174,7 @@ export class TextChunker {
   private findSentenceBoundary(
     text: string,
     start: number,
-    target: number
+    target: number,
   ): number {
     const searchText = text.slice(start, target);
     const sentenceEndings = /[.!?]\s+/g;
@@ -197,10 +195,14 @@ export class TextChunker {
   /**
    * Find word boundary near target index
    */
-  private findWordBoundary(text: string, start: number, target: number): number {
+  private findWordBoundary(
+    text: string,
+    start: number,
+    target: number,
+  ): number {
     // Look backwards from target to find last space
     for (let i = target - 1; i > start; i--) {
-      if (/\s/.test(text[i] || '')) {
+      if (/\s/.test(text[i] || "")) {
         return i + 1;
       }
     }
@@ -219,7 +221,7 @@ export class TextChunker {
    * Merge chunks back into original text (for testing)
    */
   mergeChunks(chunks: TextChunk[]): string {
-    return chunks.map(c => c.text).join(' ');
+    return chunks.map((c) => c.text).join(" ");
   }
 
   /**

@@ -21,7 +21,12 @@ interface CodeBlockProps {
   theme?: "light" | "dark";
 }
 
-const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children, theme = "dark" }) => {
+const CodeBlock: React.FC<CodeBlockProps> = ({
+  inline,
+  className,
+  children,
+  theme = "dark",
+}) => {
   const [copied, setCopied] = React.useState(false);
   const match = /language-(\w+)/.exec(className || "");
   const language = match ? match[1] : "";
@@ -34,7 +39,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children, them
   };
 
   // Treat as inline if explicitly marked or if there's no language and no newlines
-  const isInline = inline || (!language && !code.includes('\n'));
+  const isInline = inline || (!language && !code.includes("\n"));
 
   if (isInline) {
     return (
@@ -70,7 +75,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ inline, className, children, them
       <pre
         className={cn(
           "bg-muted p-4 rounded-lg overflow-x-auto text-sm font-mono border border-border",
-          language ? "!rounded-t-none pt-4" : "pt-10"
+          language ? "!rounded-t-none pt-4" : "pt-10",
         )}
       >
         <code className={className}>{code}</code>
@@ -92,7 +97,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         components={{
           // Code blocks with syntax highlighting
           code: (props) => <CodeBlock {...props} theme={theme} />,
-          
+
           // Links open in new tab
           a: ({ node, ...props }) => (
             <a
@@ -102,7 +107,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               className="text-primary underline underline-offset-4 hover:text-primary/80"
             />
           ),
-          
+
           // Headings with appropriate styles
           h1: ({ node, ...props }) => (
             <h1
@@ -140,7 +145,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               className="mb-2 mt-4 text-sm font-semibold tracking-tight first:mt-0"
             />
           ),
-          
+
           // Paragraphs
           p: ({ children, ...props }) => {
             return (
@@ -149,23 +154,29 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               </p>
             );
           },
-          
+
           // Unordered lists
           ul: ({ node, ...props }) => (
-            <ul {...props} className="mb-4 ml-6 list-disc list-outside space-y-1" />
+            <ul
+              {...props}
+              className="mb-4 ml-6 list-disc list-outside space-y-1"
+            />
           ),
-          
+
           // Ordered lists
           ol: ({ node, ...props }) => (
-            <ol {...props} className="mb-4 ml-6 list-decimal list-outside space-y-1" />
+            <ol
+              {...props}
+              className="mb-4 ml-6 list-decimal list-outside space-y-1"
+            />
           ),
-          
+
           // List items (with task list support)
           li: ({ node, children, ...props }) => {
             // Check if this is a task list item
             const childArray = React.Children.toArray(children);
             const firstChild = childArray[0];
-            
+
             if (
               typeof firstChild === "object" &&
               firstChild &&
@@ -178,14 +189,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 </li>
               );
             }
-            
-            return (
-              <li className="leading-7 pl-1">
-                {children}
-              </li>
-            );
+
+            return <li className="leading-7 pl-1">{children}</li>;
           },
-          
+
           // Task list checkboxes
           input: ({ node, ...props }) => {
             if (props.type === "checkbox") {
@@ -199,7 +206,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             }
             return <input {...props} />;
           },
-          
+
           // Tables
           table: ({ node, ...props }) => (
             <div className="my-4 w-full overflow-x-auto">
@@ -225,7 +232,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           td: ({ node, ...props }) => (
             <td {...props} className="border border-border px-4 py-2" />
           ),
-          
+
           // Blockquotes
           blockquote: ({ node, ...props }) => (
             <blockquote
@@ -233,27 +240,25 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               className="my-4 border-l-4 border-primary pl-4 italic text-muted-foreground"
             />
           ),
-          
+
           // Horizontal rules
           hr: ({ node, ...props }) => (
             <hr {...props} className="my-8 border-border" />
           ),
-          
+
           // Strong (bold)
           strong: ({ node, ...props }) => (
             <strong {...props} className="font-bold" />
           ),
-          
+
           // Emphasis (italic)
-          em: ({ node, ...props }) => (
-            <em {...props} className="italic" />
-          ),
-          
+          em: ({ node, ...props }) => <em {...props} className="italic" />,
+
           // Strikethrough (from GFM)
           del: ({ node, ...props }) => (
             <del {...props} className="line-through opacity-70" />
           ),
-          
+
           // Images with better styling
           img: ({ node, ...props }) => (
             <img
@@ -262,7 +267,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               loading="lazy"
             />
           ),
-          
+
           // Preformatted text (for code blocks without language)
           pre: ({ children, ...props }) => {
             // Check if this pre contains a code element
@@ -271,7 +276,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 typeof child === "object" &&
                 child &&
                 "type" in child &&
-                child.type === "code"
+                child.type === "code",
             );
 
             if (hasCodeChild) {

@@ -26,16 +26,30 @@ export function IndexingWarningBanner({
     <div
       className={cn(
         "px-4 py-3 rounded-lg border",
-        isIndexing && "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-200",
-        hasFailed && !isIndexing && "bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200",
-        className
+        isIndexing &&
+          "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-200",
+        hasFailed &&
+          !isIndexing &&
+          "bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200",
+        className,
       )}
     >
       <div className="flex items-start gap-3">
         <div className="shrink-0 mt-0.5">
           {isIndexing && (
-            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <svg
+              className="w-5 h-5 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
               <path
                 className="opacity-75"
                 fill="currentColor"
@@ -44,7 +58,12 @@ export function IndexingWarningBanner({
             </svg>
           )}
           {hasFailed && !isIndexing && (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -61,17 +80,22 @@ export function IndexingWarningBanner({
                 Indexing content for search
               </h4>
               <p className="text-xs opacity-90">
-                {indexingCount} item{indexingCount !== 1 ? "s" : ""} are being indexed. Pocket-scoped search may have incomplete results until indexing completes.
+                {indexingCount} item{indexingCount !== 1 ? "s" : ""} are being
+                indexed. Pocket-scoped search may have incomplete results until
+                indexing completes.
               </p>
             </>
           )}
           {hasFailed && (
             <>
-              <h4 className={`text-sm font-semibold ${isIndexing ? 'mt-2' : 'mb-1'}`}>
+              <h4
+                className={`text-sm font-semibold ${isIndexing ? "mt-2" : "mb-1"}`}
+              >
                 Indexing failed for some content
               </h4>
               <p className="text-xs opacity-90 mb-2">
-                {failedCount} item{failedCount !== 1 ? "s" : ""} failed to index. Retry indexing or contact support if the issue persists.
+                {failedCount} item{failedCount !== 1 ? "s" : ""} failed to
+                index. Retry indexing or contact support if the issue persists.
               </p>
               {onRetry && (
                 <Button

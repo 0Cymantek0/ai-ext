@@ -6,9 +6,9 @@
 
 // Polyfill for Vite's preload helper in service worker context
 // Service workers don't have access to document or window, so we provide minimal polyfills
-if (typeof document === 'undefined') {
+if (typeof document === "undefined") {
   (globalThis as any).document = {
-    createElement: () => ({ rel: '', href: '' }),
+    createElement: () => ({ rel: "", href: "" }),
     head: { appendChild: () => {} },
     getElementsByTagName: () => [],
     querySelector: () => null,
@@ -19,7 +19,7 @@ if (typeof document === 'undefined') {
   };
 }
 
-if (typeof window === 'undefined') {
+if (typeof window === "undefined") {
   (globalThis as any).window = globalThis;
 }
 
@@ -27,16 +27,27 @@ import { logger, performanceMonitor } from "./monitoring.js";
 import { getQuotaManager } from "./quota-manager.js";
 import { AIManager } from "./ai-manager.js";
 import { initializeRuntimeLogging } from "../shared/runtime-logging.js";
-import { getLogBridgeClient, type LogBatch } from "../shared/log-bridge-client.js";
+import {
+  getLogBridgeClient,
+  type LogBatch,
+} from "../shared/log-bridge-client.js";
 import { attachLoggerBridge } from "./logger-wrapper.js";
 import { getLogCollector } from "./log-collector.js";
 import { CloudAIManager } from "./cloud-ai-manager.js";
 import { getStreamingHandler } from "./streaming-handler.js";
-import { indexedDBManager, ContentType, ProcessingStatus } from "./indexeddb-manager.js";
+import {
+  indexedDBManager,
+  ContentType,
+  ProcessingStatus,
+} from "./indexeddb-manager.js";
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
 import { PocketReportGenerator } from "./pocket-report-generator.js";
+import {
+  AriaController,
+  type AriaControllerEventDetail,
+} from "./research/aria-controller.js";
 
 // Initialize runtime logging (disabled by default until debug recording is enabled)
 initializeRuntimeLogging({
@@ -52,7 +63,9 @@ initializeRuntimeLogging({
 });
 
 const logBridgeClient = getLogBridgeClient();
-attachLoggerBridge(logger, logBridgeClient, { tags: ["service-worker", "logger"] });
+attachLoggerBridge(logger, logBridgeClient, {
+  tags: ["service-worker", "logger"],
+});
 const logCollector = getLogCollector();
 const backgroundDevtools = initializeDevInstrumentation("background", {
   logger,
@@ -67,7 +80,10 @@ if (import.meta.env?.VITE_DEBUG_RECORDER && backgroundDevtools) {
 // Listen for debug recorder toggle and manage log collection sessions
 // Note: The bridge client enable/disable is already handled by runtime-logging autoToggle
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local" || !Object.prototype.hasOwnProperty.call(changes, "debugRecorderEnabled")) {
+  if (
+    areaName !== "local" ||
+    !Object.prototype.hasOwnProperty.call(changes, "debugRecorderEnabled")
+  ) {
     return;
   }
 
@@ -89,12 +105,126 @@ import { aiManager as aiManagerInstance } from "./ai-manager.js";
 import { ChromeLocalStorage } from "./storage-wrapper.js";
 import { GeminiNanoFormatter } from "./gemini-nano-formatter.js";
 import { ContentProcessorBackground } from "./content-processor-background.js";
-import { vectorIndexingQueue, IndexingOperation } from "./vector-indexing-queue.js";
+import {
+  vectorIndexingQueue,
+  IndexingOperation,
+} from "./vector-indexing-queue.js";
+import { registerFsAccessHandlers } from "./storage/fs-access-manager.js";
+import { MetadataQueueManager } from "./metadata-queue-manager.js";
+import { WorkflowManager } from "../browser-agent/workflow-manager.js";
+import { BrowserToolRegistry } from "../browser-agent/tool-registry.js";
+import { ALL_BROWSER_TOOLS } from "../browser-agent/tools/index.js";
+import { createVisionManager, type CaptureResult } from "../browser-agent/vision.js";
+import { createDatabaseManager } from "../storage/schema.js";
+import {
+  apiRequest as performApiRequest,
+  startNetworkMonitoring,
+  stopNetworkMonitoring,
+  getNetworkLogs,
+  setAuthToken as storeAuthToken,
+  clearAuthToken as removeAuthToken,
+} from "../browser-agent/api-testing.js";
+import type {
+  ApiRequestPayload,
+  ApiRequestResponsePayload,
+  ApiStartNetworkMonitoringPayload,
+  ApiStopNetworkMonitoringPayload,
+  ApiNetworkLogsResponsePayload,
+  ApiSetAuthTokenPayload,
+  ApiAuthResponsePayload,
+} from "../shared/types/index.d.ts";
 
 // Initialize formatter and background processor
 const storageWrapper = new ChromeLocalStorage();
-const geminiFormatter = new GeminiNanoFormatter(aiManagerInstance, storageWrapper);
+const geminiFormatter = new GeminiNanoFormatter(
+  aiManagerInstance,
+  storageWrapper,
+);
 const backgroundProcessor = new ContentProcessorBackground(geminiFormatter);
+
+// Initialize browser agent workflow manager
+const browserToolRegistry = new BrowserToolRegistry(logger, performanceMonitor);
+const database = createDatabaseManager();
+
+// Initialize vision manager
+const visionManager = createVisionManager(logger);
+
+logger.info("ServiceWorker", "Vision manager initialized (disabled by default)");
+
+function normalizeScreenshotInput(input: any): string | CaptureResult {
+  if (typeof input === "string") {
+    return input;
+  }
+
+  if (input && typeof input === "object" && typeof input.dataUrl === "string") {
+    return {
+      dataUrl: input.dataUrl,
+      format: (input.format ?? "png") as "png" | "jpeg",
+      width: input.width ?? 0,
+      height: input.height ?? 0,
+      timestamp: input.timestamp ?? Date.now(),
+      tabId: input.tabId,
+      tabUrl: input.tabUrl,
+      devicePixelRatio: input.devicePixelRatio,
+      elementMappings: input.elementMappings,
+    } satisfies CaptureResult;
+  }
+
+  throw new Error("Invalid screenshot payload");
+}
+
+function toCaptureResult(input: any): CaptureResult {
+  const normalized = normalizeScreenshotInput(input);
+  if (typeof normalized === "string") {
+    throw new Error("Expected structured screenshot payload");
+  }
+  return normalized;
+}
+
+// Register all browser agent tools
+ALL_BROWSER_TOOLS.forEach((tool) => {
+  browserToolRegistry.register(tool);
+});
+
+logger.info("ServiceWorker", "Browser tool registry initialized", {
+  totalTools: browserToolRegistry.getAllTools().length,
+});
+
+// Initialize workflow manager - ensure DB is ready first
+let workflowManager: WorkflowManager;
+
+// Safe initialization after DB is ready
+async function initializeWorkflowManager(): Promise<void> {
+  try {
+    // Ensure database is opened and upgraded to v4 before using workflow manager
+    await database.open();
+    logger.info("ServiceWorker", "Database ready for workflow manager");
+
+    workflowManager = new WorkflowManager(browserToolRegistry, database, logger);
+    logger.info("ServiceWorker", "WorkflowManager initialized");
+
+    // Resume incomplete workflows after manager is ready
+    await workflowManager.resumeIncompleteWorkflows();
+    logger.info("ServiceWorker", "Incomplete workflows resumed");
+
+    // Periodic cleanup of stale checkpoints (>1 hour)
+    const WORKFLOW_CHECKPOINT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+    setInterval(() => {
+      void workflowManager.cleanupStaleCheckpoints().catch((error) => {
+        logger.error("ServiceWorker", "Checkpoint cleanup failed", error);
+      });
+    }, WORKFLOW_CHECKPOINT_CLEANUP_INTERVAL_MS);
+  } catch (error) {
+    logger.error(
+      "ServiceWorker",
+      "Failed to initialize workflow manager",
+      error,
+    );
+  }
+}
+
+// Initialize workflow manager asynchronously
+void initializeWorkflowManager();
 
 /**
  * Context Menu Management
@@ -136,13 +266,16 @@ async function ensureContentScriptLoaded(tabId: number): Promise<boolean> {
   } catch (error) {
     // Content script not responding, it might be loading or the page doesn't support it
     // Wait a bit and try again
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     try {
       await chrome.tabs.sendMessage(tabId, { kind: "PING", payload: {} });
       return true;
     } catch (retryError) {
-      logger.error("ServiceWorker", "Content script not responding", { tabId, error: retryError });
+      logger.error("ServiceWorker", "Content script not responding", {
+        tabId,
+        error: retryError,
+      });
       return false;
     }
   }
@@ -154,7 +287,7 @@ async function ensureContentScriptLoaded(tabId: number): Promise<boolean> {
 async function sendMessageWithRetry(
   tabId: number,
   message: any,
-  maxRetries: number = 3
+  maxRetries: number = 3,
 ): Promise<any> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -163,34 +296,47 @@ async function sendMessageWithRetry(
       // Check for chrome.runtime.lastError
       if (chrome.runtime.lastError) {
         const errorMsg = chrome.runtime.lastError.message || "";
-        logger.warn("ServiceWorker", "chrome.runtime.lastError detected", errorMsg);
+        logger.warn(
+          "ServiceWorker",
+          "chrome.runtime.lastError detected",
+          errorMsg,
+        );
 
         // If it's a message channel closed error, throw immediately
-        if (errorMsg.includes("message channel closed") ||
-          errorMsg.includes("message port closed")) {
+        if (
+          errorMsg.includes("message channel closed") ||
+          errorMsg.includes("message port closed")
+        ) {
           throw new Error(errorMsg);
         }
       }
 
       return response;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       // Don't retry if message channel closed - this is likely intentional (user cancelled)
-      if (errorMessage.includes("message channel closed") ||
-        errorMessage.includes("message port closed")) {
+      if (
+        errorMessage.includes("message channel closed") ||
+        errorMessage.includes("message port closed")
+      ) {
         logger.info("ServiceWorker", "Message channel closed, not retrying");
         throw error;
       }
 
-      logger.warn("ServiceWorker", `Send message attempt ${attempt} failed`, error);
+      logger.warn(
+        "ServiceWorker",
+        `Send message attempt ${attempt} failed`,
+        error,
+      );
 
       if (attempt < maxRetries) {
         // Try to ensure content script is loaded before retry
         await ensureContentScriptLoaded(tabId);
 
         // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+        await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
       } else {
         throw error;
       }
@@ -203,7 +349,10 @@ function delay(ms: number): Promise<void> {
 }
 
 type PocketSelectionResolver = {
-  resolve: (response: { pocketId: string; editedTitle?: string | undefined }) => void;
+  resolve: (response: {
+    pocketId: string;
+    editedTitle?: string | undefined;
+  }) => void;
   reject: (error: Error) => void;
   timeoutId: number;
 };
@@ -218,7 +367,12 @@ const pocketSelectionRequests = new Map<string, PocketSelectionResolver>();
 
 async function dispatchPocketSelectionRequest(request: {
   requestId: string;
-  pockets: Array<{ id: string; name: string; description?: string; color?: string }>;
+  pockets: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+  }>;
   selectionText?: string;
   preview?: string;
   sourceUrl?: string;
@@ -234,7 +388,10 @@ async function dispatchPocketSelectionRequest(request: {
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("Receiving end does not exist") && attempt < maxAttempts) {
+      if (
+        message.includes("Receiving end does not exist") &&
+        attempt < maxAttempts
+      ) {
         await delay(200 * attempt);
         continue;
       }
@@ -247,7 +404,12 @@ async function dispatchPocketSelectionRequest(request: {
 
 async function requestPocketSelection(
   tabId: number,
-  pockets: Array<{ id: string; name: string; description?: string; color?: string }>,
+  pockets: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+  }>,
   context: PocketSelectionContext,
 ): Promise<{ pocketId: string; editedTitle?: string | undefined }> {
   if (pockets.length === 1) {
@@ -260,7 +422,11 @@ async function requestPocketSelection(
     await chrome.sidePanel.open({ tabId });
     logger.info("ServiceWorker", "Side panel opened for pocket selection");
   } catch (error) {
-    logger.warn("ServiceWorker", "Failed to open side panel before pocket selection", error);
+    logger.warn(
+      "ServiceWorker",
+      "Failed to open side panel before pocket selection",
+      error,
+    );
   }
 
   const normalizedPockets = pockets.map((pocket) => ({
@@ -278,7 +444,10 @@ async function requestPocketSelection(
     ...(context.sourceUrl ? { sourceUrl: context.sourceUrl } : {}),
   });
 
-  return await new Promise<{ pocketId: string; editedTitle?: string | undefined }>((resolve, reject) => {
+  return await new Promise<{
+    pocketId: string;
+    editedTitle?: string | undefined;
+  }>((resolve, reject) => {
     const timeoutId = setTimeout(async () => {
       pocketSelectionRequests.delete(requestId);
       try {
@@ -291,7 +460,11 @@ async function requestPocketSelection(
           },
         });
       } catch (error) {
-        logger.warn("ServiceWorker", "Failed to notify pocket selection timeout", error);
+        logger.warn(
+          "ServiceWorker",
+          "Failed to notify pocket selection timeout",
+          error,
+        );
       }
       reject(new Error("POCKET_SELECTION_TIMEOUT"));
     }, 45000) as unknown as number;
@@ -312,7 +485,6 @@ async function requestPocketSelection(
   });
 }
 
-
 // Context menu click handler (registered once at module level)
 let contextMenuHandlerRegistered = false;
 let isProcessingSaveToPocket = false;
@@ -323,7 +495,10 @@ if (!contextMenuHandlerRegistered) {
     if (info.menuItemId === "save-to-pocket" && tab?.id) {
       // Prevent multiple simultaneous operations
       if (isProcessingSaveToPocket) {
-        logger.warn("ServiceWorker", "Save to pocket already in progress, ignoring duplicate click");
+        logger.warn(
+          "ServiceWorker",
+          "Save to pocket already in progress, ignoring duplicate click",
+        );
         return;
       }
 
@@ -344,7 +519,8 @@ if (!contextMenuHandlerRegistered) {
             type: "basic",
             iconUrl: "icons/48.png",
             title: "Save to Pocket Failed",
-            message: "Could not load content script. Please refresh the page and try again.",
+            message:
+              "Could not load content script. Please refresh the page and try again.",
           });
           return;
         }
@@ -354,7 +530,10 @@ if (!contextMenuHandlerRegistered) {
         let pockets = await indexedDBManager.listPockets();
 
         if (pockets.length === 0) {
-          logger.info("ServiceWorker", "No pockets found, creating default pocket");
+          logger.info(
+            "ServiceWorker",
+            "No pockets found, creating default pocket",
+          );
           await indexedDBManager.createPocket({
             name: "My Pocket",
             description: "Default pocket for saved content",
@@ -375,15 +554,29 @@ if (!contextMenuHandlerRegistered) {
         });
 
         const snippetEnvelope = snippetResponse?.data || snippetResponse;
-        if (!snippetEnvelope || snippetEnvelope.status !== "success" || !snippetEnvelope.snippet) {
-          const captureError = snippetEnvelope?.error || "Failed to capture selected text";
-          logger.error("ServiceWorker", "Snippet capture failed", { captureError, snippetEnvelope });
-          throw new Error(typeof captureError === "string" ? captureError : JSON.stringify(captureError));
+        if (
+          !snippetEnvelope ||
+          snippetEnvelope.status !== "success" ||
+          !snippetEnvelope.snippet
+        ) {
+          const captureError =
+            snippetEnvelope?.error || "Failed to capture selected text";
+          logger.error("ServiceWorker", "Snippet capture failed", {
+            captureError,
+            snippetEnvelope,
+          });
+          throw new Error(
+            typeof captureError === "string"
+              ? captureError
+              : JSON.stringify(captureError),
+          );
         }
 
         const snippet = snippetEnvelope.snippet;
-        const snippetTextRaw = snippet?.content?.text?.content || info.selectionText || "";
-        const snippetText = typeof snippetTextRaw === "string" ? snippetTextRaw.trim() : "";
+        const snippetTextRaw =
+          snippet?.content?.text?.content || info.selectionText || "";
+        const snippetText =
+          typeof snippetTextRaw === "string" ? snippetTextRaw.trim() : "";
 
         if (!snippetText) {
           throw new Error("Captured selection was empty");
@@ -396,7 +589,9 @@ if (!contextMenuHandlerRegistered) {
         let targetPocketId: string;
         if (pockets.length === 1) {
           targetPocketId = pockets[0]!.id;
-          logger.info("ServiceWorker", "Auto-selecting sole pocket", { pocketId: targetPocketId });
+          logger.info("ServiceWorker", "Auto-selecting sole pocket", {
+            pocketId: targetPocketId,
+          });
         } else {
           try {
             const response = await requestPocketSelection(tab.id, pockets, {
@@ -408,7 +603,10 @@ if (!contextMenuHandlerRegistered) {
           } catch (selectionError) {
             if (selectionError instanceof Error) {
               if (selectionError.message === "POCKET_SELECTION_CANCELLED") {
-                logger.info("ServiceWorker", "User cancelled pocket selection from side panel");
+                logger.info(
+                  "ServiceWorker",
+                  "User cancelled pocket selection from side panel",
+                );
                 return;
               }
               if (selectionError.message === "POCKET_SELECTION_TIMEOUT") {
@@ -419,7 +617,8 @@ if (!contextMenuHandlerRegistered) {
           }
         }
 
-        const targetPocket = pockets.find((p) => p.id === targetPocketId) || null;
+        const targetPocket =
+          pockets.find((p) => p.id === targetPocketId) || null;
 
         // Normalize metadata before saving
         snippet.metadata = {
@@ -430,8 +629,11 @@ if (!contextMenuHandlerRegistered) {
 
         if (!snippet.metadata.title) {
           try {
-            const source = snippet.metadata.url ? new URL(snippet.metadata.url) : null;
-            snippet.metadata.title = snippetTitleCandidate || source?.hostname || "Saved snippet";
+            const source = snippet.metadata.url
+              ? new URL(snippet.metadata.url)
+              : null;
+            snippet.metadata.title =
+              snippetTitleCandidate || source?.hostname || "Saved snippet";
           } catch {
             snippet.metadata.title = snippetTitleCandidate || "Saved snippet";
           }
@@ -456,7 +658,9 @@ if (!contextMenuHandlerRegistered) {
           type: processed.type,
         });
 
-        const savedContent = await indexedDBManager.getContent(processed.contentId);
+        const savedContent = await indexedDBManager.getContent(
+          processed.contentId,
+        );
 
         // Broadcast content created event (will be received if side panel is open)
         if (savedContent) {
@@ -468,7 +672,11 @@ if (!contextMenuHandlerRegistered) {
             logger.info("ServiceWorker", "Broadcasted CONTENT_CREATED event");
           } catch (broadcastError) {
             // This is expected if side panel is not open - user will see content when they open it
-            logger.debug("ServiceWorker", "Broadcast not received (side panel may be closed)", broadcastError);
+            logger.debug(
+              "ServiceWorker",
+              "Broadcast not received (side panel may be closed)",
+              broadcastError,
+            );
           }
         }
 
@@ -486,7 +694,8 @@ if (!contextMenuHandlerRegistered) {
           contentId: processed.contentId,
         });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
         logger.error("ServiceWorker", "Context menu handler error", {
           message: errorMessage,
@@ -499,18 +708,24 @@ if (!contextMenuHandlerRegistered) {
           type: "basic",
           iconUrl: "icons/48.png",
           title: "Save to Pocket Failed",
-          message: error instanceof Error ? error.message : "An unknown error occurred",
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred",
         });
       } finally {
         isProcessingSaveToPocket = false;
       }
     }
-    
+
     // Handle image save
     if (info.menuItemId === "save-image-to-pocket" && tab?.id) {
       // Prevent multiple simultaneous operations
       if (isProcessingSaveToPocket) {
-        logger.warn("ServiceWorker", "Save to pocket already in progress, ignoring duplicate click");
+        logger.warn(
+          "ServiceWorker",
+          "Save to pocket already in progress, ignoring duplicate click",
+        );
         return;
       }
 
@@ -530,7 +745,8 @@ if (!contextMenuHandlerRegistered) {
             type: "basic",
             iconUrl: "icons/48.png",
             title: "Save to Pocket Failed",
-            message: "Could not load content script. Please refresh the page and try again.",
+            message:
+              "Could not load content script. Please refresh the page and try again.",
           });
           return;
         }
@@ -540,7 +756,10 @@ if (!contextMenuHandlerRegistered) {
         let pockets = await indexedDBManager.listPockets();
 
         if (pockets.length === 0) {
-          logger.info("ServiceWorker", "No pockets found, creating default pocket");
+          logger.info(
+            "ServiceWorker",
+            "No pockets found, creating default pocket",
+          );
           await indexedDBManager.createPocket({
             name: "My Pocket",
             description: "Default pocket for saved content",
@@ -561,26 +780,43 @@ if (!contextMenuHandlerRegistered) {
         });
 
         const imageEnvelope = imageResponse?.data || imageResponse;
-        if (!imageEnvelope || imageEnvelope.status !== "success" || !imageEnvelope.imageData) {
-          const captureError = imageEnvelope?.error || "Failed to capture image";
-          logger.error("ServiceWorker", "Image capture failed", { captureError, imageEnvelope });
-          throw new Error(typeof captureError === "string" ? captureError : JSON.stringify(captureError));
+        if (
+          !imageEnvelope ||
+          imageEnvelope.status !== "success" ||
+          !imageEnvelope.imageData
+        ) {
+          const captureError =
+            imageEnvelope?.error || "Failed to capture image";
+          logger.error("ServiceWorker", "Image capture failed", {
+            captureError,
+            imageEnvelope,
+          });
+          throw new Error(
+            typeof captureError === "string"
+              ? captureError
+              : JSON.stringify(captureError),
+          );
         }
 
         const imageData = imageEnvelope.imageData;
-        const defaultImageTitle = imageData.alt || imageData.title || "Saved Image";
+        const defaultImageTitle =
+          imageData.alt || imageData.title || "Saved Image";
         const imagePreview = `Image: ${imageData.width}x${imageData.height}`;
 
         // Open side panel to allow user to edit title and select pocket
         try {
           await chrome.sidePanel.open({ tabId: tab.id });
         } catch (error) {
-          logger.warn("ServiceWorker", "Failed to open side panel for image save", error);
+          logger.warn(
+            "ServiceWorker",
+            "Failed to open side panel for image save",
+            error,
+          );
         }
 
         // Request pocket selection with editable title
         const requestId = crypto.randomUUID();
-        
+
         await dispatchPocketSelectionRequest({
           requestId,
           pockets: pockets.map((pocket) => ({
@@ -595,7 +831,10 @@ if (!contextMenuHandlerRegistered) {
         });
 
         // Wait for user response with edited title and selected pocket
-        const response = await new Promise<{ pocketId: string; editedTitle?: string | undefined }>((resolve, reject) => {
+        const response = await new Promise<{
+          pocketId: string;
+          editedTitle?: string | undefined;
+        }>((resolve, reject) => {
           const timeoutId = setTimeout(async () => {
             pocketSelectionRequests.delete(requestId);
             try {
@@ -608,7 +847,11 @@ if (!contextMenuHandlerRegistered) {
                 },
               });
             } catch (error) {
-              logger.warn("ServiceWorker", "Failed to notify pocket selection timeout", error);
+              logger.warn(
+                "ServiceWorker",
+                "Failed to notify pocket selection timeout",
+                error,
+              );
             }
             reject(new Error("POCKET_SELECTION_TIMEOUT"));
           }, 45000) as unknown as number;
@@ -630,7 +873,8 @@ if (!contextMenuHandlerRegistered) {
 
         const targetPocketId = response.pocketId;
         const finalImageTitle = response.editedTitle || defaultImageTitle;
-        const targetPocket = pockets.find((p) => p.id === targetPocketId) || null;
+        const targetPocket =
+          pockets.find((p) => p.id === targetPocketId) || null;
 
         // Process and save image
         const processed = await contentProcessor.processContent({
@@ -660,7 +904,9 @@ if (!contextMenuHandlerRegistered) {
           type: processed.type,
         });
 
-        const savedContent = await indexedDBManager.getContent(processed.contentId);
+        const savedContent = await indexedDBManager.getContent(
+          processed.contentId,
+        );
 
         if (savedContent) {
           try {
@@ -670,7 +916,11 @@ if (!contextMenuHandlerRegistered) {
             });
             logger.info("ServiceWorker", "Broadcasted CONTENT_CREATED event");
           } catch (broadcastError) {
-            logger.warn("ServiceWorker", "Failed to broadcast CONTENT_CREATED", broadcastError);
+            logger.warn(
+              "ServiceWorker",
+              "Failed to broadcast CONTENT_CREATED",
+              broadcastError,
+            );
           }
         }
 
@@ -688,7 +938,8 @@ if (!contextMenuHandlerRegistered) {
           contentId: processed.contentId,
         });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
         logger.error("ServiceWorker", "Image context menu handler error", {
           message: errorMessage,
@@ -700,7 +951,10 @@ if (!contextMenuHandlerRegistered) {
           type: "basic",
           iconUrl: "icons/48.png",
           title: "Save to Pocket Failed",
-          message: error instanceof Error ? error.message : "An unknown error occurred",
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred",
         });
       } finally {
         isProcessingSaveToPocket = false;
@@ -736,18 +990,37 @@ class ServiceWorkerLifecycle {
    */
   private preloadEmbeddingModel(): void {
     // Import and preload in background (don't await)
-    import("./local-embedding-engine.js").then(({ localEmbeddingEngine }) => {
-      logger.info("ServiceWorker", "Preloading embedding model in background...");
-      
-      // Generate a dummy embedding to trigger model loading
-      localEmbeddingEngine.generateEmbedding("preload").then(() => {
-        logger.info("ServiceWorker", "Embedding model preloaded successfully");
-      }).catch((error) => {
-        logger.warn("ServiceWorker", "Failed to preload embedding model (will load on first use)", { error });
+    import("./local-embedding-engine.js")
+      .then(({ localEmbeddingEngine }) => {
+        logger.info(
+          "ServiceWorker",
+          "Preloading embedding model in background...",
+        );
+
+        // Generate a dummy embedding to trigger model loading
+        localEmbeddingEngine
+          .generateEmbedding("preload")
+          .then(() => {
+            logger.info(
+              "ServiceWorker",
+              "Embedding model preloaded successfully",
+            );
+          })
+          .catch((error) => {
+            logger.warn(
+              "ServiceWorker",
+              "Failed to preload embedding model (will load on first use)",
+              { error },
+            );
+          });
+      })
+      .catch((error) => {
+        logger.warn(
+          "ServiceWorker",
+          "Failed to import embedding engine for preload",
+          { error },
+        );
       });
-    }).catch((error) => {
-      logger.warn("ServiceWorker", "Failed to import embedding engine for preload", { error });
-    });
   }
 
   /**
@@ -784,19 +1057,32 @@ class ServiceWorkerLifecycle {
 
       // Start background processor for Gemini Nano formatting
       backgroundProcessor.start().catch((error) => {
-        logger.error("ServiceWorker", "Failed to start background processor", error);
+        logger.error(
+          "ServiceWorker",
+          "Failed to start background processor",
+          error,
+        );
       });
 
       // Preload embedding model in background (don't block initialization)
       this.preloadEmbeddingModel();
       // Enable runtime logging if debug recorder is enabled
-      const debugRecorderEnabled = await chrome.storage.local.get('debugRecorderEnabled');
+      const debugRecorderEnabled = await chrome.storage.local.get(
+        "debugRecorderEnabled",
+      );
       if (debugRecorderEnabled.debugRecorderEnabled === true) {
         try {
           await logCollector.startSession();
-          logger.info("ServiceWorker", "Debug recorder enabled - logs will be captured");
+          logger.info(
+            "ServiceWorker",
+            "Debug recorder enabled - logs will be captured",
+          );
         } catch (error) {
-          logger.error("ServiceWorker", "Failed to enable debug recorder", error);
+          logger.error(
+            "ServiceWorker",
+            "Failed to enable debug recorder",
+            error,
+          );
         }
       }
 
@@ -880,6 +1166,12 @@ class ServiceWorkerLifecycle {
         activeRequests: this.state.activeRequests.size,
       });
 
+      // Keep service worker alive with Chrome API call
+      // This prevents the 30-second termination timeout
+      chrome.runtime.getPlatformInfo(() => {
+        // Empty callback - just keeping SW alive
+      });
+
       // Persist state periodically
       this.persistState();
 
@@ -954,6 +1246,11 @@ class ServiceWorkerLifecycle {
       this.state.activeRequests.size,
       "count",
     );
+    
+    // Ensure heartbeat is running when we have active requests
+    if (this.state.activeRequests.size === 1) {
+      this.startHeartbeat();
+    }
   }
 
   /**
@@ -1315,6 +1612,29 @@ class MessageRouter {
 
 // Create singleton instance
 const messageRouter = new MessageRouter();
+registerFsAccessHandlers(messageRouter);
+
+const ariaController = new AriaController();
+
+ariaController.onEvent((detail: AriaControllerEventDetail) => {
+  logger.info("AriaController", "Dispatching ARIA event", {
+    runId: detail.run.runId,
+    type: detail.type,
+    status: detail.run.status,
+  });
+
+  messageRouter
+    .sendToSidePanel({
+      kind: "ARIA_EVENT",
+      payload: detail,
+    } as BaseMessage<MessageKind, AriaControllerEventDetail>)
+    .catch((error) => {
+      logger.warn("AriaController", "Failed to forward ARIA_EVENT", {
+        runId: detail.run.runId,
+        error,
+      });
+    });
+});
 
 // Register LOG_BATCH handler for collecting logs from all runtimes
 messageRouter.registerHandler("LOG_BATCH", async (payload: LogBatch) => {
@@ -1325,6 +1645,165 @@ messageRouter.registerHandler("LOG_BATCH", async (payload: LogBatch) => {
     logger.error("Handler", "LOG_BATCH error", error);
     return { success: false, error: "Failed to collect log batch" };
   }
+});
+
+// Register ARIA research handlers
+messageRouter.registerHandler("ARIA_RUN_START", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_START", payload);
+
+  const config = payload?.config;
+  if (!config || typeof config !== "object") {
+    return {
+      success: false,
+      error: "ARIA_RUN_START requires a configuration object",
+      reason: "INVALID_CONFIG",
+    };
+  }
+
+  const result = ariaController.startRun(config);
+  if (!result.success) {
+    logger.error("Handler", "ARIA_RUN_START failed", {
+      error: result.error,
+    });
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
+});
+
+messageRouter.registerHandler("ARIA_RUN_STATUS", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_STATUS", payload);
+
+  const runId = typeof payload?.runId === "string" ? payload.runId : undefined;
+  if (!runId) {
+    return {
+      success: false,
+      error: "ARIA_RUN_STATUS requires a runId",
+      reason: "INVALID_CONFIG",
+    };
+  }
+
+  const result = ariaController.getStatus(runId);
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
+});
+
+messageRouter.registerHandler("ARIA_RUN_PAUSE", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_PAUSE", payload);
+
+  const runId = typeof payload?.runId === "string" ? payload.runId : undefined;
+  if (!runId) {
+    return {
+      success: false,
+      error: "ARIA_RUN_PAUSE requires a runId",
+      reason: "INVALID_CONFIG",
+    };
+  }
+
+  const result = ariaController.pauseRun(runId);
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
+});
+
+messageRouter.registerHandler("ARIA_RUN_RESUME", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_RESUME", payload);
+
+  const runId = typeof payload?.runId === "string" ? payload.runId : undefined;
+  if (!runId) {
+    return {
+      success: false,
+      error: "ARIA_RUN_RESUME requires a runId",
+      reason: "INVALID_CONFIG",
+    };
+  }
+
+  const result = ariaController.resumeRun(runId);
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
+});
+
+messageRouter.registerHandler("ARIA_RUN_CANCEL", async (payload: any) => {
+  logger.info("Handler", "ARIA_RUN_CANCEL", payload);
+
+  const runId = typeof payload?.runId === "string" ? payload.runId : undefined;
+  if (!runId) {
+    return {
+      success: false,
+      error: "ARIA_RUN_CANCEL requires a runId",
+      reason: "INVALID_CONFIG",
+    };
+  }
+
+  const result = ariaController.cancelRun(runId);
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      reason: result.reason,
+    };
+  }
+
+  return {
+    success: true,
+    runId: result.run.runId,
+    status: result.run.status,
+    phase: result.run.phase,
+    run: result.run,
+    message: result.message,
+  };
 });
 
 // Register content capture handler
@@ -1354,7 +1833,7 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
       logger.info("Handler", "Processing direct note creation", {
         hasContentId: !!metadata?.contentId,
         contentLength: content?.length,
-        pocketId: pocketId || "(empty)"
+        pocketId: pocketId || "(empty)",
       });
 
       await indexedDBManager.init();
@@ -1362,11 +1841,16 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
       // Ensure we have a valid pocketId - create default "Notes" pocket if needed
       let targetPocketId = pocketId;
       if (!targetPocketId || targetPocketId === "") {
-        logger.info("Handler", "No pocketId provided, checking for default Notes pocket");
+        logger.info(
+          "Handler",
+          "No pocketId provided, checking for default Notes pocket",
+        );
 
         // Check if a "Notes" pocket exists
         const pockets = await indexedDBManager.listPockets();
-        let notesPocket = pockets.find(p => p.name === "Notes" || p.name === "My Notes");
+        let notesPocket = pockets.find(
+          (p) => p.name === "Notes" || p.name === "My Notes",
+        );
 
         if (!notesPocket) {
           // Create default Notes pocket
@@ -1378,17 +1862,23 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
             color: "#3b82f6",
             contentIds: [],
           });
-          logger.info("Handler", "Default Notes pocket created", { pocketId: targetPocketId });
+          logger.info("Handler", "Default Notes pocket created", {
+            pocketId: targetPocketId,
+          });
         } else {
           targetPocketId = notesPocket.id;
-          logger.info("Handler", "Using existing Notes pocket", { pocketId: targetPocketId });
+          logger.info("Handler", "Using existing Notes pocket", {
+            pocketId: targetPocketId,
+          });
         }
       }
 
       // Check if this is an update (contentId in metadata)
       if (metadata?.contentId) {
         // Update existing note
-        logger.info("Handler", "Updating existing note", { contentId: metadata.contentId });
+        logger.info("Handler", "Updating existing note", {
+          contentId: metadata.contentId,
+        });
 
         await indexedDBManager.updateContent(metadata.contentId, {
           content: content,
@@ -1402,12 +1892,19 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
         });
 
         // Enqueue vector indexing UPDATE job (non-blocking)
-        vectorIndexingQueue.enqueueContent(metadata.contentId, IndexingOperation.UPDATE).catch((error) => {
-          logger.error("Handler", "Failed to enqueue vector update job", { contentId: metadata.contentId, error });
-        });
+        vectorIndexingQueue
+          .enqueueContent(metadata.contentId, IndexingOperation.UPDATE)
+          .catch((error) => {
+            logger.error("Handler", "Failed to enqueue vector update job", {
+              contentId: metadata.contentId,
+              error,
+            });
+          });
 
         // Fetch updated record for ACK/broadcast
-        const updatedRecord = await indexedDBManager.getContent(metadata.contentId);
+        const updatedRecord = await indexedDBManager.getContent(
+          metadata.contentId,
+        );
         if (updatedRecord) {
           // Broadcast update event so UI refreshes instantly
           await messageRouter.sendToSidePanel({
@@ -1416,7 +1913,9 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
           } as any);
         }
 
-        logger.info("Handler", "Note updated successfully", { contentId: metadata.contentId });
+        logger.info("Handler", "Note updated successfully", {
+          contentId: metadata.contentId,
+        });
 
         return {
           status: "success",
@@ -1427,7 +1926,9 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
         };
       } else {
         // Create new note
-        logger.info("Handler", "Creating new note", { pocketId: targetPocketId });
+        logger.info("Handler", "Creating new note", {
+          pocketId: targetPocketId,
+        });
 
         const processed = await contentProcessor.processContent({
           pocketId: targetPocketId,
@@ -1444,7 +1945,9 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
         });
 
         // Fetch created record for ACK/broadcast
-        const createdRecord = await indexedDBManager.getContent(processed.contentId);
+        const createdRecord = await indexedDBManager.getContent(
+          processed.contentId,
+        );
         if (createdRecord) {
           await messageRouter.sendToSidePanel({
             kind: "CONTENT_CREATED",
@@ -1489,27 +1992,30 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
     // Process and store the captured content
 
     // Use enhanced processing for full-page captures
-    const processed = captureResult.mode === "full-page"
-      ? await contentProcessor.processFullPageCapture({
-        pocketId,
-        mode: captureResult.mode,
-        content: captureResult.content,
-        metadata: captureResult.metadata,
-        sourceUrl: sender.tab?.url || "",
-        sanitize: true,
-      })
-      : await contentProcessor.processContent({
-        pocketId,
-        mode: captureResult.mode,
-        content: captureResult.content,
-        metadata: captureResult.metadata,
-        sourceUrl: sender.tab?.url || "",
-        sanitize: true,
-      });
+    const processed =
+      captureResult.mode === "full-page"
+        ? await contentProcessor.processFullPageCapture({
+            pocketId,
+            mode: captureResult.mode,
+            content: captureResult.content,
+            metadata: captureResult.metadata,
+            sourceUrl: sender.tab?.url || "",
+            sanitize: true,
+          })
+        : await contentProcessor.processContent({
+            pocketId,
+            mode: captureResult.mode,
+            content: captureResult.content,
+            metadata: captureResult.metadata,
+            sourceUrl: sender.tab?.url || "",
+            sanitize: true,
+          });
 
     // Fetch created record and broadcast event for UI live updates
     try {
-      const createdRecord = await indexedDBManager.getContent(processed.contentId);
+      const createdRecord = await indexedDBManager.getContent(
+        processed.contentId,
+      );
       if (createdRecord) {
         logger.info("Handler", "Broadcasting CONTENT_CREATED event", {
           contentId: createdRecord.id,
@@ -1523,7 +2029,9 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
 
         logger.info("Handler", "Broadcast result", broadcastResult);
       } else {
-        logger.warn("Handler", "Created record not found", { contentId: processed.contentId });
+        logger.warn("Handler", "Created record not found", {
+          contentId: processed.contentId,
+        });
       }
     } catch (e) {
       logger.error("Handler", "Failed to broadcast content created event", e);
@@ -1564,7 +2072,6 @@ messageRouter.registerHandler("FILE_UPLOAD", async (payload, sender) => {
   });
 
   try {
-
     // Validate payload
     if (!pocketId || !fileName || !fileData) {
       throw new Error("Missing required fields for file upload");
@@ -1574,11 +2081,16 @@ messageRouter.registerHandler("FILE_UPLOAD", async (payload, sender) => {
 
     // Determine file extension and type
     const fileExtension = fileName.split(".").pop()?.toLowerCase() || "";
-    const contentType = fileExtension === "pdf" ? "pdf"
-      : ["doc", "docx"].includes(fileExtension) ? "document"
-        : ["xls", "xlsx"].includes(fileExtension) ? "spreadsheet"
-          : ["txt", "md"].includes(fileExtension) ? "text"
-            : "file";
+    const contentType =
+      fileExtension === "pdf"
+        ? "pdf"
+        : ["doc", "docx"].includes(fileExtension)
+          ? "document"
+          : ["xls", "xlsx"].includes(fileExtension)
+            ? "spreadsheet"
+            : ["txt", "md"].includes(fileExtension)
+              ? "text"
+              : "file";
 
     // Create content record for the file
     const processed = await contentProcessor.processContent({
@@ -1603,7 +2115,9 @@ messageRouter.registerHandler("FILE_UPLOAD", async (payload, sender) => {
     });
 
     // Fetch created record and broadcast event
-    const createdRecord = await indexedDBManager.getContent(processed.contentId);
+    const createdRecord = await indexedDBManager.getContent(
+      processed.contentId,
+    );
     if (createdRecord) {
       logger.info("Handler", "Broadcasting FILE_UPLOAD CONTENT_CREATED event", {
         contentId: createdRecord.id,
@@ -1661,6 +2175,218 @@ messageRouter.registerHandler("CAPTURE_SCREENSHOT", async (payload, sender) => {
   }
 });
 
+messageRouter.registerHandler("VISION_CAPTURE_FOR_ANALYSIS", async (payload: any, sender) => {
+  logger.info("Handler", "VISION_CAPTURE_FOR_ANALYSIS", {
+    senderTabId: sender?.tab?.id,
+  });
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
+    return {
+      success: false,
+      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+    };
+  }
+
+  const requestedTabId = typeof payload?.tabId === "number" ? payload.tabId : sender?.tab?.id;
+
+  if (!requestedTabId) {
+    return {
+      success: false,
+      error: "No tab context provided for vision capture",
+    };
+  }
+
+  try {
+    const capture = await visionManager.captureForVision({
+      tabId: requestedTabId,
+      format: payload?.format,
+      quality: payload?.quality,
+      annotateElements: payload?.annotateElements ?? false,
+      includeMappings: true,
+    });
+
+    return {
+      success: true,
+      dataUrl: capture.dataUrl,
+      format: capture.format,
+      width: capture.width,
+      height: capture.height,
+      timestamp: capture.timestamp,
+      tabId: capture.tabId,
+      tabUrl: capture.tabUrl,
+      devicePixelRatio: capture.devicePixelRatio,
+      elementMappings: capture.elementMappings,
+    };
+  } catch (error) {
+    logger.error("Handler", "VISION_CAPTURE_FOR_ANALYSIS error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+messageRouter.registerHandler("VISION_ANALYZE_SCREENSHOT", async (payload: any, sender) => {
+  logger.info("Handler", "VISION_ANALYZE_SCREENSHOT", {
+    senderTabId: sender?.tab?.id,
+  });
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
+    return {
+      success: false,
+      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+    };
+  }
+
+  if (!payload?.screenshot || !payload?.prompt) {
+    return {
+      success: false,
+      error: "VISION_ANALYZE_SCREENSHOT requires screenshot and prompt",
+    };
+  }
+
+  const screenshotInput = normalizeScreenshotInput(payload.screenshot);
+
+  try {
+    const analysisOptions: Parameters<typeof visionManager.analyzeScreenshot>[1] = {
+      prompt: payload.prompt,
+      model: payload.model,
+      useCache: payload.useCache,
+      maxTokens: payload.maxTokens,
+      temperature: payload.temperature,
+    };
+
+    if (sender?.tab?.url) {
+      analysisOptions.tabUrl = sender.tab.url;
+    }
+
+    const result = await visionManager.analyzeScreenshot(screenshotInput, analysisOptions);
+
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    logger.error("Handler", "VISION_ANALYZE_SCREENSHOT error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+messageRouter.registerHandler("VISION_DETECT_PAGE_STATE", async (payload: any, sender) => {
+  logger.info("Handler", "VISION_DETECT_PAGE_STATE", {
+    senderTabId: sender?.tab?.id,
+  });
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
+    return {
+      success: false,
+      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+    };
+  }
+
+  if (!payload?.screenshot) {
+    return {
+      success: false,
+      error: "VISION_DETECT_PAGE_STATE requires a screenshot",
+    };
+  }
+
+  let screenshotInput: string | CaptureResult;
+  try {
+    screenshotInput = normalizeScreenshotInput(payload.screenshot);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  try {
+    const result = await visionManager.detectPageState(screenshotInput);
+
+    if (result.requiresHumanIntervention) {
+      logger.warn("Handler", "Vision detection flagged human escalation", result);
+    }
+
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    logger.error("Handler", "VISION_DETECT_PAGE_STATE error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+messageRouter.registerHandler("VISION_FIND_ELEMENT", async (payload: any, sender) => {
+  logger.info("Handler", "VISION_FIND_ELEMENT", {
+    senderTabId: sender?.tab?.id,
+  });
+
+  if (!visionManager || !(await visionManager.isAvailable())) {
+    return {
+      success: false,
+      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+    };
+  }
+
+  if (!payload?.screenshot || !payload?.description) {
+    return {
+      success: false,
+      error: "VISION_FIND_ELEMENT requires screenshot and description",
+    };
+  }
+
+  let captureResult: CaptureResult;
+  try {
+    captureResult = toCaptureResult(payload.screenshot);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  try {
+    const result = await visionManager.findElementByDescription(
+      captureResult,
+      payload.description,
+    );
+
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    logger.error("Handler", "VISION_FIND_ELEMENT error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+messageRouter.registerHandler("VISION_GET_USAGE_STATS", async () => {
+  if (!visionManager) {
+    return {
+      success: false,
+      error: "Vision manager not initialized",
+    };
+  }
+
+  const stats = visionManager.getUsageStats();
+  return {
+    success: true,
+    stats,
+  };
+});
+
 messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
   logger.info("Handler", "AI_PROCESS_REQUEST", payload);
 
@@ -1674,14 +2400,19 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
     };
 
     // For text enhancement tasks
-    if (task === 'enhance') {
-      logger.info("Handler", "Processing text enhancement", { style, textLength: originalText?.length });
+    if (task === "enhance") {
+      logger.info("Handler", "Processing text enhancement", {
+        style,
+        textLength: originalText?.length,
+      });
 
       // Check if Gemini Nano is available
       const availability = await aiManager.checkModelAvailability();
 
-      if (availability === 'no' && preferLocal) {
-        throw new Error('Gemini Nano is not available on this device. Please enable on-device AI in Chrome settings.');
+      if (availability === "no" && preferLocal) {
+        throw new Error(
+          "Gemini Nano is not available on this device. Please enable on-device AI in Chrome settings.",
+        );
       }
 
       // Initialize or get session
@@ -1702,11 +2433,9 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
 
       // Process the enhancement prompt
       const startTime = performance.now();
-      const enhancedText = await aiManager.processPrompt(
-        sessionId,
-        prompt,
-        { operation: 'enhance' as any }
-      );
+      const enhancedText = await aiManager.processPrompt(sessionId, prompt, {
+        operation: "enhance" as any,
+      });
       const processingTime = performance.now() - startTime;
 
       logger.info("Handler", "Enhancement completed", {
@@ -1723,14 +2452,13 @@ messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
         enhancedText,
         processingTime,
         tokensUsed: usage.used,
-        source: 'gemini-nano',
+        source: "gemini-nano",
       };
     }
 
     // For other AI tasks (summarize, embed, etc.)
     logger.warn("Handler", "Unsupported AI task type", { task });
     return { status: "processing", taskId: crypto.randomUUID() };
-
   } catch (error) {
     logger.error("Handler", "AI_PROCESS_REQUEST error", error);
     throw error;
@@ -1753,9 +2481,10 @@ messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
     throw new Error("Content is required for formatting");
   }
 
-  const userInstructions = instructions && instructions.trim().length > 0
-    ? instructions.trim()
-    : "Improve the formatting of the provided markdown note. Ensure headings, lists, and code blocks are well structured. Fix indentation and whitespace issues. Preserve the original meaning and return valid markdown only.";
+  const userInstructions =
+    instructions && instructions.trim().length > 0
+      ? instructions.trim()
+      : "Improve the formatting of the provided markdown note. Ensure headings, lists, and code blocks are well structured. Fix indentation and whitespace issues. Preserve the original meaning and return valid markdown only.";
 
   const preferLocalProcessing = preferLocal !== false;
   let formattedContent: string | null = null;
@@ -1783,7 +2512,9 @@ messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
         const aiResult = await aiManager.processPrompt(sessionId, prompt);
         let trimmed = aiResult.trim();
 
-        const fencedMarkdownMatch = trimmed.match(/^```(?:markdown)?\s*\n([\s\S]*?)```$/i);
+        const fencedMarkdownMatch = trimmed.match(
+          /^```(?:markdown)?\s*\n([\s\S]*?)```$/i,
+        );
         if (fencedMarkdownMatch && typeof fencedMarkdownMatch[1] === "string") {
           trimmed = fencedMarkdownMatch[1].trimEnd();
         }
@@ -1794,7 +2525,11 @@ messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
         }
       }
     } catch (error) {
-      logger.warn("Handler", "AI_FORMAT_REQUEST local formatting failed", error);
+      logger.warn(
+        "Handler",
+        "AI_FORMAT_REQUEST local formatting failed",
+        error,
+      );
     } finally {
       if (sessionId) {
         aiManager.destroySession(sessionId);
@@ -1858,7 +2593,9 @@ messageRouter.registerHandler("POCKET_GET", async (payload: any) => {
   try {
     await indexedDBManager.init();
     const pocket = await indexedDBManager.getPocket(payload.pocketId);
-    logger.info("Handler", "POCKET_GET success", { pocketId: payload.pocketId });
+    logger.info("Handler", "POCKET_GET success", {
+      pocketId: payload.pocketId,
+    });
     return { pocket };
   } catch (error) {
     logger.error("Handler", "POCKET_GET error", error);
@@ -1892,51 +2629,45 @@ messageRouter.registerHandler("POCKET_DELETE", async (payload: any) => {
   }
 });
 
-messageRouter.registerHandler("POCKET_SELECTION_RESPONSE", async (payload: any) => {
-  const { requestId, status, pocketId, editedTitle, error } = payload as {
-    requestId: string;
-    status: "success" | "cancelled" | "error";
-    pocketId?: string;
-    editedTitle?: string;
-    error?: string;
-  };
+messageRouter.registerHandler(
+  "POCKET_SELECTION_RESPONSE",
+  async (payload: any) => {
+    const { requestId, status, pocketId, editedTitle, error } = payload as {
+      requestId: string;
+      status: "success" | "cancelled" | "error";
+      pocketId?: string;
+      editedTitle?: string;
+      error?: string;
+    };
 
-  logger.info("Handler", "POCKET_SELECTION_RESPONSE", { requestId, status, editedTitle });
+    logger.info("Handler", "POCKET_SELECTION_RESPONSE", {
+      requestId,
+      status,
+      editedTitle,
+    });
 
-  const pending = pocketSelectionRequests.get(requestId);
-  if (!pending) {
-    logger.warn("Handler", "No pending pocket selection request", { requestId, status });
-    return { acknowledged: false };
-  }
+    const pending = pocketSelectionRequests.get(requestId);
+    if (!pending) {
+      logger.warn("Handler", "No pending pocket selection request", {
+        requestId,
+        status,
+      });
+      return { acknowledged: false };
+    }
 
-  if (status === "success" && pocketId) {
-    pending.resolve({ pocketId, editedTitle });
-  } else if (status === "cancelled") {
-    pending.reject(new Error("POCKET_SELECTION_CANCELLED"));
-  } else {
-    pending.reject(new Error(error || "Pocket selection failed"));
-  }
+    if (status === "success" && pocketId) {
+      pending.resolve({ pocketId, editedTitle });
+    } else if (status === "cancelled") {
+      pending.reject(new Error("POCKET_SELECTION_CANCELLED"));
+    } else {
+      pending.reject(new Error(error || "Pocket selection failed"));
+    }
 
-  return { acknowledged: true };
-});
+    return { acknowledged: true };
+  },
+);
 
 // Register content handlers (Requirement 2.6, 7.6)
-messageRouter.registerHandler("CONTENT_LIST", async (payload: any) => {
-  logger.info("Handler", "CONTENT_LIST", payload);
-  try {
-    await indexedDBManager.init();
-    const content = await indexedDBManager.getContentByPocket(payload.pocketId);
-    logger.info("Handler", "CONTENT_LIST result", {
-      pocketId: payload.pocketId,
-      count: content.length,
-    });
-    return { content };
-  } catch (error) {
-    logger.error("Handler", "CONTENT_LIST error", error);
-    throw error;
-  }
-});
-
 messageRouter.registerHandler("CONTENT_GET", async (payload: any) => {
   logger.info("Handler", "CONTENT_GET", payload);
   try {
@@ -1957,10 +2688,9 @@ messageRouter.registerHandler("CONTENT_GET", async (payload: any) => {
 messageRouter.registerHandler("POCKET_SEARCH", async (payload: any) => {
   logger.info("Handler", "POCKET_SEARCH", payload);
   try {
-
     const results = await vectorSearchService.searchPockets(
       payload.query,
-      payload.limit || 10
+      payload.limit || 10,
     );
     logger.info("Handler", "POCKET_SEARCH result", {
       query: payload.query,
@@ -1976,11 +2706,10 @@ messageRouter.registerHandler("POCKET_SEARCH", async (payload: any) => {
 messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
   logger.info("Handler", "CONTENT_SEARCH", payload);
   try {
-
     const results = await vectorSearchService.searchContent(
       payload.query,
       payload.pocketId,
-      payload.limit || 20
+      payload.limit || 20,
     );
     logger.info("Handler", "CONTENT_SEARCH result", {
       query: payload.query,
@@ -2063,7 +2792,11 @@ messageRouter.registerHandler("VECTOR_INDEXING_RETRY", async (payload: any) => {
       throw new Error(`Content not found: ${contentId}`);
     }
 
-    await vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.UPDATE, "high");
+    await vectorIndexingQueue.enqueueContent(
+      contentId,
+      IndexingOperation.UPDATE,
+      "high",
+    );
 
     logger.info("Handler", "VECTOR_INDEXING_RETRY enqueued", { contentId });
     return { enqueued: true };
@@ -2144,9 +2877,15 @@ messageRouter.registerHandler("CONTENT_IMPORT", async (payload) => {
     });
 
     // Enqueue vector indexing (non-blocking)
-    vectorIndexingQueue.enqueueContent(contentId, IndexingOperation.CREATE).catch((error) => {
-      logger.error("Handler", "Failed to enqueue vector indexing for imported content", { contentId, error });
-    });
+    vectorIndexingQueue
+      .enqueueContent(contentId, IndexingOperation.CREATE)
+      .catch((error) => {
+        logger.error(
+          "Handler",
+          "Failed to enqueue vector indexing for imported content",
+          { contentId, error },
+        );
+      });
 
     // Broadcast content created event
     try {
@@ -2158,7 +2897,11 @@ messageRouter.registerHandler("CONTENT_IMPORT", async (payload) => {
         } as any);
       }
     } catch (broadcastError) {
-      logger.warn("Handler", "Failed to broadcast CONTENT_CREATED for import", broadcastError);
+      logger.warn(
+        "Handler",
+        "Failed to broadcast CONTENT_CREATED for import",
+        broadcastError,
+      );
     }
 
     return { contentId, status: "success" };
@@ -2176,30 +2919,27 @@ const cloudAIManager = new CloudAIManager(geminiApiKey);
 const streamingHandler = getStreamingHandler(aiManager, cloudAIManager);
 
 // Initialize metadata queue manager for background metadata generation
-let metadataQueueManager: import("./metadata-queue-manager.js").MetadataQueueManager | null = null;
+let metadataQueueManager: MetadataQueueManager | null = null;
 
 // Initialize metadata queue manager after a short delay to avoid blocking startup
-setTimeout(async () => {
+setTimeout(() => {
   try {
     logger.info("ServiceWorker", "Initializing metadata queue manager...");
-    
+
     if (!aiManager) {
       throw new Error("AIManager not available for metadata queue manager");
     }
-    
-    const { MetadataQueueManager } = await import("./metadata-queue-manager.js");
-    logger.info("ServiceWorker", "MetadataQueueManager module loaded");
-    
+
     metadataQueueManager = new MetadataQueueManager(aiManager);
     logger.info("ServiceWorker", "MetadataQueueManager instance created");
-    
+
     metadataQueueManager.start();
     logger.info("ServiceWorker", "Metadata queue manager started successfully");
   } catch (error) {
-    logger.error("ServiceWorker", "Failed to start metadata queue manager", { 
+    logger.error("ServiceWorker", "Failed to start metadata queue manager", {
       error,
       errorMessage: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined
+      errorStack: error instanceof Error ? error.stack : undefined,
     });
   }
 }, 2000); // 2 second delay
@@ -2222,49 +2962,401 @@ messageRouter.registerHandler("AI_PROCESS_CANCEL", async (payload) => {
 });
 
 // Register text correction handler for voice input post-processing
-messageRouter.registerHandler("AI_PROCESS_TEXT_CORRECTION", async (payload: any) => {
-  logger.info("Handler", "AI_PROCESS_TEXT_CORRECTION", payload);
+messageRouter.registerHandler(
+  "AI_PROCESS_TEXT_CORRECTION",
+  async (payload: any) => {
+    logger.info("Handler", "AI_PROCESS_TEXT_CORRECTION", payload);
+    try {
+      const { text } = payload;
+
+      if (!text || typeof text !== "string") {
+        throw new Error("Invalid text provided for correction");
+      }
+
+      // Check if Nano is available
+      const availability = await aiManager.checkModelAvailability();
+      if (availability === "no") {
+        logger.warn("Handler", "Nano not available, returning original text");
+        return { correctedText: text };
+      }
+
+      // Create a session for text correction
+      const sessionId = await aiManager.initializeGeminiNano({
+        temperature: 0.3,
+        initialPrompts: [
+          {
+            role: "system",
+            content:
+              "You are a text correction assistant. Fix grammar, spelling, remove filler words (um, uh, like, you know, etc.), and slightly improve clarity while preserving the original meaning and intent. Return only the corrected text without explanations or quotes.",
+          },
+        ],
+      });
+
+      // Process the text
+      const correctedText = await aiManager.processPrompt(sessionId, text);
+
+      // Clean up session
+      aiManager.destroySession(sessionId);
+
+      logger.info("Handler", "Text correction complete", {
+        original: text,
+        corrected: correctedText,
+      });
+
+      return { correctedText };
+    } catch (error) {
+      logger.error("Handler", "AI_PROCESS_TEXT_CORRECTION error", error);
+      // Return original text on error
+      return { correctedText: payload.text };
+    }
+  },
+);
+
+// Register context collection handlers for auto context engine
+messageRouter.registerHandler("PAGE_CONTEXT_REQUEST", async (payload: any) => {
+  logger.info("Handler", "PAGE_CONTEXT_REQUEST", payload);
+  
   try {
-    const { text } = payload;
-
-    if (!text || typeof text !== 'string') {
-      throw new Error("Invalid text provided for correction");
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) {
+      throw new Error("No active tab found");
     }
 
-    // Check if Nano is available
-    const availability = await aiManager.checkModelAvailability();
-    if (availability === "no") {
-      logger.warn("Handler", "Nano not available, returning original text");
-      return { correctedText: text };
-    }
+    // Inject content script to get page context
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        // This function runs in the content script context
+        const pageContext: {
+          title: string;
+          url: string;
+          domain: string;
+          contextType: "general";
+          metaDescription?: string;
+          metaKeywords?: string[];
+          headings?: string[];
+          mainContent?: string;
+          pageType?: string;
+          language?: string;
+        } = {
+          title: document.title,
+          url: window.location.href,
+          domain: window.location.hostname,
+          // Detect context type based on URL patterns
+          contextType: "general" as const
+        };
 
-    // Create a session for text correction
-    const sessionId = await aiManager.initializeGeminiNano({
-      temperature: 0.3,
-      initialPrompts: [
-        {
-          role: "system",
-          content: "You are a text correction assistant. Fix grammar, spelling, remove filler words (um, uh, like, you know, etc.), and slightly improve clarity while preserving the original meaning and intent. Return only the corrected text without explanations or quotes."
+        // Try to get meta description
+        const metaDesc = document.querySelector('meta[name="description"]');
+        const metaDescContent = metaDesc?.getAttribute('content');
+        if (metaDescContent) {
+          pageContext.metaDescription = metaDescContent;
         }
-      ]
+
+        // Try to get meta keywords
+        const metaKeywords = document.querySelector('meta[name="keywords"]');
+        const metaKeywordsContent = metaKeywords?.getAttribute('content');
+        if (metaKeywordsContent) {
+          pageContext.metaKeywords = metaKeywordsContent.split(',').map(k => k.trim());
+        }
+
+        // Extract main headings (H1, H2)
+        const headings: string[] = [];
+        const h1Elements = document.querySelectorAll('h1');
+        const h2Elements = document.querySelectorAll('h2');
+        
+        h1Elements.forEach(h => {
+          const text = h.textContent?.trim();
+          if (text && text.length > 0 && text.length < 200) {
+            headings.push(text);
+          }
+        });
+        
+        h2Elements.forEach(h => {
+          const text = h.textContent?.trim();
+          if (text && text.length > 0 && text.length < 200 && headings.length < 10) {
+            headings.push(text);
+          }
+        });
+        
+        if (headings.length > 0) {
+          pageContext.headings = headings;
+        }
+
+        // Extract main content intelligently
+        let mainContent = '';
+        
+        // Try to find main content area
+        const mainElement = document.querySelector('main, article, [role="main"], .main-content, #main-content, #content');
+        
+        if (mainElement) {
+          // Get text from main element, excluding scripts and styles
+          const clone = mainElement.cloneNode(true) as HTMLElement;
+          clone.querySelectorAll('script, style, nav, header, footer, aside').forEach(el => el.remove());
+          mainContent = clone.textContent || '';
+        } else {
+          // Fallback: get body text
+          const bodyClone = document.body.cloneNode(true) as HTMLElement;
+          bodyClone.querySelectorAll('script, style, nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]').forEach(el => el.remove());
+          mainContent = bodyClone.textContent || '';
+        }
+        
+        // Clean and truncate main content
+        mainContent = mainContent
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 2000); // Limit to 2000 characters
+        
+        if (mainContent.length > 100) {
+          pageContext.mainContent = mainContent;
+        }
+
+        // Detect page type
+        const ogType = document.querySelector('meta[property="og:type"]')?.getAttribute('content');
+        if (ogType) {
+          pageContext.pageType = ogType;
+        } else {
+          // Infer from structure
+          if (document.querySelector('article')) {
+            pageContext.pageType = 'article';
+          } else if (document.querySelector('form[role="search"], input[type="search"]')) {
+            pageContext.pageType = 'search';
+          } else if (document.querySelector('.product, [itemtype*="Product"]')) {
+            pageContext.pageType = 'product';
+          }
+        }
+
+        // Get page language
+        const lang = document.documentElement.lang || document.querySelector('meta[http-equiv="content-language"]')?.getAttribute('content');
+        if (lang) {
+          pageContext.language = lang;
+        }
+
+        return pageContext;
+      }
     });
 
-    // Process the text
-    const correctedText = await aiManager.processPrompt(sessionId, text);
-
-    // Clean up session
-    aiManager.destroySession(sessionId);
-
-    logger.info("Handler", "Text correction complete", {
-      original: text,
-      corrected: correctedText
-    });
-
-    return { correctedText };
+    if (results && results[0] && results[0].result) {
+      logger.info("Handler", "PAGE_CONTEXT_REQUEST success", results[0].result);
+      return {
+        success: true,
+        context: results[0].result
+      };
+    } else {
+      throw new Error("Failed to get page context");
+    }
   } catch (error) {
-    logger.error("Handler", "AI_PROCESS_TEXT_CORRECTION error", error);
-    // Return original text on error
-    return { correctedText: payload.text };
+    logger.error("Handler", "PAGE_CONTEXT_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+messageRouter.registerHandler("TAB_CONTEXT_REQUEST", async (payload: any) => {
+  logger.info("Handler", "TAB_CONTEXT_REQUEST", payload);
+  
+  try {
+    const maxTabs = payload.maxTabs || 6;
+    
+    // Get recent tabs from all windows
+    const tabs = await chrome.tabs.query({});
+    
+    // Filter and map tabs
+    const tabContexts = tabs
+      .filter(tab => tab.url && tab.title && !tab.url.startsWith('chrome://'))
+      .slice(0, maxTabs)
+      .map(tab => {
+        const url = new URL(tab.url!);
+        const domain = url.hostname;
+        
+        // Basic context type detection for tabs
+        let contextType: "general" | "sensitive" | "work" | "social" = "general";
+        if (domain.includes('bank') || domain.includes('health') || domain.includes('gov')) {
+          contextType = "sensitive";
+        } else if (domain.includes('work') || domain.includes('company') || domain.includes('office')) {
+          contextType = "work";
+        } else if (domain.includes('social') || domain.includes('twitter') || domain.includes('facebook')) {
+          contextType = "social";
+        }
+        
+        return {
+          title: tab.title!,
+          url: tab.url!,
+          domain: domain,
+          contextType
+        };
+      });
+
+    logger.info("Handler", "TAB_CONTEXT_REQUEST success", { 
+      tabsCount: tabContexts.length 
+    });
+    
+    return {
+      success: true,
+      tabs: tabContexts
+    };
+  } catch (error) {
+    logger.error("Handler", "TAB_CONTEXT_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+messageRouter.registerHandler("SELECTION_CONTEXT_REQUEST", async (payload: any) => {
+  logger.info("Handler", "SELECTION_CONTEXT_REQUEST", payload);
+  
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) {
+      throw new Error("No active tab found");
+    }
+
+    // Inject content script to get selection context
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+          return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString().trim();
+        
+        if (!selectedText) {
+          return null;
+        }
+
+        // Get surrounding context (characters before and after)
+        const container = range.commonAncestorContainer;
+        const fullText = container.textContent || '';
+        const offset = fullText.indexOf(selectedText);
+        
+        let surroundingText = '';
+        if (offset !== -1) {
+          const contextRadius = 200; // characters before and after
+          const start = Math.max(0, offset - contextRadius);
+          const end = Math.min(fullText.length, offset + selectedText.length + contextRadius);
+          surroundingText = fullText.substring(start, end);
+        }
+
+        return {
+          text: selectedText,
+          surroundingText: surroundingText
+        };
+      }
+    });
+
+    if (results && results[0] && results[0].result) {
+      logger.info("Handler", "SELECTION_CONTEXT_REQUEST success", { 
+        textLength: results[0].result.text.length 
+      });
+      
+      return {
+        success: true,
+        context: results[0].result
+      };
+    } else {
+      // No selection
+      return {
+        success: true,
+        context: null
+      };
+    }
+  } catch (error) {
+    logger.error("Handler", "SELECTION_CONTEXT_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+messageRouter.registerHandler("INPUT_CONTEXT_REQUEST", async (payload: any) => {
+  logger.info("Handler", "INPUT_CONTEXT_REQUEST", payload);
+  
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) {
+      throw new Error("No active tab found");
+    }
+
+    // Inject content script to get input context
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        // Get focused element
+        const activeElement = document.activeElement;
+        if (!activeElement) {
+          return null;
+        }
+
+        const tagName = activeElement.tagName.toLowerCase();
+        const type = (activeElement as HTMLInputElement).type || '';
+        const role = activeElement.getAttribute('role') || undefined;
+        const placeholder = (activeElement as HTMLInputElement).placeholder || undefined;
+        
+        // Basic intent detection based on input attributes and form context
+        let intent = '';
+        if (tagName === 'input' || tagName === 'textarea') {
+          if (type === 'search') {
+            intent = 'search';
+          } else if (type === 'email') {
+            intent = 'email';
+          } else if (type === 'password') {
+            intent = 'password';
+          } else if (type === 'tel') {
+            intent = 'phone';
+          } else if (placeholder) {
+            if (placeholder.toLowerCase().includes('search')) {
+              intent = 'search';
+            } else if (placeholder.toLowerCase().includes('email')) {
+              intent = 'email';
+            } else if (placeholder.toLowerCase().includes('message')) {
+              intent = 'message';
+            }
+          }
+        } else if (tagName === 'select') {
+          intent = 'selection';
+        }
+
+        return {
+          tagName,
+          type,
+          role,
+          placeholder,
+          intent
+        };
+      }
+    });
+
+    if (results && results[0] && results[0].result) {
+      logger.info("Handler", "INPUT_CONTEXT_REQUEST success", results[0].result);
+      
+      return {
+        success: true,
+        context: results[0].result
+      };
+    } else {
+      // No focused input
+      return {
+        success: true,
+        context: null
+      };
+    }
+  } catch (error) {
+    logger.error("Handler", "INPUT_CONTEXT_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
   }
 });
 
@@ -2323,11 +3415,19 @@ messageRouter.registerHandler("CONVERSATION_CREATE", async (payload: any) => {
     });
 
     // Trigger background metadata generation
-    if (metadataQueueManager && conversation && conversation.messages.length > 0) {
+    if (
+      metadataQueueManager &&
+      conversation &&
+      conversation.messages.length > 0
+    ) {
       metadataQueueManager.enqueueConversation(conversationId, "normal");
-      logger.info("Handler", "Queued metadata generation for new conversation", {
-        conversationId,
-      });
+      logger.info(
+        "Handler",
+        "Queued metadata generation for new conversation",
+        {
+          conversationId,
+        },
+      );
     }
 
     return { conversation };
@@ -2353,38 +3453,48 @@ messageRouter.registerHandler("CONVERSATION_UPDATE", async (payload: any) => {
   }
 });
 
-messageRouter.registerHandler("CONVERSATION_GENERATE_METADATA", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_GENERATE_METADATA", payload);
-  try {
-    const { ConversationMetadataGenerator } = await import("./conversation-metadata-generator.js");
-    const generator = new ConversationMetadataGenerator(aiManager);
-    const metadata = await generator.generateMetadata(payload.messages);
-    logger.info("Handler", "CONVERSATION_GENERATE_METADATA success");
-    return { metadata };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_GENERATE_METADATA error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "CONVERSATION_GENERATE_METADATA",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_GENERATE_METADATA", payload);
+    try {
+      const { ConversationMetadataGenerator } = await import(
+        "./conversation-metadata-generator.js"
+      );
+      const generator = new ConversationMetadataGenerator(aiManager);
+      const metadata = await generator.generateMetadata(payload.messages);
+      logger.info("Handler", "CONVERSATION_GENERATE_METADATA success");
+      return { metadata };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_GENERATE_METADATA error", error);
+      throw error;
+    }
+  },
+);
 
-messageRouter.registerHandler("CONVERSATION_SEMANTIC_SEARCH", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH", payload);
-  try {
-    const { SemanticSearchService } = await import("./semantic-search-service.js");
-    const searchService = new SemanticSearchService(aiManager);
-    const results = await searchService.searchConversations(
-      payload.query,
-      payload.conversations
-    );
-    logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH success", {
-      resultsCount: results.length,
-    });
-    return { results };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_SEMANTIC_SEARCH error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "CONVERSATION_SEMANTIC_SEARCH",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH", payload);
+    try {
+      const { SemanticSearchService } = await import(
+        "./semantic-search-service.js"
+      );
+      const searchService = new SemanticSearchService(aiManager);
+      const results = await searchService.searchConversations(
+        payload.query,
+        payload.conversations,
+      );
+      logger.info("Handler", "CONVERSATION_SEMANTIC_SEARCH success", {
+        resultsCount: results.length,
+      });
+      return { results };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_SEMANTIC_SEARCH error", error);
+      throw error;
+    }
+  },
+);
 
 messageRouter.registerHandler("METADATA_QUEUE_STATUS", async (payload: any) => {
   logger.info("Handler", "METADATA_QUEUE_STATUS", payload);
@@ -2402,7 +3512,9 @@ messageRouter.registerHandler("METADATA_QUEUE_STATUS", async (payload: any) => {
     // Count conversations without metadata
     await indexedDBManager.init();
     const conversations = await indexedDBManager.listConversations();
-    const conversationsWithoutMetadata = conversations.filter(c => !c.metadata).length;
+    const conversationsWithoutMetadata = conversations.filter(
+      (c) => !c.metadata,
+    ).length;
 
     logger.info("Handler", "METADATA_QUEUE_STATUS success", status);
     return {
@@ -2433,95 +3545,109 @@ messageRouter.registerHandler("CONVERSATION_DELETE", async (payload: any) => {
 });
 
 // Register conversation pocket attachment handlers
-messageRouter.registerHandler("CONVERSATION_ATTACH_POCKET", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_ATTACH_POCKET", payload);
-  try {
-    await indexedDBManager.init();
-    await indexedDBManager.attachPocketToConversation(
-      payload.conversationId,
-      payload.pocketId
-    );
-    
-    // Get pocket details for response
-    const pocket = await indexedDBManager.getPocket(payload.pocketId);
-    
-    logger.info("Handler", "CONVERSATION_ATTACH_POCKET success", {
-      conversationId: payload.conversationId,
-      pocketId: payload.pocketId,
-      pocketName: pocket?.name,
-    });
-    
-    return {
-      success: true,
-      conversationId: payload.conversationId,
-      attachedPocketId: payload.pocketId,
-      pocketName: pocket?.name,
-      pocketDescription: pocket?.description,
-    };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_ATTACH_POCKET error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "CONVERSATION_ATTACH_POCKET",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_ATTACH_POCKET", payload);
+    try {
+      await indexedDBManager.init();
+      await indexedDBManager.attachPocketToConversation(
+        payload.conversationId,
+        payload.pocketId,
+      );
 
-messageRouter.registerHandler("CONVERSATION_DETACH_POCKET", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_DETACH_POCKET", payload);
-  try {
-    await indexedDBManager.init();
-    await indexedDBManager.detachPocketFromConversation(
-      payload.conversationId,
-      payload.pocketId // Optional: detach specific pocket or all if undefined
-    );
-    
-    logger.info("Handler", "CONVERSATION_DETACH_POCKET success", {
-      conversationId: payload.conversationId,
-      pocketId: payload.pocketId || "all",
-    });
-    
-    return {
-      success: true,
-      conversationId: payload.conversationId,
-      attachedPocketId: null,
-      attachedPocketIds: [],
-    };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_DETACH_POCKET error", error);
-    throw error;
-  }
-});
+      // Get pocket details for response
+      const pocket = await indexedDBManager.getPocket(payload.pocketId);
 
-messageRouter.registerHandler("CONVERSATION_GET_ATTACHED_POCKET", async (payload: any) => {
-  logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET", payload);
-  try {
-    await indexedDBManager.init();
-    const pockets = await indexedDBManager.getAttachedPockets(payload.conversationId);
-    const pocketIds = await indexedDBManager.getAttachedPocketIds(payload.conversationId);
-    
-    logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET success", {
-      conversationId: payload.conversationId,
-      found: pockets.length > 0,
-      pocketCount: pockets.length,
-    });
-    
-    return {
-      success: true,
-      conversationId: payload.conversationId,
-      attachedPocketId: pockets.length > 0 ? pockets[0]?.id : null, // For backward compatibility
-      attachedPocketIds: pocketIds,
-      pockets: pockets.map(p => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        color: p.color,
-      })),
-      pocketName: pockets.length > 0 ? pockets[0]?.name : undefined,
-      pocketDescription: pockets.length > 0 ? pockets[0]?.description : undefined,
-    };
-  } catch (error) {
-    logger.error("Handler", "CONVERSATION_GET_ATTACHED_POCKET error", error);
-    throw error;
-  }
-});
+      logger.info("Handler", "CONVERSATION_ATTACH_POCKET success", {
+        conversationId: payload.conversationId,
+        pocketId: payload.pocketId,
+        pocketName: pocket?.name,
+      });
+
+      return {
+        success: true,
+        conversationId: payload.conversationId,
+        attachedPocketId: payload.pocketId,
+        pocketName: pocket?.name,
+        pocketDescription: pocket?.description,
+      };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_ATTACH_POCKET error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "CONVERSATION_DETACH_POCKET",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_DETACH_POCKET", payload);
+    try {
+      await indexedDBManager.init();
+      await indexedDBManager.detachPocketFromConversation(
+        payload.conversationId,
+        payload.pocketId, // Optional: detach specific pocket or all if undefined
+      );
+
+      logger.info("Handler", "CONVERSATION_DETACH_POCKET success", {
+        conversationId: payload.conversationId,
+        pocketId: payload.pocketId || "all",
+      });
+
+      return {
+        success: true,
+        conversationId: payload.conversationId,
+        attachedPocketId: null,
+        attachedPocketIds: [],
+      };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_DETACH_POCKET error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "CONVERSATION_GET_ATTACHED_POCKET",
+  async (payload: any) => {
+    logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET", payload);
+    try {
+      await indexedDBManager.init();
+      const pockets = await indexedDBManager.getAttachedPockets(
+        payload.conversationId,
+      );
+      const pocketIds = await indexedDBManager.getAttachedPocketIds(
+        payload.conversationId,
+      );
+
+      logger.info("Handler", "CONVERSATION_GET_ATTACHED_POCKET success", {
+        conversationId: payload.conversationId,
+        found: pockets.length > 0,
+        pocketCount: pockets.length,
+      });
+
+      return {
+        success: true,
+        conversationId: payload.conversationId,
+        attachedPocketId: pockets.length > 0 ? pockets[0]?.id : null, // For backward compatibility
+        attachedPocketIds: pocketIds,
+        pockets: pockets.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          color: p.color,
+        })),
+        pocketName: pockets.length > 0 ? pockets[0]?.name : undefined,
+        pocketDescription:
+          pockets.length > 0 ? pockets[0]?.description : undefined,
+      };
+    } catch (error) {
+      logger.error("Handler", "CONVERSATION_GET_ATTACHED_POCKET error", error);
+      throw error;
+    }
+  },
+);
 
 // Register abbreviation handlers (Requirement 10.1, 10.2, 10.3, 10.5)
 messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
@@ -2530,9 +3656,11 @@ messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
     const abbreviation = await abbreviationStorage.createAbbreviation(
       payload.shortcut,
       payload.expansion,
-      payload.category
+      payload.category,
     );
-    logger.info("Handler", "ABBREVIATION_CREATE success", { shortcut: abbreviation.shortcut });
+    logger.info("Handler", "ABBREVIATION_CREATE success", {
+      shortcut: abbreviation.shortcut,
+    });
     return { success: true, data: abbreviation };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_CREATE error", error);
@@ -2543,8 +3671,12 @@ messageRouter.registerHandler("ABBREVIATION_CREATE", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_GET", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_GET", payload);
   try {
-    const abbreviation = await abbreviationStorage.getAbbreviation(payload.shortcut);
-    logger.info("Handler", "ABBREVIATION_GET success", { found: !!abbreviation });
+    const abbreviation = await abbreviationStorage.getAbbreviation(
+      payload.shortcut,
+    );
+    logger.info("Handler", "ABBREVIATION_GET success", {
+      found: !!abbreviation,
+    });
     return { success: true, data: abbreviation };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_GET error", error);
@@ -2555,11 +3687,16 @@ messageRouter.registerHandler("ABBREVIATION_GET", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_UPDATE", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_UPDATE", payload);
   try {
-    const abbreviation = await abbreviationStorage.updateAbbreviation(payload.shortcut, {
-      expansion: payload.expansion,
-      category: payload.category
+    const abbreviation = await abbreviationStorage.updateAbbreviation(
+      payload.shortcut,
+      {
+        expansion: payload.expansion,
+        category: payload.category,
+      },
+    );
+    logger.info("Handler", "ABBREVIATION_UPDATE success", {
+      shortcut: abbreviation.shortcut,
     });
-    logger.info("Handler", "ABBREVIATION_UPDATE success", { shortcut: abbreviation.shortcut });
     return { success: true, data: abbreviation };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_UPDATE error", error);
@@ -2571,7 +3708,9 @@ messageRouter.registerHandler("ABBREVIATION_DELETE", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_DELETE", payload);
   try {
     await abbreviationStorage.deleteAbbreviation(payload.shortcut);
-    logger.info("Handler", "ABBREVIATION_DELETE success", { shortcut: payload.shortcut });
+    logger.info("Handler", "ABBREVIATION_DELETE success", {
+      shortcut: payload.shortcut,
+    });
     return { success: true };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_DELETE error", error);
@@ -2582,8 +3721,12 @@ messageRouter.registerHandler("ABBREVIATION_DELETE", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_LIST", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_LIST", payload);
   try {
-    const abbreviations = await abbreviationStorage.listAbbreviations(payload?.category);
-    logger.info("Handler", "ABBREVIATION_LIST success", { count: abbreviations.length });
+    const abbreviations = await abbreviationStorage.listAbbreviations(
+      payload?.category,
+    );
+    logger.info("Handler", "ABBREVIATION_LIST success", {
+      count: abbreviations.length,
+    });
     return { success: true, data: abbreviations };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_LIST error", error);
@@ -2594,14 +3737,253 @@ messageRouter.registerHandler("ABBREVIATION_LIST", async (payload: any) => {
 messageRouter.registerHandler("ABBREVIATION_EXPAND", async (payload: any) => {
   logger.info("Handler", "ABBREVIATION_EXPAND", payload);
   try {
-    const result = await abbreviationStorage.expandAbbreviation(payload.shortcut);
+    const result = await abbreviationStorage.expandAbbreviation(
+      payload.shortcut,
+    );
     logger.info("Handler", "ABBREVIATION_EXPAND success", {
       shortcut: payload.shortcut,
-      expansion: result.expansion
+      expansion: result.expansion,
     });
     return { success: true, data: result };
   } catch (error) {
     logger.error("Handler", "ABBREVIATION_EXPAND error", error);
+    throw error;
+  }
+});
+
+// Browser Agent Workflow Handlers
+messageRouter.registerHandler("BROWSER_AGENT_START_WORKFLOW", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_START_WORKFLOW", payload);
+  try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
+    const state = await workflowManager.startWorkflow({
+      workflowId: payload.workflowId,
+      variables: payload.variables || {},
+      config: payload.config,
+      tabId: payload.tabId,
+      userId: payload.userId,
+    });
+    logger.info("Handler", "BROWSER_AGENT_START_WORKFLOW success", {
+      workflowId: state.workflowId,
+    });
+    return { success: true, data: state };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_START_WORKFLOW error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_PAUSE_WORKFLOW", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW", payload);
+  try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
+    await workflowManager.pauseWorkflow(payload.workflowId, payload.reason);
+    logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW success", {
+      workflowId: payload.workflowId,
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_RESUME_WORKFLOW", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW", payload);
+  try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
+    await workflowManager.resumeWorkflow(payload.workflowId, payload.userInput);
+    logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW success", {
+      workflowId: payload.workflowId,
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_RESUME_WORKFLOW error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_CANCEL_WORKFLOW", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW", payload);
+  try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
+    await workflowManager.cancelWorkflow(payload.workflowId, payload.options);
+    logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW success", {
+      workflowId: payload.workflowId,
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_WORKFLOW_STATUS", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS", payload);
+  try {
+    if (!workflowManager) {
+      throw new Error("WorkflowManager not initialized yet");
+    }
+    const status = await workflowManager.getWorkflowStatus(payload.workflowId);
+    logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS success", {
+      workflowId: payload.workflowId,
+      found: !!status,
+    });
+    return { success: true, data: status };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_WORKFLOW_STATUS error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_LIST_WORKFLOWS", async (_payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS");
+  try {
+    if (!workflowManager) {
+      return { success: true, data: [] };
+    }
+    const workflows = workflowManager.getAllWorkflows();
+    logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS success", {
+      count: workflows.length,
+    });
+    return { success: true, data: workflows };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_LIST_WORKFLOWS error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("BROWSER_AGENT_APPROVAL_RESPONSE", async (payload: any) => {
+  logger.info("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE", payload);
+  try {
+    const { requestId, approved, modifiedParams } = payload;
+    
+    if (!requestId) {
+      throw new Error("No requestId provided for approval response");
+    }
+    
+    // Store approval decision for workflow manager to retrieve
+    await lifecycle.setSessionData(`approval:${requestId}`, {
+      approved,
+      modifiedParams,
+      timestamp: Date.now(),
+    });
+    
+    logger.info("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE recorded", {
+      requestId,
+      approved,
+    });
+    
+    return { success: true, acknowledged: true };
+  } catch (error) {
+    logger.error("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE error", error);
+    throw error;
+  }
+});
+
+// API Testing Handlers
+messageRouter.registerHandler("API_REQUEST", async (payload: ApiRequestPayload) => {
+  logger.info("Handler", "API_REQUEST", {
+    method: payload.method,
+    url: payload.url,
+  });
+  try {
+    const response = await performApiRequest(payload);
+    const result: ApiRequestResponsePayload = {
+      success: true,
+      response,
+    };
+    
+    logger.info("Handler", "API_REQUEST success", {
+      status: response.status,
+      durationMs: response.timing.durationMs,
+      retryCount: response.retryCount,
+    });
+    
+    return result;
+  } catch (error) {
+    logger.error("Handler", "API_REQUEST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    } as ApiRequestResponsePayload;
+  }
+});
+
+messageRouter.registerHandler("API_START_NETWORK_MONITORING", async (payload: ApiStartNetworkMonitoringPayload) => {
+  logger.info("Handler", "API_START_NETWORK_MONITORING", payload);
+  try {
+    startNetworkMonitoring(payload.tabId);
+    logger.info("Handler", "API_START_NETWORK_MONITORING success");
+    return { success: true };
+  } catch (error) {
+    logger.error("Handler", "API_START_NETWORK_MONITORING error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("API_STOP_NETWORK_MONITORING", async (payload: ApiStopNetworkMonitoringPayload) => {
+  logger.info("Handler", "API_STOP_NETWORK_MONITORING", payload);
+  try {
+    const logs = stopNetworkMonitoring(payload.tabId);
+    logger.info("Handler", "API_STOP_NETWORK_MONITORING success", {
+      logsCount: logs.length,
+    });
+    return {
+      success: true,
+      logs,
+    } as ApiNetworkLogsResponsePayload;
+  } catch (error) {
+    logger.error("Handler", "API_STOP_NETWORK_MONITORING error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("API_GET_NETWORK_LOGS", async (payload: { tabId?: number }) => {
+  logger.info("Handler", "API_GET_NETWORK_LOGS", payload);
+  try {
+    const logs = getNetworkLogs(payload.tabId);
+    logger.info("Handler", "API_GET_NETWORK_LOGS success", {
+      logsCount: logs.length,
+    });
+    return {
+      success: true,
+      logs,
+    } as ApiNetworkLogsResponsePayload;
+  } catch (error) {
+    logger.error("Handler", "API_GET_NETWORK_LOGS error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("API_SET_AUTH_TOKEN", async (payload: ApiSetAuthTokenPayload) => {
+  logger.info("Handler", "API_SET_AUTH_TOKEN");
+  try {
+    await storeAuthToken(payload.token);
+    logger.info("Handler", "API_SET_AUTH_TOKEN success");
+    return { success: true } as ApiAuthResponsePayload;
+  } catch (error) {
+    logger.error("Handler", "API_SET_AUTH_TOKEN error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("API_CLEAR_AUTH_TOKEN", async () => {
+  logger.info("Handler", "API_CLEAR_AUTH_TOKEN");
+  try {
+    await removeAuthToken();
+    logger.info("Handler", "API_CLEAR_AUTH_TOKEN success");
+    return { success: true } as ApiAuthResponsePayload;
+  } catch (error) {
+    logger.error("Handler", "API_CLEAR_AUTH_TOKEN error", error);
     throw error;
   }
 });
@@ -2731,4 +4113,11 @@ async function performCleanup(): Promise<void> {
 }
 
 // Export for use in other modules
-export { lifecycle, messageRouter, logger, performanceMonitor, geminiFormatter, backgroundProcessor };
+export {
+  lifecycle,
+  messageRouter,
+  logger,
+  performanceMonitor,
+  geminiFormatter,
+  backgroundProcessor,
+};

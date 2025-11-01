@@ -46,7 +46,7 @@ export interface ProcessingResult {
 // Audio Waveform Types
 // ============================================================================
 
-export type WaveformZoomLevel = 'overview' | 'medium' | 'detailed';
+export type WaveformZoomLevel = "overview" | "medium" | "detailed";
 
 export interface AudioPeak {
   index: number;
@@ -114,7 +114,7 @@ export class MediaProcessor {
 
   async compressImage(
     img: HTMLImageElement,
-    options: CompressionOptions = {}
+    options: CompressionOptions = {},
   ): Promise<ProcessingResult> {
     const {
       maxWidth = 1920,
@@ -169,7 +169,7 @@ export class MediaProcessor {
 
   async compressImageFromData(
     dataUrl: string,
-    options: CompressionOptions = {}
+    options: CompressionOptions = {},
   ): Promise<ProcessingResult> {
     const img = await this.loadImageFromDataUrl(dataUrl);
     return this.compressImage(img, options);
@@ -177,7 +177,7 @@ export class MediaProcessor {
 
   async generateImageThumbnail(
     img: HTMLImageElement,
-    size: number = 200
+    size: number = 200,
   ): Promise<ProcessingResult> {
     return this.compressImage(img, {
       maxWidth: size,
@@ -191,9 +191,14 @@ export class MediaProcessor {
   async generateVideoThumbnail(
     video: HTMLVideoElement,
     timeInSeconds: number = 0,
-    options: CompressionOptions = {}
+    options: CompressionOptions = {},
   ): Promise<ProcessingResult> {
-    const { maxWidth = 640, maxHeight = 360, quality = 0.85, format = "jpeg" } = options;
+    const {
+      maxWidth = 640,
+      maxHeight = 360,
+      quality = 0.85,
+      format = "jpeg",
+    } = options;
 
     video.currentTime = timeInSeconds;
     await new Promise<void>((resolve) => {
@@ -251,7 +256,13 @@ export class MediaProcessor {
     }
 
     const format = this.isWebPSupported() ? "webp" : "jpeg";
-    return this.compressImage(img, { maxWidth, maxHeight, quality, format, maintainAspectRatio: true });
+    return this.compressImage(img, {
+      maxWidth,
+      maxHeight,
+      quality,
+      format,
+      maintainAspectRatio: true,
+    });
   }
 
   private isWebPSupported(): boolean {
@@ -263,7 +274,7 @@ export class MediaProcessor {
 
   async batchProcessImages(
     images: HTMLImageElement[],
-    options: CompressionOptions = {}
+    options: CompressionOptions = {},
   ): Promise<ProcessingResult[]> {
     const results: ProcessingResult[] = [];
     for (const img of images) {
@@ -279,9 +290,13 @@ export class MediaProcessor {
 
   async convertImageFormat(
     img: HTMLImageElement,
-    targetFormat: "jpeg" | "png" | "webp"
+    targetFormat: "jpeg" | "png" | "webp",
   ): Promise<ProcessingResult> {
-    return this.compressImage(img, { format: targetFormat, quality: 0.95, maintainAspectRatio: true });
+    return this.compressImage(img, {
+      format: targetFormat,
+      quality: 0.95,
+      maintainAspectRatio: true,
+    });
   }
 
   // -------- Audio Waveform Processing --------
@@ -295,9 +310,13 @@ export class MediaProcessor {
 
   async extractAudioWaveform(
     audio: HTMLAudioElement,
-    options: AudioWaveformExtractionOptions = {}
+    options: AudioWaveformExtractionOptions = {},
   ): Promise<StereoWaveformData> {
-    const { zoomLevel = 'overview', detectPeaks = true, peakThreshold = 0.5 } = options;
+    const {
+      zoomLevel = "overview",
+      detectPeaks = true,
+      peakThreshold = 0.5,
+    } = options;
 
     const audioContext = this.getAudioContext();
     const response = await fetch(audio.src);
@@ -309,17 +328,34 @@ export class MediaProcessor {
     const leftChannelData = audioBuffer.getChannelData(0);
     const leftWaveform = this.downsampleChannel(leftChannelData, sampleCount);
     const leftAnalysis = this.analyzeAmplitude(leftWaveform);
-    const leftPeaks = detectPeaks ? this.detectPeaks(leftWaveform, peakThreshold, audioBuffer.duration) : [];
-    const left: WaveformChannel = { data: leftWaveform, rms: leftAnalysis.rms, peakAmplitude: leftAnalysis.peakAmplitude, peaks: leftPeaks };
+    const leftPeaks = detectPeaks
+      ? this.detectPeaks(leftWaveform, peakThreshold, audioBuffer.duration)
+      : [];
+    const left: WaveformChannel = {
+      data: leftWaveform,
+      rms: leftAnalysis.rms,
+      peakAmplitude: leftAnalysis.peakAmplitude,
+      peaks: leftPeaks,
+    };
 
     let right: WaveformChannel | null = null;
     const isStereo = audioBuffer.numberOfChannels > 1;
     if (isStereo) {
       const rightChannelData = audioBuffer.getChannelData(1);
-      const rightWaveform = this.downsampleChannel(rightChannelData, sampleCount);
+      const rightWaveform = this.downsampleChannel(
+        rightChannelData,
+        sampleCount,
+      );
       const rightAnalysis = this.analyzeAmplitude(rightWaveform);
-      const rightPeaks = detectPeaks ? this.detectPeaks(rightWaveform, peakThreshold, audioBuffer.duration) : [];
-      right = { data: rightWaveform, rms: rightAnalysis.rms, peakAmplitude: rightAnalysis.peakAmplitude, peaks: rightPeaks };
+      const rightPeaks = detectPeaks
+        ? this.detectPeaks(rightWaveform, peakThreshold, audioBuffer.duration)
+        : [];
+      right = {
+        data: rightWaveform,
+        rms: rightAnalysis.rms,
+        peakAmplitude: rightAnalysis.peakAmplitude,
+        peaks: rightPeaks,
+      };
     }
 
     return {
@@ -335,7 +371,7 @@ export class MediaProcessor {
 
   async generateWaveformThumbnail(
     audio: HTMLAudioElement,
-    options: { width?: number; height?: number } = {}
+    options: { width?: number; height?: number } = {},
   ): Promise<WaveformThumbnail> {
     const { width = 200, height = 60 } = options;
 
@@ -353,16 +389,17 @@ export class MediaProcessor {
     audio: HTMLAudioElement,
     startTime: number,
     endTime: number,
-    options: AudioWaveformExtractionOptions = {}
+    options: AudioWaveformExtractionOptions = {},
   ): Promise<AudioSegment> {
     const audioContext = this.getAudioContext();
     const response = await fetch(audio.src);
     const arrayBuffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-    const duration = Math.min(endTime, audioBuffer.duration) - Math.max(startTime, 0);
+    const duration =
+      Math.min(endTime, audioBuffer.duration) - Math.max(startTime, 0);
     if (duration <= 0) {
-      throw new Error('Invalid time range for audio segment');
+      throw new Error("Invalid time range for audio segment");
     }
 
     const startSample = Math.floor(startTime * audioBuffer.sampleRate);
@@ -370,34 +407,60 @@ export class MediaProcessor {
 
     const leftChannelData = audioBuffer.getChannelData(0);
     const leftSegmentData = leftChannelData.slice(startSample, endSample);
-    const sampleCount = this.getSampleCountForZoomLevel(options.zoomLevel || 'overview');
+    const sampleCount = this.getSampleCountForZoomLevel(
+      options.zoomLevel || "overview",
+    );
     const leftWaveform = this.downsampleChannel(leftSegmentData, sampleCount);
     const leftAnalysis = this.analyzeAmplitude(leftWaveform);
-    const leftPeaks = options.detectPeaks ? this.detectPeaks(leftWaveform, options.peakThreshold || 0.5, duration) : [];
-    const left: WaveformChannel = { data: leftWaveform, rms: leftAnalysis.rms, peakAmplitude: leftAnalysis.peakAmplitude, peaks: leftPeaks };
+    const leftPeaks = options.detectPeaks
+      ? this.detectPeaks(leftWaveform, options.peakThreshold || 0.5, duration)
+      : [];
+    const left: WaveformChannel = {
+      data: leftWaveform,
+      rms: leftAnalysis.rms,
+      peakAmplitude: leftAnalysis.peakAmplitude,
+      peaks: leftPeaks,
+    };
 
     let right: WaveformChannel | null = null;
     const isStereo = audioBuffer.numberOfChannels > 1;
     if (isStereo) {
       const rightChannelData = audioBuffer.getChannelData(1);
       const rightSegmentData = rightChannelData.slice(startSample, endSample);
-      const rightWaveform = this.downsampleChannel(rightSegmentData, sampleCount);
+      const rightWaveform = this.downsampleChannel(
+        rightSegmentData,
+        sampleCount,
+      );
       const rightAnalysis = this.analyzeAmplitude(rightWaveform);
-      const rightPeaks = options.detectPeaks ? this.detectPeaks(rightWaveform, options.peakThreshold || 0.5, duration) : [];
-      right = { data: rightWaveform, rms: rightAnalysis.rms, peakAmplitude: rightAnalysis.peakAmplitude, peaks: rightPeaks };
+      const rightPeaks = options.detectPeaks
+        ? this.detectPeaks(
+            rightWaveform,
+            options.peakThreshold || 0.5,
+            duration,
+          )
+        : [];
+      right = {
+        data: rightWaveform,
+        rms: rightAnalysis.rms,
+        peakAmplitude: rightAnalysis.peakAmplitude,
+        peaks: rightPeaks,
+      };
     }
 
     const waveform: StereoWaveformData = {
       left,
       right,
       isStereo,
-      zoomLevel: options.zoomLevel || 'overview',
+      zoomLevel: options.zoomLevel || "overview",
       totalSamples: endSample - startSample,
       duration,
       sampleRate: audioBuffer.sampleRate,
     };
 
-    const analysis = this.calculateSegmentAnalysis(leftAnalysis, isStereo ? this.analyzeAmplitude(right!.data) : null);
+    const analysis = this.calculateSegmentAnalysis(
+      leftAnalysis,
+      isStereo ? this.analyzeAmplitude(right!.data) : null,
+    );
 
     return { startTime, endTime, duration, waveform, analysis };
   }
@@ -406,18 +469,21 @@ export class MediaProcessor {
 
   private getSampleCountForZoomLevel(zoomLevel: WaveformZoomLevel): number {
     switch (zoomLevel) {
-      case 'overview':
+      case "overview":
         return 500;
-      case 'medium':
+      case "medium":
         return 2000;
-      case 'detailed':
+      case "detailed":
         return 5000;
       default:
         return 500;
     }
   }
 
-  private downsampleChannel(channelData: Float32Array, targetSamples: number): number[] {
+  private downsampleChannel(
+    channelData: Float32Array,
+    targetSamples: number,
+  ): number[] {
     const blockSize = Math.floor(channelData.length / targetSamples);
     const waveform: number[] = [];
     for (let i = 0; i < targetSamples; i++) {
@@ -460,7 +526,11 @@ export class MediaProcessor {
     };
   }
 
-  private detectPeaks(waveform: number[], threshold: number, duration: number): AudioPeak[] {
+  private detectPeaks(
+    waveform: number[],
+    threshold: number,
+    duration: number,
+  ): AudioPeak[] {
     const peaks: AudioPeak[] = [];
     const windowSize = 5;
     for (let i = windowSize; i < waveform.length - windowSize; i++) {
@@ -478,21 +548,34 @@ export class MediaProcessor {
         if (current > sample) isLocalMin = false;
       }
       if (isLocalMax || isLocalMin) {
-        peaks.push({ index: i, time: (i / waveform.length) * duration, amplitude: current, isMaximum: isLocalMax });
+        peaks.push({
+          index: i,
+          time: (i / waveform.length) * duration,
+          amplitude: current,
+          isMaximum: isLocalMax,
+        });
       }
     }
     return peaks;
   }
 
-  private calculateSegmentAnalysis(leftAnalysis: AmplitudeAnalysis, rightAnalysis: AmplitudeAnalysis | null): AmplitudeAnalysis {
+  private calculateSegmentAnalysis(
+    leftAnalysis: AmplitudeAnalysis,
+    rightAnalysis: AmplitudeAnalysis | null,
+  ): AmplitudeAnalysis {
     if (!rightAnalysis) {
       return leftAnalysis;
     }
     return {
       rms: (leftAnalysis.rms + rightAnalysis.rms) / 2,
-      peakAmplitude: Math.max(leftAnalysis.peakAmplitude, rightAnalysis.peakAmplitude),
-      dynamicRange: (leftAnalysis.dynamicRange + rightAnalysis.dynamicRange) / 2,
-      averageAmplitude: (leftAnalysis.averageAmplitude + rightAnalysis.averageAmplitude) / 2,
+      peakAmplitude: Math.max(
+        leftAnalysis.peakAmplitude,
+        rightAnalysis.peakAmplitude,
+      ),
+      dynamicRange:
+        (leftAnalysis.dynamicRange + rightAnalysis.dynamicRange) / 2,
+      averageAmplitude:
+        (leftAnalysis.averageAmplitude + rightAnalysis.averageAmplitude) / 2,
       crestFactor: (leftAnalysis.crestFactor + rightAnalysis.crestFactor) / 2,
     };
   }
@@ -509,7 +592,7 @@ export class MediaProcessor {
   private canvasToBlob(
     canvas: HTMLCanvasElement,
     mimeType: string,
-    quality: number
+    quality: number,
   ): Promise<Blob> {
     return new Promise((resolve, reject) => {
       canvas.toBlob(
@@ -521,7 +604,7 @@ export class MediaProcessor {
           }
         },
         mimeType,
-        quality
+        quality,
       );
     });
   }

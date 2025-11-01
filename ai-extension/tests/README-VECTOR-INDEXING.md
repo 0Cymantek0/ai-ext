@@ -18,6 +18,7 @@ The vector indexing system consists of several components that work together:
 Comprehensive end-to-end regression test suite covering:
 
 #### Text Chunker Tests
+
 - Basic chunking of small and large text
 - Sentence and word boundary respect
 - Chunk overlap handling
@@ -25,6 +26,7 @@ Comprehensive end-to-end regression test suite covering:
 - Edge cases (empty text, very long words, etc.)
 
 #### Vector Indexing Queue Tests
+
 - **Create Flow**: New content indexing
 - **Update Flow**: Re-indexing modified content
 - **Delete Flow**: Removing embeddings
@@ -36,6 +38,7 @@ Comprehensive end-to-end regression test suite covering:
 - **Queue Statistics**: Tracking metrics
 
 #### End-to-End Integration Tests
+
 - Complete indexing workflow from text → chunks → embeddings
 - Full lifecycle: create → update → delete
 
@@ -44,6 +47,7 @@ Comprehensive end-to-end regression test suite covering:
 Reusable test utilities and fixtures:
 
 #### Mock Factories
+
 - `createMockContent()` - Generate test content
 - `createLargeContent()` - Generate large text for chunking tests
 - `createMockEmbedding()` - Generate mock embeddings
@@ -51,6 +55,7 @@ Reusable test utilities and fixtures:
 - `createSimilarEmbeddings()` - Generate similar vectors for similarity testing
 
 #### Test Utilities
+
 - `MockEmbeddingGenerator` - Controllable embedding generation with latency/failure simulation
 - `MockMessageRouter` - Track UI event emissions
 - `MockIndexedDBManager` - In-memory storage for testing
@@ -79,6 +84,7 @@ npm test -- vector-indexing-e2e.test.ts --coverage
 The test suite provides comprehensive coverage of:
 
 ### Edge Cases
+
 - ✅ Empty and whitespace-only text
 - ✅ Very large text requiring multiple chunks
 - ✅ Unicode characters and special symbols
@@ -88,12 +94,14 @@ The test suite provides comprehensive coverage of:
 - ✅ Network failures and retries
 
 ### Rate Limiting
+
 - ✅ Exponential backoff on 429 errors
 - ✅ Configurable retry delays
 - ✅ Max retry limits
 - ✅ Mixed success/failure scenarios
 
 ### UI Events
+
 - ✅ Pending status emission
 - ✅ Processing progress updates
 - ✅ Completion notifications
@@ -101,6 +109,7 @@ The test suite provides comprehensive coverage of:
 - ✅ Chunk progress tracking
 
 ### Performance
+
 - ✅ Batch size configuration
 - ✅ Processing interval tuning
 - ✅ Queue statistics tracking
@@ -121,7 +130,9 @@ Example:
 
 ```typescript
 it("should handle new edge case", async () => {
-  const content = createMockContent({ /* custom props */ });
+  const content = createMockContent({
+    /* custom props */
+  });
   await mockDB.saveContent(content);
 
   await queue.enqueueContent(content.id, IndexingOperation.CREATE);
@@ -135,6 +146,7 @@ it("should handle new edge case", async () => {
 ## Architecture Notes
 
 ### Text Chunking Strategy
+
 - Default chunk size: 1000 characters
 - Default overlap: 100 characters
 - Respects sentence boundaries when possible
@@ -142,6 +154,7 @@ it("should handle new edge case", async () => {
 - Maintains chunk metadata (indices, position)
 
 ### Queue Processing
+
 - Priority-based job ordering (high > normal > low)
 - Batch processing for efficiency
 - Automatic retry with exponential backoff
@@ -151,6 +164,7 @@ it("should handle new edge case", async () => {
 - UI notifications for all stages (pending, processing, completed, failed)
 
 ### Embedding Generation
+
 - Uses Gemini embedding model (text-embedding-004)
 - Handles rate limiting (429 errors)
 - Caches embeddings in IndexedDB
@@ -183,16 +197,19 @@ Potential areas for expansion:
 ### Common Issues
 
 **Tests timing out**
+
 - Increase timeout values for slower environments
 - Check mock latency settings
 - Verify async cleanup in `afterEach`
 
 **Flaky tests**
+
 - Ensure proper mock reset in `beforeEach`
 - Use `waitFor()` instead of fixed delays
 - Avoid race conditions with proper synchronization
 
 **Memory leaks**
+
 - Clear queues after tests
 - Reset mock state
 - Clean up event listeners

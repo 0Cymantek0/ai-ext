@@ -277,24 +277,34 @@ Yes/No - Why?
   },
 ];
 
-export function NoteTemplates({ onSelectTemplate, onClose, className }: NoteTemplatesProps) {
+export function NoteTemplates({
+  onSelectTemplate,
+  onClose,
+  className,
+}: NoteTemplatesProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
 
   const categories = React.useMemo(() => {
-    const cats = new Set(DEFAULT_TEMPLATES.map(t => t.category));
+    const cats = new Set(DEFAULT_TEMPLATES.map((t) => t.category));
     return ["all", ...Array.from(cats)];
   }, []);
 
   const filteredTemplates = React.useMemo(() => {
-    return DEFAULT_TEMPLATES.filter(template => {
-      const matchesSearch = searchQuery === "" || 
+    return DEFAULT_TEMPLATES.filter((template) => {
+      const matchesSearch =
+        searchQuery === "" ||
         template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        template.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const matchesCategory = selectedCategory === "all" || template.category === selectedCategory;
-      
+        template.description
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        template.tags.some((tag) =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase()),
+        );
+
+      const matchesCategory =
+        selectedCategory === "all" || template.category === selectedCategory;
+
       return matchesSearch && matchesCategory;
     });
   }, [searchQuery, selectedCategory]);
@@ -305,8 +315,18 @@ export function NoteTemplates({ onSelectTemplate, onClose, className }: NoteTemp
       <div className="flex items-center justify-between p-4 border-b">
         <h2 className="text-lg font-semibold">Create Note</h2>
         <Button variant="ghost" size="sm" onClick={onClose}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </Button>
       </div>
@@ -318,16 +338,18 @@ export function NoteTemplates({ onSelectTemplate, onClose, className }: NoteTemp
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        
+
         <div className="flex flex-wrap gap-2">
-          {categories.map(category => (
+          {categories.map((category) => (
             <Button
               key={category}
               variant={selectedCategory === category ? "default" : "outline"}
               size="sm"
               onClick={() => setSelectedCategory(category)}
             >
-              {category === "all" ? "All" : category.charAt(0).toUpperCase() + category.slice(1)}
+              {category === "all"
+                ? "All"
+                : category.charAt(0).toUpperCase() + category.slice(1)}
             </Button>
           ))}
         </div>
@@ -336,7 +358,7 @@ export function NoteTemplates({ onSelectTemplate, onClose, className }: NoteTemp
       {/* Templates Grid */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredTemplates.map(template => (
+          {filteredTemplates.map((template) => (
             <div
               key={template.id}
               className="border rounded-lg p-4 hover:bg-accent/50 cursor-pointer transition-colors"
@@ -345,12 +367,14 @@ export function NoteTemplates({ onSelectTemplate, onClose, className }: NoteTemp
               <div className="flex items-start gap-3">
                 <div className="text-2xl">{template.icon}</div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm mb-1">{template.name}</h3>
+                  <h3 className="font-semibold text-sm mb-1">
+                    {template.name}
+                  </h3>
                   <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
                     {template.description}
                   </p>
                   <div className="flex flex-wrap gap-1">
-                    {template.tags.slice(0, 3).map(tag => (
+                    {template.tags.slice(0, 3).map((tag) => (
                       <span
                         key={tag}
                         className="px-2 py-0.5 bg-accent rounded-full text-xs"
@@ -372,7 +396,9 @@ export function NoteTemplates({ onSelectTemplate, onClose, className }: NoteTemp
 
         {filteredTemplates.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-muted-foreground">No templates found matching your criteria.</p>
+            <p className="text-muted-foreground">
+              No templates found matching your criteria.
+            </p>
           </div>
         )}
       </div>

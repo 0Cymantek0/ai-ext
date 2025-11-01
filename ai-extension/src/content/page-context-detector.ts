@@ -5,17 +5,17 @@
  */
 
 export enum PageContextType {
-  EMAIL = 'email',
-  SOCIAL_MEDIA = 'social_media',
-  DOCUMENTATION = 'documentation',
-  BLOG = 'blog',
-  FORUM = 'forum',
-  ECOMMERCE = 'ecommerce',
-  NEWS = 'news',
-  PRODUCTIVITY = 'productivity',
-  MESSAGING = 'messaging',
-  CODE_REPOSITORY = 'code_repository',
-  UNKNOWN = 'unknown'
+  EMAIL = "email",
+  SOCIAL_MEDIA = "social_media",
+  DOCUMENTATION = "documentation",
+  BLOG = "blog",
+  FORUM = "forum",
+  ECOMMERCE = "ecommerce",
+  NEWS = "news",
+  PRODUCTIVITY = "productivity",
+  MESSAGING = "messaging",
+  CODE_REPOSITORY = "code_repository",
+  UNKNOWN = "unknown",
 }
 
 export interface PageContext {
@@ -45,7 +45,7 @@ export class PageContextDetector {
       /mail\.yahoo\.com/i,
       /mail\.google\.com/i,
       /protonmail\.com/i,
-      /mail\./i
+      /mail\./i,
     ],
     [PageContextType.SOCIAL_MEDIA]: [
       /twitter\.com|x\.com/i,
@@ -57,7 +57,7 @@ export class PageContextDetector {
       /pinterest\.com/i,
       /snapchat\.com/i,
       /mastodon\./i,
-      /threads\.net/i
+      /threads\.net/i,
     ],
     [PageContextType.DOCUMENTATION]: [
       /docs\./i,
@@ -67,7 +67,7 @@ export class PageContextDetector {
       /readthedocs\.io/i,
       /gitbook\.io/i,
       /confluence\./i,
-      /notion\.so/i
+      /notion\.so/i,
     ],
     [PageContextType.BLOG]: [
       /medium\.com/i,
@@ -76,7 +76,7 @@ export class PageContextDetector {
       /blogger\.com/i,
       /tumblr\.com/i,
       /dev\.to/i,
-      /hashnode\./i
+      /hashnode\./i,
     ],
     [PageContextType.FORUM]: [
       /stackoverflow\.com/i,
@@ -84,7 +84,7 @@ export class PageContextDetector {
       /discourse\./i,
       /forum\./i,
       /community\./i,
-      /discuss\./i
+      /discuss\./i,
     ],
     [PageContextType.ECOMMERCE]: [
       /amazon\./i,
@@ -93,7 +93,7 @@ export class PageContextDetector {
       /shopify\.com/i,
       /shop\./i,
       /store\./i,
-      /cart\./i
+      /cart\./i,
     ],
     [PageContextType.NEWS]: [
       /news\./i,
@@ -102,7 +102,7 @@ export class PageContextDetector {
       /nytimes\.com/i,
       /reuters\.com/i,
       /theguardian\.com/i,
-      /washingtonpost\.com/i
+      /washingtonpost\.com/i,
     ],
     [PageContextType.PRODUCTIVITY]: [
       /notion\.so/i,
@@ -112,7 +112,7 @@ export class PageContextDetector {
       /clickup\.com/i,
       /airtable\.com/i,
       /docs\.google\.com/i,
-      /sheets\.google\.com/i
+      /sheets\.google\.com/i,
     ],
     [PageContextType.MESSAGING]: [
       /slack\.com/i,
@@ -120,16 +120,16 @@ export class PageContextDetector {
       /telegram\./i,
       /whatsapp\.com/i,
       /messenger\.com/i,
-      /chat\./i
+      /chat\./i,
     ],
     [PageContextType.CODE_REPOSITORY]: [
       /github\.com/i,
       /gitlab\.com/i,
       /bitbucket\.org/i,
       /codeberg\.org/i,
-      /sourceforge\.net/i
+      /sourceforge\.net/i,
     ],
-    [PageContextType.UNKNOWN]: []
+    [PageContextType.UNKNOWN]: [],
   };
 
   /**
@@ -158,7 +158,7 @@ export class PageContextDetector {
       url,
       title,
       keywords,
-      metadata
+      metadata,
     };
 
     // Only add description if it exists
@@ -194,24 +194,26 @@ export class PageContextDetector {
    */
   private static detectByPageStructure(): PageContextType {
     // Check for blog indicators
-    if (this.hasElement('article') || this.hasElement('[role="article"]')) {
-      if (this.hasElement('.post, .blog-post, article.entry')) {
+    if (this.hasElement("article") || this.hasElement('[role="article"]')) {
+      if (this.hasElement(".post, .blog-post, article.entry")) {
         return PageContextType.BLOG;
       }
     }
 
     // Check for documentation indicators
-    if (this.hasElement('.documentation, .docs, .api-docs, nav.sidebar')) {
+    if (this.hasElement(".documentation, .docs, .api-docs, nav.sidebar")) {
       return PageContextType.DOCUMENTATION;
     }
 
     // Check for forum indicators
-    if (this.hasElement('.thread, .post-list, .forum-post, .discussion')) {
+    if (this.hasElement(".thread, .post-list, .forum-post, .discussion")) {
       return PageContextType.FORUM;
     }
 
     // Check for e-commerce indicators
-    if (this.hasElement('.product, .cart, .checkout, .price, [data-product-id]')) {
+    if (
+      this.hasElement(".product, .cart, .checkout, .price, [data-product-id]")
+    ) {
       return PageContextType.ECOMMERCE;
     }
 
@@ -228,27 +230,29 @@ export class PageContextDetector {
   /**
    * Extract metadata from page
    */
-  private static extractMetadata(): PageContext['metadata'] {
-    const metadata: PageContext['metadata'] = {};
+  private static extractMetadata(): PageContext["metadata"] {
+    const metadata: PageContext["metadata"] = {};
 
     // Site name
-    const siteName = this.getMetaContent('og:site_name') || 
-                     this.getMetaContent('application-name');
+    const siteName =
+      this.getMetaContent("og:site_name") ||
+      this.getMetaContent("application-name");
     if (siteName) metadata.siteName = siteName;
 
     // Author
-    const author = this.getMetaContent('author') || 
-                   this.getMetaContent('article:author');
+    const author =
+      this.getMetaContent("author") || this.getMetaContent("article:author");
     if (author) metadata.author = author;
 
     // Published date
-    const publishedDate = this.getMetaContent('article:published_time') ||
-                          this.getMetaContent('datePublished');
+    const publishedDate =
+      this.getMetaContent("article:published_time") ||
+      this.getMetaContent("datePublished");
     if (publishedDate) metadata.publishedDate = publishedDate;
 
     // Category
-    const category = this.getMetaContent('article:section') ||
-                     this.getMetaContent('category');
+    const category =
+      this.getMetaContent("article:section") || this.getMetaContent("category");
     if (category) metadata.category = category;
 
     return metadata;
@@ -258,25 +262,30 @@ export class PageContextDetector {
    * Extract description from page
    */
   private static extractDescription(): string | undefined {
-    return this.getMetaContent('description') ||
-           this.getMetaContent('og:description') ||
-           this.getMetaContent('twitter:description');
+    return (
+      this.getMetaContent("description") ||
+      this.getMetaContent("og:description") ||
+      this.getMetaContent("twitter:description")
+    );
   }
 
   /**
    * Extract keywords from page
    */
   private static extractKeywords(): string[] {
-    const keywordsStr = this.getMetaContent('keywords');
+    const keywordsStr = this.getMetaContent("keywords");
     if (keywordsStr) {
-      return keywordsStr.split(',').map(k => k.trim()).filter(k => k.length > 0);
+      return keywordsStr
+        .split(",")
+        .map((k) => k.trim())
+        .filter((k) => k.length > 0);
     }
 
     // Fallback: extract from Open Graph tags
     const tags: string[] = [];
     const ogTags = document.querySelectorAll('meta[property^="article:tag"]');
-    ogTags.forEach(tag => {
-      const content = tag.getAttribute('content');
+    ogTags.forEach((tag) => {
+      const content = tag.getAttribute("content");
       if (content) tags.push(content);
     });
 
@@ -290,13 +299,13 @@ export class PageContextDetector {
     // Try name attribute
     let meta = document.querySelector(`meta[name="${name}"]`);
     if (meta) {
-      return meta.getAttribute('content') || undefined;
+      return meta.getAttribute("content") || undefined;
     }
 
     // Try property attribute (for Open Graph)
     meta = document.querySelector(`meta[property="${name}"]`);
     if (meta) {
-      return meta.getAttribute('content') || undefined;
+      return meta.getAttribute("content") || undefined;
     }
 
     return undefined;
@@ -311,65 +320,65 @@ export class PageContextDetector {
     switch (context.type) {
       case PageContextType.EMAIL:
         suggestions.push(
-          'Consider professional tone for business emails',
-          'Keep it concise and clear',
-          'Use empathetic language for sensitive topics'
+          "Consider professional tone for business emails",
+          "Keep it concise and clear",
+          "Use empathetic language for sensitive topics",
         );
         break;
 
       case PageContextType.SOCIAL_MEDIA:
         suggestions.push(
-          'Engage your audience with compelling language',
-          'Consider adding humor or personality',
-          'Keep it brief and impactful'
+          "Engage your audience with compelling language",
+          "Consider adding humor or personality",
+          "Keep it brief and impactful",
         );
         break;
 
       case PageContextType.DOCUMENTATION:
         suggestions.push(
-          'Use clear, technical language',
-          'Be precise and accurate',
-          'Include relevant examples'
+          "Use clear, technical language",
+          "Be precise and accurate",
+          "Include relevant examples",
         );
         break;
 
       case PageContextType.BLOG:
         suggestions.push(
-          'Engage readers with storytelling',
-          'Use conversational tone',
-          'Make it informative and interesting'
+          "Engage readers with storytelling",
+          "Use conversational tone",
+          "Make it informative and interesting",
         );
         break;
 
       case PageContextType.FORUM:
         suggestions.push(
-          'Be helpful and respectful',
-          'Provide clear explanations',
-          'Stay on topic'
+          "Be helpful and respectful",
+          "Provide clear explanations",
+          "Stay on topic",
         );
         break;
 
       case PageContextType.ECOMMERCE:
         suggestions.push(
-          'Be persuasive but honest',
-          'Highlight key benefits',
-          'Address customer concerns'
+          "Be persuasive but honest",
+          "Highlight key benefits",
+          "Address customer concerns",
         );
         break;
 
       case PageContextType.MESSAGING:
         suggestions.push(
-          'Keep it casual and friendly',
-          'Be clear and direct',
-          'Match the conversation tone'
+          "Keep it casual and friendly",
+          "Be clear and direct",
+          "Match the conversation tone",
         );
         break;
 
       default:
         suggestions.push(
-          'Improve clarity and readability',
-          'Enhance tone and style',
-          'Fix grammar and spelling'
+          "Improve clarity and readability",
+          "Enhance tone and style",
+          "Fix grammar and spelling",
         );
     }
 

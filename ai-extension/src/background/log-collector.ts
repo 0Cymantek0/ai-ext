@@ -85,7 +85,8 @@ export class LogCollector {
 
     // Enforce max logs limit
     if (this.currentSession.logs.length > MAX_LOGS_PER_SESSION) {
-      this.currentSession.logs = this.currentSession.logs.slice(-MAX_LOGS_PER_SESSION);
+      this.currentSession.logs =
+        this.currentSession.logs.slice(-MAX_LOGS_PER_SESSION);
     }
 
     await this.persistCurrentSession();
@@ -113,7 +114,10 @@ export class LogCollector {
   /**
    * Get current session info
    */
-  getCurrentSessionInfo(): Pick<StoredLogSession, "sessionId" | "startTime" | "lastUpdate"> | null {
+  getCurrentSessionInfo(): Pick<
+    StoredLogSession,
+    "sessionId" | "startTime" | "lastUpdate"
+  > | null {
     if (!this.currentSession) return null;
 
     return {
@@ -129,7 +133,8 @@ export class LogCollector {
   async getSession(sessionId: string): Promise<StoredLogSession | null> {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEY);
-      const sessions: Record<string, StoredLogSession> = result[STORAGE_KEY] || {};
+      const sessions: Record<string, StoredLogSession> =
+        result[STORAGE_KEY] || {};
       return sessions[sessionId] ?? null;
     } catch (error) {
       console.error("[LogCollector] Failed to get session:", error);
@@ -143,7 +148,8 @@ export class LogCollector {
   async listSessions(): Promise<string[]> {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEY);
-      const sessions: Record<string, StoredLogSession> = result[STORAGE_KEY] || {};
+      const sessions: Record<string, StoredLogSession> =
+        result[STORAGE_KEY] || {};
       return Object.keys(sessions);
     } catch (error) {
       console.error("[LogCollector] Failed to list sessions:", error);
@@ -157,7 +163,8 @@ export class LogCollector {
   async clearOldSessions(maxAgeMs: number = 86400000): Promise<number> {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEY);
-      const sessions: Record<string, StoredLogSession> = result[STORAGE_KEY] || {};
+      const sessions: Record<string, StoredLogSession> =
+        result[STORAGE_KEY] || {};
       const now = Date.now();
       let cleared = 0;
 
@@ -182,7 +189,8 @@ export class LogCollector {
   private async saveSession(session: StoredLogSession): Promise<void> {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEY);
-      const sessions: Record<string, StoredLogSession> = result[STORAGE_KEY] || {};
+      const sessions: Record<string, StoredLogSession> =
+        result[STORAGE_KEY] || {};
       sessions[session.sessionId] = session;
       await chrome.storage.local.set({ [STORAGE_KEY]: sessions });
     } catch (error) {
@@ -210,7 +218,9 @@ export class LogCollector {
    */
   private async loadCurrentSession(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get("debug_current_log_session");
+      const result = await chrome.storage.local.get(
+        "debug_current_log_session",
+      );
       if (result.debug_current_log_session) {
         this.currentSession = result.debug_current_log_session;
         this.startSessionTimeout();

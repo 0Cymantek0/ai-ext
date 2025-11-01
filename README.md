@@ -29,6 +29,7 @@ AI Pocket is a Chrome extension that helps you capture, organize, and interact w
 - **Cloud AI**: Google Generative AI SDK (Gemini Flash/Pro)
 - **Embeddings**: Vector search with IndexedDB persistence
 - **Local ML**: TensorFlow.js + Universal Sentence Encoder (fallback)
+- **AI Workflows**: LangChain.js + LangGraph.js for building complex AI workflows
 
 ### Storage & Performance
 - **Primary Storage**: IndexedDB (via `idb` wrapper)
@@ -248,6 +249,21 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 - Large content (> 100 MB) may hit storage quotas
 
 See [GitHub Issues](https://github.com/0Cymantek0/ai-extension/issues) for known bugs and feature requests.
+
+## Recent Updates
+
+### Browser Agent State Manager (Phase 2)
+- **LangGraph-Inspired State Manager**: Implemented a robust workflow orchestration system for browser automation:
+  - Multi-step workflow execution with state machine (START → NAVIGATE → EXTRACT_DOM → INTERACT → VALIDATE → END)
+  - Checkpoint persistence using IndexedDB (version 4) for workflow recovery after service worker restarts
+  - Pause/resume/cancel APIs with user input merging
+  - Retry logic with exponential backoff (max 3 retries, configurable)
+  - Error tracking and recovery with human intervention support
+  - Concurrent workflow isolation via in-memory registry
+  - Message endpoints for UI integration (`BROWSER_AGENT_START_WORKFLOW`, `PAUSE`, `RESUME`, `CANCEL`, `STATUS`, `LIST_WORKFLOWS`)
+  - Comprehensive unit and integration tests
+  
+  See `docs/browser-agent-state-manager.md` for detailed documentation.
 
 ## Roadmap
 

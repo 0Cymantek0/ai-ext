@@ -32,15 +32,25 @@ export function PocketAnalytics({ pockets, onClose }: PocketAnalyticsProps) {
         className={cn(
           "w-full max-w-4xl max-h-[90vh] m-4 p-6 rounded-2xl shadow-2xl border overflow-y-auto",
           "bg-[rgba(17,25,40,0.75)] border-white/10 backdrop-blur-xl",
-          "text-white"
+          "text-white",
         )}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Pocket Analytics</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </Button>
         </div>
@@ -51,8 +61,18 @@ export function PocketAnalytics({ pockets, onClose }: PocketAnalyticsProps) {
             title="Total Pockets"
             value={analytics.totalPockets}
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
               </svg>
             }
           />
@@ -62,8 +82,18 @@ export function PocketAnalytics({ pockets, onClose }: PocketAnalyticsProps) {
             title="Total Content Items"
             value={analytics.totalContent}
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             }
           />
@@ -73,8 +103,18 @@ export function PocketAnalytics({ pockets, onClose }: PocketAnalyticsProps) {
             title="Avg. Items per Pocket"
             value={analytics.averageContentPerPocket.toFixed(1)}
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
               </svg>
             }
           />
@@ -91,7 +131,9 @@ export function PocketAnalytics({ pockets, onClose }: PocketAnalyticsProps) {
                   className="px-4 py-2 rounded-lg bg-accent/50 border border-white/10 flex items-center gap-2"
                 >
                   <span className="font-medium">{tag}</span>
-                  <span className="text-sm text-muted-foreground">({count})</span>
+                  <span className="text-sm text-muted-foreground">
+                    ({count})
+                  </span>
                 </div>
               ))}
             </div>
@@ -109,7 +151,9 @@ export function PocketAnalytics({ pockets, onClose }: PocketAnalyticsProps) {
                   className="px-4 py-2 rounded-lg bg-accent/50 border border-white/10 flex items-center gap-2"
                 >
                   <span className="font-medium">{category}</span>
-                  <span className="text-sm text-muted-foreground">({count})</span>
+                  <span className="text-sm text-muted-foreground">
+                    ({count})
+                  </span>
                 </div>
               ))}
             </div>
@@ -147,7 +191,9 @@ export function PocketAnalytics({ pockets, onClose }: PocketAnalyticsProps) {
         {/* Recent Activity */}
         {analytics.recentActivity.length > 0 && (
           <div>
-            <h3 className="text-lg font-semibold mb-3">Recent Activity (Last 7 Days)</h3>
+            <h3 className="text-lg font-semibold mb-3">
+              Recent Activity (Last 7 Days)
+            </h3>
             <div className="space-y-2">
               {analytics.recentActivity.map(({ date, count }) => (
                 <div
@@ -166,7 +212,15 @@ export function PocketAnalytics({ pockets, onClose }: PocketAnalyticsProps) {
   );
 }
 
-function StatCard({ title, value, icon }: { title: string; value: string | number; icon: React.ReactNode }) {
+function StatCard({
+  title,
+  value,
+  icon,
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+}) {
   return (
     <div className="p-4 rounded-lg bg-accent/30 border border-white/10">
       <div className="flex items-center justify-between mb-2">
@@ -202,7 +256,8 @@ function HighlightCard({
 function calculateAnalytics(pockets: PocketData[]): AnalyticsData {
   const totalPockets = pockets.length;
   const totalContent = pockets.reduce((sum, p) => sum + p.contentIds.length, 0);
-  const averageContentPerPocket = totalPockets > 0 ? totalContent / totalPockets : 0;
+  const averageContentPerPocket =
+    totalPockets > 0 ? totalContent / totalPockets : 0;
 
   // Calculate most used tags
   const tagCounts = new Map<string, number>();
@@ -228,9 +283,12 @@ function calculateAnalytics(pockets: PocketData[]): AnalyticsData {
     .slice(0, 5);
 
   // Find largest pocket
-  const largestPocket = pockets.length > 0
-    ? pockets.reduce((max, p) => (p.contentIds.length > max.contentIds.length ? p : max))
-    : null;
+  const largestPocket =
+    pockets.length > 0
+      ? pockets.reduce((max, p) =>
+          p.contentIds.length > max.contentIds.length ? p : max,
+        )
+      : null;
 
   // Find oldest and newest pockets
   const sortedByDate = [...pockets].sort((a, b) => a.createdAt - b.createdAt);
@@ -265,10 +323,16 @@ function calculateAnalytics(pockets: PocketData[]): AnalyticsData {
       ? { name: largestPocket.name, count: largestPocket.contentIds.length }
       : null,
     oldestPocket: oldestPocket
-      ? { name: oldestPocket.name, date: new Date(oldestPocket.createdAt).toLocaleDateString() }
+      ? {
+          name: oldestPocket.name,
+          date: new Date(oldestPocket.createdAt).toLocaleDateString(),
+        }
       : null,
     newestPocket: newestPocket
-      ? { name: newestPocket.name, date: new Date(newestPocket.createdAt).toLocaleDateString() }
+      ? {
+          name: newestPocket.name,
+          date: new Date(newestPocket.createdAt).toLocaleDateString(),
+        }
       : null,
   };
 }

@@ -13,7 +13,9 @@ vi.mock("./monitoring.js", () => ({
 }));
 
 vi.mock("./indexeddb-manager.js", async () => {
-  const actual = await vi.importActual<typeof import("./indexeddb-manager.js")>("./indexeddb-manager.js");
+  const actual = await vi.importActual<typeof import("./indexeddb-manager.js")>(
+    "./indexeddb-manager.js",
+  );
   return {
     ...actual,
     indexedDBManager: {

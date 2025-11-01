@@ -1,7 +1,7 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useIndexingStatus } from '../useIndexingStatus';
-import type { IndexingProgress } from '../useIndexingStatus';
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { useIndexingStatus } from "../useIndexingStatus";
+import type { IndexingProgress } from "../useIndexingStatus";
 
 // Mock chrome runtime API
 const mockChrome = {
@@ -16,10 +16,10 @@ const mockChrome = {
 
 (global as any).chrome = mockChrome;
 (global as any).crypto = {
-  randomUUID: () => 'test-uuid',
+  randomUUID: () => "test-uuid",
 };
 
-describe('useIndexingStatus', () => {
+describe("useIndexingStatus", () => {
   let messageListener: ((message: any) => void) | null = null;
 
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe('useIndexingStatus', () => {
     messageListener = null;
   });
 
-  it('initializes with empty state', () => {
+  it("initializes with empty state", () => {
     const { result } = renderHook(() => useIndexingStatus());
 
     expect(result.current.status.isAnyIndexing).toBe(false);
@@ -41,133 +41,133 @@ describe('useIndexingStatus', () => {
     expect(result.current.status.failedContentIds.size).toBe(0);
   });
 
-  it('tracks indexing progress', async () => {
+  it("tracks indexing progress", async () => {
     const { result } = renderHook(() => useIndexingStatus());
 
     const progress: IndexingProgress = {
-      jobId: 'job-1',
-      contentId: 'content-1',
-      operation: 'create',
+      jobId: "job-1",
+      contentId: "content-1",
+      operation: "create",
       chunksTotal: 10,
       chunksProcessed: 5,
-      status: 'processing',
+      status: "processing",
     };
 
     act(() => {
       messageListener?.({
-        kind: 'VECTOR_INDEXING_PROGRESS',
+        kind: "VECTOR_INDEXING_PROGRESS",
         payload: progress,
       });
     });
 
     await waitFor(() => {
       expect(result.current.status.isAnyIndexing).toBe(true);
-      expect(result.current.isContentIndexing('content-1')).toBe(true);
+      expect(result.current.isContentIndexing("content-1")).toBe(true);
     });
   });
 
-  it('removes content from indexing set when completed', async () => {
+  it("removes content from indexing set when completed", async () => {
     const { result } = renderHook(() => useIndexingStatus());
 
     act(() => {
       messageListener?.({
-        kind: 'VECTOR_INDEXING_PROGRESS',
+        kind: "VECTOR_INDEXING_PROGRESS",
         payload: {
-          jobId: 'job-1',
-          contentId: 'content-1',
-          operation: 'create',
+          jobId: "job-1",
+          contentId: "content-1",
+          operation: "create",
           chunksTotal: 10,
           chunksProcessed: 5,
-          status: 'processing',
+          status: "processing",
         },
       });
     });
 
     await waitFor(() => {
-      expect(result.current.isContentIndexing('content-1')).toBe(true);
+      expect(result.current.isContentIndexing("content-1")).toBe(true);
     });
 
     act(() => {
       messageListener?.({
-        kind: 'VECTOR_INDEXING_PROGRESS',
+        kind: "VECTOR_INDEXING_PROGRESS",
         payload: {
-          jobId: 'job-1',
-          contentId: 'content-1',
-          operation: 'create',
+          jobId: "job-1",
+          contentId: "content-1",
+          operation: "create",
           chunksTotal: 10,
           chunksProcessed: 10,
-          status: 'completed',
+          status: "completed",
         },
       });
     });
 
     await waitFor(() => {
-      expect(result.current.isContentIndexing('content-1')).toBe(false);
+      expect(result.current.isContentIndexing("content-1")).toBe(false);
       expect(result.current.status.isAnyIndexing).toBe(false);
     });
   });
 
-  it('tracks failed content', async () => {
+  it("tracks failed content", async () => {
     const { result } = renderHook(() => useIndexingStatus());
 
     act(() => {
       messageListener?.({
-        kind: 'VECTOR_INDEXING_PROGRESS',
+        kind: "VECTOR_INDEXING_PROGRESS",
         payload: {
-          jobId: 'job-1',
-          contentId: 'content-1',
-          operation: 'create',
+          jobId: "job-1",
+          contentId: "content-1",
+          operation: "create",
           chunksTotal: 10,
           chunksProcessed: 5,
-          status: 'failed',
-          error: 'Rate limit exceeded',
+          status: "failed",
+          error: "Rate limit exceeded",
         },
       });
     });
 
     await waitFor(() => {
-      expect(result.current.isContentFailed('content-1')).toBe(true);
-      expect(result.current.isContentIndexing('content-1')).toBe(false);
+      expect(result.current.isContentFailed("content-1")).toBe(true);
+      expect(result.current.isContentIndexing("content-1")).toBe(false);
     });
   });
 
-  it('calculates pocket indexing status correctly', async () => {
+  it("calculates pocket indexing status correctly", async () => {
     const { result } = renderHook(() => useIndexingStatus());
 
     act(() => {
       messageListener?.({
-        kind: 'VECTOR_INDEXING_PROGRESS',
+        kind: "VECTOR_INDEXING_PROGRESS",
         payload: {
-          jobId: 'job-1',
-          contentId: 'content-1',
-          operation: 'create',
+          jobId: "job-1",
+          contentId: "content-1",
+          operation: "create",
           chunksTotal: 10,
           chunksProcessed: 5,
-          status: 'processing',
+          status: "processing",
         },
       });
     });
 
     act(() => {
       messageListener?.({
-        type: 'VECTOR_INDEXING_PROGRESS',
+        type: "VECTOR_INDEXING_PROGRESS",
         payload: {
-          jobId: 'job-2',
-          contentId: 'content-2',
-          operation: 'create',
+          jobId: "job-2",
+          contentId: "content-2",
+          operation: "create",
           chunksTotal: 10,
           chunksProcessed: 5,
-          status: 'failed',
-          error: 'Error',
+          status: "failed",
+          error: "Error",
         },
       });
     });
 
     await waitFor(() => {
       const pocketStatus = result.current.getPocketIndexingStatus([
-        'content-1',
-        'content-2',
-        'content-3',
+        "content-1",
+        "content-2",
+        "content-3",
       ]);
 
       expect(pocketStatus.totalContent).toBe(3);
@@ -179,17 +179,17 @@ describe('useIndexingStatus', () => {
     });
   });
 
-  it('calls retry for failed indexing', async () => {
+  it("calls retry for failed indexing", async () => {
     const { result } = renderHook(() => useIndexingStatus());
 
     await act(async () => {
-      await result.current.retryFailedIndexing('content-1');
+      await result.current.retryFailedIndexing("content-1");
     });
 
     expect(mockChrome.runtime.sendMessage).toHaveBeenCalledWith({
-      kind: 'VECTOR_INDEXING_RETRY',
-      requestId: 'test-uuid',
-      payload: { contentId: 'content-1' },
+      kind: "VECTOR_INDEXING_RETRY",
+      requestId: "test-uuid",
+      payload: { contentId: "content-1" },
     });
   });
 });
