@@ -46,6 +46,37 @@ export const ReportComponents = {
         pocketContainer.style.cssText = 'display: flex; align-items: center; gap: 16px;';
         pocketContainer.appendChild(this.pocketBadge.render(data.pocketName));
         
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.id = 'editReportBtn';
+        editBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="#292929" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="#292929" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        editBtn.title = 'Edit Report';
+        editBtn.style.cssText = `
+          width: 48px;
+          height: 48px;
+          background: rgba(255,255,255,0.95);
+          border: none;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        editBtn.onmouseenter = () => {
+          editBtn.style.background = 'rgba(255,255,255,1)';
+          editBtn.style.transform = 'scale(1.05)';
+        };
+        editBtn.onmouseleave = () => {
+          editBtn.style.background = 'rgba(255,255,255,0.95)';
+          editBtn.style.transform = 'scale(1)';
+        };
+        editBtn.onclick = () => {
+          window.toggleEditMode();
+        };
+        pocketContainer.appendChild(editBtn);
+        
         // Download button
         const downloadBtn = document.createElement('button');
         downloadBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_1_19358)"><path d="M7 12L12 17M12 17L17 12M12 17L12 4" stroke="#292929" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 20H18" stroke="#292929" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_1_19358"><rect width="24" height="24" fill="white"/></clipPath></defs></svg>`;
@@ -1149,3 +1180,241 @@ export const ReportComponents = {
     }
   }
 };
+
+
+// ============ EDIT MODE FUNCTIONALITY ============
+window.isEditMode = false;
+window.originalContent = null;
+
+window.toggleEditMode = function() {
+  const isEditMode = window.isEditMode;
+  window.isEditMode = !isEditMode;
+  
+  if (!isEditMode) {
+    // Entering edit mode
+    enterEditMode();
+  } else {
+    // Exiting edit mode (save)
+    exitEditMode(true);
+  }
+};
+
+function enterEditMode() {
+  // Store original content
+  const mainContent = document.getElementById('reportMainContent');
+  if (mainContent) {
+    window.originalContent = mainContent.innerHTML;
+  }
+  
+  // Create and show toolbar
+  createEditToolbar();
+  
+  // Make content editable
+  makeContentEditable(true);
+  
+  // Update edit button
+  const editBtn = document.getElementById('editReportBtn');
+  if (editBtn) {
+    editBtn.style.background = 'rgba(103, 126, 234, 0.95)';
+    editBtn.querySelector('svg path').setAttribute('stroke', '#ffffff');
+  }
+}
+
+function exitEditMode(save) {
+  if (!save && window.originalContent) {
+    // Restore original content
+    const mainContent = document.getElementById('reportMainContent');
+    if (mainContent) {
+      mainContent.innerHTML = window.originalContent;
+    }
+  }
+  
+  // Remove toolbar
+  const toolbar = document.getElementById('editToolbar');
+  if (toolbar) {
+    toolbar.remove();
+  }
+  
+  // Make content non-editable
+  makeContentEditable(false);
+  
+  // Reset edit button
+  const editBtn = document.getElementById('editReportBtn');
+  if (editBtn) {
+    editBtn.style.background = 'rgba(255,255,255,0.95)';
+    editBtn.querySelector('svg path').setAttribute('stroke', '#292929');
+  }
+  
+  window.isEditMode = false;
+}
+
+function createEditToolbar() {
+  const toolbar = document.createElement('div');
+  toolbar.id = 'editToolbar';
+  toolbar.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(10px);
+    padding: 12px 20px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 10000;
+    border: 1px solid rgba(0,0,0,0.1);
+  `;
+  
+  const buttons = [
+    { icon: 'B', command: 'bold', title: 'Bold (Ctrl+B)', style: 'font-weight: bold;' },
+    { icon: 'I', command: 'italic', title: 'Italic (Ctrl+I)', style: 'font-style: italic;' },
+    { icon: 'U', command: 'underline', title: 'Underline (Ctrl+U)', style: 'text-decoration: underline;' },
+    { icon: '|', command: null, title: '', style: 'cursor: default; opacity: 0.3;' },
+    { icon: 'H1', command: 'formatBlock', value: 'h2', title: 'Heading 1' },
+    { icon: 'H2', command: 'formatBlock', value: 'h3', title: 'Heading 2' },
+    { icon: 'P', command: 'formatBlock', value: 'p', title: 'Paragraph' },
+    { icon: '|', command: null, title: '', style: 'cursor: default; opacity: 0.3;' },
+    { icon: '•', command: 'insertUnorderedList', title: 'Bullet List' },
+    { icon: '1.', command: 'insertOrderedList', title: 'Numbered List' },
+  ];
+  
+  buttons.forEach(btn => {
+    if (btn.command === null) {
+      const separator = document.createElement('div');
+      separator.style.cssText = `width: 1px; height: 24px; background: rgba(0,0,0,0.2); ${btn.style || ''}`;
+      toolbar.appendChild(separator);
+      return;
+    }
+    
+    const button = document.createElement('button');
+    button.innerHTML = btn.icon;
+    button.title = btn.title;
+    button.style.cssText = `
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.05);
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #1a1a1a;
+      transition: all 0.2s;
+      ${btn.style || ''}
+    `;
+    button.onmouseenter = () => {
+      button.style.background = 'rgba(0,0,0,0.1)';
+      button.style.transform = 'scale(1.05)';
+    };
+    button.onmouseleave = () => {
+      button.style.background = 'rgba(0,0,0,0.05)';
+      button.style.transform = 'scale(1)';
+    };
+    button.onclick = (e) => {
+      e.preventDefault();
+      if (btn.value) {
+        document.execCommand(btn.command, false, btn.value);
+      } else {
+        document.execCommand(btn.command, false, null);
+      }
+    };
+    toolbar.appendChild(button);
+  });
+  
+  // Add separator
+  const separator = document.createElement('div');
+  separator.style.cssText = 'width: 1px; height: 24px; background: rgba(0,0,0,0.2); margin: 0 8px;';
+  toolbar.appendChild(separator);
+  
+  // Save button
+  const saveBtn = document.createElement('button');
+  saveBtn.innerHTML = '✓ Save';
+  saveBtn.title = 'Save Changes';
+  saveBtn.style.cssText = `
+    padding: 8px 16px;
+    background: rgba(34, 197, 94, 0.9);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: white;
+    font-weight: 600;
+    transition: all 0.2s;
+  `;
+  saveBtn.onmouseenter = () => {
+    saveBtn.style.background = 'rgba(34, 197, 94, 1)';
+    saveBtn.style.transform = 'scale(1.05)';
+  };
+  saveBtn.onmouseleave = () => {
+    saveBtn.style.background = 'rgba(34, 197, 94, 0.9)';
+    saveBtn.style.transform = 'scale(1)';
+  };
+  saveBtn.onclick = () => {
+    exitEditMode(true);
+  };
+  toolbar.appendChild(saveBtn);
+  
+  // Cancel button
+  const cancelBtn = document.createElement('button');
+  cancelBtn.innerHTML = '✕ Cancel';
+  cancelBtn.title = 'Cancel Changes';
+  cancelBtn.style.cssText = `
+    padding: 8px 16px;
+    background: rgba(239, 68, 68, 0.9);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: white;
+    font-weight: 600;
+    transition: all 0.2s;
+  `;
+  cancelBtn.onmouseenter = () => {
+    cancelBtn.style.background = 'rgba(239, 68, 68, 1)';
+    cancelBtn.style.transform = 'scale(1.05)';
+  };
+  cancelBtn.onmouseleave = () => {
+    cancelBtn.style.background = 'rgba(239, 68, 68, 0.9)';
+    cancelBtn.style.transform = 'scale(1)';
+  };
+  cancelBtn.onclick = () => {
+    exitEditMode(false);
+  };
+  toolbar.appendChild(cancelBtn);
+  
+  document.body.appendChild(toolbar);
+}
+
+function makeContentEditable(editable) {
+  const mainContent = document.getElementById('reportMainContent');
+  if (!mainContent) return;
+  
+  // Make all text elements editable
+  const editableElements = mainContent.querySelectorAll('p, h2, h3, h4, li');
+  editableElements.forEach(el => {
+    el.contentEditable = editable;
+    if (editable) {
+      el.style.outline = '1px dashed rgba(103, 126, 234, 0.3)';
+      el.style.padding = '4px';
+      el.style.borderRadius = '4px';
+      el.style.cursor = 'text';
+      
+      el.onfocus = () => {
+        el.style.outline = '2px solid rgba(103, 126, 234, 0.6)';
+        el.style.background = 'rgba(103, 126, 234, 0.05)';
+      };
+      el.onblur = () => {
+        el.style.outline = '1px dashed rgba(103, 126, 234, 0.3)';
+        el.style.background = 'transparent';
+      };
+    } else {
+      el.style.outline = 'none';
+      el.style.padding = '';
+      el.style.cursor = '';
+      el.style.background = '';
+      el.onfocus = null;
+      el.onblur = null;
+    }
+  });
+}
