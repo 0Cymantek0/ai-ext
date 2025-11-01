@@ -103,40 +103,7 @@ export const ReportComponents = {
           downloadBtn.style.transform = 'scale(1)';
         };
         downloadBtn.onclick = () => {
-          const sidebar = document.getElementById('reportSidebar');
-          const expandBtn = document.getElementById('sidebarExpandBtn');
-          const mainContent = document.getElementById('reportMainContent');
-          
-          const sidebarDisplay = sidebar?.style.display || '';
-          const expandBtnDisplay = expandBtn?.style.display || '';
-          const mainMargin = mainContent?.style.marginLeft || '';
-          
-          if (sidebar) sidebar.style.display = 'none';
-          if (expandBtn) expandBtn.style.display = 'none';
-          if (mainContent) mainContent.style.marginLeft = '0';
-          
-          const printStyle = document.createElement('style');
-          printStyle.id = 'print-styles';
-          printStyle.textContent = `
-            @media print {
-              body { background: white !important; }
-              .report-sidebar { display: none !important; }
-              #sidebarExpandBtn { display: none !important; }
-              #reportMainContent { margin-left: 0 !important; }
-            }
-          `;
-          document.head.appendChild(printStyle);
-          
-          setTimeout(() => {
-            window.print();
-            setTimeout(() => {
-              if (sidebar) sidebar.style.display = sidebarDisplay;
-              if (expandBtn) expandBtn.style.display = expandBtnDisplay;
-              if (mainContent) mainContent.style.marginLeft = mainMargin;
-              const printStyleEl = document.getElementById('print-styles');
-              if (printStyleEl) printStyleEl.remove();
-            }, 100);
-          }, 100);
+          window.downloadReportAsPDF();
         };
         pocketContainer.appendChild(downloadBtn);
         topBar.appendChild(pocketContainer);
@@ -1418,3 +1385,244 @@ function makeContentEditable(editable) {
     }
   });
 }
+
+
+// ============ PDF DOWNLOAD FUNCTIONALITY ============
+window.downloadReportAsPDF = function() {
+  const sidebar = document.getElementById('reportSidebar');
+  const expandBtn = document.getElementById('sidebarExpandBtn');
+  const mainContent = document.getElementById('reportMainContent');
+  const hero = document.querySelector('.report-hero');
+  const editToolbar = document.getElementById('editToolbar');
+  
+  // Store original states
+  const sidebarDisplay = sidebar?.style.display || '';
+  const expandBtnDisplay = expandBtn?.style.display || '';
+  const mainMargin = mainContent?.style.marginLeft || '';
+  const editToolbarDisplay = editToolbar?.style.display || '';
+  
+  // Hide elements that shouldn't be in PDF
+  if (sidebar) sidebar.style.display = 'none';
+  if (expandBtn) expandBtn.style.display = 'none';
+  if (editToolbar) editToolbar.style.display = 'none';
+  if (mainContent) {
+    mainContent.style.marginLeft = '0';
+    mainContent.style.maxWidth = '100%';
+    mainContent.style.padding = '40px 60px';
+  }
+  
+  // Add comprehensive print styles
+  const printStyle = document.createElement('style');
+  printStyle.id = 'print-styles';
+  printStyle.textContent = `
+    @media print {
+      /* Page setup */
+      @page {
+        size: A4;
+        margin: 20mm;
+      }
+      
+      /* Body and background */
+      body {
+        background: white !important;
+        color: #000 !important;
+        margin: 0;
+        padding: 0;
+      }
+      
+      /* Hide UI elements */
+      .report-sidebar,
+      #sidebarExpandBtn,
+      #editToolbar,
+      .pocket-badge button,
+      button {
+        display: none !important;
+      }
+      
+      /* Hero section */
+      .report-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        padding: 40px 60px !important;
+        margin: 0 !important;
+        page-break-after: avoid;
+        min-height: 200px !important;
+      }
+      
+      .report-hero h1 {
+        color: white !important;
+        font-size: 42px !important;
+        margin-bottom: 16px !important;
+      }
+      
+      .report-hero p {
+        color: rgba(255,255,255,0.95) !important;
+        font-size: 16px !important;
+      }
+      
+      .pocket-badge {
+        background: rgba(255,255,255,0.95) !important;
+        color: #1a1a1a !important;
+        padding: 12px 24px !important;
+        border-radius: 20px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        margin-bottom: 20px !important;
+      }
+      
+      /* Main content */
+      #reportMainContent {
+        margin-left: 0 !important;
+        padding: 40px 60px !important;
+        max-width: 100% !important;
+        background: white !important;
+      }
+      
+      /* Typography */
+      h2 {
+        color: #1a1a1a !important;
+        font-size: 28px !important;
+        margin-top: 32px !important;
+        margin-bottom: 16px !important;
+        page-break-after: avoid;
+      }
+      
+      h3 {
+        color: #1a1a1a !important;
+        font-size: 20px !important;
+        margin-top: 24px !important;
+        margin-bottom: 12px !important;
+        page-break-after: avoid;
+      }
+      
+      h4 {
+        color: #1a1a1a !important;
+        font-size: 16px !important;
+        margin-top: 16px !important;
+        margin-bottom: 8px !important;
+      }
+      
+      p {
+        color: #333 !important;
+        font-size: 14px !important;
+        line-height: 1.6 !important;
+        margin-bottom: 12px !important;
+        page-break-inside: avoid;
+      }
+      
+      strong {
+        color: #000 !important;
+        font-weight: 600 !important;
+      }
+      
+      em {
+        font-style: italic !important;
+      }
+      
+      code {
+        background: #f5f5f5 !important;
+        padding: 2px 6px !important;
+        border-radius: 3px !important;
+        font-family: 'Courier New', monospace !important;
+        font-size: 13px !important;
+        color: #d63384 !important;
+      }
+      
+      /* Lists */
+      ul, ol {
+        color: #333 !important;
+        margin: 12px 0 !important;
+        padding-left: 24px !important;
+        page-break-inside: avoid;
+      }
+      
+      li {
+        color: #333 !important;
+        font-size: 14px !important;
+        line-height: 1.6 !important;
+        margin-bottom: 8px !important;
+      }
+      
+      /* Sections */
+      .report-section {
+        margin-bottom: 40px !important;
+        page-break-inside: avoid;
+      }
+      
+      /* Footer */
+      footer {
+        margin-top: 60px !important;
+        padding-top: 30px !important;
+        border-top: 2px solid #e5e5e5 !important;
+        page-break-inside: avoid;
+      }
+      
+      footer h3 {
+        color: #1a1a1a !important;
+        font-size: 20px !important;
+        margin-bottom: 16px !important;
+      }
+      
+      footer a {
+        color: #1a1a1a !important;
+        text-decoration: none !important;
+        background: #f5f5f5 !important;
+        border: 1px solid #e5e5e5 !important;
+        padding: 12px !important;
+        border-radius: 6px !important;
+        display: inline-block !important;
+        margin: 4px !important;
+        font-size: 12px !important;
+      }
+      
+      /* Remove edit mode styling */
+      [contenteditable] {
+        outline: none !important;
+        border: none !important;
+        background: transparent !important;
+      }
+      
+      /* Page breaks */
+      h2 {
+        page-break-before: auto;
+      }
+      
+      /* Avoid breaking these */
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+      
+      p, li {
+        orphans: 3;
+        widows: 3;
+      }
+      
+      /* Images and figures */
+      img, figure {
+        max-width: 100% !important;
+        page-break-inside: avoid;
+      }
+    }
+  `;
+  document.head.appendChild(printStyle);
+  
+  // Trigger print dialog
+  setTimeout(() => {
+    window.print();
+    
+    // Restore original state after print
+    setTimeout(() => {
+      if (sidebar) sidebar.style.display = sidebarDisplay;
+      if (expandBtn) expandBtn.style.display = expandBtnDisplay;
+      if (editToolbar) editToolbar.style.display = editToolbarDisplay;
+      if (mainContent) {
+        mainContent.style.marginLeft = mainMargin;
+        mainContent.style.maxWidth = '1200px';
+        mainContent.style.padding = '60px 80px';
+      }
+      const printStyleEl = document.getElementById('print-styles');
+      if (printStyleEl) printStyleEl.remove();
+    }, 100);
+  }, 100);
+};
