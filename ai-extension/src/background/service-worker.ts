@@ -14,6 +14,7 @@ if (typeof document === "undefined") {
     querySelector: () => null,
     querySelectorAll: () => [],
     getElementById: () => null,
+    getElementsByClassName: () => [],
     body: null,
   };
 }
@@ -42,6 +43,7 @@ import {
 import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
+import { PocketReportGenerator } from "./pocket-report-generator.js";
 import {
   AriaController,
   type AriaControllerEventDetail,
@@ -2721,6 +2723,33 @@ messageRouter.registerHandler("CONTENT_SEARCH", async (payload: any) => {
   }
 });
 
+messageRouter.registerHandler("GENERATE_REPORT", async (payload: any) => {
+  logger.info("Handler", "GENERATE_REPORT", payload);
+
+  try {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY ?? undefined;
+
+    const normalizedPocketId =
+      typeof payload?.pocketId === "string" && payload.pocketId.trim().length > 0
+        ? payload.pocketId.trim()
+        : undefined;
+
+    const reportGenerator = new PocketReportGenerator(apiKey);
+    const reportData = await reportGenerator.generateReport(normalizedPocketId);
+
+    logger.info("Handler", "GENERATE_REPORT success", {
+      pocketId: normalizedPocketId ?? "all",
+      totalItems: reportData.metadata?.totalItems ?? 0,
+    });
+
+    return reportData;
+  } catch (error) {
+    logger.error("Handler", "GENERATE_REPORT error", error);
+
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+});
+
 messageRouter.registerHandler("CONTENT_DELETE", async (payload: any) => {
   logger.info("Handler", "CONTENT_DELETE", payload);
   try {
@@ -2884,7 +2913,9 @@ messageRouter.registerHandler("CONTENT_IMPORT", async (payload) => {
 
 // Initialize AI managers for streaming
 const aiManager = new AIManager();
-const cloudAIManager = new CloudAIManager();
+// Explicitly pass API key to CloudAIManager to ensure it's available in service worker context
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const cloudAIManager = new CloudAIManager(geminiApiKey);
 const streamingHandler = getStreamingHandler(aiManager, cloudAIManager);
 
 // Initialize metadata queue manager for background metadata generation
