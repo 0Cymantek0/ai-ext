@@ -361,7 +361,16 @@ Example format:
    * PHASE 2: Generate detailed report content following the plan
    */
   private async generateReportContent(plan: any, analysisData: string, contents: CapturedContent[], pocketName?: string): Promise<ReportData> {
-    const prompt = `You are writing the ACTUAL CONTENT for a professional report. Analyze the data provided and write real, substantive content - NOT descriptions of what should be written.
+    // Extract images from content
+    const imageContents = contents.filter(c => c.type === 'image');
+    const imageData = imageContents.map((img, idx) => ({
+      index: idx,
+      title: img.metadata.title || `Image ${idx + 1}`,
+      tags: img.metadata.tags || [],
+      content: this.getContentPreview(img)
+    }));
+
+    const prompt = `You are writing the ACTUAL CONTENT for a professional research report. Analyze the data provided and write real, substantive content - NOT descriptions of what should be written.
 
 PLAN:
 ${JSON.stringify(plan, null, 2)}
@@ -369,12 +378,20 @@ ${JSON.stringify(plan, null, 2)}
 DATA TO ANALYZE:
 ${analysisData}
 
+AVAILABLE IMAGES (${imageContents.length} images):
+${JSON.stringify(imageData, null, 2)}
+
 CRITICAL INSTRUCTIONS:
 1. Write ACTUAL analysis, insights, and findings based on the data
 2. DO NOT write meta-descriptions like "Report purpose and scope..." or "Overview of the collection..."
 3. Instead, write the actual content: "This collection contains X items focused on Y topics..."
 4. Use specific numbers, statistics, and examples from the data
 5. Each text paragraph should be 2-4 sentences of actual analysis
+6. **INTEGRATE IMAGES** throughout the report where relevant:
+   - Use the "image" type to place images in appropriate sections
+   - Add a caption explaining what the image shows and its relevance
+   - Distribute images across different sections (not all together)
+   - Only use images that are contextually relevant to the section
 
 WRONG (meta-description):
 "Report purpose and scope. Overview of the collection's primary focus (LSTM networks). Key findings regarding content types and themes."
@@ -385,6 +402,7 @@ RIGHT (actual content):
 For each section in the plan, generate:
 - Text paragraphs with ACTUAL analysis and insights (not descriptions)
 - Lists with SPECIFIC findings from the data
+- Images where contextually relevant with descriptive captions
 - Use real numbers and statistics from the provided data
 
 CRITICAL RULES:
@@ -393,13 +411,15 @@ CRITICAL RULES:
 - NO trailing commas in arrays or objects
 - Use proper JSON syntax
 
-Example format:
+Example format with images:
 {
   "sections": [
     {
       "title": "Section Title",
       "content": [
         { "type": "text", "data": { "content": "This collection contains 47 items with a primary focus on machine learning. The content was captured over a 3-month period, showing consistent interest in neural network architectures." } },
+        { "type": "image", "data": { "imageIndex": 0, "caption": "The above diagram illustrates the LSTM architecture discussed in the collected resources, showing the flow of information through memory cells." } },
+        { "type": "text", "data": { "content": "The visual representation helps clarify the complex interactions between input gates, forget gates, and output gates in LSTM networks." } },
         { "type": "list", "data": { "items": ["65% of content is technical documentation", "Most common tags: python, tensorflow, keras", "Average content length: 2,500 words"] } }
       ]
     }
@@ -453,6 +473,9 @@ Example format:
         logger.warn("PocketReport", "No JSON found in response, using fallback", "");
         sections = this.createFallbackSections(plan);
       }
+
+      // Process sections to replace image indices with actual image data
+      sections = this.integrateImages(sections, imageContents);
 
       // Build complete report structure
       const reportData: ReportData = {
@@ -622,6 +645,53 @@ The image should be:
     }
 
     return sections;
+  }
+
+  /**
+   * Integrate actual image data into sections
+   */
+  private integrateImages(sections: any[], imageContents: CapturedContent[]): any[] {
+    return sections.map(section => {
+      const updatedContent = section.content?.map((item: any) => {
+        if (item.type === 'image' && item.data?.imageIndex !== undefined) {
+          const imageIndex = item.data.imageIndex;
+          const imageContent = imageContents[imageIndex];
+          
+          if (imageContent) {
+            // Extract image data
+            let imageSrc = '';
+            try {
+              if (typeof imageContent.content === 'string') {
+                const parsedContent = JSON.parse(imageContent.content);
+                imageSrc = parsedContent.image?.src || parsedContent.src || '';
+              }
+            } catch (error) {
+              // If parsing fails, try to use the content directly if it's a data URL
+              if (typeof imageContent.content === 'string' && imageContent.content.startsWith('data:image/')) {
+                imageSrc = imageContent.content;
+              }
+            }
+
+            if (imageSrc) {
+              return {
+                type: 'diagram',
+                data: {
+                  src: imageSrc,
+                  alt: imageContent.metadata.title || 'Image',
+                  caption: item.data.caption || 'The above image provides visual context for the discussed concepts.'
+                }
+              };
+            }
+          }
+        }
+        return item;
+      }) || [];
+
+      return {
+        ...section,
+        content: updatedContent
+      };
+    });
   }
 
   /**

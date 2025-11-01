@@ -444,7 +444,7 @@ export const ReportComponents = {
               }
               
               // Update all text elements in main content
-              const allText = document.querySelectorAll('p, li, h2, h3, h4, span, strong, em, code');
+              const allText = document.querySelectorAll('p, li, h2, h3, h4, span, strong, em, code, figcaption');
               allText.forEach(el => {
                 if (el.closest('.report-section') || el.closest('footer')) {
                   if (el.tagName === 'P' || el.tagName === 'LI') {
@@ -453,13 +453,25 @@ export const ReportComponents = {
                     el.style.color = 'rgba(255,255,255,0.95)';
                   } else if (el.tagName === 'STRONG') {
                     el.style.color = 'rgba(255,255,255,0.95)';
+                  } else if (el.tagName === 'FIGCAPTION') {
+                    el.style.color = 'rgba(255,255,255,0.6)';
                   }
                 }
+              });
+              
+              // Update image borders for dark theme
+              const images = document.querySelectorAll('figure img');
+              images.forEach(img => {
+                img.style.borderColor = 'rgba(255,255,255,0.1)';
+                img.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)';
               });
               
               // Update footer specifically
               const footer = document.querySelector('footer');
               if (footer) {
+                // Update footer border
+                footer.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+                
                 const footerHeadings = footer.querySelectorAll('h3');
                 footerHeadings.forEach(h => h.style.color = 'rgba(255,255,255,0.95)');
                 
@@ -468,6 +480,33 @@ export const ReportComponents = {
                   link.style.color = 'rgba(255,255,255,0.9)';
                   link.style.background = 'rgba(255,255,255,0.03)';
                   link.style.borderColor = 'rgba(255,255,255,0.05)';
+                  link.style.boxShadow = 'none';
+                  
+                  // Update hover state for dark theme
+                  link.onmouseenter = () => {
+                    link.style.transform = 'translateY(-2px)';
+                    link.style.background = 'rgba(255,255,255,0.05)';
+                    link.style.borderColor = 'rgba(255,255,255,0.1)';
+                  };
+                  link.onmouseleave = () => {
+                    link.style.transform = 'translateY(0)';
+                    link.style.background = 'rgba(255,255,255,0.03)';
+                    link.style.borderColor = 'rgba(255,255,255,0.05)';
+                  };
+                  
+                  // Update text inside links
+                  const linkDivs = link.querySelectorAll('div');
+                  linkDivs.forEach(div => {
+                    if (div.style.color && div.style.color.includes('0,0,0')) {
+                      if (div.style.fontSize === '12px') {
+                        // Subtitle/type text
+                        div.style.color = 'rgba(255,255,255,0.5)';
+                      } else {
+                        // Title text
+                        div.style.color = 'rgba(255,255,255,0.95)';
+                      }
+                    }
+                  });
                 });
                 
                 const footerText = footer.querySelectorAll('div');
@@ -492,34 +531,48 @@ export const ReportComponents = {
               
               // Update sidebar text and links
               if (sidebar) {
-                // Update "Index" heading and other headings
-                const sidebarHeadings = sidebar.querySelectorAll('div');
-                sidebarHeadings.forEach(el => {
-                  const computedColor = window.getComputedStyle(el).color;
-                  if (computedColor.includes('0, 0, 0') || el.style.color?.includes('0,0,0')) {
-                    if (el.style.opacity === '0.5') {
-                      el.style.color = 'rgba(255,255,255,0.5)';
-                    } else if (el.style.fontWeight === '600' || el.textContent === 'Index') {
-                      el.style.color = 'white';
-                    }
+                // Update ALL divs in sidebar (including Index heading)
+                const sidebarDivs = sidebar.querySelectorAll('div');
+                sidebarDivs.forEach(el => {
+                  // Check if it's a heading (Index, TEXT SIZE, THEME labels)
+                  if (el.style.fontWeight === '600' || el.textContent.trim() === 'Index') {
+                    el.style.color = 'white';
+                  } else if (el.style.opacity === '0.5' || el.style.textTransform === 'uppercase') {
+                    // Labels like TEXT SIZE, THEME
+                    el.style.color = 'rgba(255,255,255,0.5)';
                   }
                 });
                 
-                // Update all links in sidebar
+                // Update ALL links in sidebar - force update regardless of current color
                 const sidebarLinks = sidebar.querySelectorAll('a');
                 sidebarLinks.forEach(link => {
-                  const currentColor = link.style.color;
-                  if (currentColor.includes('0,0,0')) {
-                    if (currentColor.includes('0.6')) {
-                      link.style.color = 'rgba(255,255,255,0.6)';
-                    } else if (currentColor.includes('0.4')) {
-                      link.style.color = 'rgba(255,255,255,0.4)';
-                    } else if (currentColor.includes('0.8')) {
-                      link.style.color = 'rgba(255,255,255,0.8)';
-                    } else {
-                      link.style.color = 'rgba(255,255,255,0.7)';
-                    }
+                  // Get the original opacity from the style
+                  const originalStyle = link.style.cssText;
+                  if (originalStyle.includes('0.6') || originalStyle.includes('0, 0, 0')) {
+                    link.style.color = 'rgba(255,255,255,0.6)';
+                  } else if (originalStyle.includes('0.4')) {
+                    link.style.color = 'rgba(255,255,255,0.4)';
+                  } else if (originalStyle.includes('0.8')) {
+                    link.style.color = 'rgba(255,255,255,0.8)';
+                  } else {
+                    link.style.color = 'rgba(255,255,255,0.6)';
                   }
+                  
+                  // Update hover states
+                  link.onmouseenter = () => {
+                    link.style.color = 'white';
+                    link.style.background = 'rgba(255,255,255,0.05)';
+                  };
+                  link.onmouseleave = () => {
+                    if (originalStyle.includes('0.6')) {
+                      link.style.color = 'rgba(255,255,255,0.6)';
+                    } else if (originalStyle.includes('0.4')) {
+                      link.style.color = 'rgba(255,255,255,0.4)';
+                    } else {
+                      link.style.color = 'rgba(255,255,255,0.6)';
+                    }
+                    link.style.background = 'transparent';
+                  };
                 });
               }
               
@@ -537,7 +590,7 @@ export const ReportComponents = {
               }
               
               // Update all text elements in main content
-              const allText = document.querySelectorAll('p, li, h2, h3, h4, span, strong, em, code');
+              const allText = document.querySelectorAll('p, li, h2, h3, h4, span, strong, em, code, figcaption');
               allText.forEach(el => {
                 if (el.closest('.report-section') || el.closest('footer')) {
                   if (el.tagName === 'P' || el.tagName === 'LI') {
@@ -546,21 +599,62 @@ export const ReportComponents = {
                     el.style.color = '#1a1a1a';
                   } else if (el.tagName === 'STRONG') {
                     el.style.color = '#1a1a1a';
+                  } else if (el.tagName === 'FIGCAPTION') {
+                    el.style.color = 'rgba(0,0,0,0.6)';
                   }
                 }
+              });
+              
+              // Update image borders for light theme
+              const images = document.querySelectorAll('figure img');
+              images.forEach(img => {
+                img.style.borderColor = 'rgba(0,0,0,0.1)';
+                img.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)';
               });
               
               // Update footer specifically
               const footer = document.querySelector('footer');
               if (footer) {
+                // Update footer border
+                footer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
+                
                 const footerHeadings = footer.querySelectorAll('h3');
                 footerHeadings.forEach(h => h.style.color = '#1a1a1a');
                 
                 const footerLinks = footer.querySelectorAll('a');
                 footerLinks.forEach(link => {
                   link.style.color = '#1a1a1a';
-                  link.style.background = 'rgba(0,0,0,0.03)';
-                  link.style.borderColor = 'rgba(0,0,0,0.1)';
+                  link.style.background = 'rgba(0,0,0,0.02)';
+                  link.style.borderColor = 'rgba(0,0,0,0.12)';
+                  link.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                  
+                  // Update hover state for light theme
+                  link.onmouseenter = () => {
+                    link.style.transform = 'translateY(-2px)';
+                    link.style.background = 'rgba(0,0,0,0.04)';
+                    link.style.borderColor = 'rgba(0,0,0,0.15)';
+                    link.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+                  };
+                  link.onmouseleave = () => {
+                    link.style.transform = 'translateY(0)';
+                    link.style.background = 'rgba(0,0,0,0.02)';
+                    link.style.borderColor = 'rgba(0,0,0,0.12)';
+                    link.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                  };
+                  
+                  // Update text inside links
+                  const linkDivs = link.querySelectorAll('div');
+                  linkDivs.forEach(div => {
+                    if (div.style.color && div.style.color.includes('255,255,255')) {
+                      if (div.style.fontSize === '12px') {
+                        // Subtitle/type text
+                        div.style.color = 'rgba(0,0,0,0.5)';
+                      } else {
+                        // Title text
+                        div.style.color = '#1a1a1a';
+                      }
+                    }
+                  });
                 });
                 
                 const footerText = footer.querySelectorAll('div');
@@ -585,34 +679,48 @@ export const ReportComponents = {
               
               // Update sidebar text and links
               if (sidebar) {
-                // Update "Index" heading and other headings
-                const sidebarHeadings = sidebar.querySelectorAll('div');
-                sidebarHeadings.forEach(el => {
-                  const computedColor = window.getComputedStyle(el).color;
-                  if (computedColor.includes('255, 255, 255') || el.style.color?.includes('255,255,255')) {
-                    if (el.style.opacity === '0.5') {
-                      el.style.color = 'rgba(0,0,0,0.5)';
-                    } else if (el.style.fontWeight === '600' || el.textContent === 'Index') {
-                      el.style.color = '#1a1a1a';
-                    }
+                // Update ALL divs in sidebar (including Index heading)
+                const sidebarDivs = sidebar.querySelectorAll('div');
+                sidebarDivs.forEach(el => {
+                  // Check if it's a heading (Index, TEXT SIZE, THEME labels)
+                  if (el.style.fontWeight === '600' || el.textContent.trim() === 'Index') {
+                    el.style.color = '#1a1a1a';
+                  } else if (el.style.opacity === '0.5' || el.style.textTransform === 'uppercase') {
+                    // Labels like TEXT SIZE, THEME
+                    el.style.color = 'rgba(0,0,0,0.5)';
                   }
                 });
                 
-                // Update all links in sidebar
+                // Update ALL links in sidebar - force update regardless of current color
                 const sidebarLinks = sidebar.querySelectorAll('a');
                 sidebarLinks.forEach(link => {
-                  const currentColor = link.style.color;
-                  if (currentColor.includes('255,255,255')) {
-                    if (currentColor.includes('0.6')) {
-                      link.style.color = 'rgba(0,0,0,0.6)';
-                    } else if (currentColor.includes('0.4')) {
-                      link.style.color = 'rgba(0,0,0,0.4)';
-                    } else if (currentColor.includes('0.8')) {
-                      link.style.color = 'rgba(0,0,0,0.8)';
-                    } else {
-                      link.style.color = 'rgba(0,0,0,0.7)';
-                    }
+                  // Get the original opacity from the style
+                  const originalStyle = link.style.cssText;
+                  if (originalStyle.includes('0.6')) {
+                    link.style.color = 'rgba(0,0,0,0.6)';
+                  } else if (originalStyle.includes('0.4')) {
+                    link.style.color = 'rgba(0,0,0,0.4)';
+                  } else if (originalStyle.includes('0.8')) {
+                    link.style.color = 'rgba(0,0,0,0.8)';
+                  } else {
+                    link.style.color = 'rgba(0,0,0,0.6)';
                   }
+                  
+                  // Update hover states
+                  link.onmouseenter = () => {
+                    link.style.color = '#1a1a1a';
+                    link.style.background = 'rgba(0,0,0,0.05)';
+                  };
+                  link.onmouseleave = () => {
+                    if (originalStyle.includes('0.6')) {
+                      link.style.color = 'rgba(0,0,0,0.6)';
+                    } else if (originalStyle.includes('0.4')) {
+                      link.style.color = 'rgba(0,0,0,0.4)';
+                    } else {
+                      link.style.color = 'rgba(0,0,0,0.6)';
+                    }
+                    link.style.background = 'transparent';
+                  };
                 });
               }
             }
@@ -832,8 +940,9 @@ export const ReportComponents = {
     render(data) {
       const figure = document.createElement('figure');
       figure.style.cssText = `
-        margin: 32px 0;
+        margin: 40px auto;
         text-align: center;
+        max-width: 90%;
       `;
 
       const img = document.createElement('img');
@@ -843,17 +952,21 @@ export const ReportComponents = {
         max-width: 100%;
         height: auto;
         border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255,255,255,0.1);
       `;
       figure.appendChild(img);
 
       if (data.caption) {
         const caption = document.createElement('figcaption');
         caption.style.cssText = `
-          margin-top: 12px;
+          margin-top: 16px;
           font-size: 14px;
-          color: rgba(255,255,255,0.5);
+          color: rgba(255,255,255,0.6);
           font-style: italic;
+          line-height: 1.6;
+          text-align: left;
+          padding: 0 20px;
         `;
         caption.textContent = data.caption;
         figure.appendChild(caption);
