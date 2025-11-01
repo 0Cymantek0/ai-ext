@@ -290,6 +290,23 @@ export class ContextBundleBuilder {
       buildTime: `${buildTime.toFixed(2)}ms`,
     });
 
+    // Emit context gathering complete event
+    if (options.conversationId) {
+      try {
+        chrome.runtime.sendMessage({
+          kind: "CONTEXT_PROGRESS",
+          requestId: crypto.randomUUID(),
+          payload: {
+            type: "CONTEXT_GATHERING_COMPLETE",
+            conversationId: options.conversationId,
+            data: {
+              signals: bundle.signals,
+            },
+          },
+        }).catch(() => {});
+      } catch (error) {}
+    }
+
     // Cache the bundle
     this.cache.set(cacheKey, { bundle, timestamp: Date.now() });
 
@@ -549,6 +566,20 @@ export class ContextBundleBuilder {
       return remainingTokens;
     }
 
+    // Emit page context started event
+    if (options.conversationId) {
+      try {
+        chrome.runtime.sendMessage({
+          kind: "CONTEXT_PROGRESS",
+          requestId: crypto.randomUUID(),
+          payload: {
+            type: "PAGE_CONTEXT_STARTED",
+            conversationId: options.conversationId,
+          },
+        }).catch(() => {});
+      } catch (error) {}
+    }
+
     try {
       logger.info("ContextBundleBuilder", "Collecting page context directly");
       
@@ -712,6 +743,20 @@ export class ContextBundleBuilder {
             headingsCount: pageContext.headings?.length || 0,
             pageType: pageContext.pageType,
           });
+
+          // Emit page context complete event
+          if (options.conversationId) {
+            try {
+              chrome.runtime.sendMessage({
+                kind: "CONTEXT_PROGRESS",
+                requestId: crypto.randomUUID(),
+                payload: {
+                  type: "PAGE_CONTEXT_COMPLETE",
+                  conversationId: options.conversationId,
+                },
+              }).catch(() => {});
+            } catch (error) {}
+          }
         } else {
           logger.warn("ContextBundleBuilder", "Page context exceeds token budget", {
             required: pageTokens,
@@ -1006,6 +1051,7 @@ export class ContextBundleBuilder {
         query: options.query,
         maxResults: 5, // Top 5 most relevant tabs
         timeout: 200, // 200ms timeout per tab
+        conversationId: options.conversationId, // For progress tracking
       });
 
       if (searchResponse.results.length > 0) {

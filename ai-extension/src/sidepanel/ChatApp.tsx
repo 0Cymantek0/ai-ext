@@ -28,6 +28,8 @@ import { NoteEditorPage } from "@/components/notes/NoteEditorPage";
 import { ShareModal } from "@/components/ShareModal";
 import { useIndexingStatus } from "@/hooks/useIndexingStatus";
 import { IndexingWarningBanner } from "@/components/IndexingWarningBanner";
+import { useContextProgress } from "@/hooks/useContextProgress";
+import { ContextGatheringIndicator } from "@/components/ai/ContextGatheringIndicator";
 import {
   attachPocketToConversation,
   detachPocketFromConversation,
@@ -98,6 +100,9 @@ export function ChatApp() {
     string | null
   >(null);
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
+  
+  // Context gathering progress
+  const { steps: contextSteps, isGathering } = useContextProgress(currentConversationId);
   const [currentMode, setCurrentMode] = React.useState<Mode>("ask");
   const conversationContentRef = React.useRef<HTMLDivElement>(null);
   // Floating mode switcher removed; drop scroll bookkeeping
@@ -530,6 +535,20 @@ export function ChatApp() {
         );
       }
     }, 100);
+
+    // Emit context gathering started event
+    try {
+      await chrome.runtime.sendMessage({
+        kind: "CONTEXT_PROGRESS",
+        requestId: crypto.randomUUID(),
+        payload: {
+          type: "CONTEXT_GATHERING_STARTED",
+          conversationId,
+        },
+      });
+    } catch (error) {
+      // Non-critical, continue
+    }
 
     // Send request to service worker with mode information
     try {
@@ -1195,6 +1214,16 @@ export function ChatApp() {
                                 transform: `translateY(${vi.start}px)`,
                               }}
                             >
+                              {/* Show context gathering indicator before assistant's first streaming message */}
+                              {message.role === "assistant" &&
+                                message.isStreaming &&
+                                vi.index === messages.length - 1 &&
+                                isGathering && (
+                                  <div className="px-4 mb-2">
+                                    <ContextGatheringIndicator steps={contextSteps} />
+                                  </div>
+                                )}
+                              
                               <Message key={message.id} from={message.role}>
                                 <MessageAvatar
                                   src={message.role === "user" ? "" : ""}

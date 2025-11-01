@@ -14,6 +14,7 @@ export interface TabSearchOptions {
   maxResults?: number;
   timeout?: number;
   maxTextPerTab?: number;
+  conversationId?: string | undefined; // For progress tracking
 }
 
 export interface TabSearchResponse {
@@ -72,6 +73,27 @@ export async function searchAllTabs(
     searchable: searchableTabs.length,
   });
 
+  // Emit search started event
+  if (options.conversationId) {
+    try {
+      chrome.runtime.sendMessage({
+        kind: "CONTEXT_PROGRESS",
+        requestId: crypto.randomUUID(),
+        payload: {
+          type: "TAB_SEARCH_STARTED",
+          conversationId: options.conversationId,
+          data: {
+            totalTabs: searchableTabs.length,
+          },
+        },
+      }).catch(() => {
+        // Ignore errors - progress updates are non-critical
+      });
+    } catch (error) {
+      // Ignore errors
+    }
+  }
+
   if (searchableTabs.length === 0) {
     return {
       results: [],
@@ -121,6 +143,29 @@ export async function searchAllTabs(
     duration: `${duration.toFixed(2)}ms`,
     topResults: rankedResults.length,
   });
+
+  // Emit search complete event
+  if (options.conversationId) {
+    try {
+      chrome.runtime.sendMessage({
+        kind: "CONTEXT_PROGRESS",
+        requestId: crypto.randomUUID(),
+        payload: {
+          type: "TAB_SEARCH_COMPLETE",
+          conversationId: options.conversationId,
+          data: {
+            searchedTabs: searchedCount,
+            resultsCount: rankedResults.length,
+            duration,
+          },
+        },
+      }).catch(() => {
+        // Ignore errors
+      });
+    } catch (error) {
+      // Ignore errors
+    }
+  }
 
   return {
     results: rankedResults,
