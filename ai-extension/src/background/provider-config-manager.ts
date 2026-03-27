@@ -312,6 +312,48 @@ export class ProviderConfigManager {
       throw error;
     }
   }
+
+  /**
+   * Get the decrypted API key for a provider.
+   * 
+   * @param providerId - Provider ID to look up
+   * @returns The decrypted API key as string, or null if not found/no key
+   */
+  public async getDecryptedApiKey(providerId: string): Promise<string | null> {
+    this.ensureInitialized();
+
+    try {
+      // 1. Get the provider configuration
+      const provider = await this.getProvider(providerId);
+      if (!provider) {
+        logger.warn("ProviderConfigManager", "Provider not found for API key decryption", { providerId });
+        return null;
+      }
+
+      const apiKeyId = provider.apiKeyId;
+      if (!apiKeyId) {
+        logger.debug("ProviderConfigManager", "Provider has no API key associated", { providerId });
+        return null;
+      }
+
+      // 2. Load encrypted API keys from storage
+      const result = await this.storage.get<ProviderKeyStorage>(PROVIDER_KEYS_KEY);
+      const providerKeys = result[PROVIDER_KEYS_KEY] || {};
+      
+      const encryptedData = providerKeys[apiKeyId];
+      if (!encryptedData) {
+        logger.debug("ProviderConfigManager", "Encrypted API key not found in storage", { apiKeyId });
+        return null;
+      }
+
+      // 3. Decrypt using cryptoManager
+      const decryptedKey = await this.cryptoManager.decrypt<string>(encryptedData);
+      return decryptedKey;
+    } catch (error) {
+      logger.error("ProviderConfigManager", "Failed to decrypt API key", { providerId, error });
+      return null;
+    }
+  }
 }
 
 /**
