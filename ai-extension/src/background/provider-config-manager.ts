@@ -108,6 +108,67 @@ export class ProviderConfigManager {
   }
 
   /**
+   * Add a new provider configuration.
+   * If an API key is provided, it is encrypted before storage.
+   * 
+   * @param config - Provider configuration data
+   * @returns The newly created ProviderConfig
+   */
+  public async addProvider(config: {
+    type: ProviderType;
+    name: string;
+    apiKey?: string;
+    enabled?: boolean;
+  }): Promise<ProviderConfig> {
+    this.ensureInitialized();
+
+    try {
+      const id = `provider_${nanoid()}`;
+      const apiKeyId = `key_${id}`;
+      const now = Date.now();
+
+      // 1. Encrypt API key if provided
+      if (config.apiKey) {
+        const encryptedKey = await this.cryptoManager.encrypt(config.apiKey);
+        const keyResult = await this.storage.get<ProviderKeyStorage>(PROVIDER_KEYS_KEY);
+        const providerKeys = keyResult[PROVIDER_KEYS_KEY] || {};
+        
+        providerKeys[apiKeyId] = encryptedKey;
+        await this.storage.set({ [PROVIDER_KEYS_KEY]: providerKeys });
+        logger.debug("ProviderConfigManager", "Encrypted API key stored", { apiKeyId });
+      }
+
+      // 2. Create and store provider config
+      const newConfig: ProviderConfig = {
+        id,
+        type: config.type,
+        name: config.name,
+        enabled: config.enabled ?? true,
+        apiKeyId,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      const configResult = await this.storage.get<ProviderConfigStorage>(PROVIDER_CONFIGS_KEY);
+      const providerConfigs = configResult[PROVIDER_CONFIGS_KEY] || [];
+      
+      providerConfigs.push(newConfig);
+      await this.storage.set({ [PROVIDER_CONFIGS_KEY]: providerConfigs });
+
+      logger.info("ProviderConfigManager", "Added new provider", { 
+        id, 
+        type: config.type, 
+        name: config.name 
+      });
+
+      return newConfig;
+    } catch (error) {
+      logger.error("ProviderConfigManager", "Failed to add provider", error);
+      throw error;
+    }
+  }
+
+  /**
    * Placeholder for CRUD operations to be implemented in subsequent tasks
    */
 }
