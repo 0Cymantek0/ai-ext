@@ -12,7 +12,7 @@ This roadmap delivers a comprehensive multi-provider settings system for AI Pock
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Secure storage, provider types, and encryption system
+- [x] **Phase 1: Foundation** - Secure storage, provider types, and encryption system
 - [ ] **Phase 2: Core Adapters** - Provider implementations (Gemini Nano, Gemini Cloud, OpenAI, Anthropic)
 - [ ] **Phase 3: Router + Settings Manager** - Per-capability routing and centralized settings management
 - [ ] **Phase 4: Additional Providers** - Extended providers (Ollama, OpenRouter, Groq, Custom) and STT config
@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Encrypted keys are stored in chrome.storage.local (not sync)
   4. User can enable/disable providers without deleting configuration
   5. Encryption service can encrypt and decrypt keys on demand
-**Plans**: TBD
+**Plans**: 3 plans (Complete)
 
 ### Phase 2: Core Adapters
 **Goal**: Working provider adapters for Gemini Nano, Gemini Cloud, OpenAI, and Anthropic with model selection
@@ -43,7 +43,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Connection status indicator shows per configured provider
   4. Gemini Nano remains available as a free provider option (no API key required)
   5. Each provider adapter can send chat requests and stream responses
-**Plans**: TBD
+**Plans:** 3 plans
+- [ ] 02-01-PLAN.md — Core infrastructure, base adapter interface, and provider factory
+- [ ] 02-02-PLAN.md — OpenAI and Anthropic adapters using Vercel AI SDK
+- [ ] 02-03-PLAN.md — Google Cloud and Gemini Nano adapters
 
 ### Phase 3: Router + Settings Manager
 **Goal**: Intelligent routing system that directs AI requests to the correct provider per capability
@@ -99,12 +102,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 â†’ 2 â†’ 3 â†’ 4 â†’ 5 â†’ 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
-| 2. Core Adapters | 0/TBD | Not started | - |
+| 1. Foundation | 3/3 | Completed | 2026-03-28 |
+| 2. Core Adapters | 0/3 | In Progress | - |
 | 3. Router + Settings Manager | 0/TBD | Not started | - |
 | 4. Additional Providers | 0/TBD | Not started | - |
 | 5. Integration | 0/TBD | Not started | - |
