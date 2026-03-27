@@ -51,7 +51,8 @@ describe("ProviderConfigManager", () => {
   let providerConfigManager: ProviderConfigManager;
 
   beforeEach(() => {
-    providerConfigManager = new ProviderConfigManager();
+    providerConfigManager = ProviderConfigManager.getInstance();
+    // Reset singleton state if possible or at least clear mocks
     vi.clearAllMocks();
   });
 
@@ -94,26 +95,27 @@ describe("ProviderConfigManager", () => {
     it.todo("should delete associated encrypted key");
     it.todo("should throw error if not found");
   });
-});
 
-describe("getDecryptedApiKey", () => {
-  // Wave 0 - Test stub for KEYS-01: user can decrypt API keys
-  it.todo("should decrypt API key successfully");
-  it.todo("should return null if provider not found");
-  it.todo("should return null if no API key");
-  it.todo("should handle decryption errors");
-});
+  describe("setProviderEnabled", () => {
+    // Wave 0 - Test stub for PROV-05: user can enable/disable providers
+    it.todo("should enable provider");
+    it.todo("should disable provider");
+    it.todo("should throw error if not found");
+  });
 
-describe("setProviderEnabled", () => {
-  // Wave 0 - Test stub for PROV-05: user can enable/disable providers
-  it.todo("should enable provider");
-  it.todo("should disable provider");
-  it.todo("should throw error if not found");
-});
+  describe("API Key Encryption (KEYS-01)", () => {
+    // Wave 0 - Test stub for KEYS-01: API keys are encrypted using AES-GCM
+    it.todo("should encrypt API key when adding provider");
+    it.todo("should decrypt API key successfully");
+    it.todo("should return null for provider without API key");
+    it.todo("should handle decryption errors gracefully");
+    it.todo("should update existing API key with encryption");
+  });
 
-describe("Storage Keys", () => {
-  // Wave 0 - Test stub for KEYS-02: API keys stored in chrome.storage.local only
-  it.todo("should use chrome.storage.local for provider configs");
-  it.todo("should use chrome.storage.local for encrypted keys");
-  it.todo("should never use chrome.storage.sync");
+  describe("Storage Location (KEYS-02)", () => {
+    // Wave 0 - Test stub for KEYS-02: API keys stored in chrome.storage.local only
+    it.todo("should store encrypted keys in chrome.storage.local");
+    it.todo("should store provider configs in chrome.storage.local");
+    it.todo("should never use chrome.storage.sync for API keys");
+  });
 });
