@@ -207,6 +207,53 @@ export class ProviderConfigManager {
   }
 
   /**
+   * Update an existing provider configuration.
+   * Only allows updating name and enabled status.
+   * 
+   * @param id - Provider ID to update
+   * @param updates - Partial updates (name, enabled)
+   * @returns The updated ProviderConfig
+   * @throws Error if provider not found
+   */
+  public async updateProvider(
+    id: string,
+    updates: Partial<Pick<ProviderConfig, 'name' | 'enabled'>>
+  ): Promise<ProviderConfig> {
+    this.ensureInitialized();
+
+    try {
+      const result = await this.storage.get<ProviderConfigStorage>(PROVIDER_CONFIGS_KEY);
+      const providerConfigs = result[PROVIDER_CONFIGS_KEY] || [];
+      
+      const index = providerConfigs.findIndex(c => c.id === id);
+      if (index === -1) {
+        throw new Error(`Provider with ID ${id} not found`);
+      }
+
+      const currentConfig = providerConfigs[index]!;
+      const updatedConfig: ProviderConfig = {
+        ...currentConfig,
+        ...(updates.name !== undefined ? { name: updates.name } : {}),
+        ...(updates.enabled !== undefined ? { enabled: updates.enabled } : {}),
+        updatedAt: Date.now()
+      };
+
+      providerConfigs[index] = updatedConfig;
+      await this.storage.set({ [PROVIDER_CONFIGS_KEY]: providerConfigs });
+
+      logger.info("ProviderConfigManager", "Updated provider", { 
+        id, 
+        updates: Object.keys(updates) 
+      });
+
+      return updatedConfig;
+    } catch (error) {
+      logger.error("ProviderConfigManager", "Failed to update provider", { id, error });
+      throw error;
+    }
+  }
+
+  /**
    * Placeholder for CRUD operations to be implemented in subsequent tasks
    */
 }
