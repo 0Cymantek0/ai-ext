@@ -254,6 +254,21 @@ export class ProviderConfigManager {
   }
 
   /**
+   * Enable or disable a provider configuration.
+   * Convenience method for toggling enabled status.
+   * 
+   * @param id - Provider ID to toggle
+   * @param enabled - New enabled status
+   * @returns The updated ProviderConfig
+   * @throws Error if provider not found
+   */
+  public async setProviderEnabled(id: string, enabled: boolean): Promise<ProviderConfig> {
+    this.ensureInitialized();
+    logger.info("ProviderConfigManager", `${enabled ? 'Enabling' : 'Disabling'} provider`, { id });
+    return this.updateProvider(id, { enabled });
+  }
+
+  /**
    * Placeholder for CRUD operations to be implemented in subsequent tasks
    */
 }
