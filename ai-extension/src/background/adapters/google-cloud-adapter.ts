@@ -1,52 +1,45 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateText } from 'ai';
-import type { LanguageModel } from 'ai';
+import { generateText, type LanguageModel } from 'ai';
 import type { BaseProviderAdapter } from './base-adapter.js';
-import type { ProviderConfig } from '../provider-types.js';
+import type { ProviderConfig, ProviderType } from '../provider-types.js';
 
 export class GoogleCloudAdapter implements BaseProviderAdapter {
-  providerType: 'google' = 'google';
+  providerType: ProviderType = 'google';
   config: ProviderConfig;
-  private apiKey?: string;
+  private apiKey: string;
 
-  constructor(config: ProviderConfig, apiKey?: string) {
+  constructor(config: ProviderConfig, apiKey: string) {
     this.config = config;
     this.apiKey = apiKey;
   }
 
   getLanguageModel(modelId?: string): LanguageModel {
-    if (!this.apiKey) {
-      throw new Error('API key is required for Google Cloud adapter');
-    }
-
     const google = createGoogleGenerativeAI({
       apiKey: this.apiKey,
     });
-
-    const resolvedModelId = modelId || this.config.modelId || 'gemini-1.5-flash';
-    return google(resolvedModelId) as unknown as LanguageModel;
+    
+    const selectedModelId = modelId || this.config.modelId || 'gemini-1.5-flash';
+    return google(selectedModelId);
   }
 
   async validateConnection(): Promise<{ success: boolean; error?: string }> {
+    if (!this.apiKey) {
+      return { success: false, error: 'API key is missing.' };
+    }
+
     try {
-      if (!this.apiKey) {
-        return { success: false, error: 'API key is required' };
-      }
-
       const model = this.getLanguageModel();
-      // Perform a minimal prompt to verify API key
-      const response = await generateText({
+      await generateText({
         model,
-        prompt: 'Hi',
+        prompt: 'test',
+        maxTokens: 1,
       });
-
-      if (response.text) {
-        return { success: true };
-      }
-      return { success: false, error: 'Empty response from model' };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      return { success: false, error: errorMessage };
+      return { success: true };
+    } catch (error: any) {
+      return { 
+        success: false, 
+        error: error.message || 'Failed to validate connection'
+      };
     }
   }
 }
