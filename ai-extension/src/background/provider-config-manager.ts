@@ -269,8 +269,49 @@ export class ProviderConfigManager {
   }
 
   /**
-   * Placeholder for CRUD operations to be implemented in subsequent tasks
+   * Delete a provider configuration and its associated encrypted API key.
+   * 
+   * @param id - Provider ID to delete
+   * @throws Error if provider not found
    */
+  public async deleteProvider(id: string): Promise<void> {
+    this.ensureInitialized();
+
+    try {
+      // 1. Load provider configs
+      const configResult = await this.storage.get<ProviderConfigStorage>(PROVIDER_CONFIGS_KEY);
+      const providerConfigs = configResult[PROVIDER_CONFIGS_KEY] || [];
+      
+      const index = providerConfigs.findIndex(c => c.id === id);
+      if (index === -1) {
+        throw new Error(`Provider with ID ${id} not found`);
+      }
+
+      const config = providerConfigs[index]!;
+      const apiKeyId = config.apiKeyId;
+
+      // 2. Delete encrypted API key if it exists
+      if (apiKeyId) {
+        const keyResult = await this.storage.get<ProviderKeyStorage>(PROVIDER_KEYS_KEY);
+        const providerKeys = keyResult[PROVIDER_KEYS_KEY] || {};
+        
+        if (providerKeys[apiKeyId]) {
+          delete providerKeys[apiKeyId];
+          await this.storage.set({ [PROVIDER_KEYS_KEY]: providerKeys });
+          logger.debug("ProviderConfigManager", "Deleted associated API key", { apiKeyId });
+        }
+      }
+
+      // 3. Delete provider config
+      providerConfigs.splice(index, 1);
+      await this.storage.set({ [PROVIDER_CONFIGS_KEY]: providerConfigs });
+
+      logger.info("ProviderConfigManager", "Deleted provider", { id });
+    } catch (error) {
+      logger.error("ProviderConfigManager", "Failed to delete provider", { id, error });
+      throw error;
+    }
+  }
 }
 
 /**
