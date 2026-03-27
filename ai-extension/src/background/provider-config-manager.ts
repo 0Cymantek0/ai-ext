@@ -169,6 +169,44 @@ export class ProviderConfigManager {
   }
 
   /**
+   * Get a provider configuration by ID.
+   * 
+   * @param id - Provider ID to look up
+   * @returns The ProviderConfig if found, otherwise null
+   */
+  public async getProvider(id: string): Promise<ProviderConfig | null> {
+    this.ensureInitialized();
+
+    try {
+      const result = await this.storage.get<ProviderConfigStorage>(PROVIDER_CONFIGS_KEY);
+      const providerConfigs = result[PROVIDER_CONFIGS_KEY] || [];
+      
+      const config = providerConfigs.find(c => c.id === id);
+      return config || null;
+    } catch (error) {
+      logger.error("ProviderConfigManager", "Failed to get provider", { id, error });
+      throw error;
+    }
+  }
+
+  /**
+   * List all stored provider configurations.
+   * 
+   * @returns Array of all ProviderConfig objects
+   */
+  public async listProviders(): Promise<ProviderConfig[]> {
+    this.ensureInitialized();
+
+    try {
+      const result = await this.storage.get<ProviderConfigStorage>(PROVIDER_CONFIGS_KEY);
+      return result[PROVIDER_CONFIGS_KEY] || [];
+    } catch (error) {
+      logger.error("ProviderConfigManager", "Failed to list providers", error);
+      throw error;
+    }
+  }
+
+  /**
    * Placeholder for CRUD operations to be implemented in subsequent tasks
    */
 }
