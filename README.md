@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧠 AI Pocket: Your Next-Gen Browsing Companion
+# AI Pocket: Your Next-Gen Browsing Companion
 
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chrome.google.com)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
@@ -10,11 +10,16 @@
 
 *Seamlessly blending generative AI, conversational assistance, and robust content management right into your browser.*
 
+<br>
+
+<!-- TODO: Insert Main Hero Image or Banner Below -->
+<!-- <img src="assets/banner.png" alt="AI Pocket Banner" width="800"> -->
+
 </div>
 
 ---
 
-## 💡 What is AI Pocket?
+## What is AI Pocket?
 
 **AI Pocket** transforms your daily browsing experience by bringing advanced artificial intelligence directly to your fingertips. Built with modern web technologies and powered by state-of-the-art models (including **on-device Gemini Nano**), it allows you to effortlessly understand, manage, and interact with the content you discover online.
 
@@ -22,19 +27,43 @@ Whether you're researching deep academic papers, summarizing lengthy articles, o
 
 ---
 
-## ⚡ Core Features
+## Demo
 
-- 🧠 **Intelligent Page Understanding**: Automatically parses and understands the context of your active tab.
-- 💬 **Context-Aware Chat**: Engage in natural dialogue with your AI assistant without copying and pasting.
-- 📄 **Built-in Document Handling**: Analyze, summarize, and extract information from PDFs directly within your browser.
-- ⚡ **Local & Cloud Synergy**: Utilizes **local on-device ML** (TensorFlow.js & Gemini Nano) for high-speed, privacy-first processing, paired with powerful cloud LLMs for advanced reasoning.
-- 🤖 **Agentic Workflows**: Powered by **LangGraph**, it executes complex, multi-step actions autonomously.
-- 🔒 **Secure Local Storage**: All your data and embeddings are securely stored locally via IndexedDB.
-- 📐 **Rich Markdown & Math**: Natively supports richly formatted markdown and LaTeX/KaTeX equations.
+> **Watch AI Pocket in action**: See how easily you can understand pages, query PDFs, and trigger workflows.
+
+<!-- TODO: Embed Demo Video (e.g., YouTube link or Local Animated GIF) -->
+<!-- 
+[![Watch the video](https://img.youtube.com/vi/YOUR_VIDEO_ID/hqdefault.jpg)](https://youtu.be/YOUR_VIDEO_ID) 
+-->
 
 ---
 
-## 🏗️ Architecture Overview
+## Core Features
+
+- **Intelligent Page Understanding**: Automatically parses and understands the context of your active tab.
+- **Context-Aware Chat**: Engage in natural dialogue with your AI assistant without copying and pasting.
+- **Built-in Document Handling**: Analyze, summarize, and extract information from PDFs directly within your browser.
+- **Local & Cloud Synergy**: Utilizes **local on-device ML** (TensorFlow.js & Gemini Nano) for high-speed, privacy-first processing, paired with powerful cloud LLMs for advanced reasoning.
+- **Agentic Workflows**: Powered by **LangGraph**, it executes complex, multi-step actions autonomously.
+- **Secure Local Storage**: All your data and embeddings are securely stored locally via IndexedDB.
+- **Rich Markdown & Math**: Natively supports richly formatted markdown and LaTeX/KaTeX equations.
+
+---
+
+## Screenshots
+
+<!-- TODO: Insert screenshots here to show off the UI and features -->
+<details>
+  <summary><b>Click to expand screenshots gallery</b></summary>
+  <br>
+  <!-- Replace paths below with actual images once uploaded to the repo -->
+  <!-- <img src="assets/screenshot-chat.png" width="48%" /> -->
+  <!-- <img src="assets/screenshot-pdf.png" width="48%" /> -->
+</details>
+
+---
+
+## Architecture Overview
 
 AI Pocket utilizes a modern Chrome Extension Architecture built on React and Vite, heavily augmented with AI integrations.
 
@@ -74,7 +103,7 @@ graph TD
 
 ---
 
-## 📂 Project Directory Structure
+## Project Directory Structure
 
 ```text
 ai-ext/
@@ -92,7 +121,7 @@ ai-ext/
 
 ---
 
-## 🛠 Setup & Installation Guidelines
+## Setup & Installation Guidelines
 
 ### Prerequisites
 
@@ -135,7 +164,7 @@ Once you have Chrome Dev or Canary installed, follow these steps to enable Gemin
 
 ---
 
-## 🚀 How to Use AI Pocket
+## How to Use AI Pocket
 
 1. **Activate the Extension**: Click on the AI Pocket icon in your Chrome extensions toolbar to open the AI side panel.
 2. **Chat with the Page**: The AI automatically understands the context of your current active tab. Ask questions like "Summarize this article" or "What are the main points?".
