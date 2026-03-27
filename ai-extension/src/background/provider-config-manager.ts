@@ -354,6 +354,53 @@ export class ProviderConfigManager {
       return null;
     }
   }
+
+  /**
+   * Set or update the API key for a provider.
+   * 
+   * @param providerId - Provider ID to update
+   * @param apiKey - The new API key to encrypt and store
+   * @throws Error if provider not found or encryption fails
+   */
+  public async setProviderApiKey(providerId: string, apiKey: string): Promise<void> {
+    this.ensureInitialized();
+
+    try {
+      // 1. Get the provider configuration
+      const configResult = await this.storage.get<ProviderConfigStorage>(PROVIDER_CONFIGS_KEY);
+      const providerConfigs = configResult[PROVIDER_CONFIGS_KEY] || [];
+      
+      const index = providerConfigs.findIndex(c => c.id === providerId);
+      if (index === -1) {
+        throw new Error(`Provider with ID ${providerId} not found`);
+      }
+
+      const provider = providerConfigs[index]!;
+      const apiKeyId = provider.apiKeyId || `key_${providerId}`;
+
+      // 2. Encrypt the API key
+      const encryptedKey = await this.cryptoManager.encrypt(apiKey);
+
+      // 3. Store the encrypted key
+      const keyResult = await this.storage.get<ProviderKeyStorage>(PROVIDER_KEYS_KEY);
+      const providerKeys = keyResult[PROVIDER_KEYS_KEY] || {};
+      
+      providerKeys[apiKeyId] = encryptedKey;
+      await this.storage.set({ [PROVIDER_KEYS_KEY]: providerKeys });
+
+      // 4. Update provider config if apiKeyId was missing or changed
+      if (provider.apiKeyId !== apiKeyId) {
+        provider.apiKeyId = apiKeyId;
+        provider.updatedAt = Date.now();
+        await this.storage.set({ [PROVIDER_CONFIGS_KEY]: providerConfigs });
+      }
+
+      logger.info("ProviderConfigManager", "Updated API key for provider", { providerId, apiKeyId });
+    } catch (error) {
+      logger.error("ProviderConfigManager", "Failed to set API key", { providerId, error });
+      throw error;
+    }
+  }
 }
 
 /**
