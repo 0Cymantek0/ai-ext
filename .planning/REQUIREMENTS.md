@@ -12,7 +12,7 @@ Requirements for multi-provider settings milestone. Each maps to roadmap phases.
 - [x] **PROV-01**: User can add/remove/configure multiple AI providers (OpenAI, Anthropic, Google, OpenRouter, Ollama, Groq, NVIDIA NIM)
 - [ ] **PROV-02**: User can configure custom OpenAI-compatible endpoints with custom base URL
 - [ ] **PROV-03**: User can enter and save API keys per provider with AES-GCM encryption
-- [ ] **PROV-04**: User can select specific models per provider (not just provider-level)
+- [x] **PROV-04**: User can select specific models per provider (not just provider-level)
 - [x] **PROV-05**: User can enable/disable individual providers without deleting configuration
 - [ ] **PROV-06**: User can set provider as active/inactive for each capability (chat, embeddings, speech)
 
@@ -29,7 +29,7 @@ Requirements for multi-provider settings milestone. Each maps to roadmap phases.
 - [ ] **KEYS-02**: API keys are stored in chrome.storage.local (never synced)
 - [ ] **KEYS-03**: User can view/delete saved API keys per provider
 - [ ] **KEYS-04**: System validates API keys before saving (test connection)
-- [ ] **KEYS-05**: System shows connection status indicator per configured provider
+- [x] **KEYS-05**: System shows connection status indicator per configured provider
 
 ### Settings UI
 
@@ -101,7 +101,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROV-01 | Phase 1 | Complete |
 | PROV-02 | Phase 4 | Pending |
 | PROV-03 | Phase 1 | Pending |
-| PROV-04 | Phase 2 | Pending |
+| PROV-04 | Phase 2 | Complete |
 | PROV-05 | Phase 1 | Complete |
 | PROV-06 | Phase 3 | Pending |
 | ROUT-01 | Phase 3 | Pending |
@@ -112,7 +112,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | KEYS-02 | Phase 1 | Pending |
 | KEYS-03 | Phase 6 | Pending |
 | KEYS-04 | Phase 2 | Pending |
-| KEYS-05 | Phase 2 | Pending |
+| KEYS-05 | Phase 2 | Complete |
 | UI-01 | Phase 6 | Pending |
 | UI-02 | Phase 6 | Pending |
 | UI-03 | Phase 6 | Pending |
