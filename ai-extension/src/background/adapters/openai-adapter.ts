@@ -1,5 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText, type LanguageModel } from 'ai';
+import { generateText } from 'ai';
+import type { LanguageModelV3 } from '@ai-sdk/provider';
 import type { BaseProviderAdapter } from './base-adapter.js';
 import type { ProviderConfig, ProviderType } from '../provider-types.js';
 
@@ -13,11 +14,11 @@ export class OpenAIAdapter implements BaseProviderAdapter {
     this.apiKey = apiKey;
   }
 
-  getLanguageModel(modelId?: string): LanguageModel {
+  getLanguageModel(modelId?: string): LanguageModelV3 {
     const openai = createOpenAI({
       apiKey: this.apiKey,
     });
-    
+
     const selectedModelId = modelId || this.config.modelId || 'gpt-4o-mini';
     return openai(selectedModelId);
   }
@@ -30,14 +31,14 @@ export class OpenAIAdapter implements BaseProviderAdapter {
     try {
       const model = this.getLanguageModel();
       await generateText({
-        model,
+        model: model as any,
         prompt: 'Hello',
-        maxTokens: 1,
+        maxOutputTokens: 1,
       });
       return { success: true };
     } catch (error: any) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: error.message || 'Failed to validate connection'
       };
     }

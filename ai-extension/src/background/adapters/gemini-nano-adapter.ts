@@ -1,5 +1,6 @@
 import { chromeai } from 'chrome-ai';
-import { generateText, type LanguageModel } from 'ai';
+import { generateText } from 'ai';
+import type { LanguageModelV3 } from '@ai-sdk/provider';
 import type { BaseProviderAdapter } from './base-adapter.js';
 import type { ProviderConfig, ProviderType } from '../provider-types.js';
 
@@ -11,15 +12,15 @@ export class GeminiNanoAdapter implements BaseProviderAdapter {
     this.config = config;
   }
 
-  getLanguageModel(modelId?: string): LanguageModel {
+  getLanguageModel(modelId?: string): LanguageModelV3 {
     // If we're not in the environment with native self.ai, chromeai will throw unless proxied
-    return chromeai(modelId || 'text');
+    return chromeai((modelId || 'text') as 'text') as unknown as LanguageModelV3;
   }
 
   async checkAvailability(): Promise<{ available: boolean; error?: string }> {
     try {
       let ai = (self as any).ai;
-      
+
       if (!ai || !ai.languageModel) {
         await this.setupOffscreenProxy();
         ai = (self as any).ai;
@@ -33,7 +34,7 @@ export class GeminiNanoAdapter implements BaseProviderAdapter {
       if (capabilities.available === 'no') {
         return { available: false, error: 'Gemini Nano is not available or model needs downloading.' };
       }
-      
+
       return { available: true };
     } catch (error: any) {
       return { available: false, error: error.message || 'Error checking availability' };
@@ -43,20 +44,20 @@ export class GeminiNanoAdapter implements BaseProviderAdapter {
   async validateConnection(): Promise<{ success: boolean; error?: string }> {
     const availability = await this.checkAvailability();
     if (!availability.available) {
-      return { success: false, error: availability.error };
+      return { success: false, ...(availability.error ? { error: availability.error } : {}) };
     }
 
     try {
       const model = this.getLanguageModel();
       await generateText({
-        model,
+        model: model as any,
         prompt: 'test',
-        maxTokens: 1,
+        maxOutputTokens: 1,
       });
       return { success: true };
     } catch (error: any) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: error.message || 'Failed to generate test completion'
       };
     }
@@ -64,7 +65,7 @@ export class GeminiNanoAdapter implements BaseProviderAdapter {
 
   private async setupOffscreenProxy() {
     if ((self as any).__aiProxySetup || !chrome.offscreen) return;
-    
+
     try {
       const OFFSCREEN_DOCUMENT_PATH = 'src/offscreen/offscreen.html';
 
