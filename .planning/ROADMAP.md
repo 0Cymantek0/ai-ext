@@ -44,9 +44,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Gemini Nano remains available as a free provider option (no API key required)
   5. Each provider adapter can send chat requests and stream responses
 **Plans:** 3 plans
-- [ ] 02-01-PLAN.md — Core infrastructure, base adapter interface, and provider factory
-- [ ] 02-02-PLAN.md — OpenAI and Anthropic adapters using Vercel AI SDK
-- [ ] 02-03-PLAN.md — Google Cloud and Gemini Nano adapters
+- [ ] 02-01-PLAN.md — Foundation, Base Adapter Interface, and Factory
+- [ ] 02-02-PLAN.md — OpenAI and Anthropic Adapters with validation
+- [ ] 02-03-PLAN.md — Google Cloud and Gemini Nano Adapters with local AI support
 
 ### Phase 3: Router + Settings Manager
 **Goal**: Intelligent routing system that directs AI requests to the correct provider per capability
@@ -102,7 +102,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 â†’ 2 â†’ 3 â†’ 4 â†’ 5 â†’ 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
