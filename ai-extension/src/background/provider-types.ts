@@ -7,6 +7,7 @@ export type ProviderType =
   | "openai"
   | "anthropic"
   | "google"
+  | "gemini-nano"
   | "openrouter"
   | "ollama"
   | "groq"
@@ -22,6 +23,10 @@ export interface ProviderConfig {
   name: string;
   enabled: boolean;
   apiKeyId?: string;
+  modelId?: string;
+  status?: 'connected' | 'error' | 'disconnected' | 'unknown';
+  validationError?: string;
+  lastValidated?: number;
   createdAt: number;
   updatedAt: number;
 }
