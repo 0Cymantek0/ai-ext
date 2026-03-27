@@ -1,298 +1,145 @@
-# AI Pocket
+<div align="center">
 
-A powerful Chrome MV3 extension that brings AI-powered content management and conversational assistance to your browsing experience.
+# 🧠 AI Pocket: Your Next-Gen Browsing Companion
 
-## Overview
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chrome.google.com)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)](https://vitejs.dev/)
+[![Gemini](https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
+[![Local AI](https://img.shields.io/badge/Local_AI-On_Device-00C7B7?style=for-the-badge)](https://developer.chrome.com/docs/ai)
 
-AI Pocket is a Chrome extension that helps you capture, organize, and interact with web content using cutting-edge AI technologies. Built with Chrome's Manifest V3, it integrates both on-device AI (Gemini Nano via Chrome's Prompt API) and cloud-based models (Gemini Flash/Pro) to provide a seamless, privacy-focused experience.
+*Seamlessly blending generative AI, conversational assistance, and robust content management right into your browser.*
 
-### Key Features
-
-- **Smart Content Capture**: Save text, images, and PDFs from any webpage with context preservation
-- **AI-Powered Conversations**: Chat with AI using Gemini Nano (on-device) or Cloud AI models
-- **Vector Search & RAG**: Semantic search across your saved content with retrieval-augmented generation
-- **Inline Writing Assistant**: AI-powered text enhancement injected directly into page inputs
-- **Pocket Management**: Organize content with tags, analytics, and multi-format exports (Markdown, PDF, JSON)
-- **Privacy-First Design**: On-device processing with Gemini Nano, optional cloud fallback
-- **Performance Monitoring**: Built-in quota tracking, performance metrics, and observability
-
-## Tech Stack
-
-### Core Technologies
-- **Framework**: React 19 with TypeScript
-- **Build Tool**: Vite + CRXJS (Chrome Extension plugin)
-- **UI Library**: Tailwind CSS + shadcn/ui + Radix UI primitives
-- **Virtualization**: TanStack Virtual for efficient list rendering
-
-### AI Integration
-- **Chrome Built-in AI**: Prompt API for Gemini Nano (on-device)
-- **Cloud AI**: Google Generative AI SDK (Gemini Flash/Pro)
-- **Embeddings**: Vector search with IndexedDB persistence
-- **Local ML**: TensorFlow.js + Universal Sentence Encoder (fallback)
-- **AI Workflows**: LangChain.js + LangGraph.js for building complex AI workflows
-
-### Storage & Performance
-- **Primary Storage**: IndexedDB (via `idb` wrapper)
-- **Configuration**: Chrome Storage API (local/sync)
-- **Vector Store**: Custom vector search service with chunking
-- **Performance**: Built-in monitoring and quota management
-
-### Development
-- **Testing**: Vitest + Testing Library
-- **Linting**: ESLint + TypeScript ESLint + Prettier
-- **Type Safety**: TypeScript with strict mode
-- **Schema Validation**: Zod
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ and npm/pnpm
-- Chrome/Chromium browser (version 120+ for Gemini Nano support)
-- Git
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/0Cymantek0/ai-extension.git
-   cd ai-extension
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   # From the repository root, move into the extension workspace if you aren't already inside it
-   cd ai-extension
-   npm install
-   # or
-   pnpm install
-   ```
-
-3. **Start development server:**
-   ```bash
-   npm run dev
-   ```
-
-4. **Load extension in Chrome:**
-   - Open Chrome and navigate to `chrome://extensions/`
-   - Enable "Developer mode" (toggle in top-right)
-   - Click "Load unpacked"
-   - Select the `ai-extension/dist` directory
-   - The extension icon should appear in your toolbar
-
-5. **Configure API keys (optional, for Cloud AI):**
-   - Open the extension side panel
-   - Navigate to Settings
-   - Enter your Google AI API key (get one at https://makersuite.google.com/app/apikey)
-
-### Development Workflow
-
-```bash
-# Run development server with hot reload
-npm run dev
-
-# Build for production
-npm run build
-
-# Run tests
-npm test
-
-# Run tests in watch mode
-npm test -- --watch
-
-# Lint code
-npm run lint
-
-# Format code
-npm run format
-```
-
-## Project Structure
-
-```
-ai-extension/
-├── src/
-│   ├── background/         # Service worker and background logic
-│   │   ├── service-worker.ts
-│   │   ├── ai-manager.ts
-│   │   ├── hybrid-ai-engine.ts
-│   │   ├── indexeddb-manager.ts
-│   │   ├── vector-search-service.ts
-│   │   └── ...
-│   ├── content/            # Content scripts for DOM interaction
-│   │   ├── content-script.ts
-│   │   ├── capture-handler.ts
-│   │   └── ...
-│   ├── sidepanel/          # React-based side panel UI
-│   │   ├── App.tsx
-│   │   ├── Chat.tsx
-│   │   ├── PocketList.tsx
-│   │   └── ...
-│   ├── components/         # Reusable UI components
-│   │   ├── ui/            # shadcn/ui primitives
-│   │   └── ...
-│   ├── shared/            # Shared utilities and types
-│   │   ├── messaging.ts
-│   │   ├── types.ts
-│   │   └── ...
-│   └── offscreen/         # Offscreen document for heavy processing
-├── tests/                 # Test suites
-│   └── README-VECTOR-INDEXING.md
-├── icons/                 # Extension icons
-├── manifest.config.ts     # Extension manifest
-├── vite.config.ts        # Vite configuration
-└── package.json
-```
-
-## Architecture
-
-### Service Worker (Background)
-The extension's brain, handling:
-- AI model selection and request routing (Nano vs. Cloud)
-- IndexedDB storage management
-- Vector indexing and embedding generation
-- Performance monitoring and quota tracking
-- Message routing between components
-
-### Content Scripts
-Injected into web pages for:
-- Text/image capture from user selections
-- DOM sanitization and context extraction
-- Inline AI writing assistance
-- Abbreviation expansion
-
-### Side Panel UI
-React-based interface providing:
-- Conversational AI chat with streaming responses
-- Pocket management (view, search, tag, export)
-- Settings and preferences
-- Analytics and usage metrics
-
-### Offscreen Document
-Isolated processing environment for:
-- Heavy computations (PDF parsing, local embeddings)
-- Background tasks that don't block the UI
-
-## Features Deep Dive
-
-### Hybrid AI Engine
-- **Intelligent Model Selection**: Automatically chooses between Gemini Nano (fast, private) and Cloud AI (powerful, feature-rich)
-- **Graceful Degradation**: Falls back to cloud when on-device AI is unavailable
-- **Context Bundling**: Enriches prompts with relevant pocket content via RAG
-- **Streaming Support**: Real-time response streaming with token counting
-
-### Vector Search
-- **Semantic Understanding**: Finds relevant content based on meaning, not just keywords
-- **Chunking Strategy**: Splits large content into 1000-character chunks with overlap
-- **Embedding Pipeline**: Uses Gemini embedding API with rate limiting and retry logic
-- **Priority Queue**: Background indexing with high/normal/low priority
-- **Local Fallback**: TensorFlow.js + USE for offline embedding generation
-
-### Storage Management
-- **Quota Monitoring**: Real-time tracking of IndexedDB and Chrome storage usage
-- **Auto-Cleanup**: Configurable thresholds trigger cleanup warnings
-- **Efficient Chunking**: Vector data stored separately from content
-- **Sync Support**: User preferences sync across devices via chrome.storage.sync
-
-## Development Tools
-
-### Debug Recorder
-A comprehensive diagnostics tool for debugging the extension. See **[dev-tools/debug-recorder/README.md](dev-tools/debug-recorder/README.md)** for:
-- Capturing runtime state and performance metrics
-- Analyzing AI performance and quota usage
-- Troubleshooting storage and connectivity issues
-- Generating detailed diagnostic reports
-
-### Testing
-Comprehensive test suites with Vitest:
-- Unit tests for core utilities
-- Integration tests for AI pipelines
-- End-to-end tests for vector indexing
-- Mock implementations for Chrome APIs
-
-See [ai-extension/tests/README-VECTOR-INDEXING.md](ai-extension/tests/README-VECTOR-INDEXING.md) for testing documentation.
-
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
-- Setting up your development environment
-- Code style and conventions
-- Running tests and using debug tools
-- Submitting pull requests
-
-## Privacy & Security
-
-- **On-Device First**: Gemini Nano runs entirely on-device, no data sent to cloud
-- **Optional Cloud AI**: Users opt-in to cloud features with API keys they control
-- **No Telemetry**: No usage data is sent to external servers
-- **Local Storage**: All data stored locally in IndexedDB
-- **API Key Security**: Keys stored in chrome.storage.local (encrypted by Chrome)
-
-## Browser Compatibility
-
-- **Minimum Chrome Version**: 120 (for Gemini Nano support)
-- **Recommended**: Chrome 122+ or Edge 122+ (Canary/Dev channels)
-- **Manifest V3**: Full compliance with Chrome's latest extension platform
-
-## Performance
-
-- **Service Worker**: Lightweight, < 50 MB memory
-- **Side Panel**: Virtualized lists for smooth scrolling with 10k+ items
-- **Vector Search**: < 500ms p95 latency for typical queries
-- **AI Responses**: 1-3 seconds for Nano, 0.8-2 seconds for Cloud AI
-
-## Known Issues & Limitations
-
-- Gemini Nano requires Chrome flag enabled: `chrome://flags/#optimization-guide-on-device-model`
-- Some websites block content script injection (e.g., chrome://, about:, file://)
-- PDF processing requires CORS-enabled PDFs
-- Large content (> 100 MB) may hit storage quotas
-
-See [GitHub Issues](https://github.com/0Cymantek0/ai-extension/issues) for known bugs and feature requests.
-
-## Recent Updates
-
-### Browser Agent State Manager (Phase 2)
-- **LangGraph-Inspired State Manager**: Implemented a robust workflow orchestration system for browser automation:
-  - Multi-step workflow execution with state machine (START → NAVIGATE → EXTRACT_DOM → INTERACT → VALIDATE → END)
-  - Checkpoint persistence using IndexedDB (version 4) for workflow recovery after service worker restarts
-  - Pause/resume/cancel APIs with user input merging
-  - Retry logic with exponential backoff (max 3 retries, configurable)
-  - Error tracking and recovery with human intervention support
-  - Concurrent workflow isolation via in-memory registry
-  - Message endpoints for UI integration (`BROWSER_AGENT_START_WORKFLOW`, `PAUSE`, `RESUME`, `CANCEL`, `STATUS`, `LIST_WORKFLOWS`)
-  - Comprehensive unit and integration tests
-  
-  See `docs/browser-agent-state-manager.md` for detailed documentation.
-
-## Roadmap
-
-- [ ] Multi-modal content support (audio, video)
-- [ ] Collaborative pockets (shared collections)
-- [ ] Advanced export formats (Notion, Obsidian)
-- [ ] Custom AI model fine-tuning
-- [ ] Mobile companion app (React Native)
-- [ ] Enterprise features (SSO, admin controls)
-
-## License
-
-[ISC License](LICENSE)
-
-## Acknowledgments
-
-- Chrome team for the Prompt API and built-in AI features
-- Google AI for Generative AI SDK and Gemini models
-- shadcn for the beautiful UI component library
-- Radix UI for accessible primitives
-- TanStack for Virtual scrolling
-- The open-source community
-
-## Support
-
-- **Documentation**: See READMEs in respective directories
-- **Issues**: [GitHub Issues](https://github.com/0Cymantek0/ai-extension/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/0Cymantek0/ai-extension/discussions)
+</div>
 
 ---
 
-Built with ❤️ using Chrome's cutting-edge AI capabilities.
+## 💡 What is AI Pocket?
+
+**AI Pocket** transforms your daily browsing experience by bringing advanced artificial intelligence directly to your fingertips. Built with modern web technologies and powered by state-of-the-art models (including **on-device Gemini Nano**), it allows you to effortlessly understand, manage, and interact with the content you discover online.
+
+Whether you're researching deep academic papers, summarizing lengthy articles, or managing complex data, AI Pocket provides an intuitive, chat-based interface to **get things done faster and smarter**.
+
+---
+
+## ⚡ Core Features
+
+- 🧠 **Intelligent Page Understanding**: Automatically parses and understands the context of your active tab.
+- 💬 **Context-Aware Chat**: Engage in natural dialogue with your AI assistant without copying and pasting.
+- 📄 **Built-in Document Handling**: Analyze, summarize, and extract information from PDFs directly within your browser.
+- ⚡ **Local & Cloud Synergy**: Utilizes **local on-device ML** (TensorFlow.js & Gemini Nano) for high-speed, privacy-first processing, paired with powerful cloud LLMs for advanced reasoning.
+- 🤖 **Agentic Workflows**: Powered by **LangGraph**, it executes complex, multi-step actions autonomously.
+- 🔒 **Secure Local Storage**: All your data and embeddings are securely stored locally via IndexedDB.
+- 📐 **Rich Markdown & Math**: Natively supports richly formatted markdown and LaTeX/KaTeX equations.
+
+---
+
+## 🏗️ Architecture Overview
+
+AI Pocket utilizes a modern Chrome Extension Architecture built on React and Vite, heavily augmented with AI integrations.
+
+```mermaid
+graph TD
+    %% User Inputs
+    User([User]) -->|Interacts| UI
+
+    %% UI Context
+    subgraph Chrome Browser
+        UI[Side Panel UI <br> React + Tailwind CSS]
+        Content[Content Script <br> Page DOM & PDF parsing]
+        Background[Background Service Worker]
+        Offscreen[Offscreen Document <br> Clipboard/DOM tricks]
+        Storage[(IndexedDB <br> Local Secure Storage)]
+    end
+
+    %% Internal Communication
+    UI <-->|Ext Messages| Background
+    Content <-->|Ext Messages| Background
+    Background <-->|Actions| Offscreen
+    Background <-->|Save/Load| Storage
+
+    %% AI Modules
+    subgraph AI Engine
+        Local[Local On-Device Models <br> Gemini Nano / TF.js]
+        Cloud[Google Generative AI <br> LLM Reasoning]
+        Agent[Browser Agent <br> LangGraph Orchestrator]
+    end
+
+    %% API connections
+    Background -->|Embeddings / Queries| Local
+    Background -->|Complex Reasoning| Cloud
+    Background <-->|Task Execution| Agent
+    Agent -->|Fetch Info| Content
+```
+
+---
+
+## 📂 Project Directory Structure
+
+```text
+ai-ext/
+├── ai-extension/        # Core extension (React + Vite)
+│   ├── src/             
+│   │   ├── background/  # Chrome Background Service Workers
+│   │   ├── content/     # Content scripts (DOM parsing)
+│   │   ├── sidepanel/   # React UI for the chat interface
+│   │   ├── browser-agent/ # Autonomous Agent / LangGraph workflows
+│   │   └── services/    # External/Internal APIs (Gemini, Local Models)
+│   └── dist/            # Built Chrome extension package
+├── playground/          # Isolated API & model test environments
+└── dev-tools/           # Build and development scripts
+```
+
+---
+
+## 🛠 Setup & Installation Guidelines
+
+### Prerequisites
+
+To get the most out of **AI Pocket**, especially its local AI capabilities powered by **Gemini Nano**, you will need to use a specific version of Google Chrome.
+
+1. **Install Chrome Dev or Canary**: Gemini Nano is currently available as an experimental feature in Google Chrome Developer or Canary channels.
+   - [Download Chrome Dev](https://www.google.com/chrome/dev/)
+   - [Download Chrome Canary](https://www.google.com/chrome/canary/)
+
+### Setting up Gemini Nano
+
+Once you have Chrome Dev or Canary installed, follow these steps to enable Gemini Nano (the built-in Prompt API):
+
+1. **Open Chrome Flags**: Navigate to `chrome://flags/` in your browser.
+2. **Enable Prompt API for Extensions**: Search for the flag `#prompt-api-for-extension` and set it to **Enabled**.
+3. **Enable Optimization Guide On Device Model**: Search for `#optimization-guide-on-device-model` and set it to **Enabled BypassPrefRequirement**.
+4. **Relaunch Chrome**: Click the "Relaunch" button at the bottom of the screen to apply the changes.
+5. **Download the Model**: Go to `chrome://components/`, find **Optimization Guide On Device Model**, and click **Check for update** to ensure the Gemini Nano model is downloaded to your device.
+
+### Installing the Extension
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/0Cymantek0/ai-ext.git
+   cd ai-ext
+   ```
+2. **Install Dependencies**:
+   Ensure you have Node.js and npm installed, then run:
+   ```bash
+   npm install
+   ```
+3. **Build the Project**:
+   ```bash
+   npm run build
+   ```
+4. **Load into Chrome**:
+   - Open Chrome and navigate to `chrome://extensions/`.
+   - Turn on **Developer mode** in the top right corner.
+   - Click **Load unpacked** and select the `dist` (or `build`) directory within the project folder.
+
+---
+
+## 🚀 How to Use AI Pocket
+
+1. **Activate the Extension**: Click on the AI Pocket icon in your Chrome extensions toolbar to open the AI side panel.
+2. **Chat with the Page**: The AI automatically understands the context of your current active tab. Ask questions like "Summarize this article" or "What are the main points?".
+3. **Query Documents**: You can upload PDFs or documents directly into the chat to extract insights or summarize complex information seamlessly.
+4. **Run Agentic Workflows**: Ask the AI to perform complex multi-step tasks, and LangGraph will break it down and execute it for you.
+
+Experience intelligent, seamless, and efficient browsing with AI Pocket!
