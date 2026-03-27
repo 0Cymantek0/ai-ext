@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": {
+      "C:/Users/shuvagata/Documents/dev/ai-ext/.opencode/get-shit-done/*": "allow"
+    },
+    "external_directory": {
+      "C:/Users/shuvagata/Documents/dev/ai-ext/.opencode/get-shit-done/*": "allow"
+    }
+  }
+}
