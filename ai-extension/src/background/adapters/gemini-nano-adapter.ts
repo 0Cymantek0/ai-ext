@@ -1,6 +1,5 @@
 import { chromeai } from 'chrome-ai';
 import { generateText } from 'ai';
-import type { LanguageModelV3 } from '@ai-sdk/provider';
 import type { BaseProviderAdapter } from './base-adapter.js';
 import type { ProviderConfig, ProviderType } from '../provider-types.js';
 
@@ -12,9 +11,9 @@ export class GeminiNanoAdapter implements BaseProviderAdapter {
     this.config = config;
   }
 
-  getLanguageModel(modelId?: string): LanguageModelV3 {
+  getLanguageModel(modelId?: string): any {
     // If we're not in the environment with native self.ai, chromeai will throw unless proxied
-    return chromeai((modelId || 'text') as 'text') as unknown as LanguageModelV3;
+    return chromeai((modelId || 'text') as 'text');
   }
 
   async checkAvailability(): Promise<{ available: boolean; error?: string }> {

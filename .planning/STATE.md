@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
+status: Executing Phase 04
 stopped_at: Phase 03.1 context gathered
-last_updated: "2026-03-28T19:11:20.707Z"
+last_updated: "2026-03-28T19:37:51.374Z"
 progress:
   total_phases: 7
   completed_phases: 4
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** User choice and flexibility — use any AI provider with your own API keys
-**Current focus:** Phase 03.1 — phase-3-hardening-model-capabilities
+**Current focus:** Phase 04 — additional-providers
 
 ## Current Position
 
-Phase: 04
-Plan: Not started
+Phase: 04 (additional-providers) — EXECUTING
+Plan: 04-02 queued after 04-01 completion
 
 ## Performance Metrics
 
@@ -69,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase 03-router-settings-manager]: Used Gemini Nano via Vercel AI SDK for prompt intent classification
 - [Phase 03-router-settings-manager]: Adopted dynamic fallback execution using the configuration manager for runtime resolution
 - [Phase 03-router-settings-manager]: Implemented a heuristic scoring system mapping complexity/budget to provider tier/cost
+- [Phase 04-additional-providers]: Added typed provider transport metadata and OpenAI-compatible adapters for OpenRouter, Ollama, Groq, and custom endpoints
+- [Phase 04-additional-providers]: Optional-auth providers no longer require placeholder API key IDs in provider storage
 
 ### Pending Todos
 

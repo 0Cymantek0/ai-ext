@@ -1,14 +1,32 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { ProviderConfig, ProviderType, ProviderConfigStorage, ProviderKeyStorage } from "../src/background/provider-types.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock chrome.storage API
+const storageState = new Map<string, unknown>();
+
 const mockLocalStorage = {
-  get: vi.fn(),
-  set: vi.fn(),
-  remove: vi.fn(),
-  clear: vi.fn(),
-  getBytesInUse: vi.fn(),
-  QUOTA_BYTES: 10485760, // 10MB for local
+  get: vi.fn(async (keys?: string | string[] | null) => {
+    if (keys == null) {
+      return Object.fromEntries(storageState);
+    }
+
+    if (Array.isArray(keys)) {
+      return Object.fromEntries(keys.map((key) => [key, storageState.get(key)]));
+    }
+
+    return { [keys]: storageState.get(keys) };
+  }),
+  set: vi.fn(async (items: Record<string, unknown>) => {
+    Object.entries(items).forEach(([key, value]) => storageState.set(key, value));
+  }),
+  remove: vi.fn(async (keys: string | string[]) => {
+    for (const key of Array.isArray(keys) ? keys : [keys]) {
+      storageState.delete(key);
+    }
+  }),
+  clear: vi.fn(async () => {
+    storageState.clear();
+  }),
+  getBytesInUse: vi.fn(async () => JSON.stringify(Object.fromEntries(storageState)).length),
+  QUOTA_BYTES: 10485760,
   MAX_ITEMS: 512,
   QUOTA_BYTES_PER_ITEM: 8192,
 };
@@ -16,14 +34,28 @@ const mockLocalStorage = {
 global.chrome = {
   storage: {
     local: mockLocalStorage as any,
-    sync: {} as any,
+    sync: {
+      QUOTA_BYTES: 102400,
+      MAX_ITEMS: 512,
+      QUOTA_BYTES_PER_ITEM: 8192,
+    } as any,
     onChanged: {
       addListener: vi.fn(),
     } as any,
   },
 } as any;
 
-// Mock logger
+const encryptMock = vi.fn(async (value: string) => ({
+  ciphertext: `encrypted:${value}`,
+  iv: "iv",
+  salt: "salt",
+  algorithm: "AES-GCM" as const,
+  version: 1,
+}));
+const decryptMock = vi.fn(async (value: { ciphertext: string }) =>
+  value.ciphertext.replace("encrypted:", ""),
+);
+
 vi.mock("../src/background/monitoring.js", () => ({
   logger: {
     debug: vi.fn(),
@@ -33,89 +65,110 @@ vi.mock("../src/background/monitoring.js", () => ({
   },
 }));
 
-// Import after mocking
-import { ProviderConfigManager } from "../src/background/provider-config-manager.js";
+vi.mock("../src/background/crypto-manager.js", () => ({
+  getCryptoManager: () => ({
+    initialize: vi.fn(async () => undefined),
+    importMasterKey: vi.fn(async () => undefined),
+    exportMasterKey: vi.fn(async () => "master-key"),
+    encrypt: encryptMock,
+    decrypt: decryptMock,
+  }),
+}));
 
-describe("ProviderConfigManager Types", () => {
-  it("should define ProviderType correctly", () => {
-    // Just a placeholder to ensure the test is runnable.
-    expect(true).toBe(true);
-  });
+vi.mock("nanoid", () => ({
+  nanoid: () => "test-id",
+}));
 
-  it("should define ProviderConfig interface", () => {
-    expect(true).toBe(true);
-  });
-});
+import {
+  PROVIDER_CONFIGS_KEY,
+  PROVIDER_KEYS_KEY,
+  ProviderConfigManager,
+} from "../src/background/provider-config-manager.js";
 
 describe("ProviderConfigManager", () => {
-  let providerConfigManager: ProviderConfigManager;
-
-  beforeEach(() => {
-    providerConfigManager = ProviderConfigManager.getInstance();
-    // Reset singleton state if possible or at least clear mocks
+  beforeEach(async () => {
+    storageState.clear();
     vi.clearAllMocks();
+    (ProviderConfigManager as any).instance = null;
   });
 
-  describe("Initialization", () => {
-    // Wave 0 - Test stub for PROV-01: user can define provider configurations
-    it.todo("should initialize with generated master key");
-    it.todo("should load existing master key from storage");
-    it.todo("should handle master key generation errors");
+  it("should store a custom provider with baseUrl", async () => {
+    const manager = ProviderConfigManager.getInstance();
+    await manager.initialize();
+
+    const provider = await manager.addProvider({
+      type: "custom",
+      name: "Local Gateway",
+      baseUrl: "https://example.com/v1",
+      endpointMode: "openai-compatible",
+      apiKey: "secret",
+      defaultHeaders: { "X-Test": "1" },
+    });
+
+    expect(provider.baseUrl).toBe("https://example.com/v1");
+    expect(provider.endpointMode).toBe("openai-compatible");
+    expect(provider.apiKeyId).toBe("key_provider_test-id");
+
+    const storedConfigs = storageState.get(PROVIDER_CONFIGS_KEY) as any[];
+    expect(storedConfigs[0].baseUrl).toBe("https://example.com/v1");
+    expect(storedConfigs[0].defaultHeaders).toEqual({ "X-Test": "1" });
+
+    const storedKeys = storageState.get(PROVIDER_KEYS_KEY) as Record<string, unknown>;
+    expect(storedKeys["key_provider_test-id"]).toBeDefined();
   });
 
-  describe("addProvider", () => {
-    // Wave 0 - Test stub for PROV-01: user can add provider configurations
-    it.todo("should add provider with config");
-    it.todo("should encrypt API key if provided");
-    it.todo("should throw error if not initialized");
+  it("should allow an Ollama-style provider to persist apiKeyRequired: false", async () => {
+    const manager = ProviderConfigManager.getInstance();
+    await manager.initialize();
+
+    const provider = await manager.addProvider({
+      type: "ollama",
+      name: "Local Ollama",
+      apiKeyRequired: false,
+    });
+
+    expect(provider.apiKeyRequired).toBe(false);
+    expect(provider.baseUrl).toBe("http://localhost:11434/v1");
+    expect(provider.apiKeyId).toBeUndefined();
   });
 
-  describe("listProviders", () => {
-    // Wave 0 - Test stub for PROV-01: user can list providers
-    it.todo("should list providers from storage");
-    it.todo("should return empty array if no providers");
-  });
+  it("should update a provider and keep richer transport fields intact", async () => {
+    const manager = ProviderConfigManager.getInstance();
+    await manager.initialize();
 
-  describe("getProvider", () => {
-    // Wave 0 - Test stub for PROV-01: user can retrieve provider by ID
-    it.todo("should get provider from storage");
-    it.todo("should return null if not found");
-  });
+    const provider = await manager.addProvider({
+      type: "openrouter",
+      name: "OpenRouter",
+      baseUrl: "https://openrouter.ai/api/v1",
+      defaultQueryParams: { provider: "anthropic" },
+      providerOptions: {
+        type: "openrouter",
+        attributionHeaders: {
+          httpReferer: "https://example.com",
+          xTitle: "AI Pocket",
+        },
+      },
+      apiKey: "first-key",
+    });
 
-  describe("updateProvider", () => {
-    // Wave 0 - Test stub for PROV-05: user can enable/disable providers
-    it.todo("should update provider");
-    it.todo("should update enabled field");
-    it.todo("should throw error if not found");
-  });
+    const updated = await manager.updateProvider(provider.id, {
+      name: "OpenRouter Production",
+      enabled: false,
+      defaultHeaders: { "X-Trace": "trace-id" },
+      baseUrl: "https://openrouter.ai/api/v1",
+      endpointMode: "openai-compatible",
+    });
 
-  describe("deleteProvider", () => {
-    // Wave 0 - Test stub for PROV-01: user can delete provider configurations
-    it.todo("should delete provider");
-    it.todo("should delete associated encrypted key");
-    it.todo("should throw error if not found");
-  });
-
-  describe("setProviderEnabled", () => {
-    // Wave 0 - Test stub for PROV-05: user can enable/disable providers
-    it.todo("should enable provider");
-    it.todo("should disable provider");
-    it.todo("should throw error if not found");
-  });
-
-  describe("API Key Encryption (KEYS-01)", () => {
-    // Wave 0 - Test stub for KEYS-01: API keys are encrypted using AES-GCM
-    it.todo("should encrypt API key when adding provider");
-    it.todo("should decrypt API key successfully");
-    it.todo("should return null for provider without API key");
-    it.todo("should handle decryption errors gracefully");
-    it.todo("should update existing API key with encryption");
-  });
-
-  describe("Storage Location (KEYS-02)", () => {
-    // Wave 0 - Test stub for KEYS-02: API keys stored in chrome.storage.local only
-    it.todo("should store encrypted keys in chrome.storage.local");
-    it.todo("should store provider configs in chrome.storage.local");
-    it.todo("should never use chrome.storage.sync for API keys");
+    expect(updated.name).toBe("OpenRouter Production");
+    expect(updated.enabled).toBe(false);
+    expect(updated.baseUrl).toBe("https://openrouter.ai/api/v1");
+    expect(updated.defaultQueryParams).toEqual({ provider: "anthropic" });
+    expect(updated.providerOptions).toEqual({
+      type: "openrouter",
+      attributionHeaders: {
+        httpReferer: "https://example.com",
+        xTitle: "AI Pocket",
+      },
+    });
   });
 });

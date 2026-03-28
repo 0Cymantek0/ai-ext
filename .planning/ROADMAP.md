@@ -86,7 +86,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can select speech-to-text provider (OpenAI Whisper, Groq Whisper, NVIDIA Parakeet)
   4. User can configure STT-specific settings (language, model variant)
   5. Custom endpoint form validates URLs and optional API keys
-**Plans**: TBD
+**Plans**: 3 plans
+- [x] 04-01-PLAN.md — Provider transport schema, persistence, and OpenAI-compatible adapter infrastructure
+- [ ] 04-02-PLAN.md — Typed STT settings and richer capability metadata
+- [ ] 04-03-PLAN.md — Minimal sidepanel configuration flow for providers and STT
 
 ### Phase 5: Integration
 **Goal**: New provider system integrated with existing HybridAIEngine and message handling
@@ -126,7 +129,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4 -> 5 -> 6
 | 2. Core Adapters | 3/3 | Completed | 2026-03-28 |
 | 3. Router + Settings Manager | 2/2 | Completed | 2026-03-28 |
 | 3.1 Hardening & Model Capabilities | 0/2 | Planning complete | - |
-| 4. Additional Providers | 0/TBD | Not started | - |
+| 4. Additional Providers | 1/3 | In progress | - |
 | 5. Integration | 0/TBD | Not started | - |
 | 6. Settings UI | 0/TBD | Not started | - |
 

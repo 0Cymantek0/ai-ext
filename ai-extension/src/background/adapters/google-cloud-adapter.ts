@@ -1,6 +1,5 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
-import type { LanguageModelV3 } from '@ai-sdk/provider';
 import type { BaseProviderAdapter } from './base-adapter.js';
 import type { ProviderConfig, ProviderType } from '../provider-types.js';
 
@@ -14,7 +13,7 @@ export class GoogleCloudAdapter implements BaseProviderAdapter {
     this.apiKey = apiKey;
   }
 
-  getLanguageModel(modelId?: string): LanguageModelV3 {
+  getLanguageModel(modelId?: string): any {
     const google = createGoogleGenerativeAI({
       apiKey: this.apiKey,
     });

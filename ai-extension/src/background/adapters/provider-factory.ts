@@ -2,9 +2,13 @@ import type { ProviderConfig } from '../provider-types.js';
 import type { BaseProviderAdapter } from './base-adapter.js';
 import { getProviderConfigManager } from '../provider-config-manager.js';
 import { OpenAIAdapter } from './openai-adapter.js';
+import { OpenAICompatibleAdapter } from './openai-compatible-adapter.js';
 import { AnthropicAdapter } from './anthropic-adapter.js';
 import { GoogleCloudAdapter } from './google-cloud-adapter.js';
 import { GeminiNanoAdapter } from './gemini-nano-adapter.js';
+import { OpenRouterAdapter } from './openrouter-adapter.js';
+import { OllamaAdapter } from './ollama-adapter.js';
+import { GroqAdapter } from './groq-adapter.js';
 
 export class ProviderFactory {
   static async createAdapter(config: ProviderConfig, apiKey?: string): Promise<BaseProviderAdapter> {
@@ -37,7 +41,22 @@ export class ProviderFactory {
       return new GeminiNanoAdapter(config);
     }
 
-    // For now, throw an error since specific adapters are not yet implemented
+    if (config.type === 'openrouter') {
+      return new OpenRouterAdapter(config, resolvedApiKey);
+    }
+
+    if (config.type === 'ollama') {
+      return new OllamaAdapter(config, resolvedApiKey);
+    }
+
+    if (config.type === 'groq') {
+      return new GroqAdapter(config, resolvedApiKey);
+    }
+
+    if (config.type === 'custom') {
+      return new OpenAICompatibleAdapter(config, resolvedApiKey);
+    }
+
     throw new Error(`Adapter for provider type '${config.type}' is not yet implemented.`);
   }
 }

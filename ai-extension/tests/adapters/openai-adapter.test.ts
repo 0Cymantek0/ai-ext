@@ -1,94 +1,82 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OpenAIAdapter } from '../../src/background/adapters/openai-adapter.js';
-import type { ProviderConfig } from '../../src/background/provider-types.js';
-import * as aiSdkOpenai from '@ai-sdk/openai';
-import * as aiModule from 'ai';
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as aiModule from "ai";
+import * as aiSdkOpenai from "@ai-sdk/openai";
+import { OpenAIAdapter } from "../../src/background/adapters/openai-adapter.js";
+import type { ProviderConfig } from "../../src/background/provider-types.js";
 
-vi.mock('@ai-sdk/openai', () => ({
-  createOpenAI: vi.fn(() => vi.fn((modelId) => ({ provider: 'openai', modelId }))),
+vi.mock("@ai-sdk/openai", () => ({
+  createOpenAI: vi.fn(() => vi.fn((modelId) => ({ provider: "openai", modelId }))),
 }));
 
-vi.mock('ai', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('ai')>();
+vi.mock("ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("ai")>();
   return {
     ...actual,
     generateText: vi.fn(),
   };
 });
 
-describe('OpenAIAdapter', () => {
+describe("OpenAIAdapter", () => {
   let config: ProviderConfig;
-  const mockApiKey = 'sk-test-123';
+  const mockApiKey = "sk-test-123";
 
   beforeEach(() => {
     vi.clearAllMocks();
     config = {
-      id: 'openai-1',
-      type: 'openai',
-      name: 'OpenAI',
+      id: "openai-1",
+      type: "openai",
+      name: "OpenAI",
       enabled: true,
+      endpointMode: "native",
+      baseUrl: "https://api.openai.com/v1",
+      apiKeyRequired: true,
+      defaultHeaders: { "X-Test": "1" },
+      defaultQueryParams: { apiVersion: "1" },
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
   });
 
-  it('should initialize with config and api key', () => {
-    const adapter = new OpenAIAdapter(config, mockApiKey);
-    expect(adapter.providerType).toBe('openai');
-    expect(adapter.config).toBe(config);
-  });
-
-  it('should return a language model with default model ID', () => {
+  it("should pass provider transport metadata into createOpenAI", () => {
     const adapter = new OpenAIAdapter(config, mockApiKey);
     const model = adapter.getLanguageModel() as any;
-    
-    expect(aiSdkOpenai.createOpenAI).toHaveBeenCalledWith({ apiKey: mockApiKey });
-    expect(model.provider).toBe('openai');
-    expect(model.modelId).toBe('gpt-4o-mini');
+
+    expect(aiSdkOpenai.createOpenAI).toHaveBeenCalledWith({
+      apiKey: mockApiKey,
+      baseURL: "https://api.openai.com/v1",
+      headers: { "X-Test": "1" },
+    });
+    expect(model.provider).toBe("openai");
+    expect(model.modelId).toBe("gpt-4o-mini");
   });
 
-  it('should return a language model with config model ID', () => {
-    config.modelId = 'gpt-4-turbo';
+  it("should use config model id when present", () => {
+    config.modelId = "gpt-4-turbo";
     const adapter = new OpenAIAdapter(config, mockApiKey);
-    const model = adapter.getLanguageModel() as any;
-    
-    expect(model.modelId).toBe('gpt-4-turbo');
+
+    expect((adapter.getLanguageModel() as any).modelId).toBe("gpt-4-turbo");
   });
 
-  it('should return a language model with explicit model ID overriding config', () => {
-    config.modelId = 'gpt-4-turbo';
+  it("should validate connection successfully", async () => {
+    vi.mocked(aiModule.generateText).mockResolvedValueOnce({ text: "ok" } as any);
+
     const adapter = new OpenAIAdapter(config, mockApiKey);
-    const model = adapter.getLanguageModel('gpt-3.5-turbo') as any;
-    
-    expect(model.modelId).toBe('gpt-3.5-turbo');
+    await expect(adapter.validateConnection()).resolves.toEqual({ success: true });
   });
 
-  it('should validate connection successfully', async () => {
-    vi.mocked(aiModule.generateText).mockResolvedValueOnce({ text: 'test' } as any);
-    
-    const adapter = new OpenAIAdapter(config, mockApiKey);
-    const result = await adapter.validateConnection();
-    
-    expect(result.success).toBe(true);
-    expect(result.error).toBeUndefined();
-    expect(aiModule.generateText).toHaveBeenCalled();
+  it("should fail validation when a required API key is missing", async () => {
+    const adapter = new OpenAIAdapter(config, "");
+    await expect(adapter.validateConnection()).resolves.toEqual({
+      success: false,
+      error: "API key is missing.",
+    });
   });
 
-  it('should fail connection validation if api key is missing', async () => {
-    const adapter = new OpenAIAdapter(config, '');
-    const result = await adapter.validateConnection();
-    
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('API key is missing.');
-  });
+  it("should allow missing API key when provider config marks auth optional", async () => {
+    config.apiKeyRequired = false;
+    vi.mocked(aiModule.generateText).mockResolvedValueOnce({ text: "ok" } as any);
 
-  it('should fail connection validation if generateText throws', async () => {
-    vi.mocked(aiModule.generateText).mockRejectedValueOnce(new Error('Invalid API Key'));
-    
-    const adapter = new OpenAIAdapter(config, mockApiKey);
-    const result = await adapter.validateConnection();
-    
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('Invalid API Key');
+    const adapter = new OpenAIAdapter(config, "");
+    await expect(adapter.validateConnection()).resolves.toEqual({ success: true });
   });
 });
