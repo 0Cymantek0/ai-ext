@@ -556,14 +556,10 @@ export class HybridAIEngine {
     const forcedLocationProvided = Boolean(options?.forcedLocation);
 
     try {
-      if (task.operation === TaskOperation.GENERAL && !forcedLocationProvided) {
-        const prompt = this.buildPrompt(task);
-        const result = await this.executionService.generateText({
-          prompt,
-          task,
-          ...(options?.signal ? { signal: options.signal } : {}),
-          ...(options?.maxTokens ? { maxOutputTokens: options.maxTokens } : {}),
-        });
+      if (this.shouldUseProviderExecution(task, options)) {
+        const result = await this.executionService.generateText(
+          this.buildProviderExecutionRequest(task, options),
+        );
 
         return this.mapProviderTextResult(result, startTime);
       }
@@ -893,14 +889,10 @@ export class HybridAIEngine {
   ): AsyncGenerator<string, void, unknown> {
     const forcedLocationProvided = Boolean(options?.forcedLocation);
     try {
-      if (task.operation === TaskOperation.GENERAL && !forcedLocationProvided) {
-        const prompt = this.buildPrompt(task);
-        yield* this.executionService.streamText({
-          prompt,
-          task,
-          ...(options?.signal ? { signal: options.signal } : {}),
-          ...(options?.maxTokens ? { maxOutputTokens: options.maxTokens } : {}),
-        });
+      if (this.shouldUseProviderExecution(task, options)) {
+        yield* this.executionService.streamText(
+          this.buildProviderExecutionRequest(task, options),
+        );
         return;
       }
 
@@ -1053,10 +1045,7 @@ export class HybridAIEngine {
     startTime: number,
   ): AIResponse {
     const processingTime = performance.now() - startTime;
-    const source =
-      result.metadata.providerType === "gemini-nano"
-        ? "gemini-nano"
-        : "gemini-flash";
+    const source = this.mapProviderSource(result);
 
     return {
       result: result.text,
@@ -1070,6 +1059,43 @@ export class HybridAIEngine {
         0,
       metadata: result.metadata,
     } as AIResponse;
+  }
+
+  private shouldUseProviderExecution(
+    task: Task,
+    options?: Partial<ProcessingOptions>,
+  ): boolean {
+    return (
+      task.operation === TaskOperation.GENERAL &&
+      options?.forcedLocation === undefined
+    );
+  }
+
+  private buildProviderExecutionRequest(
+    task: Task,
+    options?: Partial<ProcessingOptions>,
+  ) {
+    return {
+      prompt: this.buildPrompt(task),
+      task,
+      ...(options?.signal ? { signal: options.signal } : {}),
+      ...(options?.maxTokens ? { maxOutputTokens: options.maxTokens } : {}),
+    };
+  }
+
+  private mapProviderSource(result: ProviderTextResult): AIResponse["source"] {
+    if (result.metadata.providerType === "gemini-nano") {
+      return "gemini-nano";
+    }
+
+    if (
+      result.metadata.providerType === "google" &&
+      result.metadata.modelId.toLowerCase().includes("pro")
+    ) {
+      return "gemini-pro";
+    }
+
+    return "gemini-flash";
   }
 }
 

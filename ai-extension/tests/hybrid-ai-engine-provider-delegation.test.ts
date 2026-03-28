@@ -125,6 +125,7 @@ describe("HybridAIEngine provider delegation", () => {
       }),
     );
     expect(result.result).toBe("Provider-routed answer");
+    expect(result.source).toBe("gemini-flash");
     expect(result.tokensUsed).toBe(30);
     expect(result.metadata).toEqual(executionMetadata);
     expect(cloudAIManager.processWithRetry).not.toHaveBeenCalled();
