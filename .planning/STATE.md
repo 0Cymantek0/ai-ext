@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-03-28T13:17:13.376Z"
+status: planning
+stopped_at: Phase 4 context gathered
+last_updated: "2026-03-28T16:29:04.262Z"
 last_activity: 2026-03-28
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 3
   total_plans: 8
   completed_plans: 8
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** User choice and flexibility — use any AI provider with your own API keys
-**Current focus:** Phase 03 — router-settings-manager
+**Current focus:** Phase 03.1 — phase-3-hardening-model-capabilities
 
 ## Current Position
 
-Phase: 4
+Phase: 3.1
 Plan: Not started
-Status: Ready to execute
+Status: Ready to plan
 Last activity: 2026-03-28
 
 Progress: [###-------] 33%
@@ -88,11 +88,15 @@ None yet.
 
 None yet.
 
+### Roadmap Evolution
+
+- Phase 03.1 inserted after Phase 3: Phase 3 Hardening & Model Capabilities (URGENT) — fixes enabled provider/model filtering, adds predefined model catalog, missing SettingsManager methods, intent-aware heuristics, and test coverage
+
 ## Session Continuity
 
-Last session: 2026-03-28T12:01:33.876Z
-Stopped at: Completed 03-02-PLAN.md
-Resume file: None
+Last session: 2026-03-28T16:29:04.256Z
+Stopped at: Phase 4 context gathered
+Resume file: .planning/phases/04-additional-providers/04-CONTEXT.md
 
 ---
 
