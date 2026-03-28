@@ -51,7 +51,7 @@ Requirements for multi-provider settings milestone. Each maps to roadmap phases.
 
 - [ ] **INT-01**: Gemini Nano remains available as a free provider option
 - [x] **INT-02**: Existing hybrid-ai-engine.ts delegates to new provider router
-- [ ] **INT-03**: Existing conversations continue working after provider changes
+- [x] **INT-03**: Existing conversations continue working after provider changes
 - [x] **INT-04**: System warns user if provider switch would affect existing embeddings
 
 ## v2 Requirements
@@ -125,7 +125,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STT-03 | Phase 4 | Pending |
 | INT-01 | Phase 2 | Pending |
 | INT-02 | Phase 5 | Complete |
-| INT-03 | Phase 5 | Pending |
+| INT-03 | Phase 5 | Complete |
 | INT-04 | Phase 3 | Complete |
 
 **Coverage:**

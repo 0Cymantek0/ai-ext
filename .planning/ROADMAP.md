@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Core Adapters** - Provider implementations (Gemini Nano, Gemini Cloud, OpenAI, Anthropic)
 - [ ] **Phase 3: Router + Settings Manager** - Per-capability routing and centralized settings management
 - [x] **Phase 4: Additional Providers** - Extended providers (Ollama, OpenRouter, Groq, Custom) and STT config
-- [ ] **Phase 5: Integration** - HybridAIEngine integration and message handlers
+- [x] **Phase 5: Integration** - HybridAIEngine integration and message handlers
 - [ ] **Phase 6: Settings UI** - Side panel settings interface with provider configuration
 
 ## Phase Details
@@ -105,7 +105,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 05-01-PLAN.md — Build provider execution contracts and convert HybridAIEngine into the provider-routed compatibility facade
 - [x] 05-02-PLAN.md — Implement the background transcription executor with exact provider endpoint handling
 - [x] 05-03-PLAN.md — Wire typed transcription/settings contracts through the service worker and media-capture flow
-- [ ] 05-04-PLAN.md — Persist provider/fallback provenance for streamed chat without breaking historical conversations
+- [x] 05-04-PLAN.md — Persist provider/fallback provenance for streamed chat without breaking historical conversations
 
 ### Phase 6: Settings UI
 **Goal**: Complete settings interface in side panel for configuring all providers and routing
@@ -134,7 +134,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4 -> 5 -> 6
 | 3. Router + Settings Manager | 2/2 | Completed | 2026-03-28 |
 | 3.1 Hardening & Model Capabilities | 0/2 | Planning complete | - |
 | 4. Additional Providers | 3/3 | Completed | 2026-03-29 |
-| 5. Integration | 0/TBD | Not started | - |
+| 5. Integration | 4/4 | Completed | 2026-03-29 |
 | 6. Settings UI | 0/TBD | Not started | - |
 
 ---

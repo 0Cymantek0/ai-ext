@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-28T22:59:21.402Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-03-28T23:16:25.926Z"
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State
@@ -19,13 +19,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** User choice and flexibility — use any AI provider with your own API keys
-**Current focus:** Phase 05 — integration
+**Current focus:** Phase 06 — settings ui
 
 ## Current Position
 
-Phase: 05 (integration) — EXECUTING
-Plan: 3 of 4
-All plans executed and verified (3/3)
+Phase: 05 (integration) — COMPLETE
+Plan: 4 of 4
+All plans executed and summarized (4/4)
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ All plans executed and verified (3/3)
 | Phase 03-router-settings-manager P02 | 10m | 3 tasks | 3 files |
 | Phase 05 P02 | 8min | 2 tasks | 3 files |
 | Phase 05 P03 | 7min | 2 tasks | 8 files |
+| Phase 05 P04 | 16min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Word timestamps are requested deterministically as segment plus word granularity and normalized into provider-agnostic result fields.
 - [Phase 05]: Kept existing AI_PROCESS_REQUEST and settings message kinds while replacing loose service-worker payload casts with shared typed contracts.
 - [Phase 05]: Media capture now serializes audio into AUDIO_TRANSCRIBE_REQUEST payloads so the background TranscriptionExecutor remains the single STT execution boundary.
+- [Phase 05]: Stored provider/model/fallback provenance additively under message.metadata.providerExecution while keeping source for backward compatibility
+- [Phase 05]: Rendered assistant-turn provider/model/fallback provenance inline in ChatApp using both live stream metadata and persisted conversation hydration
 
 ### Pending Todos
 
@@ -100,8 +103,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T22:59:21.397Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-03-28T23:16:25.918Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None
 
 ---
