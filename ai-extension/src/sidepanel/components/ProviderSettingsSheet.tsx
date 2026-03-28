@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CustomEndpointForm } from "./CustomEndpointForm";
 import type { CustomEndpointFormValues } from "./CustomEndpointForm";
+import { SpeechSettingsSection } from "./SpeechSettingsSection";
 import {
   Settings,
   X,
@@ -284,6 +285,9 @@ export function ProviderSettingsSheet({
             <p className="text-xs text-destructive">{error}</p>
           </div>
         )}
+
+        {/* Speech Settings */}
+        <SpeechSettingsSection className="mt-4" />
       </div>
     </div>
   );
