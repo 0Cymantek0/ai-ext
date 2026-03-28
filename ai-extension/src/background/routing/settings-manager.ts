@@ -1,12 +1,35 @@
 import { z } from 'zod';
 import { EmbeddingProviderSwitchError } from './types';
-import type { CapabilityType, RoutingPreferences, ModelSheetEntry } from './types';
+import type { CapabilityType, RoutingPreferences, ModelSheetEntry, SpeechSettings } from './types';
 import type { ProviderConfigManager } from '../provider-config-manager.js';
 import { getProviderConfigManager } from '../provider-config-manager.js';
 import { seedModelCatalog } from './model-catalog.js';
 
 const PREFS_KEY = 'ai_pocket_routing_prefs';
 const MODEL_SHEET_KEY = 'ai_pocket_model_sheet';
+const SPEECH_SETTINGS_KEY = 'ai_pocket_speech_settings';
+
+const SpeechSettingsSchema = z.object({
+  provider: z.object({
+    providerId: z.string().min(1),
+    modelId: z.string().min(1),
+  }),
+  language: z.string().min(1),
+  timestampGranularity: z.enum(['none', 'segment', 'word']),
+  advancedOptions: z.object({
+    enableTranslation: z.boolean().optional(),
+    enableDiarization: z.boolean().optional(),
+    temperature: z.number().min(0).max(1).optional(),
+    prompt: z.string().optional(),
+  }).optional(),
+}).strict();
+
+const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
+  provider: { providerId: '', modelId: '' },
+  language: 'en',
+  timestampGranularity: 'segment',
+  advancedOptions: {},
+};
 
 const RoutingModeSchema = z.enum(['auto', 'manual'], {
   errorMap: () => ({ message: "routingMode must be 'auto' or 'manual'" }),
@@ -201,5 +224,28 @@ export class SettingsManager {
     const newSheet = await seedModelCatalog(configManager);
     await chrome.storage.local.set({ [MODEL_SHEET_KEY]: newSheet });
     return newSheet;
+  }
+
+  // Speech settings methods (STT-01, STT-03)
+
+  /**
+   * Get the persisted speech settings.
+   * Returns defaults if no settings have been saved.
+   */
+  async getSpeechSettings(): Promise<SpeechSettings> {
+    const result = await chrome.storage.local.get(SPEECH_SETTINGS_KEY);
+    if (result[SPEECH_SETTINGS_KEY]) {
+      return result[SPEECH_SETTINGS_KEY] as SpeechSettings;
+    }
+    return { ...DEFAULT_SPEECH_SETTINGS, advancedOptions: { ...DEFAULT_SPEECH_SETTINGS.advancedOptions } };
+  }
+
+  /**
+   * Persist speech settings with Zod validation.
+   * Throws if the settings fail validation.
+   */
+  async setSpeechSettings(settings: unknown): Promise<void> {
+    const validated = SpeechSettingsSchema.parse(settings);
+    await chrome.storage.local.set({ [SPEECH_SETTINGS_KEY]: validated });
   }
 }

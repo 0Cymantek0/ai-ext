@@ -395,3 +395,147 @@ describe('SettingsManager - Model Management', () => {
     expect(sheet).toEqual({});
   });
 });
+
+describe('SettingsManager - Speech Settings', () => {
+  let settingsManager: SettingsManager;
+  let mockStorage: Record<string, any>;
+
+  beforeEach(() => {
+    mockStorage = {};
+    settingsManager = new SettingsManager();
+    vi.clearAllMocks();
+    mockIsInitialized.mockReturnValue(true);
+
+    global.chrome = {
+      storage: {
+        local: {
+          get: vi.fn((key: string) => Promise.resolve({ [key]: mockStorage[key] })),
+          set: vi.fn((data: Record<string, any>) => {
+            Object.assign(mockStorage, data);
+            return Promise.resolve();
+          }),
+        }
+      }
+    } as any;
+  });
+
+  it('should return default speech settings when nothing saved', async () => {
+    const settings = await settingsManager.getSpeechSettings();
+    expect(settings.language).toBe('en');
+    expect(settings.timestampGranularity).toBe('segment');
+    expect(settings.provider).toEqual({ providerId: '', modelId: '' });
+    expect(settings.advancedOptions).toEqual({});
+  });
+
+  it('should persist speech settings with provider and model', async () => {
+    await settingsManager.setSpeechSettings({
+      provider: { providerId: 'groq-stt', modelId: 'whisper-large-v3' },
+      language: 'es',
+      timestampGranularity: 'word',
+      advancedOptions: { enableTranslation: true },
+    });
+
+    const settings = await settingsManager.getSpeechSettings();
+    expect(settings.provider.providerId).toBe('groq-stt');
+    expect(settings.provider.modelId).toBe('whisper-large-v3');
+    expect(settings.language).toBe('es');
+    expect(settings.timestampGranularity).toBe('word');
+    expect(settings.advancedOptions?.enableTranslation).toBe(true);
+  });
+
+  it('should persist speech settings for OpenAI Whisper provider', async () => {
+    await settingsManager.setSpeechSettings({
+      provider: { providerId: 'openai-stt', modelId: 'whisper-1' },
+      language: 'en',
+      timestampGranularity: 'segment',
+      advancedOptions: { temperature: 0.5 },
+    });
+
+    const settings = await settingsManager.getSpeechSettings();
+    expect(settings.provider.providerId).toBe('openai-stt');
+    expect(settings.provider.modelId).toBe('whisper-1');
+    expect(settings.language).toBe('en');
+    expect(settings.timestampGranularity).toBe('segment');
+    expect(settings.advancedOptions?.temperature).toBe(0.5);
+  });
+
+  it('should persist speech settings for NVIDIA Parakeet provider', async () => {
+    await settingsManager.setSpeechSettings({
+      provider: { providerId: 'nvidia-stt', modelId: 'nvidia/parakeet-rnnt-1.1b-asr' },
+      language: 'en',
+      timestampGranularity: 'word',
+      advancedOptions: { enableDiarization: true },
+    });
+
+    const settings = await settingsManager.getSpeechSettings();
+    expect(settings.provider.providerId).toBe('nvidia-stt');
+    expect(settings.provider.modelId).toBe('nvidia/parakeet-rnnt-1.1b-asr');
+    expect(settings.advancedOptions?.enableDiarization).toBe(true);
+  });
+
+  it('should overwrite speech settings on subsequent set', async () => {
+    await settingsManager.setSpeechSettings({
+      provider: { providerId: 'openai-stt', modelId: 'whisper-1' },
+      language: 'en',
+      timestampGranularity: 'segment',
+      advancedOptions: {},
+    });
+
+    await settingsManager.setSpeechSettings({
+      provider: { providerId: 'groq-stt', modelId: 'whisper-large-v3' },
+      language: 'fr',
+      timestampGranularity: 'word',
+      advancedOptions: { enableTranslation: true },
+    });
+
+    const settings = await settingsManager.getSpeechSettings();
+    expect(settings.provider.providerId).toBe('groq-stt');
+    expect(settings.provider.modelId).toBe('whisper-large-v3');
+    expect(settings.language).toBe('fr');
+  });
+
+  it('should reject invalid speech settings (missing provider)', async () => {
+    await expect(
+      settingsManager.setSpeechSettings({
+        language: 'en',
+        timestampGranularity: 'segment',
+        advancedOptions: {},
+      })
+    ).rejects.toThrow();
+  });
+
+  it('should reject invalid speech settings (bad timestampGranularity)', async () => {
+    await expect(
+      settingsManager.setSpeechSettings({
+        provider: { providerId: 'p1', modelId: 'm1' },
+        language: 'en',
+        timestampGranularity: 'invalid',
+        advancedOptions: {},
+      })
+    ).rejects.toThrow();
+  });
+
+  it('should reject invalid speech settings (temperature out of range)', async () => {
+    await expect(
+      settingsManager.setSpeechSettings({
+        provider: { providerId: 'p1', modelId: 'm1' },
+        language: 'en',
+        timestampGranularity: 'word',
+        advancedOptions: { temperature: 2.5 },
+      })
+    ).rejects.toThrow();
+  });
+
+  it('should accept speech settings without advancedOptions', async () => {
+    await settingsManager.setSpeechSettings({
+      provider: { providerId: 'p1', modelId: 'whisper-1' },
+      language: 'de',
+      timestampGranularity: 'none',
+    });
+
+    const settings = await settingsManager.getSpeechSettings();
+    expect(settings.provider.providerId).toBe('p1');
+    expect(settings.language).toBe('de');
+    expect(settings.timestampGranularity).toBe('none');
+  });
+});

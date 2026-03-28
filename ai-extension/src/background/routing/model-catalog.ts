@@ -126,6 +126,94 @@ export const HARDCODED_CAPABILITIES: Record<string, {
     capabilities: { supportsVision: false, contextWindow: 4096, maxOutputTokens: 2048, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'free', speed: 'fast', quality: 'basic' },
   },
+
+  // --- OpenAI STT Models ---
+  'whisper-1': {
+    capabilities: { supportsVision: false, contextWindow: 0, maxOutputTokens: 0, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: true, supportsTranslation: true, supportsAudioInput: true, supportsWordTimestamps: true },
+    tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+  },
+  'gpt-4o-transcribe': {
+    capabilities: { supportsVision: false, contextWindow: 0, maxOutputTokens: 0, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: true, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: true },
+    tier: { cost: 'medium', speed: 'fast', quality: 'expert' },
+  },
+  'gpt-4o-mini-transcribe': {
+    capabilities: { supportsVision: false, contextWindow: 0, maxOutputTokens: 0, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: true, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: true },
+    tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+  },
+
+  // --- Groq STT Models ---
+  'whisper-large-v3': {
+    capabilities: { supportsVision: false, contextWindow: 0, maxOutputTokens: 0, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: true, supportsTranslation: true, supportsAudioInput: true, supportsWordTimestamps: true },
+    tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+  },
+  'whisper-large-v3-turbo': {
+    capabilities: { supportsVision: false, contextWindow: 0, maxOutputTokens: 0, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: true, supportsTranslation: true, supportsAudioInput: true, supportsWordTimestamps: true },
+    tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+  },
+  'distil-whisper-large-v3-en': {
+    capabilities: { supportsVision: false, contextWindow: 0, maxOutputTokens: 0, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: true, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: false },
+    tier: { cost: 'free', speed: 'fast', quality: 'basic' },
+  },
+
+  // --- NVIDIA STT Models ---
+  'nvidia/parakeet-ctc-1.1b-asr': {
+    capabilities: { supportsVision: false, contextWindow: 0, maxOutputTokens: 0, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: true, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: true },
+    tier: { cost: 'medium', speed: 'medium', quality: 'expert' },
+  },
+  'nvidia/parakeet-rnnt-1.1b-asr': {
+    capabilities: { supportsVision: false, contextWindow: 0, maxOutputTokens: 0, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: true, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: true },
+    tier: { cost: 'medium', speed: 'fast', quality: 'expert' },
+  },
+  'nvidia/canary-1b-flash': {
+    capabilities: { supportsVision: false, contextWindow: 0, maxOutputTokens: 0, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: true, supportsTranslation: true, supportsAudioInput: true, supportsWordTimestamps: true },
+    tier: { cost: 'medium', speed: 'fast', quality: 'expert' },
+  },
+
+  // --- OpenRouter popular models (seeded for routing) ---
+  'openrouter/auto': {
+    capabilities: { supportsVision: false, contextWindow: 128000, maxOutputTokens: 16384, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+  },
+  'meta-llama/llama-4-maverick': {
+    capabilities: { supportsVision: true, contextWindow: 1048576, maxOutputTokens: 32768, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+  },
+  'deepseek/deepseek-chat-v3-0324': {
+    capabilities: { supportsVision: false, contextWindow: 131072, maxOutputTokens: 16384, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+  },
+
+  // --- Ollama popular models (seeded for local routing) ---
+  'llama3.1:8b': {
+    capabilities: { supportsVision: false, contextWindow: 131072, maxOutputTokens: 4096, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'free', speed: 'medium', quality: 'advanced' },
+  },
+  'llama3.1:70b': {
+    capabilities: { supportsVision: false, contextWindow: 131072, maxOutputTokens: 4096, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'free', speed: 'slow', quality: 'expert' },
+  },
+  'gemma2:9b': {
+    capabilities: { supportsVision: false, contextWindow: 8192, maxOutputTokens: 4096, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'free', speed: 'medium', quality: 'advanced' },
+  },
+  'nomic-embed-text': {
+    capabilities: { supportsVision: false, contextWindow: 8192, maxOutputTokens: 768, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'free', speed: 'fast', quality: 'basic' },
+  },
+
+  // --- Groq chat models (seeded for routing) ---
+  'llama-3.3-70b-versatile': {
+    capabilities: { supportsVision: false, contextWindow: 131072, maxOutputTokens: 32768, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+  },
+  'llama-3.1-8b-instant': {
+    capabilities: { supportsVision: false, contextWindow: 131072, maxOutputTokens: 8192, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'free', speed: 'fast', quality: 'basic' },
+  },
+  'mixtral-8x7b-32768': {
+    capabilities: { supportsVision: false, contextWindow: 32768, maxOutputTokens: 32768, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
+    tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+  },
 };
 
 /**
@@ -285,12 +373,24 @@ export async function seedModelCatalog(configManager: any): Promise<Record<strin
 
 /**
  * Infer provider type from model ID patterns.
+ * Used for matching hardcoded overlay entries to provider instances.
  */
 function inferProviderType(modelId: string): string {
-  if (modelId.startsWith('gpt-') || modelId.startsWith('o3') || modelId.startsWith('o4-') || modelId.startsWith('text-embedding-')) return 'openai';
+  // OpenAI models (chat, embeddings, STT)
+  if (modelId.startsWith('gpt-') || modelId.startsWith('o3') || modelId.startsWith('o4-') || modelId.startsWith('text-embedding-') || modelId.startsWith('whisper-')) return 'openai';
   if (modelId.startsWith('claude-')) return 'anthropic';
   if (modelId.startsWith('gemini-') || modelId === 'gemini-nano') return 'gemini-nano';
   if (modelId.startsWith('text-embedding-00')) return 'google';
+  // OpenRouter uses cross-provider model IDs with slashes
+  if (modelId.startsWith('openrouter/') || modelId.startsWith('meta-llama/') || modelId.startsWith('deepseek/')) return 'openrouter';
+  // Ollama uses local model names with colons
+  if (modelId.includes(':') || modelId === 'nomic-embed-text') return 'ollama';
+  // Groq models
+  if (modelId.startsWith('llama-3.') || modelId.startsWith('llama-3.3-') || modelId.startsWith('mixtral-') || modelId.startsWith('distil-whisper-')) return 'groq';
+  // Groq whisper models
+  if (modelId.startsWith('whisper-large-v3')) return 'groq';
+  // NVIDIA models
+  if (modelId.startsWith('nvidia/')) return 'nvidia';
   return '';
 }
 
