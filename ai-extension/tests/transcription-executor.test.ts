@@ -183,4 +183,104 @@ describe('TranscriptionExecutor', () => {
       'Speaker diarization is only supported for NVIDIA speech providers in Phase 5.',
     );
   });
+
+  it('resolves provider and model fresh on each invocation and omits auth for ollama without a key', async () => {
+    mockSettingsManager.getSpeechSettings
+      .mockResolvedValueOnce(
+        makeSpeechSettings({
+          provider: { providerId: 'provider-openai', modelId: 'whisper-1' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        makeSpeechSettings({
+          provider: { providerId: 'provider-ollama', modelId: 'whisper-local' },
+          language: 'en',
+        }),
+      );
+
+    mockProviderConfigManager.getProvider
+      .mockResolvedValueOnce(makeProvider())
+      .mockResolvedValueOnce(
+        makeProvider({
+          id: 'provider-ollama',
+          type: 'ollama',
+          baseUrl: 'http://localhost:11434/v1',
+          endpointMode: 'openai-compatible',
+          apiKeyRequired: false,
+        }),
+      );
+
+    mockProviderConfigManager.getDecryptedApiKey
+      .mockResolvedValueOnce('secret-key')
+      .mockResolvedValueOnce(null);
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ text: 'hello', language: 'en' }),
+    });
+
+    const firstResult = await executor.transcribeAudio(makeAudioRequest());
+    const secondResult = await executor.transcribeAudio(makeAudioRequest());
+
+    expect(mockSettingsManager.getSpeechSettings).toHaveBeenCalledTimes(2);
+    expect(mockProviderConfigManager.getProvider).toHaveBeenNthCalledWith(1, 'provider-openai');
+    expect(mockProviderConfigManager.getProvider).toHaveBeenNthCalledWith(2, 'provider-ollama');
+    expect(firstResult.providerId).toBe('provider-openai');
+    expect(firstResult.modelId).toBe('whisper-1');
+    expect(secondResult.providerId).toBe('provider-ollama');
+    expect(secondResult.modelId).toBe('whisper-local');
+
+    const [, firstInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, secondInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    const firstHeaders = new Headers(firstInit.headers);
+    const secondHeaders = new Headers(secondInit.headers);
+
+    expect(firstHeaders.get('Authorization')).toBe('Bearer secret-key');
+    expect(secondHeaders.has('Authorization')).toBe(false);
+  });
+
+  it('returns normalized provider metadata with parsed verbose timestamps', async () => {
+    mockSettingsManager.getSpeechSettings.mockResolvedValue(
+      makeSpeechSettings({
+        timestampGranularity: 'word',
+        provider: { providerId: 'provider-groq', modelId: 'whisper-large-v3' },
+      }),
+    );
+    mockProviderConfigManager.getProvider.mockResolvedValue(
+      makeProvider({
+        id: 'provider-groq',
+        type: 'groq',
+        baseUrl: 'https://api.groq.com/openai/v1',
+        endpointMode: 'openai-compatible',
+      }),
+    );
+    mockProviderConfigManager.getDecryptedApiKey.mockResolvedValue('secret-key');
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          text: 'bonjour',
+          language: 'fr',
+          segments: [{ id: 1, start: 0, end: 1.5, text: 'bonjour' }],
+          words: [{ word: 'bonjour', start: 0, end: 1.5 }],
+        }),
+    });
+
+    const result = await executor.transcribeAudio(makeAudioRequest());
+
+    expect(result).toEqual({
+      text: 'bonjour',
+      providerId: 'provider-groq',
+      modelId: 'whisper-large-v3',
+      language: 'fr',
+      rawResponse: {
+        text: 'bonjour',
+        language: 'fr',
+        segments: [{ id: 1, start: 0, end: 1.5, text: 'bonjour' }],
+        words: [{ word: 'bonjour', start: 0, end: 1.5 }],
+      },
+      segments: [{ id: 1, start: 0, end: 1.5, text: 'bonjour' }],
+      words: [{ word: 'bonjour', start: 0, end: 1.5 }],
+    });
+  });
 });
