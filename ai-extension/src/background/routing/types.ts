@@ -26,11 +26,19 @@ export interface ModelTier {
 export interface ModelCapabilities {
   supportsVision: boolean;
   contextWindow: number;
+  maxOutputTokens: number;
+  supportsImageAnalysis: boolean;
+  supportsVideoAnalysis: boolean;
+  supportsAudioAnalysis: boolean;
 }
 
 export interface ModelSheetEntry {
   modelId: string;
+  providerId: string;
   providerType: string;
+  enabled: boolean;
   capabilities: ModelCapabilities;
   tier: ModelTier;
 }
+
+export const CATALOG_VERSION = 1;
