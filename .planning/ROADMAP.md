@@ -101,7 +101,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Existing conversations continue working after provider configuration changes
   4. All provider-related messages use typed message contracts
   5. Service worker handles new SETTINGS_* message types
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 05-01-PLAN.md — Build provider execution contracts and convert HybridAIEngine into the provider-routed compatibility facade
+- [ ] 05-02-PLAN.md — Implement the background transcription executor with exact provider endpoint handling
+- [ ] 05-03-PLAN.md — Wire typed transcription/settings contracts through the service worker and media-capture flow
+- [ ] 05-04-PLAN.md — Persist provider/fallback provenance for streamed chat without breaking historical conversations
 
 ### Phase 6: Settings UI
 **Goal**: Complete settings interface in side panel for configuring all providers and routing
