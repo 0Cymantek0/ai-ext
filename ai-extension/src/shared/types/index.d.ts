@@ -108,6 +108,12 @@ export type MessageKind =
   | "API_GET_NETWORK_LOGS"
   | "API_SET_AUTH_TOKEN"
   | "API_CLEAR_AUTH_TOKEN"
+  // Provider/STT settings messages (Phase 04)
+  | "PROVIDER_SETTINGS_LOAD"
+  | "PROVIDER_SETTINGS_SAVE"
+  | "PROVIDER_SETTINGS_VALIDATE_ENDPOINT"
+  | "SPEECH_SETTINGS_LOAD"
+  | "SPEECH_SETTINGS_SAVE"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -926,6 +932,52 @@ export interface ApiSetAuthTokenPayload {
 
 export interface ApiAuthResponsePayload {
   success: boolean;
+}
+
+// Provider/STT Settings Payloads (Phase 04)
+
+export interface ProviderSettingsLoadPayload {
+  /** Optional filter by provider type */
+  providerType?: string;
+}
+
+export interface ProviderSettingsSavePayload {
+  providerId?: string;
+  type: string;
+  name: string;
+  baseUrl?: string;
+  apiKey?: string;
+  enabled?: boolean;
+  endpointMode?: "native" | "openai-compatible" | "nvidia-nim";
+}
+
+export interface ProviderSettingsValidateEndpointPayload {
+  baseUrl: string;
+  providerType: string;
+  apiKey?: string;
+}
+
+export interface ProviderSettingsValidateEndpointResponse {
+  valid: boolean;
+  error?: string;
+  modelsAvailable?: number;
+}
+
+export interface SpeechSettingsLoadPayload {}
+
+export interface SpeechSettingsSavePayload {
+  provider: {
+    providerId: string;
+    modelId: string;
+  };
+  language: string;
+  timestampGranularity: "none" | "segment" | "word";
+  advancedOptions?: {
+    enableTranslation?: boolean;
+    enableDiarization?: boolean;
+    temperature?: number;
+    prompt?: string;
+  };
 }
 
 // Storage Keys

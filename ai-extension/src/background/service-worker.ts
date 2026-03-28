@@ -48,6 +48,8 @@ import {
   AriaController,
   type AriaControllerEventDetail,
 } from "./research/aria-controller.js";
+import { getProviderConfigManager } from "./provider-config-manager.js";
+import { SettingsManager } from "./routing/settings-manager.js";
 
 // Initialize runtime logging (disabled by default until debug recording is enabled)
 initializeRuntimeLogging({
@@ -2828,6 +2830,154 @@ messageRouter.registerHandler("CONTENT_LIST", async (payload) => {
     return { content: contents };
   } catch (error) {
     logger.error("Handler", "CONTENT_LIST error", error);
+    throw error;
+  }
+});
+
+// Provider settings handlers (Phase 04)
+
+const settingsManager = new SettingsManager();
+
+messageRouter.registerHandler("PROVIDER_SETTINGS_LOAD", async (payload: any) => {
+  logger.info("Handler", "PROVIDER_SETTINGS_LOAD");
+  try {
+    const configManager = getProviderConfigManager();
+    if (!configManager.isInitialized()) {
+      await configManager.initialize();
+    }
+    const providers = await configManager.listProviders();
+    // Optionally filter by type
+    const { providerType } = payload as { providerType?: string };
+    const filtered = providerType
+      ? providers.filter((p: any) => p.type === providerType)
+      : providers;
+    return { providers: filtered };
+  } catch (error) {
+    logger.error("Handler", "PROVIDER_SETTINGS_LOAD error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("PROVIDER_SETTINGS_SAVE", async (payload: any) => {
+  logger.info("Handler", "PROVIDER_SETTINGS_SAVE");
+  try {
+    const configManager = getProviderConfigManager();
+    if (!configManager.isInitialized()) {
+      await configManager.initialize();
+    }
+    const {
+      providerId,
+      type,
+      name,
+      baseUrl,
+      apiKey,
+      enabled,
+      endpointMode,
+    } = payload as {
+      providerId?: string;
+      type: string;
+      name: string;
+      baseUrl?: string;
+      apiKey?: string;
+      enabled?: boolean;
+      endpointMode?: string;
+    };
+
+    if (providerId) {
+      // Update existing provider
+      const updated = await configManager.updateProvider(providerId, {
+        name,
+        enabled: enabled ?? true,
+      });
+      // Update API key if provided
+      if (apiKey) {
+        await configManager.setProviderApiKey(providerId, apiKey);
+      }
+      return { provider: updated };
+    } else {
+      // Create new provider
+      const addPayload: { type: any; name: string; apiKey?: string; enabled: boolean } = {
+        type: type as any,
+        name,
+        enabled: enabled ?? true,
+      };
+      if (apiKey) {
+        addPayload.apiKey = apiKey;
+      }
+      const provider = await configManager.addProvider(addPayload);
+      return { provider };
+    }
+  } catch (error) {
+    logger.error("Handler", "PROVIDER_SETTINGS_SAVE error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("PROVIDER_SETTINGS_VALIDATE_ENDPOINT", async (payload: any) => {
+  logger.info("Handler", "PROVIDER_SETTINGS_VALIDATE_ENDPOINT");
+  try {
+    const { baseUrl, providerType, apiKey } = payload as {
+      baseUrl: string;
+      providerType: string;
+      apiKey?: string;
+    };
+
+    // Basic URL validation
+    try {
+      new URL(baseUrl);
+    } catch {
+      return { valid: false, error: "Invalid URL format" };
+    }
+
+    // Attempt to validate by fetching models list
+    const { MODEL_LIST_ENDPOINTS } = await import("./routing/model-catalog.js");
+    const endpoint = MODEL_LIST_ENDPOINTS[providerType];
+    if (!endpoint) {
+      // No API endpoint for this provider type, just validate URL shape
+      return { valid: true, modelsAvailable: 0 };
+    }
+
+    const url = endpoint.url(baseUrl);
+    const headers: Record<string, string> = {};
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(5000) });
+    if (!response.ok) {
+      return { valid: false, error: `Endpoint returned status ${response.status}` };
+    }
+
+    const json = await response.json();
+    const models = endpoint.extractModels(json);
+    return { valid: true, modelsAvailable: models.length };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Validation failed";
+    return { valid: false, error: message };
+  }
+});
+
+// Speech settings handlers (Phase 04)
+
+messageRouter.registerHandler("SPEECH_SETTINGS_LOAD", async () => {
+  logger.info("Handler", "SPEECH_SETTINGS_LOAD");
+  try {
+    const settings = await settingsManager.getSpeechSettings();
+    return { settings };
+  } catch (error) {
+    logger.error("Handler", "SPEECH_SETTINGS_LOAD error", error);
+    throw error;
+  }
+});
+
+messageRouter.registerHandler("SPEECH_SETTINGS_SAVE", async (payload: any) => {
+  logger.info("Handler", "SPEECH_SETTINGS_SAVE");
+  try {
+    await settingsManager.setSpeechSettings(payload);
+    const settings = await settingsManager.getSpeechSettings();
+    return { settings };
+  } catch (error) {
+    logger.error("Handler", "SPEECH_SETTINGS_SAVE error", error);
     throw error;
   }
 });
