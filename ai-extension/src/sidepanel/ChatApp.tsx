@@ -114,8 +114,10 @@ const getProviderExecutionMetadata = (
     providerType: value.providerType,
     modelId: value.modelId,
     attemptedProviderIds: value.attemptedProviderIds || [value.providerId],
-    fallbackFromProviderId: value.fallbackFromProviderId,
     fallbackOccurred: value.fallbackOccurred ?? false,
+    ...(value.fallbackFromProviderId
+      ? { fallbackFromProviderId: value.fallbackFromProviderId }
+      : {}),
   };
 };
 
@@ -321,11 +323,13 @@ export function ChatApp() {
       content: "",
       timestamp: Date.now(),
       isStreaming: true,
-      metadata: providerExecution
+      ...(providerExecution
         ? {
-            providerExecution,
+            metadata: {
+              providerExecution,
+            },
           }
-        : undefined,
+        : {}),
     };
     setMessages((prev) => [...prev, newMessage]);
     setIsLoading(false);
@@ -363,11 +367,15 @@ export function ChatApp() {
             isStreaming: false,
             source: payload.source,
             metadata: {
-              ...lastMessage.metadata,
-              processingTime: payload.processingTime,
-              tokensUsed: payload.totalTokens,
-              mode: payload.mode,
-              contextUsed: payload.contextUsed,
+              ...(lastMessage.metadata || {}),
+              ...(payload.processingTime !== undefined
+                ? { processingTime: payload.processingTime }
+                : {}),
+              ...(payload.totalTokens !== undefined
+                ? { tokensUsed: payload.totalTokens }
+                : {}),
+              ...(payload.mode ? { mode: payload.mode } : {}),
+              ...(payload.contextUsed ? { contextUsed: payload.contextUsed } : {}),
               ...(providerExecution ? { providerExecution } : {}),
             },
           },

@@ -435,16 +435,18 @@ export class StreamingHandler {
         }
 
         // Regular chunk
-        fullResponse += chunk;
-        session.totalChunks++;
+        if (typeof chunk === "string") {
+          fullResponse += chunk;
+          session.totalChunks++;
 
-        // Send chunk to side panel
-        this.sendStreamChunk(session.requestId, chunk, payload.conversationId);
+          // Send chunk to side panel
+          this.sendStreamChunk(session.requestId, chunk, payload.conversationId);
 
-        // Requirement 13.2: Ensure UI remains responsive
-        // Add small delay to prevent overwhelming the UI
-        if (session.totalChunks % 10 === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 0));
+          // Requirement 13.2: Ensure UI remains responsive
+          // Add small delay to prevent overwhelming the UI
+          if (session.totalChunks % 10 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
         }
       }
 
@@ -650,8 +652,10 @@ export class StreamingHandler {
       providerType: providerExecution.providerType,
       modelId: providerExecution.modelId,
       attemptedProviderIds: providerExecution.attemptedProviderIds,
-      fallbackFromProviderId: providerExecution.fallbackFromProviderId,
       fallbackOccurred: providerExecution.fallbackOccurred,
+      ...(providerExecution.fallbackFromProviderId
+        ? { fallbackFromProviderId: providerExecution.fallbackFromProviderId }
+        : {}),
     };
   }
 

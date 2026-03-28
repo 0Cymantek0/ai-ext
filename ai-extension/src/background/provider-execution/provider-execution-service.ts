@@ -82,9 +82,15 @@ export class ProviderExecutionService {
     yield {
       text,
       usage: {
-        promptTokens: usage?.inputTokens,
-        completionTokens: usage?.outputTokens,
-        totalTokens: usage?.totalTokens,
+        ...(usage?.inputTokens !== undefined
+          ? { promptTokens: usage.inputTokens }
+          : {}),
+        ...(usage?.outputTokens !== undefined
+          ? { completionTokens: usage.outputTokens }
+          : {}),
+        ...(usage?.totalTokens !== undefined
+          ? { totalTokens: usage.totalTokens }
+          : {}),
       },
       metadata: resolved.metadata,
     };

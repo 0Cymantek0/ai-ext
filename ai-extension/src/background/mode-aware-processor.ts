@@ -188,10 +188,12 @@ export class ModeAwareProcessor {
           continue;
         }
 
-        providerExecution = chunk.metadata;
-        providerUsage = chunk.usage;
-        if (chunk.text.length > fullResponse.length) {
-          fullResponse = chunk.text;
+        if ("usage" in chunk) {
+          providerExecution = chunk.metadata;
+          providerUsage = chunk.usage;
+          if (chunk.text.length > fullResponse.length) {
+            fullResponse = chunk.text;
+          }
         }
       }
 

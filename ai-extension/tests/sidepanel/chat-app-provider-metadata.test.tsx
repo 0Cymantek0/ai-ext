@@ -59,7 +59,19 @@ vi.mock("@/components/WelcomeScreen", () => ({
 }));
 
 vi.mock("@/components/HistoryPanel", () => ({
-  HistoryPanel: () => <div>history</div>,
+  HistoryPanel: ({ conversations, onSelectConversation }: any) => (
+    <div>
+      history
+      {conversations?.[0] && (
+        <button
+          type="button"
+          onClick={() => onSelectConversation(conversations[0].id)}
+        >
+          load-conversation
+        </button>
+      )}
+    </div>
+  ),
 }));
 
 vi.mock("@/sidepanel/components/ProviderSettingsSheet", () => ({
@@ -248,5 +260,88 @@ describe("ChatApp provider metadata", () => {
     ).toBeTruthy();
     expect(await screen.findByText("Fallback from openai-primary")).toBeTruthy();
     expect(screen.queryByText(/warning|modal/i)).toBeNull();
+  });
+
+  it("hydrates persisted provider metadata while leaving legacy conversation turns readable", async () => {
+    mockSendMessage.mockReset();
+    mockSendMessage.mockImplementation(async (message: { kind: string }) => {
+      switch (message.kind) {
+        case "CONVERSATION_LIST":
+          return {
+            success: true,
+            data: {
+              conversations: [
+                {
+                  id: "conv-hydrated",
+                  createdAt: 1,
+                  updatedAt: 2,
+                  messages: [
+                    { role: "assistant", content: "legacy conversation answer" },
+                    { role: "assistant", content: "fallback answer" },
+                  ],
+                },
+              ],
+            },
+          };
+        case "CONVERSATION_GET":
+          return {
+            success: true,
+            data: {
+              conversation: {
+                id: "conv-hydrated",
+                messages: [
+                  {
+                    id: "legacy-message",
+                    role: "assistant",
+                    content: "legacy conversation answer",
+                    timestamp: 100,
+                    source: "gemini-nano",
+                    metadata: {
+                      tokensUsed: 5,
+                    },
+                  },
+                  {
+                    id: "fallback-message",
+                    role: "assistant",
+                    content: "fallback answer",
+                    timestamp: 200,
+                    source: "gemini-flash",
+                    metadata: {
+                      providerExecution: {
+                        providerId: "anthropic-fallback",
+                        providerType: "anthropic",
+                        modelId: "claude-3.7-sonnet",
+                        attemptedProviderIds: [
+                          "openai-primary",
+                          "anthropic-fallback",
+                        ],
+                        fallbackFromProviderId: "openai-primary",
+                        fallbackOccurred: true,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          };
+        default:
+          return { success: true, data: {} };
+      }
+    });
+
+    render(<ChatApp />);
+
+    expect(await screen.findByText("load-conversation")).toBeTruthy();
+
+    act(() => {
+      screen.getByText("load-conversation").click();
+    });
+
+    expect(await screen.findByText("legacy conversation answer")).toBeTruthy();
+    expect(await screen.findByText("fallback answer")).toBeTruthy();
+    expect(
+      await screen.findByText("anthropic-fallback • claude-3.7-sonnet"),
+    ).toBeTruthy();
+    expect(await screen.findByText("Fallback from openai-primary")).toBeTruthy();
   });
 });

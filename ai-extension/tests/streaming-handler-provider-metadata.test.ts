@@ -297,4 +297,75 @@ describe("StreamingHandler provider execution metadata", () => {
       persistedMessage.metadata.providerExecution.fallbackFromProviderId,
     ).toBeUndefined();
   });
+
+  it("keeps a legacy conversation message unchanged when a provider-routed turn is appended", async () => {
+    randomUUIDMock
+      .mockReturnValueOnce("request-3")
+      .mockReturnValueOnce("message-3");
+
+    const legacyConversationMessage = {
+      id: "legacy-message",
+      role: "assistant",
+      content: "legacy conversation answer",
+      timestamp: 100,
+      source: "gemini-nano",
+      metadata: {
+        tokensUsed: 5,
+      },
+    };
+
+    processRequestMock.mockImplementation(
+      async function* (request: ModeAwareRequest): AsyncGenerator<
+        string | ModeAwareResponse,
+        void,
+        undefined
+      > {
+        yield {
+          content: "New routed answer",
+          source: "gemini-flash",
+          mode: request.mode,
+          contextUsed: ["conversation"],
+          tokensUsed: 12,
+          processingTime: 3,
+          providerExecution: {
+            providerId: "anthropic-chat",
+            providerType: "anthropic",
+            modelId: "claude-3.7-sonnet",
+            attemptedProviderIds: ["anthropic-chat"],
+            fallbackOccurred: false,
+          },
+        } as ModeAwareResponse;
+      },
+    );
+
+    const handler = new StreamingHandler({} as any, {} as any);
+
+    await handler.startStreaming(
+      {
+        prompt: "Follow up on the legacy conversation",
+        mode: "ask",
+        conversationId: "conv-legacy",
+        autoContext: true,
+      },
+      {} as any,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const persistedMessage = updateConversationMock.mock.calls[0]?.[1];
+    expect(persistedMessage.metadata.providerExecution).toMatchObject({
+      providerId: "anthropic-chat",
+      modelId: "claude-3.7-sonnet",
+    });
+    expect(legacyConversationMessage).toEqual({
+      id: "legacy-message",
+      role: "assistant",
+      content: "legacy conversation answer",
+      timestamp: 100,
+      source: "gemini-nano",
+      metadata: {
+        tokensUsed: 5,
+      },
+    });
+  });
 });
