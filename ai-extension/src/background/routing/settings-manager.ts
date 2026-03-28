@@ -1,8 +1,16 @@
+import { z } from 'zod';
 import { EmbeddingProviderSwitchError } from './types';
 import type { CapabilityType, RoutingPreferences, ModelSheetEntry } from './types';
+import type { ProviderConfigManager } from '../provider-config-manager.js';
+import { getProviderConfigManager } from '../provider-config-manager.js';
+import { seedModelCatalog } from './model-catalog.js';
 
 const PREFS_KEY = 'ai_pocket_routing_prefs';
 const MODEL_SHEET_KEY = 'ai_pocket_model_sheet';
+
+const RoutingModeSchema = z.enum(['auto', 'manual'], {
+  errorMap: () => ({ message: "routingMode must be 'auto' or 'manual'" }),
+});
 
 const DEFAULT_PREFS: RoutingPreferences = {
   chat: null,
@@ -19,12 +27,12 @@ const DEFAULT_MODEL_SHEET: Record<string, ModelSheetEntry> = {};
 export class SettingsManager {
   async getRoutingPreferences(): Promise<RoutingPreferences> {
     const result = await chrome.storage.local.get(PREFS_KEY);
-    return result[PREFS_KEY] || DEFAULT_PREFS;
+    return result[PREFS_KEY] || { ...DEFAULT_PREFS, fallbackChain: [], triggerWords: {}, providerParameters: {} };
   }
 
   async getModelSheet(): Promise<Record<string, ModelSheetEntry>> {
     const result = await chrome.storage.local.get(MODEL_SHEET_KEY);
-    return result[MODEL_SHEET_KEY] || DEFAULT_MODEL_SHEET;
+    return result[MODEL_SHEET_KEY] || {};
   }
 
   async updateModelSheet(sheet: Record<string, ModelSheetEntry>): Promise<void> {
@@ -47,16 +55,151 @@ export class SettingsManager {
 
   async setCapabilityProvider(capability: CapabilityType, providerId: string, bypassWarning = false): Promise<void> {
     const currentPrefs = await this.getRoutingPreferences();
-    
+
     if (capability === 'embeddings' && currentPrefs.embeddings !== null && currentPrefs.embeddings !== providerId && !bypassWarning) {
       throw new EmbeddingProviderSwitchError("Switching embedding providers will render existing content embeddings incompatible. Pass bypassWarning=true to override.");
     }
-    
+
     const updatedPrefs = {
       ...currentPrefs,
       [capability]: providerId
     };
-    
+
     await chrome.storage.local.set({ [PREFS_KEY]: updatedPrefs });
+  }
+
+  // Routing mode methods (D-12)
+
+  async getRoutingMode(): Promise<'auto' | 'manual'> {
+    const prefs = await this.getRoutingPreferences();
+    return prefs.routingMode;
+  }
+
+  async setRoutingMode(mode: unknown): Promise<void> {
+    const validated = RoutingModeSchema.parse(mode);
+    const prefs = await this.getRoutingPreferences();
+    prefs.routingMode = validated;
+    await chrome.storage.local.set({ [PREFS_KEY]: prefs });
+  }
+
+  // Fallback chain methods (D-12)
+
+  async getFallbackChain(): Promise<string[]> {
+    const prefs = await this.getRoutingPreferences();
+    return prefs.fallbackChain;
+  }
+
+  async setFallbackChain(chain: unknown): Promise<void> {
+    if (!Array.isArray(chain)) {
+      throw new Error("fallbackChain must be an array of provider ID strings");
+    }
+    const configManager = getProviderConfigManager();
+    if (!configManager.isInitialized()) {
+      await configManager.initialize();
+    }
+    const providers = await configManager.listProviders();
+    const enabledIds = new Set(providers.filter(p => p.enabled).map(p => p.id));
+    const invalid = (chain as string[]).filter(id => !enabledIds.has(id));
+    if (invalid.length > 0) {
+      throw new Error(
+        `Fallback chain contains non-existent or disabled providers: ${invalid.join(', ')}. Remove them or enable the providers first.`
+      );
+    }
+    const prefs = await this.getRoutingPreferences();
+    prefs.fallbackChain = chain as string[];
+    await chrome.storage.local.set({ [PREFS_KEY]: prefs });
+  }
+
+  // Trigger word methods (D-12)
+
+  async getTriggerWords(): Promise<Record<string, string>> {
+    const prefs = await this.getRoutingPreferences();
+    return prefs.triggerWords;
+  }
+
+  async setTriggerWords(words: Record<string, string>): Promise<void> {
+    if (!words || typeof words !== 'object') {
+      throw new Error("triggerWords must be a Record<string, string>");
+    }
+    const prefs = await this.getRoutingPreferences();
+    prefs.triggerWords = words;
+    await chrome.storage.local.set({ [PREFS_KEY]: prefs });
+  }
+
+  async addTriggerWord(word: unknown, providerId: unknown): Promise<void> {
+    if (!word || typeof word !== 'string') {
+      throw new Error("Trigger word must be a non-empty string");
+    }
+    if (!providerId || typeof providerId !== 'string') {
+      throw new Error("providerId must be a non-empty string referencing an existing provider");
+    }
+    const prefs = await this.getRoutingPreferences();
+    prefs.triggerWords = { ...prefs.triggerWords, [word]: providerId };
+    await chrome.storage.local.set({ [PREFS_KEY]: prefs });
+  }
+
+  async removeTriggerWord(word: string): Promise<void> {
+    const prefs = await this.getRoutingPreferences();
+    const { [word]: _, ...rest } = prefs.triggerWords;
+    prefs.triggerWords = rest;
+    await chrome.storage.local.set({ [PREFS_KEY]: prefs });
+  }
+
+  // Model management methods (D-13)
+
+  async addModel(providerId: string, entry: Partial<ModelSheetEntry> & { modelId: string }): Promise<void> {
+    if (!entry.modelId || typeof entry.modelId !== 'string') {
+      throw new Error("modelId is required and must be a string");
+    }
+    if (!providerId || typeof providerId !== 'string') {
+      throw new Error("providerId is required and must be a string");
+    }
+    if (!entry.providerType || typeof entry.providerType !== 'string') {
+      throw new Error("providerType is required and must be a string");
+    }
+
+    const sheet = await this.getModelSheet();
+    sheet[entry.modelId] = {
+      modelId: entry.modelId,
+      providerId,
+      providerType: entry.providerType,
+      enabled: entry.enabled ?? true,
+      capabilities: entry.capabilities ?? { supportsVision: false, contextWindow: 4096, maxOutputTokens: 2048, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+      tier: entry.tier ?? { cost: 'medium', speed: 'medium', quality: 'basic' },
+    };
+    await chrome.storage.local.set({ [MODEL_SHEET_KEY]: sheet });
+  }
+
+  async removeModel(modelId: string): Promise<void> {
+    const sheet = await this.getModelSheet();
+    if (!sheet[modelId]) {
+      throw new Error(`Model '${modelId}' not found in model sheet`);
+    }
+    delete sheet[modelId];
+    await chrome.storage.local.set({ [MODEL_SHEET_KEY]: sheet });
+  }
+
+  async getModel(modelId: string): Promise<ModelSheetEntry | null> {
+    const sheet = await this.getModelSheet();
+    return sheet[modelId] ?? null;
+  }
+
+  async setModelEnabled(modelId: string, enabled: boolean): Promise<void> {
+    const sheet = await this.getModelSheet();
+    if (!sheet[modelId]) {
+      throw new Error(`Model '${modelId}' not found in model sheet. Add it first using addModel().`);
+    }
+    sheet[modelId].enabled = enabled;
+    await chrome.storage.local.set({ [MODEL_SHEET_KEY]: sheet });
+  }
+
+  async refreshModelCatalog(): Promise<Record<string, ModelSheetEntry>> {
+    const configManager = getProviderConfigManager();
+    if (!configManager.isInitialized()) {
+      await configManager.initialize();
+    }
+    const newSheet = await seedModelCatalog(configManager);
+    await chrome.storage.local.set({ [MODEL_SHEET_KEY]: newSheet });
+    return newSheet;
   }
 }
