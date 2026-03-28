@@ -164,7 +164,7 @@ export class SettingsManager {
       providerId,
       providerType: entry.providerType,
       enabled: entry.enabled ?? true,
-      capabilities: entry.capabilities ?? { supportsVision: false, contextWindow: 4096, maxOutputTokens: 2048, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+      capabilities: entry.capabilities ?? { supportsVision: false, contextWindow: 4096, maxOutputTokens: 2048, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
       tier: entry.tier ?? { cost: 'medium', speed: 'medium', quality: 'basic' },
     };
     await chrome.storage.local.set({ [MODEL_SHEET_KEY]: sheet });

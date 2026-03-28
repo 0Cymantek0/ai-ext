@@ -72,7 +72,7 @@ describe('SettingsManager', () => {
         providerId: 'provider-1',
         providerType: 'openai',
         enabled: true,
-        capabilities: { supportsVision: false, contextWindow: 4096, maxOutputTokens: 2048, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+        capabilities: { supportsVision: false, contextWindow: 4096, maxOutputTokens: 2048, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
         tier: { cost: 'low', speed: 'fast', quality: 'basic' }
       }
     };
@@ -272,6 +272,10 @@ describe('SettingsManager - Model Management', () => {
     supportsImageAnalysis: false,
     supportsVideoAnalysis: false,
     supportsAudioAnalysis: false,
+    supportsTranscription: false,
+    supportsTranslation: false,
+    supportsAudioInput: false,
+    supportsWordTimestamps: false,
   };
 
   beforeEach(() => {

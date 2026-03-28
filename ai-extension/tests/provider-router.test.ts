@@ -49,6 +49,10 @@ const makeModelEntry = (overrides: Partial<{
     supportsImageAnalysis: false,
     supportsVideoAnalysis: false,
     supportsAudioAnalysis: false,
+    supportsTranscription: false,
+    supportsTranslation: false,
+    supportsAudioInput: false,
+    supportsWordTimestamps: false,
   },
   tier: {
     cost: overrides.cost ?? 'low',

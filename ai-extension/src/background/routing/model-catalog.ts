@@ -11,6 +11,10 @@ export const DEFAULT_CAPABILITIES: ModelCapabilities = {
   supportsImageAnalysis: false,
   supportsVideoAnalysis: false,
   supportsAudioAnalysis: false,
+  supportsTranscription: false,
+  supportsTranslation: false,
+  supportsAudioInput: false,
+  supportsWordTimestamps: false,
 };
 
 /**
@@ -33,93 +37,93 @@ export const HARDCODED_CAPABILITIES: Record<string, {
 }> = {
   // --- OpenAI ---
   'gpt-4o': {
-    capabilities: { supportsVision: true, contextWindow: 128000, maxOutputTokens: 16384, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: true },
+    capabilities: { supportsVision: true, contextWindow: 128000, maxOutputTokens: 16384, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: true, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: false },
     tier: { cost: 'medium', speed: 'fast', quality: 'expert' },
   },
   'gpt-4o-mini': {
-    capabilities: { supportsVision: true, contextWindow: 128000, maxOutputTokens: 16384, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 128000, maxOutputTokens: 16384, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
   },
   'gpt-4.1': {
-    capabilities: { supportsVision: true, contextWindow: 1047576, maxOutputTokens: 32768, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 1047576, maxOutputTokens: 32768, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'medium', speed: 'medium', quality: 'expert' },
   },
   'gpt-4.1-mini': {
-    capabilities: { supportsVision: true, contextWindow: 1047576, maxOutputTokens: 32768, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 1047576, maxOutputTokens: 32768, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
   },
   'gpt-4.1-nano': {
-    capabilities: { supportsVision: true, contextWindow: 1047576, maxOutputTokens: 32768, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 1047576, maxOutputTokens: 32768, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'low', speed: 'fast', quality: 'basic' },
   },
   'o3': {
-    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 100000, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 100000, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'high', speed: 'slow', quality: 'expert' },
   },
   'o4-mini': {
-    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 100000, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 100000, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'medium', speed: 'medium', quality: 'expert' },
   },
   'text-embedding-3-large': {
-    capabilities: { supportsVision: false, contextWindow: 8191, maxOutputTokens: 3072, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: false, contextWindow: 8191, maxOutputTokens: 3072, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
   },
   'text-embedding-3-small': {
-    capabilities: { supportsVision: false, contextWindow: 8191, maxOutputTokens: 1536, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: false, contextWindow: 8191, maxOutputTokens: 1536, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'low', speed: 'fast', quality: 'basic' },
   },
 
   // --- Anthropic ---
   'claude-sonnet-4-20250514': {
-    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 64000, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 64000, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'medium', speed: 'medium', quality: 'expert' },
   },
   'claude-3-7-sonnet-20250219': {
-    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 128000, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 128000, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'medium', speed: 'medium', quality: 'expert' },
   },
   'claude-3-5-sonnet-20241022': {
-    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'medium', speed: 'fast', quality: 'advanced' },
   },
   'claude-3-5-haiku-20241022': {
-    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
   },
   'claude-3-opus-20240229': {
-    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 4096, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: true, contextWindow: 200000, maxOutputTokens: 4096, supportsImageAnalysis: true, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'high', speed: 'slow', quality: 'expert' },
   },
 
   // --- Google ---
   'gemini-2.5-flash': {
-    capabilities: { supportsVision: true, contextWindow: 1048576, maxOutputTokens: 65536, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true },
+    capabilities: { supportsVision: true, contextWindow: 1048576, maxOutputTokens: 65536, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: false },
     tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
   },
   'gemini-2.5-pro': {
-    capabilities: { supportsVision: true, contextWindow: 1048576, maxOutputTokens: 65536, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true },
+    capabilities: { supportsVision: true, contextWindow: 1048576, maxOutputTokens: 65536, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: false },
     tier: { cost: 'medium', speed: 'medium', quality: 'expert' },
   },
   'gemini-2.0-flash': {
-    capabilities: { supportsVision: true, contextWindow: 1048576, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true },
+    capabilities: { supportsVision: true, contextWindow: 1048576, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: false },
     tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
   },
   'gemini-1.5-pro': {
-    capabilities: { supportsVision: true, contextWindow: 2097152, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true },
+    capabilities: { supportsVision: true, contextWindow: 2097152, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: false },
     tier: { cost: 'medium', speed: 'medium', quality: 'expert' },
   },
   'gemini-1.5-flash': {
-    capabilities: { supportsVision: true, contextWindow: 1048576, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true },
+    capabilities: { supportsVision: true, contextWindow: 1048576, maxOutputTokens: 8192, supportsImageAnalysis: true, supportsVideoAnalysis: true, supportsAudioAnalysis: true, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: true, supportsWordTimestamps: false },
     tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
   },
   'text-embedding-004': {
-    capabilities: { supportsVision: false, contextWindow: 2048, maxOutputTokens: 768, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: false, contextWindow: 2048, maxOutputTokens: 768, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'free', speed: 'fast', quality: 'basic' },
   },
 
   // --- Gemini Nano (local, no API) ---
   'gemini-nano': {
-    capabilities: { supportsVision: false, contextWindow: 4096, maxOutputTokens: 2048, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false },
+    capabilities: { supportsVision: false, contextWindow: 4096, maxOutputTokens: 2048, supportsImageAnalysis: false, supportsVideoAnalysis: false, supportsAudioAnalysis: false, supportsTranscription: false, supportsTranslation: false, supportsAudioInput: false, supportsWordTimestamps: false },
     tier: { cost: 'free', speed: 'fast', quality: 'basic' },
   },
 };
