@@ -58,7 +58,23 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. System falls back to next available provider if primary fails
   4. User receives warning when switching embedding providers (dimension mismatch risk)
   5. Settings manager persists and retrieves all provider configurations
-**Plans**: TBD
+**Plans**: 2 plans (Complete)
+
+### Phase 03.1: Phase 3 Hardening & Model Capabilities (INSERTED)
+**Goal**: Harden Phase 3 routing — enabled provider/model filtering, predefined model catalog with capabilities (context window, max output tokens, image/video/audio analysis), missing SettingsManager methods, intent-aware heuristics, and comprehensive test coverage
+**Requirements**: PROV-06, ROUT-02, ROUT-03
+**Depends on**: Phase 3
+**Success Criteria** (what must be TRUE):
+  1. Router only routes to enabled providers with enabled models
+  2. Predefined model catalog seeds the model sheet on first use
+  3. Users can configure model capabilities (context window, max output tokens, image/video/audio analysis)
+  4. SettingsManager exposes methods for routingMode, fallbackChain, triggerWords, and model management
+  5. Heuristic scoring uses intent from Nano classifier
+  6. Clear error messages for misconfigured capabilities
+  7. All routing paths have test coverage (trigger words, embeddings, speech, enabled filtering)
+**Plans**: 2 plans
+- [ ] 03.1-01-PLAN.md — Extend types, create model catalog, implement SettingsManager methods with Zod validation
+- [ ] 03.1-02-PLAN.md — Add enabled filtering to ProviderRouter and comprehensive test coverage
 
 ### Phase 4: Additional Providers
 **Goal**: Extended provider support including local, aggregator, and custom endpoints with STT configuration
@@ -95,20 +111,21 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Capability routing section shows chat/embeddings/speech provider assignments
   5. User sees which provider is handling each request in the UI
   6. User can view and delete saved API keys per provider
-  7. Model selector dropdown is populated from provider's available models
+  7. Model selector dropdown populated from provider's available models
 **Plans**: TBD
 **UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Completed | 2026-03-28 |
 | 2. Core Adapters | 3/3 | Completed | 2026-03-28 |
-| 3. Router + Settings Manager | 0/TBD | Not started | - |
+| 3. Router + Settings Manager | 2/2 | Completed | 2026-03-28 |
+| 3.1 Hardening & Model Capabilities | 0/2 | Planning complete | - |
 | 4. Additional Providers | 0/TBD | Not started | - |
 | 5. Integration | 0/TBD | Not started | - |
 | 6. Settings UI | 0/TBD | Not started | - |
