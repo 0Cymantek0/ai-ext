@@ -1,4 +1,5 @@
-import { CapabilityType, RoutingPreferences, EmbeddingProviderSwitchError, ModelSheetEntry } from './types';
+import { EmbeddingProviderSwitchError } from './types';
+import type { CapabilityType, RoutingPreferences, ModelSheetEntry } from './types';
 
 const PREFS_KEY = 'ai_pocket_routing_prefs';
 const MODEL_SHEET_KEY = 'ai_pocket_model_sheet';

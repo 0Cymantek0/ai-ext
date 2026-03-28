@@ -1,4 +1,4 @@
-import { CapabilityType } from './types.js';
+import type { CapabilityType } from './types.js';
 import { SettingsManager } from './settings-manager.js';
 import { classifyPromptWithNano } from './nano-classifier.js';
 import { ProviderFactory } from '../adapters/provider-factory.js';
