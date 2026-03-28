@@ -44,13 +44,13 @@ Requirements for multi-provider settings milestone. Each maps to roadmap phases.
 ### Speech-to-Text Integration
 
 - [ ] **STT-01**: User can select speech-to-text provider (OpenAI Whisper, Groq Whisper, NVIDIA Parakeet)
-- [ ] **STT-02**: System routes audio transcription to selected STT provider
+- [x] **STT-02**: System routes audio transcription to selected STT provider
 - [ ] **STT-03**: User can configure STT-specific settings (language, model variant)
 
 ### Existing System Integration
 
 - [ ] **INT-01**: Gemini Nano remains available as a free provider option
-- [ ] **INT-02**: Existing hybrid-ai-engine.ts delegates to new provider router
+- [x] **INT-02**: Existing hybrid-ai-engine.ts delegates to new provider router
 - [ ] **INT-03**: Existing conversations continue working after provider changes
 - [x] **INT-04**: System warns user if provider switch would affect existing embeddings
 
@@ -121,10 +121,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-06 | Phase 6 | Pending |
 | UI-07 | Phase 6 | Pending |
 | STT-01 | Phase 4 | Pending |
-| STT-02 | Phase 5 | Pending |
+| STT-02 | Phase 5 | Complete |
 | STT-03 | Phase 4 | Pending |
 | INT-01 | Phase 2 | Pending |
-| INT-02 | Phase 5 | Pending |
+| INT-02 | Phase 5 | Complete |
 | INT-03 | Phase 5 | Pending |
 | INT-04 | Phase 3 | Complete |
 

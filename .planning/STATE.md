@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 04 Complete
-stopped_at: Phase 5 context gathered
-last_updated: "2026-03-28T21:18:07.207Z"
+status: Ready to execute
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-28T22:59:21.402Z"
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 17
+  completed_plans: 16
 ---
 
 # Project State
@@ -19,11 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** User choice and flexibility — use any AI provider with your own API keys
-**Current focus:** Phase 04 complete — next: Phase 03.1 or Phase 5
+**Current focus:** Phase 05 — integration
 
 ## Current Position
 
-Phase: 04 (additional-providers) — COMPLETE
+Phase: 05 (integration) — EXECUTING
+Plan: 3 of 4
 All plans executed and verified (3/3)
 
 ## Performance Metrics
@@ -50,6 +51,8 @@ All plans executed and verified (3/3)
 | Phase 02-core-adapters P01 | 15m | 3 tasks | 4 files |
 | Phase 03 P01 | 10m | 3 tasks | 3 files |
 | Phase 03-router-settings-manager P02 | 10m | 3 tasks | 3 files |
+| Phase 05 P02 | 8min | 2 tasks | 3 files |
+| Phase 05 P03 | 7min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -74,6 +77,10 @@ Recent decisions affecting current work:
 - [Phase 04-additional-providers]: Speech settings use typed Zod-validated contract instead of untyped providerParameters
 - [Phase 04-additional-providers]: ProviderRouter exposes getSpeechSettings() without wiring end-to-end transcription
 - [Phase 04-additional-providers]: Custom endpoint form validates URLs with new URL() constructor
+- [Phase 05]: TranscriptionExecutor resolves provider and model from SettingsManager on every call so saved speech changes affect the next request immediately.
+- [Phase 05]: Word timestamps are requested deterministically as segment plus word granularity and normalized into provider-agnostic result fields.
+- [Phase 05]: Kept existing AI_PROCESS_REQUEST and settings message kinds while replacing loose service-worker payload casts with shared typed contracts.
+- [Phase 05]: Media capture now serializes audio into AUDIO_TRANSCRIBE_REQUEST payloads so the background TranscriptionExecutor remains the single STT execution boundary.
 
 ### Pending Todos
 
@@ -93,9 +100,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T21:18:07.202Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-integration/05-CONTEXT.md
+Last session: 2026-03-28T22:59:21.397Z
+Stopped at: Completed 05-03-PLAN.md
+Resume file: None
 
 ---
 
