@@ -17,6 +17,8 @@ import {
   type ProcessingResult,
   type StereoWaveformData,
 } from "./media-processor.js";
+import { sendMessage } from "../shared/message-client.js";
+import type { AudioTranscribeResponsePayload } from "../shared/types/index.d.ts";
 
 export interface CapturedImage {
   metadata: ImageMetadata;
@@ -435,23 +437,66 @@ export class MediaCapture {
   }
 
   /**
-   * Transcribe audio (placeholder for AI integration)
+   * Transcribe audio via the background STT executor
    * Requirements: 3.7
    */
   private async transcribeAudio(audio: HTMLAudioElement): Promise<string> {
-    // This would integrate with Gemini Nano or cloud API for transcription
-    // For now, return placeholder
-    console.info("[MediaCapture] Audio transcription requested", {
-      src: audio.src,
-      duration: audio.duration,
+    const sourceUrl = audio.currentSrc || audio.src;
+    const audioBlob = await this.loadAudioBlob(audio);
+    const mimeType = audioBlob.type || "audio/webm";
+    const audioBase64 = await this.blobToBase64(audioBlob);
+    const response = await sendMessage<AudioTranscribeResponsePayload>(
+      "AUDIO_TRANSCRIBE_REQUEST",
+      {
+        audioBase64,
+        mimeType,
+        fileName: "captured-audio.webm",
+        ...(Number.isFinite(audio.duration)
+          ? { durationMs: Math.round(audio.duration * 1000) }
+          : {}),
+        ...(sourceUrl ? { sourceUrl } : {}),
+      },
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || "Audio transcription failed");
+    }
+
+    if (!response.data.success || !response.data.text) {
+      throw new Error(response.data.error || "Audio transcription failed");
+    }
+
+    return response.data.text;
+  }
+
+  private async loadAudioBlob(audio: HTMLAudioElement): Promise<Blob> {
+    const sourceUrl = audio.currentSrc || audio.src;
+
+    if (!sourceUrl) {
+      throw new Error("Audio source URL is not available");
+    }
+
+    const response = await fetch(sourceUrl);
+    return await response.blob();
+  }
+
+  private blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result !== "string") {
+          reject(new Error("Failed to serialize audio blob"));
+          return;
+        }
+
+        resolve(result.split(",")[1] || "");
+      };
+      reader.onerror = () => {
+        reject(reader.error || new Error("Failed to serialize audio blob"));
+      };
+      reader.readAsDataURL(blob);
     });
-
-    // In production, this would:
-    // 1. Extract audio data
-    // 2. Send to Gemini Nano (if < 30 seconds) or cloud API
-    // 3. Return transcription text
-
-    return "[Audio transcription not yet implemented]";
   }
 
   /**
