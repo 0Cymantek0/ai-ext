@@ -24,6 +24,7 @@ import type {
   AiStreamErrorPayload,
   AiCancelRequestPayload,
   BaseMessage,
+  ProviderExecutionMetadata,
 } from "../shared/types/index.d";
 
 type ResolvedModel = "nano" | "flash" | "pro";
@@ -52,6 +53,7 @@ interface StreamingSession {
   messageId?: string; // ID of the assistant message being created
   resolvedModel?: ResolvedModel;
   routingDecision?: RoutingSessionDecision;
+  providerExecution?: ProviderExecutionMetadata;
 }
 
 /**
@@ -262,23 +264,6 @@ export class StreamingHandler {
     const messageId = crypto.randomUUID();
     session.messageId = messageId;
 
-    const resolvedModelForStart =
-      session.resolvedModel ?? userSpecifiedModel;
-
-    // Send stream start message
-    const startPayload: AiStreamStartPayload = {
-      requestId,
-      ...(payload.conversationId && { conversationId: payload.conversationId }),
-      messageId,
-      ...(resolvedModelForStart && { resolvedModel: resolvedModelForStart }),
-    };
-
-    this.sendToSidePanel({
-      kind: "AI_PROCESS_STREAM_START",
-      requestId,
-      payload: startPayload,
-    });
-
     // Start streaming in background (don't await)
     this.processStream(payload, session, sender).catch((error) => {
       logger.error("StreamingHandler", "Stream processing failed", error);
@@ -386,9 +371,48 @@ export class StreamingHandler {
       let fullResponse = "";
       let source: "gemini-nano" | "gemini-flash" | "gemini-pro" = "gemini-nano";
       let contextUsed: string[] = [];
+      let startPayloadSent = false;
+
+      const sendStartPayload = () => {
+        if (startPayloadSent) {
+          return;
+        }
+
+        const startPayload: AiStreamStartPayload = {
+          requestId: session.requestId,
+          ...(payload.conversationId
+            ? { conversationId: payload.conversationId }
+            : {}),
+          ...(session.messageId ? { messageId: session.messageId } : {}),
+          ...(session.resolvedModel
+            ? { resolvedModel: session.resolvedModel }
+            : {}),
+          ...this.toProviderExecutionPayload(session.providerExecution),
+        };
+
+        this.sendToSidePanel({
+          kind: "AI_PROCESS_STREAM_START",
+          requestId: session.requestId,
+          payload: startPayload,
+        });
+
+        startPayloadSent = true;
+      };
 
       // Stream chunks
       for await (const chunk of streamGenerator) {
+        if (
+          typeof chunk === "object" &&
+          "type" in chunk &&
+          chunk.type === "provider-execution"
+        ) {
+          session.providerExecution = chunk.metadata;
+          sendStartPayload();
+          continue;
+        }
+
+        sendStartPayload();
+
         // Check if cancelled
         if (session.abortController.signal.aborted) {
           logger.info("StreamingHandler", "Stream cancelled", {
@@ -403,6 +427,7 @@ export class StreamingHandler {
           const response = chunk as any;
           source = response.source;
           contextUsed = response.contextUsed || [];
+          session.providerExecution = response.providerExecution;
           if (typeof response.content === "string" && response.content.length) {
             fullResponse = response.content;
           }
@@ -422,6 +447,8 @@ export class StreamingHandler {
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
+
+      sendStartPayload();
 
       // Calculate metrics
       const processingTime = performance.now() - session.startTime;
@@ -454,6 +481,7 @@ export class StreamingHandler {
         source,
         mode,
         contextUsed,
+        session.providerExecution,
       );
 
       // Persist final assistant message to conversation history if available
@@ -472,6 +500,9 @@ export class StreamingHandler {
               processingTime,
               mode,
               contextUsed,
+              ...(session.providerExecution
+                ? { providerExecution: session.providerExecution }
+                : {}),
             },
           };
           await indexedDBManager.updateConversation(
@@ -587,6 +618,7 @@ export class StreamingHandler {
     source: "gemini-nano" | "gemini-flash" | "gemini-pro",
     mode?: "ask" | "ai-pocket",
     contextUsed?: string[],
+    providerExecution?: ProviderExecutionMetadata,
   ): void {
     const payload: AiStreamEndPayload = {
       requestId,
@@ -596,6 +628,7 @@ export class StreamingHandler {
       ...(conversationId && { conversationId }),
       ...(mode && { mode }),
       ...(contextUsed && { contextUsed }),
+      ...this.toProviderExecutionPayload(providerExecution),
     };
 
     this.sendToSidePanel({
@@ -603,6 +636,23 @@ export class StreamingHandler {
       requestId,
       payload,
     });
+  }
+
+  private toProviderExecutionPayload(
+    providerExecution?: ProviderExecutionMetadata,
+  ): Partial<AiStreamStartPayload & AiStreamEndPayload> {
+    if (!providerExecution) {
+      return {};
+    }
+
+    return {
+      providerId: providerExecution.providerId,
+      providerType: providerExecution.providerType,
+      modelId: providerExecution.modelId,
+      attemptedProviderIds: providerExecution.attemptedProviderIds,
+      fallbackFromProviderId: providerExecution.fallbackFromProviderId,
+      fallbackOccurred: providerExecution.fallbackOccurred,
+    };
   }
 
   /**

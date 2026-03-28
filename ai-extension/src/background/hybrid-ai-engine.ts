@@ -19,7 +19,10 @@ import {
 import { CloudAIManager, GeminiModel } from "./cloud-ai-manager";
 import { aiPerformanceMonitor, AIModel } from "./ai-performance-monitor";
 import { ProviderExecutionService } from "./provider-execution/provider-execution-service.js";
-import type { ProviderTextResult } from "./provider-execution/types.js";
+import type {
+  ProviderStreamEvent,
+  ProviderTextResult,
+} from "./provider-execution/types.js";
 
 /**
  * Task complexity levels
@@ -886,7 +889,7 @@ export class HybridAIEngine {
     task: Task,
     options?: Partial<ProcessingOptions>,
     onConsentRequired?: (decision: ProcessingDecision) => Promise<boolean>,
-  ): AsyncGenerator<string, void, unknown> {
+  ): AsyncGenerator<string | ProviderStreamEvent, void, unknown> {
     const forcedLocationProvided = Boolean(options?.forcedLocation);
     try {
       if (this.shouldUseProviderExecution(task, options)) {

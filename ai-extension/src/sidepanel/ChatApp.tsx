@@ -31,6 +31,12 @@ import { useIndexingStatus } from "@/hooks/useIndexingStatus";
 import { IndexingWarningBanner } from "@/components/IndexingWarningBanner";
 import { useContextProgress } from "@/hooks/useContextProgress";
 import { ContextGatheringIndicator } from "@/components/ai/ContextGatheringIndicator";
+import type {
+  AiStreamEndPayload,
+  AiStreamStartPayload,
+  MessageMetadata,
+  ProviderExecutionMetadata,
+} from "@/shared/types/index.d";
 import {
   attachPocketToConversation,
   detachPocketFromConversation,
@@ -56,6 +62,8 @@ interface ChatMessage {
   timestamp: number;
   isStreaming?: boolean;
   files?: File[] | undefined;
+  source?: "gemini-nano" | "gemini-flash" | "gemini-pro";
+  metadata?: MessageMetadata;
 }
 
 interface ConversationMetadata {
@@ -88,6 +96,54 @@ interface PocketSelectionRequestState {
   preview?: string;
   sourceUrl?: string;
 }
+
+type AssistantProvenance = {
+  providerLabel: string;
+  fallbackLabel?: string;
+};
+
+const getProviderExecutionMetadata = (
+  value: Partial<AiStreamStartPayload & AiStreamEndPayload> | undefined,
+): ProviderExecutionMetadata | undefined => {
+  if (!value?.providerId || !value?.providerType || !value?.modelId) {
+    return undefined;
+  }
+
+  return {
+    providerId: value.providerId,
+    providerType: value.providerType,
+    modelId: value.modelId,
+    attemptedProviderIds: value.attemptedProviderIds || [value.providerId],
+    fallbackFromProviderId: value.fallbackFromProviderId,
+    fallbackOccurred: value.fallbackOccurred ?? false,
+  };
+};
+
+const getAssistantProvenance = (
+  message: ChatMessage,
+): AssistantProvenance | undefined => {
+  const providerExecution = message.metadata?.providerExecution;
+
+  if (providerExecution) {
+    return {
+      providerLabel: `${providerExecution.providerId} • ${providerExecution.modelId}`,
+      ...(providerExecution.fallbackOccurred &&
+      providerExecution.fallbackFromProviderId
+        ? {
+            fallbackLabel: `Fallback from ${providerExecution.fallbackFromProviderId}`,
+          }
+        : {}),
+    };
+  }
+
+  if (message.source) {
+    return {
+      providerLabel: message.source,
+    };
+  }
+
+  return undefined;
+};
 
 export function ChatApp() {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -257,13 +313,19 @@ export function ChatApp() {
   };
 
   // Streaming handlers with useCallback to prevent stale closures
-  const handleStreamStart = React.useCallback((payload: any) => {
+  const handleStreamStart = React.useCallback((payload: AiStreamStartPayload) => {
+    const providerExecution = getProviderExecutionMetadata(payload);
     const newMessage: ChatMessage = {
       id: payload.messageId || crypto.randomUUID(), // Use messageId from backend if available
       role: "assistant",
       content: "",
       timestamp: Date.now(),
       isStreaming: true,
+      metadata: providerExecution
+        ? {
+            providerExecution,
+          }
+        : undefined,
     };
     setMessages((prev) => [...prev, newMessage]);
     setIsLoading(false);
@@ -287,7 +349,9 @@ export function ChatApp() {
 
   const saveConversationRef = React.useRef<(() => Promise<void>) | null>(null);
 
-  const handleStreamEnd = React.useCallback(async (payload: any) => {
+  const handleStreamEnd = React.useCallback(async (payload: AiStreamEndPayload) => {
+    const providerExecution = getProviderExecutionMetadata(payload);
+
     // Update the streaming status first
     setMessages((prev) => {
       const lastMessage = prev[prev.length - 1];
@@ -297,6 +361,15 @@ export function ChatApp() {
           {
             ...lastMessage,
             isStreaming: false,
+            source: payload.source,
+            metadata: {
+              ...lastMessage.metadata,
+              processingTime: payload.processingTime,
+              tokensUsed: payload.totalTokens,
+              mode: payload.mode,
+              contextUsed: payload.contextUsed,
+              ...(providerExecution ? { providerExecution } : {}),
+            },
           },
         ];
       }
@@ -938,6 +1011,8 @@ export function ChatApp() {
             content: msg.content,
             timestamp: msg.timestamp,
             isStreaming: false,
+            source: msg.source,
+            metadata: msg.metadata,
           }),
         );
 
@@ -1020,10 +1095,12 @@ export function ChatApp() {
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp,
-        source: "gemini-nano" as const, // Default source
-        metadata: {
-          tokensUsed: 0, // Could track this if needed
-        },
+        source: msg.source || ("gemini-nano" as const),
+        metadata:
+          msg.metadata ||
+          ({
+            tokensUsed: 0,
+          } satisfies MessageMetadata),
       }));
 
       console.log("🔍 Checking if conversation exists in database...");
@@ -1311,6 +1388,26 @@ export function ChatApp() {
                                         ))}
                                       </div>
                                     )}
+                                  {message.role === "assistant" &&
+                                    getAssistantProvenance(message) && (
+                                      <div className="mb-2 text-xs text-muted-foreground">
+                                        <div>
+                                          {
+                                            getAssistantProvenance(message)
+                                              ?.providerLabel
+                                          }
+                                        </div>
+                                        {getAssistantProvenance(message)
+                                          ?.fallbackLabel && (
+                                          <div>
+                                            {
+                                              getAssistantProvenance(message)
+                                                ?.fallbackLabel
+                                            }
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                   <div
                                     className={cn(
                                       "inline-block max-w-[85%] break-words",
@@ -1569,6 +1666,26 @@ export function ChatApp() {
                                 ))}
                               </div>
                             )}
+                            {message.role === "assistant" &&
+                              getAssistantProvenance(message) && (
+                                <div className="mb-2 text-xs text-muted-foreground">
+                                  <div>
+                                    {
+                                      getAssistantProvenance(message)
+                                        ?.providerLabel
+                                    }
+                                  </div>
+                                  {getAssistantProvenance(message)
+                                    ?.fallbackLabel && (
+                                    <div>
+                                      {
+                                        getAssistantProvenance(message)
+                                          ?.fallbackLabel
+                                      }
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             <div
                               className={cn(
                                 "inline-block max-w-[85%] break-words",

@@ -7,6 +7,10 @@
 import { logger } from "./monitoring.js";
 import { ContentType, ProcessingStatus } from "../types/content.js";
 import type {
+  MessageMetadata,
+  ProviderExecutionMetadata,
+} from "../shared/types/index.d";
+import type {
   ContentMetadata,
   ContentStorageReference,
   ContentChunk,
@@ -84,10 +88,8 @@ export interface Message {
   content: string;
   timestamp: number;
   source: AISource;
-  metadata?: {
-    processingTime?: number;
-    confidence?: number;
-    tokensUsed?: number;
+  metadata?: MessageMetadata & {
+    providerExecution?: ProviderExecutionMetadata;
   };
 }
 

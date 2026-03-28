@@ -341,6 +341,24 @@ export interface AiProcessResponsePayload {
   taskId?: string;
 }
 
+export interface ProviderExecutionMetadata {
+  providerId: string;
+  providerType: string;
+  modelId: string;
+  attemptedProviderIds: string[];
+  fallbackFromProviderId?: string;
+  fallbackOccurred: boolean;
+}
+
+export interface MessageMetadata {
+  processingTime?: number;
+  confidence?: number;
+  tokensUsed?: number;
+  mode?: "ask" | "ai-pocket";
+  contextUsed?: string[];
+  providerExecution?: ProviderExecutionMetadata;
+}
+
 export interface AiStreamRequestPayload {
   prompt: string;
   conversationId?: string;

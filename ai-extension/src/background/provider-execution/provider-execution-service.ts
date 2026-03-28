@@ -1,6 +1,8 @@
 import { generateText, streamText } from "ai";
 import { ProviderRouter } from "../routing/provider-router.js";
 import type {
+  ProviderExecutionEvent,
+  ProviderStreamEvent,
   ProviderStreamRequest,
   ProviderTextRequest,
   ProviderTextResult,
@@ -45,11 +47,18 @@ export class ProviderExecutionService {
 
   async *streamText(
     request: ProviderStreamRequest,
-  ): AsyncGenerator<string, void, unknown> {
+  ): AsyncGenerator<ProviderStreamEvent, void, unknown> {
     const resolved = await this.providerRouter.resolveCapability(
       "chat",
       request.prompt,
     );
+
+    const providerExecutionEvent: ProviderExecutionEvent = {
+      type: "provider-execution",
+      metadata: resolved.metadata,
+    };
+
+    yield providerExecutionEvent;
 
     const response = streamText({
       model: resolved.adapter.getLanguageModel(
@@ -62,8 +71,22 @@ export class ProviderExecutionService {
         : {}),
     });
 
+    let text = "";
     for await (const chunk of response.textStream) {
+      text += chunk;
       yield chunk;
     }
+
+    const usage = await response.usage;
+
+    yield {
+      text,
+      usage: {
+        promptTokens: usage?.inputTokens,
+        completionTokens: usage?.outputTokens,
+        totalTokens: usage?.totalTokens,
+      },
+      metadata: resolved.metadata,
+    };
   }
 }

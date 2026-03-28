@@ -1,16 +1,7 @@
 import type { CapabilityType } from "../routing/types.js";
-import type { ProviderType } from "../provider-types.js";
 import type { BaseProviderAdapter } from "../adapters/base-adapter.js";
 import type { Task } from "../hybrid-ai-engine.js";
-
-export interface ProviderExecutionMetadata {
-  providerId: string;
-  providerType: string;
-  modelId: string;
-  attemptedProviderIds: string[];
-  fallbackFromProviderId?: string;
-  fallbackOccurred: boolean;
-}
+import type { ProviderExecutionMetadata } from "../../shared/types/index.d";
 
 export interface ResolvedProviderExecution {
   capability: CapabilityType;
@@ -36,6 +27,13 @@ export interface ProviderTextResult {
   };
   metadata: ProviderExecutionMetadata;
 }
+
+export interface ProviderExecutionEvent {
+  type: "provider-execution";
+  metadata: ProviderExecutionMetadata;
+}
+
+export type ProviderStreamEvent = string | ProviderExecutionEvent | ProviderTextResult;
 
 export interface ProviderStreamRequest {
   prompt: string;

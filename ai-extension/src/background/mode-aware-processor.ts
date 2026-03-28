@@ -16,6 +16,11 @@ import {
   type Content,
 } from "./hybrid-ai-engine.js";
 import type { ProcessingOptions } from "./ai-manager.js";
+import type {
+  ProviderExecutionEvent,
+  ProviderTextResult,
+} from "./provider-execution/types.js";
+import type { ProviderExecutionMetadata } from "../shared/types/index.d";
 import {
   conversationContextLoader,
   type ConversationContext,
@@ -65,6 +70,7 @@ export interface ModeAwareResponse {
   contextUsed: string[]; // List of context signals used
   tokensUsed: number;
   processingTime: number;
+  providerExecution?: ProviderExecutionMetadata;
 }
 
 /**
@@ -100,7 +106,7 @@ export class ModeAwareProcessor {
   async *processRequest(
     request: ModeAwareRequest,
     signal?: AbortSignal,
-  ): AsyncGenerator<string, ModeAwareResponse, undefined> {
+  ): AsyncGenerator<string | ProviderExecutionEvent, ModeAwareResponse, undefined> {
     const startTime = performance.now();
 
     logger.info("ModeAwareProcessor", "Processing request", {
@@ -166,15 +172,36 @@ export class ModeAwareProcessor {
 
       // Stream response chunks
       let fullResponse = "";
+      let providerExecution: ProviderExecutionMetadata | undefined;
+      let providerUsage: ProviderTextResult["usage"] | undefined;
+
       for await (const chunk of streamGenerator) {
-        fullResponse += chunk;
-        yield chunk;
+        if (typeof chunk === "string") {
+          fullResponse += chunk;
+          yield chunk;
+          continue;
+        }
+
+        if ("type" in chunk && chunk.type === "provider-execution") {
+          providerExecution = chunk.metadata;
+          yield chunk;
+          continue;
+        }
+
+        providerExecution = chunk.metadata;
+        providerUsage = chunk.usage;
+        if (chunk.text.length > fullResponse.length) {
+          fullResponse = chunk.text;
+        }
       }
 
       // Calculate metrics
       const processingTime = performance.now() - startTime;
-      const tokensUsed = this.estimateTokens(fullResponse);
-      const source = this.resolveResponseSource(request);
+      const tokensUsed =
+        providerUsage?.totalTokens ??
+        providerUsage?.completionTokens ??
+        this.estimateTokens(fullResponse);
+      const source = this.resolveResponseSource(request, providerExecution);
 
       // Build final response
       const response: ModeAwareResponse = {
@@ -184,6 +211,7 @@ export class ModeAwareProcessor {
         contextUsed: pipelineResult.contextBundle?.signals || [],
         tokensUsed,
         processingTime,
+        ...(providerExecution ? { providerExecution } : {}),
       };
 
       logger.info("ModeAwareProcessor", "Request processed successfully", {
@@ -589,7 +617,21 @@ export class ModeAwareProcessor {
 
   private resolveResponseSource(
     request: ModeAwareRequest,
+    providerExecution?: ProviderExecutionMetadata,
   ): ModeAwareResponse["source"] {
+    if (providerExecution) {
+      if (providerExecution.providerType === "gemini-nano") {
+        return "gemini-nano";
+      }
+      if (
+        providerExecution.providerType === "google" &&
+        providerExecution.modelId.toLowerCase().includes("pro")
+      ) {
+        return "gemini-pro";
+      }
+      return "gemini-flash";
+    }
+
     if (request.targetModel === "pro") {
       return "gemini-pro";
     }
