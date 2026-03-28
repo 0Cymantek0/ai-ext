@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Secure storage, provider types, and encryption system
 - [x] **Phase 2: Core Adapters** - Provider implementations (Gemini Nano, Gemini Cloud, OpenAI, Anthropic)
 - [ ] **Phase 3: Router + Settings Manager** - Per-capability routing and centralized settings management
-- [ ] **Phase 4: Additional Providers** - Extended providers (Ollama, OpenRouter, Groq, Custom) and STT config
+- [x] **Phase 4: Additional Providers** - Extended providers (Ollama, OpenRouter, Groq, Custom) and STT config
 - [ ] **Phase 5: Integration** - HybridAIEngine integration and message handlers
 - [ ] **Phase 6: Settings UI** - Side panel settings interface with provider configuration
 
@@ -129,8 +129,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4 -> 5 -> 6
 | 2. Core Adapters | 3/3 | Completed | 2026-03-28 |
 | 3. Router + Settings Manager | 2/2 | Completed | 2026-03-28 |
 | 3.1 Hardening & Model Capabilities | 0/2 | Planning complete | - |
-| 4. Additional Providers | 3/3 | Completed | 2026-03-28 |
-| 4.1 Phase 4 STT & Settings | 0/TBD | Not started | - |
+| 4. Additional Providers | 3/3 | Completed | 2026-03-29 |
 | 5. Integration | 0/TBD | Not started | - |
 | 6. Settings UI | 0/TBD | Not started | - |
 

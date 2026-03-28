@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-03-28T20:36:00Z"
+status: Phase 04 Complete
+stopped_at: Phase 04 complete — all 3 plans executed and verified
+last_updated: "2026-03-29T02:30:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 13
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** User choice and flexibility — use any AI provider with your own API keys
-**Current focus:** Phase 04 — additional-providers
+**Current focus:** Phase 04 complete — next: Phase 03.1 or Phase 5
 
 ## Current Position
 
-Phase: 04 (additional-providers) — EXECUTING
-Plan: 04-03 completed
+Phase: 04 (additional-providers) — COMPLETE
+All plans executed and verified (3/3)
 
 ## Performance Metrics
 
@@ -71,6 +71,9 @@ Recent decisions affecting current work:
 - [Phase 03-router-settings-manager]: Implemented a heuristic scoring system mapping complexity/budget to provider tier/cost
 - [Phase 04-additional-providers]: Added typed provider transport metadata and OpenAI-compatible adapters for OpenRouter, Ollama, Groq, and custom endpoints
 - [Phase 04-additional-providers]: Optional-auth providers no longer require placeholder API key IDs in provider storage
+- [Phase 04-additional-providers]: Speech settings use typed Zod-validated contract instead of untyped providerParameters
+- [Phase 04-additional-providers]: ProviderRouter exposes getSpeechSettings() without wiring end-to-end transcription
+- [Phase 04-additional-providers]: Custom endpoint form validates URLs with new URL() constructor
 
 ### Pending Todos
 
@@ -90,9 +93,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T20:36:00Z
-Stopped at: Completed 04-03-PLAN.md
-Resume file: .planning/phases/04-additional-providers/04-03-SUMMARY.md
+Last session: 2026-03-28T16:44:52.723Z
+Stopped at: Phase 03.1 context gathered
+Resume file: .planning/phases/03.1-phase-3-hardening-model-capabilities/03.1-CONTEXT.md
 
 ---
 
