@@ -100,7 +100,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Audio transcription requests route to selected STT provider
   3. Existing conversations continue working after provider configuration changes
   4. All provider-related messages use typed message contracts
-  5. Service worker handles new SETTINGS_* message types
+  5. Service worker handles the existing `PROVIDER_SETTINGS_*` and `SPEECH_SETTINGS_*` message types through typed provider-aware contracts
 **Plans**: 4 plans
 - [ ] 05-01-PLAN.md — Build provider execution contracts and convert HybridAIEngine into the provider-routed compatibility facade
 - [ ] 05-02-PLAN.md — Implement the background transcription executor with exact provider endpoint handling
