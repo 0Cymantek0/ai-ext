@@ -8,17 +8,27 @@ interface FloatingControlsProps {
 
 export function FloatingPanel({ className, children }: FloatingControlsProps) {
   return (
-    <div
-      className={cn(
-        "fixed z-40 left-0 right-0 px-4",
-        "top-16 mx-auto max-w-[720px]",
-        "flex flex-col items-stretch gap-2",
-        className,
-      )}
-      aria-live="polite"
-    >
-      {children}
-    </div>
+    <>
+      {/* Apple-style gradual blur overlay for depth and contrast */}
+      <div 
+        className="fixed top-0 left-0 right-0 z-30 h-56 pointer-events-none bg-background/90 backdrop-blur-xl"
+        style={{
+          WebkitMaskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)'
+        }}
+      />
+      <div
+        className={cn(
+          "fixed z-40 left-0 right-0 px-4",
+          "top-16 mx-auto max-w-[720px]",
+          "flex flex-col items-stretch gap-2",
+          className,
+        )}
+        aria-live="polite"
+      >
+        {children}
+      </div>
+    </>
   );
 }
 
