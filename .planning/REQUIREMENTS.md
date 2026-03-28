@@ -19,8 +19,8 @@ Requirements for multi-provider settings milestone. Each maps to roadmap phases.
 ### Per-Capability Routing
 
 - [x] **ROUT-01**: User can select different providers for chat vs embeddings vs speech
-- [ ] **ROUT-02**: System routes AI requests to the configured provider per capability
-- [ ] **ROUT-03**: System falls back to next available provider if primary fails
+- [x] **ROUT-02**: System routes AI requests to the configured provider per capability
+- [x] **ROUT-03**: System falls back to next available provider if primary fails
 - [ ] **ROUT-04**: User sees which provider is handling each request in UI
 
 ### API Key Management
@@ -105,8 +105,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROV-05 | Phase 1 | Complete |
 | PROV-06 | Phase 3 | Complete |
 | ROUT-01 | Phase 3 | Complete |
-| ROUT-02 | Phase 3 | Pending |
-| ROUT-03 | Phase 3 | Pending |
+| ROUT-02 | Phase 3 | Complete |
+| ROUT-03 | Phase 3 | Complete |
 | ROUT-04 | Phase 6 | Pending |
 | KEYS-01 | Phase 1 | Pending |
 | KEYS-02 | Phase 1 | Pending |
