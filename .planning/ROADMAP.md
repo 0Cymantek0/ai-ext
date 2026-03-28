@@ -13,7 +13,7 @@ This roadmap delivers a comprehensive multi-provider settings system for AI Pock
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Secure storage, provider types, and encryption system
-- [ ] **Phase 2: Core Adapters** - Provider implementations (Gemini Nano, Gemini Cloud, OpenAI, Anthropic)
+- [x] **Phase 2: Core Adapters** - Provider implementations (Gemini Nano, Gemini Cloud, OpenAI, Anthropic)
 - [ ] **Phase 3: Router + Settings Manager** - Per-capability routing and centralized settings management
 - [ ] **Phase 4: Additional Providers** - Extended providers (Ollama, OpenRouter, Groq, Custom) and STT config
 - [ ] **Phase 5: Integration** - HybridAIEngine integration and message handlers
@@ -43,10 +43,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Connection status indicator shows per configured provider
   4. Gemini Nano remains available as a free provider option (no API key required)
   5. Each provider adapter can send chat requests and stream responses
-**Plans:** 3 plans
+**Plans**: 3 plans (Complete)
 - [x] 02-01-PLAN.md — Foundation, Base Adapter Interface, and Factory
-- [ ] 02-02-PLAN.md — OpenAI and Anthropic Adapters with validation
-- [ ] 02-03-PLAN.md — Google Cloud and Gemini Nano Adapters with local AI support
+- [x] 02-02-PLAN.md — OpenAI and Anthropic Adapters with validation
+- [x] 02-03-PLAN.md — Google Cloud and Gemini Nano Adapters with local AI support
 
 ### Phase 3: Router + Settings Manager
 **Goal**: Intelligent routing system that directs AI requests to the correct provider per capability
@@ -107,7 +107,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Completed | 2026-03-28 |
-| 2. Core Adapters | 0/3 | In Progress | - |
+| 2. Core Adapters | 3/3 | Completed | 2026-03-28 |
 | 3. Router + Settings Manager | 0/TBD | Not started | - |
 | 4. Additional Providers | 0/TBD | Not started | - |
 | 5. Integration | 0/TBD | Not started | - |
