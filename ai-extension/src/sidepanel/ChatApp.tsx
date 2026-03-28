@@ -16,6 +16,7 @@ import { Actions, ActionButton } from "@/components/ai/actions";
 import { TopBar } from "@/components/TopBar";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { HistoryPanel } from "@/components/HistoryPanel";
+import { ProviderSettingsSheet } from "@/sidepanel/components/ProviderSettingsSheet";
 import type { Mode } from "@/components/ModeSwitcher";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/animate-ui/components/animate/tooltip";
@@ -126,6 +127,8 @@ export function ChatApp() {
   const [isSavingNote, setIsSavingNote] = React.useState(false);
   // Share modal state
   const [showShareModal, setShowShareModal] = React.useState(false);
+  // Provider settings state
+  const [showProviderSettings, setShowProviderSettings] = React.useState(false);
   // Export menu state - track which message's export menu is open
   const [exportMenuOpenForMessage, setExportMenuOpenForMessage] =
     React.useState<string | null>(null);
@@ -1140,6 +1143,7 @@ export function ChatApp() {
           onAddNote={handleAddNote}
           onAddFile={handleAddFile}
           onExportChat={handleExportAll}
+          onOpenProviderSettings={() => setShowProviderSettings(true)}
           currentMode={currentMode}
           onModeChange={handleModeChange}
           isInsidePocket={isInsidePocket}
@@ -1841,6 +1845,12 @@ export function ChatApp() {
             onCancel={handlePocketSelectionCancel}
           />
         )}
+
+        {/* Provider Settings Sheet */}
+        <ProviderSettingsSheet
+          isOpen={showProviderSettings}
+          onClose={() => setShowProviderSettings(false)}
+        />
       </div>
     </TooltipProvider>
   );
