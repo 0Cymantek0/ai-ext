@@ -24,19 +24,19 @@ describe("service worker settings message contracts", () => {
 
   it("types provider settings handlers instead of using any payloads", () => {
     expect(serviceWorkerSource).toMatch(
-      /registerHandler\("PROVIDER_SETTINGS_LOAD", async \(payload: ProviderSettingsLoadPayload\)/,
+      /registerHandler\(\s*"PROVIDER_SETTINGS_LOAD",\s*async\s*\(payload: ProviderSettingsLoadPayload\)/,
     );
     expect(serviceWorkerSource).toMatch(
-      /registerHandler\("PROVIDER_SETTINGS_SAVE", async \(payload: ProviderSettingsSavePayload\)/,
+      /registerHandler\(\s*"PROVIDER_SETTINGS_SAVE",\s*async\s*\(payload: ProviderSettingsSavePayload\)/,
     );
   });
 
   it("types speech settings handlers instead of using any payloads", () => {
     expect(serviceWorkerSource).toMatch(
-      /registerHandler\("SPEECH_SETTINGS_LOAD", async \(\s*payload: SpeechSettingsLoadPayload\s*\)/,
+      /registerHandler\(\s*"SPEECH_SETTINGS_LOAD",\s*async\s*\(\s*payload: SpeechSettingsLoadPayload\s*\)/,
     );
     expect(serviceWorkerSource).toMatch(
-      /registerHandler\("SPEECH_SETTINGS_SAVE", async \(payload: SpeechSettingsSavePayload\)/,
+      /registerHandler\(\s*"SPEECH_SETTINGS_SAVE",\s*async\s*\(payload: SpeechSettingsSavePayload\)/,
     );
   });
 });

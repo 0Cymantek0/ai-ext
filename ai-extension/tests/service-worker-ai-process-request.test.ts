@@ -21,12 +21,12 @@ describe("service worker AI_PROCESS_REQUEST contract", () => {
     expect(typesSource).toContain('mode?: "ask" | "ai-pocket"');
     expect(typesSource).toContain("originalText?: string");
     expect(typesSource).toContain("source:");
-    expect(typesSource).toContain("tokensUsed:");
+    expect(typesSource).toMatch(/tokensUsed\??:\s*number/);
   });
 
   it("registers AI_PROCESS_REQUEST with an explicit payload type instead of any", () => {
     expect(serviceWorkerSource).toMatch(
-      /registerHandler\("AI_PROCESS_REQUEST", async \(payload: AiProcessRequestPayload\)/,
+      /registerHandler\(\s*"AI_PROCESS_REQUEST",\s*async\s*\(payload: AiProcessRequestPayload\)/,
     );
     expect(serviceWorkerSource).not.toMatch(
       /registerHandler\("AI_PROCESS_REQUEST", async \(payload: any\)/,
@@ -41,9 +41,9 @@ describe("service worker AI_PROCESS_REQUEST contract", () => {
     expect(typesSource).toContain(
       "export interface AudioTranscribeResponsePayload",
     );
-    expect(serviceWorkerSource).toContain("new TranscriptionExecutor()");
+    expect(serviceWorkerSource).toContain("new TranscriptionExecutor(");
     expect(serviceWorkerSource).toMatch(
-      /registerHandler\("AUDIO_TRANSCRIBE_REQUEST", async \(payload: AudioTranscribeRequestPayload\)/,
+      /registerHandler\(\s*"AUDIO_TRANSCRIBE_REQUEST",\s*async\s*\(\s*payload: AudioTranscribeRequestPayload,/,
     );
     expect(serviceWorkerSource).toContain("providerId:");
     expect(serviceWorkerSource).toContain("modelId:");

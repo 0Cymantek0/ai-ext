@@ -31,6 +31,7 @@ export type MessageKind =
   | "AI_PROCESS_STREAM_ERROR"
   | "AI_PROCESS_CANCEL"
   | "AI_PROCESS_TEXT_CORRECTION"
+  | "AUDIO_TRANSCRIBE_REQUEST"
   | "POCKET_CREATE"
   | "POCKET_UPDATE"
   | "POCKET_GET"
@@ -311,9 +312,33 @@ export interface CaptureMediaElementPayload {
 }
 
 export interface AiProcessRequestPayload {
-  contentId: string;
-  task: "summarize" | "embed" | "translate" | "alt-text";
+  prompt: string;
+  task: "summarize" | "embed" | "translate" | "alt-text" | "enhance";
   preferLocal: boolean;
+  contentId?: string;
+  style?: string;
+  originalText?: string;
+  directMode?: boolean;
+  mode?: "ask" | "ai-pocket";
+  conversationId?: string;
+  pocketId?: string;
+  autoContext?: boolean;
+  model?: "nano" | "flash" | "pro" | "auto";
+}
+
+export interface AiProcessResponsePayload {
+  enhancedText?: string;
+  processingTime?: number;
+  tokensUsed?: number;
+  source?: "gemini-nano" | "gemini-flash" | "gemini-pro";
+  providerId?: string;
+  providerType?: string;
+  modelId?: string;
+  fallbackFromProviderId?: string;
+  attemptedProviderIds?: string[];
+  fallbackOccurred?: boolean;
+  status?: "processing";
+  taskId?: string;
 }
 
 export interface AiStreamRequestPayload {
@@ -332,6 +357,19 @@ export interface AiStreamChunkPayload {
   conversationId?: string;
 }
 
+export interface AiStreamStartPayload {
+  requestId: string;
+  conversationId?: string;
+  messageId?: string;
+  resolvedModel?: "nano" | "flash" | "pro";
+  providerId?: string;
+  providerType?: string;
+  modelId?: string;
+  fallbackFromProviderId?: string;
+  attemptedProviderIds?: string[];
+  fallbackOccurred?: boolean;
+}
+
 export interface AiStreamEndPayload {
   requestId: string;
   conversationId?: string;
@@ -340,6 +378,12 @@ export interface AiStreamEndPayload {
   source: "gemini-nano" | "gemini-flash" | "gemini-pro";
   mode?: "ask" | "ai-pocket"; // Mode used for processing
   contextUsed?: string[]; // Context signals used during processing
+  providerId?: string;
+  providerType?: string;
+  modelId?: string;
+  fallbackFromProviderId?: string;
+  attemptedProviderIds?: string[];
+  fallbackOccurred?: boolean;
 }
 
 export interface AiStreamErrorPayload {
@@ -354,6 +398,40 @@ export interface AiCancelRequestPayload {
 
 export interface AiTextCorrectionPayload {
   text: string;
+}
+
+export interface AudioTranscribeRequestPayload {
+  audioBase64: string;
+  mimeType: string;
+  fileName: string;
+  durationMs?: number;
+  sourceUrl?: string;
+}
+
+export interface AudioTranscribeResponsePayload {
+  success: boolean;
+  text?: string;
+  providerId?: string;
+  modelId?: string;
+  language?: string;
+  segments?: Array<{
+    id?: number;
+    start: number;
+    end: number;
+    text: string;
+    words?: Array<{
+      word: string;
+      start: number;
+      end: number;
+    }>;
+    speaker?: string | number;
+  }>;
+  words?: Array<{
+    word: string;
+    start: number;
+    end: number;
+  }>;
+  error?: string;
 }
 
 export interface StorageFsAccessRequestPayload {}

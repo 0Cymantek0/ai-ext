@@ -113,6 +113,7 @@ import {
 } from "./vector-indexing-queue.js";
 import { registerFsAccessHandlers } from "./storage/fs-access-manager.js";
 import { MetadataQueueManager } from "./metadata-queue-manager.js";
+import { TranscriptionExecutor } from "./provider-execution/transcription-executor.js";
 import { WorkflowManager } from "../browser-agent/workflow-manager.js";
 import { BrowserToolRegistry } from "../browser-agent/tool-registry.js";
 import { ALL_BROWSER_TOOLS } from "../browser-agent/tools/index.js";
@@ -134,6 +135,14 @@ import type {
   ApiNetworkLogsResponsePayload,
   ApiSetAuthTokenPayload,
   ApiAuthResponsePayload,
+  AiProcessRequestPayload,
+  AiProcessResponsePayload,
+  AudioTranscribeRequestPayload,
+  AudioTranscribeResponsePayload,
+  ProviderSettingsLoadPayload,
+  ProviderSettingsSavePayload,
+  SpeechSettingsLoadPayload,
+  SpeechSettingsSavePayload,
 } from "../shared/types/index.d.ts";
 
 // Initialize formatter and background processor
@@ -181,6 +190,17 @@ function toCaptureResult(input: any): CaptureResult {
     throw new Error("Expected structured screenshot payload");
   }
   return normalized;
+}
+
+function decodeBase64ToBlob(base64: string, mimeType: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
 }
 
 // Register all browser agent tools
@@ -2389,83 +2409,111 @@ messageRouter.registerHandler("VISION_GET_USAGE_STATS", async () => {
   };
 });
 
-messageRouter.registerHandler("AI_PROCESS_REQUEST", async (payload: any) => {
-  logger.info("Handler", "AI_PROCESS_REQUEST", payload);
+messageRouter.registerHandler(
+  "AI_PROCESS_REQUEST",
+  async (payload: AiProcessRequestPayload): Promise<AiProcessResponsePayload> => {
+    logger.info("Handler", "AI_PROCESS_REQUEST", payload);
 
-  try {
-    const { prompt, task, preferLocal, style, originalText } = payload as {
-      prompt: string;
-      task: string;
-      preferLocal: boolean;
-      style?: string;
-      originalText?: string;
-    };
+    try {
+      const { prompt, task, preferLocal, style, originalText } = payload;
 
-    // For text enhancement tasks
-    if (task === "enhance") {
-      logger.info("Handler", "Processing text enhancement", {
-        style,
-        textLength: originalText?.length,
-      });
-
-      // Check if Gemini Nano is available
-      const availability = await aiManager.checkModelAvailability();
-
-      if (availability === "no" && preferLocal) {
-        throw new Error(
-          "Gemini Nano is not available on this device. Please enable on-device AI in Chrome settings.",
-        );
-      }
-
-      // Initialize or get session
-      let sessionId: string;
-      const activeSessions = aiManager.getActiveSessions();
-
-      if (activeSessions.length > 0) {
-        // Reuse existing session
-        sessionId = activeSessions[0]!;
-        logger.debug("Handler", "Reusing existing AI session", { sessionId });
-      } else {
-        // Create new session
-        sessionId = await aiManager.initializeGeminiNano({
-          temperature: 0.7, // Slightly creative for text enhancement
+      if (task === "enhance") {
+        logger.info("Handler", "Processing text enhancement", {
+          style,
+          textLength: originalText?.length,
         });
-        logger.info("Handler", "Created new AI session", { sessionId });
+
+        const availability = await aiManager.checkModelAvailability();
+
+        if (availability === "no" && preferLocal) {
+          throw new Error(
+            "Gemini Nano is not available on this device. Please enable on-device AI in Chrome settings.",
+          );
+        }
+
+        let sessionId: string;
+        const activeSessions = aiManager.getActiveSessions();
+
+        if (activeSessions.length > 0) {
+          sessionId = activeSessions[0]!;
+          logger.debug("Handler", "Reusing existing AI session", { sessionId });
+        } else {
+          sessionId = await aiManager.initializeGeminiNano({
+            temperature: 0.7,
+          });
+          logger.info("Handler", "Created new AI session", { sessionId });
+        }
+
+        const startTime = performance.now();
+        const enhancedText = await aiManager.processPrompt(sessionId, prompt, {
+          operation: "enhance" as any,
+        });
+        const processingTime = performance.now() - startTime;
+
+        logger.info("Handler", "Enhancement completed", {
+          processingTime: `${processingTime.toFixed(2)}ms`,
+          originalLength: originalText?.length,
+          enhancedLength: enhancedText.length,
+        });
+
+        const usage = aiManager.getSessionUsage(sessionId);
+        logger.debug("Handler", "Token usage", usage);
+
+        return {
+          enhancedText,
+          processingTime,
+          tokensUsed: usage.used,
+          source: "gemini-nano",
+        };
       }
 
-      // Process the enhancement prompt
-      const startTime = performance.now();
-      const enhancedText = await aiManager.processPrompt(sessionId, prompt, {
-        operation: "enhance" as any,
-      });
-      const processingTime = performance.now() - startTime;
+      logger.warn("Handler", "Unsupported AI task type", { task });
+      return { status: "processing", taskId: crypto.randomUUID() };
+    } catch (error) {
+      logger.error("Handler", "AI_PROCESS_REQUEST error", error);
+      throw error;
+    }
+  },
+);
 
-      logger.info("Handler", "Enhancement completed", {
-        processingTime: `${processingTime.toFixed(2)}ms`,
-        originalLength: originalText?.length,
-        enhancedLength: enhancedText.length,
-      });
+messageRouter.registerHandler(
+  "AUDIO_TRANSCRIBE_REQUEST",
+  async (
+    payload: AudioTranscribeRequestPayload,
+  ): Promise<AudioTranscribeResponsePayload> => {
+    logger.info("Handler", "AUDIO_TRANSCRIBE_REQUEST", {
+      fileName: payload.fileName,
+      mimeType: payload.mimeType,
+      durationMs: payload.durationMs,
+      sourceUrl: payload.sourceUrl,
+    });
 
-      // Get token usage
-      const usage = aiManager.getSessionUsage(sessionId);
-      logger.debug("Handler", "Token usage", usage);
+    try {
+      const audioBlob = decodeBase64ToBlob(payload.audioBase64, payload.mimeType);
+      const result = await transcriptionExecutor.transcribeAudio({
+        audio: audioBlob,
+        fileName: payload.fileName,
+        mimeType: payload.mimeType,
+      });
 
       return {
-        enhancedText,
-        processingTime,
-        tokensUsed: usage.used,
-        source: "gemini-nano",
+        success: true,
+        text: result.text,
+        providerId: result.providerId,
+        modelId: result.modelId,
+        language: result.language,
+        ...(result.segments && { segments: result.segments }),
+        ...(result.words && { words: result.words }),
+      };
+    } catch (error) {
+      logger.error("Handler", "AUDIO_TRANSCRIBE_REQUEST error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
-
-    // For other AI tasks (summarize, embed, etc.)
-    logger.warn("Handler", "Unsupported AI task type", { task });
-    return { status: "processing", taskId: crypto.randomUUID() };
-  } catch (error) {
-    logger.error("Handler", "AI_PROCESS_REQUEST error", error);
-    throw error;
-  }
-});
+  },
+);
 
 messageRouter.registerHandler("AI_FORMAT_REQUEST", async (payload: any) => {
   const { content, instructions, preferLocal } = payload as {
@@ -2837,81 +2885,75 @@ messageRouter.registerHandler("CONTENT_LIST", async (payload) => {
 // Provider settings handlers (Phase 04)
 
 const settingsManager = new SettingsManager();
+const transcriptionExecutor = new TranscriptionExecutor(settingsManager);
 
-messageRouter.registerHandler("PROVIDER_SETTINGS_LOAD", async (payload: any) => {
-  logger.info("Handler", "PROVIDER_SETTINGS_LOAD");
-  try {
-    const configManager = getProviderConfigManager();
-    if (!configManager.isInitialized()) {
-      await configManager.initialize();
-    }
-    const providers = await configManager.listProviders();
-    // Optionally filter by type
-    const { providerType } = payload as { providerType?: string };
-    const filtered = providerType
-      ? providers.filter((p: any) => p.type === providerType)
-      : providers;
-    return { providers: filtered };
-  } catch (error) {
-    logger.error("Handler", "PROVIDER_SETTINGS_LOAD error", error);
-    throw error;
-  }
-});
-
-messageRouter.registerHandler("PROVIDER_SETTINGS_SAVE", async (payload: any) => {
-  logger.info("Handler", "PROVIDER_SETTINGS_SAVE");
-  try {
-    const configManager = getProviderConfigManager();
-    if (!configManager.isInitialized()) {
-      await configManager.initialize();
-    }
-    const {
-      providerId,
-      type,
-      name,
-      baseUrl,
-      apiKey,
-      enabled,
-      endpointMode,
-    } = payload as {
-      providerId?: string;
-      type: string;
-      name: string;
-      baseUrl?: string;
-      apiKey?: string;
-      enabled?: boolean;
-      endpointMode?: string;
-    };
-
-    if (providerId) {
-      // Update existing provider
-      const updated = await configManager.updateProvider(providerId, {
-        name,
-        enabled: enabled ?? true,
-      });
-      // Update API key if provided
-      if (apiKey) {
-        await configManager.setProviderApiKey(providerId, apiKey);
+messageRouter.registerHandler(
+  "PROVIDER_SETTINGS_LOAD",
+  async (payload: ProviderSettingsLoadPayload) => {
+    logger.info("Handler", "PROVIDER_SETTINGS_LOAD");
+    try {
+      const configManager = getProviderConfigManager();
+      if (!configManager.isInitialized()) {
+        await configManager.initialize();
       }
-      return { provider: updated };
-    } else {
-      // Create new provider
-      const addPayload: { type: any; name: string; apiKey?: string; enabled: boolean } = {
+      const providers = await configManager.listProviders();
+      const { providerType } = payload;
+      const filtered = providerType
+        ? providers.filter((provider: any) => provider.type === providerType)
+        : providers;
+      return { providers: filtered };
+    } catch (error) {
+      logger.error("Handler", "PROVIDER_SETTINGS_LOAD error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "PROVIDER_SETTINGS_SAVE",
+  async (payload: ProviderSettingsSavePayload) => {
+    logger.info("Handler", "PROVIDER_SETTINGS_SAVE");
+    try {
+      const configManager = getProviderConfigManager();
+      if (!configManager.isInitialized()) {
+        await configManager.initialize();
+      }
+      const { providerId, type, name, apiKey, enabled } = payload;
+
+      if (providerId) {
+        const updated = await configManager.updateProvider(providerId, {
+          name,
+          enabled: enabled ?? true,
+        });
+        if (apiKey) {
+          await configManager.setProviderApiKey(providerId, apiKey);
+        }
+        return { provider: updated };
+      }
+
+      const addPayload: {
+        type: any;
+        name: string;
+        apiKey?: string;
+        enabled: boolean;
+      } = {
         type: type as any,
         name,
         enabled: enabled ?? true,
       };
+
       if (apiKey) {
         addPayload.apiKey = apiKey;
       }
+
       const provider = await configManager.addProvider(addPayload);
       return { provider };
+    } catch (error) {
+      logger.error("Handler", "PROVIDER_SETTINGS_SAVE error", error);
+      throw error;
     }
-  } catch (error) {
-    logger.error("Handler", "PROVIDER_SETTINGS_SAVE error", error);
-    throw error;
-  }
-});
+  },
+);
 
 messageRouter.registerHandler("PROVIDER_SETTINGS_VALIDATE_ENDPOINT", async (payload: any) => {
   logger.info("Handler", "PROVIDER_SETTINGS_VALIDATE_ENDPOINT");
@@ -2959,28 +3001,35 @@ messageRouter.registerHandler("PROVIDER_SETTINGS_VALIDATE_ENDPOINT", async (payl
 
 // Speech settings handlers (Phase 04)
 
-messageRouter.registerHandler("SPEECH_SETTINGS_LOAD", async () => {
-  logger.info("Handler", "SPEECH_SETTINGS_LOAD");
-  try {
-    const settings = await settingsManager.getSpeechSettings();
-    return { settings };
-  } catch (error) {
-    logger.error("Handler", "SPEECH_SETTINGS_LOAD error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "SPEECH_SETTINGS_LOAD",
+  async (payload: SpeechSettingsLoadPayload) => {
+    logger.info("Handler", "SPEECH_SETTINGS_LOAD");
+    try {
+      void payload;
+      const settings = await settingsManager.getSpeechSettings();
+      return { settings };
+    } catch (error) {
+      logger.error("Handler", "SPEECH_SETTINGS_LOAD error", error);
+      throw error;
+    }
+  },
+);
 
-messageRouter.registerHandler("SPEECH_SETTINGS_SAVE", async (payload: any) => {
-  logger.info("Handler", "SPEECH_SETTINGS_SAVE");
-  try {
-    await settingsManager.setSpeechSettings(payload);
-    const settings = await settingsManager.getSpeechSettings();
-    return { settings };
-  } catch (error) {
-    logger.error("Handler", "SPEECH_SETTINGS_SAVE error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "SPEECH_SETTINGS_SAVE",
+  async (payload: SpeechSettingsSavePayload) => {
+    logger.info("Handler", "SPEECH_SETTINGS_SAVE");
+    try {
+      await settingsManager.setSpeechSettings(payload);
+      const settings = await settingsManager.getSpeechSettings();
+      return { settings };
+    } catch (error) {
+      logger.error("Handler", "SPEECH_SETTINGS_SAVE error", error);
+      throw error;
+    }
+  },
+);
 
 messageRouter.registerHandler("ERROR", async (payload) => {
   logger.error("Handler", "ERROR", payload);

@@ -19,6 +19,7 @@ import {
 import type {
   AiStreamRequestPayload,
   AiStreamChunkPayload,
+  AiStreamStartPayload,
   AiStreamEndPayload,
   AiStreamErrorPayload,
   AiCancelRequestPayload,
@@ -265,15 +266,17 @@ export class StreamingHandler {
       session.resolvedModel ?? userSpecifiedModel;
 
     // Send stream start message
+    const startPayload: AiStreamStartPayload = {
+      requestId,
+      ...(payload.conversationId && { conversationId: payload.conversationId }),
+      messageId,
+      ...(resolvedModelForStart && { resolvedModel: resolvedModelForStart }),
+    };
+
     this.sendToSidePanel({
       kind: "AI_PROCESS_STREAM_START",
       requestId,
-      payload: {
-        requestId,
-        conversationId: payload.conversationId,
-        messageId,
-        ...(resolvedModelForStart && { resolvedModel: resolvedModelForStart }),
-      },
+      payload: startPayload,
     });
 
     // Start streaming in background (don't await)
