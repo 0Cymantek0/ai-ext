@@ -45,6 +45,7 @@ const createStream = (...chunks: string[]) =>
 describe("HybridAIEngine provider delegation", () => {
   let aiManager: {
     createSession: ReturnType<typeof vi.fn>;
+    checkModelAvailability: ReturnType<typeof vi.fn>;
     processPrompt: ReturnType<typeof vi.fn>;
     processPromptStreaming: ReturnType<typeof vi.fn>;
     getSessionUsage: ReturnType<typeof vi.fn>;
@@ -65,6 +66,7 @@ describe("HybridAIEngine provider delegation", () => {
   beforeEach(() => {
     aiManager = {
       createSession: vi.fn().mockResolvedValue("nano-session"),
+      checkModelAvailability: vi.fn().mockResolvedValue("readily"),
       processPrompt: vi.fn().mockResolvedValue("nano-response"),
       processPromptStreaming: vi.fn().mockResolvedValue(
         new ReadableStream<string>({
@@ -86,15 +88,15 @@ describe("HybridAIEngine provider delegation", () => {
         processingTime: 10,
         tokensUsed: 4,
       } satisfies AIResponse),
-      processWithFlashStreaming: vi.fn().mockImplementation(() =>
-        createStream("cloud", "-flash"),
-      ),
-      processWithProStreaming: vi.fn().mockImplementation(() =>
-        createStream("cloud", "-pro"),
-      ),
-      processWithModelStreaming: vi.fn().mockImplementation(() =>
-        createStream("cloud", "-lite"),
-      ),
+      processWithFlashStreaming: vi
+        .fn()
+        .mockImplementation(() => createStream("cloud", "-flash")),
+      processWithProStreaming: vi
+        .fn()
+        .mockImplementation(() => createStream("cloud", "-pro")),
+      processWithModelStreaming: vi
+        .fn()
+        .mockImplementation(() => createStream("cloud", "-lite")),
       generateEmbedding: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
     };
 
@@ -111,7 +113,9 @@ describe("HybridAIEngine provider delegation", () => {
       executionService as any,
     );
 
-    const result = await engine.processContent(createTask(), { preferLocal: false });
+    const result = await engine.processContent(createTask(), {
+      preferLocal: false,
+    });
 
     expect(executionService.generateText).toHaveBeenCalledTimes(1);
     expect(executionService.generateText).toHaveBeenCalledWith(
@@ -120,7 +124,10 @@ describe("HybridAIEngine provider delegation", () => {
         task: expect.objectContaining({ operation: TaskOperation.GENERAL }),
       }),
     );
+    expect(result.result).toBe("Provider-routed answer");
+    expect(result.tokensUsed).toBe(30);
     expect(result.metadata).toEqual(executionMetadata);
+    expect(cloudAIManager.processWithRetry).not.toHaveBeenCalled();
   });
 
   it("calls ProviderExecutionService.streamText for provider-routed general streaming tasks", async () => {
@@ -145,6 +152,8 @@ describe("HybridAIEngine provider delegation", () => {
       }),
     );
     expect(chunks).toEqual(["provider", "-stream"]);
+    expect(cloudAIManager.processWithFlashStreaming).not.toHaveBeenCalled();
+    expect(cloudAIManager.processWithModelStreaming).not.toHaveBeenCalled();
   });
 
   it("still honors forcedLocation compatibility branches for explicit Gemini overrides", async () => {

@@ -18,6 +18,8 @@ import {
 } from "./ai-manager";
 import { CloudAIManager, GeminiModel } from "./cloud-ai-manager";
 import { aiPerformanceMonitor, AIModel } from "./ai-performance-monitor";
+import { ProviderExecutionService } from "./provider-execution/provider-execution-service.js";
+import type { ProviderTextResult } from "./provider-execution/types.js";
 
 /**
  * Task complexity levels
@@ -372,16 +374,22 @@ export class DeviceCapabilityDetector {
 export class HybridAIEngine {
   private aiManager: AIManager;
   private cloudAIManager: CloudAIManager;
+  private executionService: ProviderExecutionService;
   private taskClassifier: TaskClassifier;
   private capabilityDetector: DeviceCapabilityDetector;
   private cachedCapabilities: DeviceCapabilities | null = null;
   private capabilitiesCacheTime: number = 0;
   private readonly CACHE_DURATION = 60000; // 1 minute
 
-  constructor(aiManager: AIManager, cloudAIManager?: CloudAIManager) {
+  constructor(
+    aiManager: AIManager,
+    cloudAIManager?: CloudAIManager,
+    executionService?: ProviderExecutionService,
+  ) {
     this.aiManager = aiManager;
     const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
     this.cloudAIManager = cloudAIManager || new CloudAIManager(geminiApiKey);
+    this.executionService = executionService || new ProviderExecutionService();
     this.taskClassifier = new TaskClassifier();
     this.capabilityDetector = new DeviceCapabilityDetector();
   }
@@ -548,6 +556,18 @@ export class HybridAIEngine {
     const forcedLocationProvided = Boolean(options?.forcedLocation);
 
     try {
+      if (task.operation === TaskOperation.GENERAL && !forcedLocationProvided) {
+        const prompt = this.buildPrompt(task);
+        const result = await this.executionService.generateText({
+          prompt,
+          task,
+          ...(options?.signal ? { signal: options.signal } : {}),
+          ...(options?.maxTokens ? { maxOutputTokens: options.maxTokens } : {}),
+        });
+
+        return this.mapProviderTextResult(result, startTime);
+      }
+
       // Determine processing location
       const decision = await this.determineProcessingLocation(task, options);
 
@@ -873,6 +893,17 @@ export class HybridAIEngine {
   ): AsyncGenerator<string, void, unknown> {
     const forcedLocationProvided = Boolean(options?.forcedLocation);
     try {
+      if (task.operation === TaskOperation.GENERAL && !forcedLocationProvided) {
+        const prompt = this.buildPrompt(task);
+        yield* this.executionService.streamText({
+          prompt,
+          task,
+          ...(options?.signal ? { signal: options.signal } : {}),
+          ...(options?.maxTokens ? { maxOutputTokens: options.maxTokens } : {}),
+        });
+        return;
+      }
+
       // Determine processing location
       const decision = await this.determineProcessingLocation(task, options);
 
@@ -1016,14 +1047,39 @@ export class HybridAIEngine {
       throw error;
     }
   }
+
+  private mapProviderTextResult(
+    result: ProviderTextResult,
+    startTime: number,
+  ): AIResponse {
+    const processingTime = performance.now() - startTime;
+    const source =
+      result.metadata.providerType === "gemini-nano"
+        ? "gemini-nano"
+        : "gemini-flash";
+
+    return {
+      result: result.text,
+      source,
+      confidence: 0.9,
+      processingTime,
+      tokensUsed:
+        result.usage.totalTokens ??
+        result.usage.completionTokens ??
+        result.usage.promptTokens ??
+        0,
+      metadata: result.metadata,
+    } as AIResponse;
+  }
 }
 
 // Export singleton instance
 export const createHybridAIEngine = (
   aiManager: AIManager,
   cloudAIManager?: CloudAIManager,
+  executionService?: ProviderExecutionService,
 ): HybridAIEngine => {
-  return new HybridAIEngine(aiManager, cloudAIManager);
+  return new HybridAIEngine(aiManager, cloudAIManager, executionService);
 };
 
 // Create default singleton instance
