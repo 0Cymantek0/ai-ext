@@ -1,4 +1,5 @@
 import type { CapabilityType } from './types.js';
+import type { SpeechSettings } from './types.js';
 import { SettingsManager } from './settings-manager.js';
 import { classifyPromptWithNano } from './nano-classifier.js';
 import { ProviderFactory } from '../adapters/provider-factory.js';
@@ -10,6 +11,14 @@ export class ProviderRouter {
 
   constructor() {
     this.settingsManager = new SettingsManager();
+  }
+
+  /**
+   * Get the currently persisted speech settings.
+   * Returns typed STT configuration without invoking transcription.
+   */
+  async getSpeechSettings(): Promise<SpeechSettings> {
+    return this.settingsManager.getSpeechSettings();
   }
 
   async routeCapability(capability: CapabilityType, prompt: string, nanoModel?: any): Promise<BaseProviderAdapter> {

@@ -607,3 +607,152 @@ describe('ProviderRouter - Fallback Chain', () => {
     expect(ProviderFactory.createAdapter).toHaveBeenCalledWith(expect.objectContaining({ id: 'enabled-3' }));
   });
 });
+
+describe('ProviderRouter - Speech Settings Compatibility', () => {
+  let router: ProviderRouter;
+  let mockSettingsManager: any;
+  let mockConfigManager: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockSettingsManager = {
+      getRoutingPreferences: vi.fn(),
+      getModelSheet: vi.fn(),
+      getSpeechSettings: vi.fn(),
+    };
+    vi.mocked(SettingsManager).mockImplementation(() => mockSettingsManager as any);
+    router = new ProviderRouter();
+
+    mockConfigManager = {
+      isInitialized: vi.fn().mockReturnValue(true),
+      initialize: vi.fn().mockResolvedValue(undefined),
+      getProvider: vi.fn(),
+      listProviders: vi.fn().mockResolvedValue([]),
+    };
+    vi.mocked(getProviderConfigManager).mockReturnValue(mockConfigManager);
+  });
+
+  it('should read speech settings from settings manager', async () => {
+    const mockSpeechSettings = {
+      provider: { providerId: 'groq-stt', modelId: 'whisper-large-v3' },
+      language: 'en',
+      timestampGranularity: 'word' as const,
+      advancedOptions: { enableTranslation: true },
+    };
+    mockSettingsManager.getSpeechSettings.mockResolvedValue(mockSpeechSettings);
+
+    const settings = await router.getSpeechSettings();
+    expect(settings).toEqual(mockSpeechSettings);
+    expect(mockSettingsManager.getSpeechSettings).toHaveBeenCalled();
+  });
+
+  it('should return default speech settings when none configured', async () => {
+    mockSettingsManager.getSpeechSettings.mockResolvedValue({
+      provider: { providerId: '', modelId: '' },
+      language: 'en',
+      timestampGranularity: 'segment',
+      advancedOptions: {},
+    });
+
+    const settings = await router.getSpeechSettings();
+    expect(settings.provider.providerId).toBe('');
+    expect(settings.language).toBe('en');
+  });
+
+  it('should still route speech capability through existing routing logic', async () => {
+    mockSettingsManager.getRoutingPreferences.mockResolvedValue({
+      speech: 'speech-provider',
+      chat: null,
+      embeddings: null,
+      fallbackChain: [],
+      routingMode: 'manual',
+      triggerWords: {},
+    });
+
+    mockSettingsManager.getModelSheet.mockResolvedValue({
+      'whisper-1': makeModelEntry({ modelId: 'whisper-1', providerId: 'speech-provider' }),
+    });
+
+    mockConfigManager.getProvider.mockResolvedValue({
+      id: 'speech-provider',
+      type: 'groq',
+      enabled: true,
+    });
+
+    const mockAdapter = { validateConnection: vi.fn().mockResolvedValue({ success: true }) };
+    vi.mocked(ProviderFactory.createAdapter).mockResolvedValue(mockAdapter as any);
+
+    const result = await router.routeCapability('speech', 'transcribe audio');
+    expect(result).toBe(mockAdapter);
+    expect(ProviderFactory.createAdapter).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'speech-provider' })
+    );
+  });
+
+  it('should route chat capability with richer model metadata present', async () => {
+    mockSettingsManager.getRoutingPreferences.mockResolvedValue({
+      chat: 'openai-chat',
+      fallbackChain: [],
+      routingMode: 'manual',
+      triggerWords: {},
+    });
+
+    mockSettingsManager.getModelSheet.mockResolvedValue({
+      'gpt-4o': {
+        modelId: 'gpt-4o',
+        providerId: 'openai-chat',
+        providerType: 'openai',
+        enabled: true,
+        capabilities: {
+          supportsVision: true,
+          contextWindow: 128000,
+          maxOutputTokens: 16384,
+          supportsImageAnalysis: true,
+          supportsVideoAnalysis: false,
+          supportsAudioAnalysis: true,
+          supportsTranscription: false,
+          supportsTranslation: false,
+          supportsAudioInput: true,
+          supportsWordTimestamps: false,
+        },
+        tier: { cost: 'medium', speed: 'fast', quality: 'expert' },
+      },
+      'whisper-1': {
+        modelId: 'whisper-1',
+        providerId: 'openai-stt',
+        providerType: 'openai',
+        enabled: true,
+        capabilities: {
+          supportsVision: false,
+          contextWindow: 0,
+          maxOutputTokens: 0,
+          supportsImageAnalysis: false,
+          supportsVideoAnalysis: false,
+          supportsAudioAnalysis: true,
+          supportsTranscription: true,
+          supportsTranslation: true,
+          supportsAudioInput: true,
+          supportsWordTimestamps: true,
+        },
+        tier: { cost: 'low', speed: 'fast', quality: 'advanced' },
+      },
+    });
+
+    mockConfigManager.getProvider.mockResolvedValue({
+      id: 'openai-chat',
+      type: 'openai',
+      enabled: true,
+    });
+
+    const mockAdapter = { validateConnection: vi.fn().mockResolvedValue({ success: true }) };
+    vi.mocked(ProviderFactory.createAdapter).mockResolvedValue(mockAdapter as any);
+
+    const result = await router.routeCapability('chat', 'hello world');
+    expect(result).toBe(mockAdapter);
+    // Should route to the chat provider, not the STT provider
+    expect(ProviderFactory.createAdapter).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'openai-chat' })
+    );
+  });
+});
