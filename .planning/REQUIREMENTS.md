@@ -14,11 +14,11 @@ Requirements for multi-provider settings milestone. Each maps to roadmap phases.
 - [ ] **PROV-03**: User can enter and save API keys per provider with AES-GCM encryption
 - [x] **PROV-04**: User can select specific models per provider (not just provider-level)
 - [x] **PROV-05**: User can enable/disable individual providers without deleting configuration
-- [ ] **PROV-06**: User can set provider as active/inactive for each capability (chat, embeddings, speech)
+- [x] **PROV-06**: User can set provider as active/inactive for each capability (chat, embeddings, speech)
 
 ### Per-Capability Routing
 
-- [ ] **ROUT-01**: User can select different providers for chat vs embeddings vs speech
+- [x] **ROUT-01**: User can select different providers for chat vs embeddings vs speech
 - [ ] **ROUT-02**: System routes AI requests to the configured provider per capability
 - [ ] **ROUT-03**: System falls back to next available provider if primary fails
 - [ ] **ROUT-04**: User sees which provider is handling each request in UI
@@ -52,7 +52,7 @@ Requirements for multi-provider settings milestone. Each maps to roadmap phases.
 - [ ] **INT-01**: Gemini Nano remains available as a free provider option
 - [ ] **INT-02**: Existing hybrid-ai-engine.ts delegates to new provider router
 - [ ] **INT-03**: Existing conversations continue working after provider changes
-- [ ] **INT-04**: System warns user if provider switch would affect existing embeddings
+- [x] **INT-04**: System warns user if provider switch would affect existing embeddings
 
 ## v2 Requirements
 
@@ -103,8 +103,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROV-03 | Phase 1 | Pending |
 | PROV-04 | Phase 2 | Complete |
 | PROV-05 | Phase 1 | Complete |
-| PROV-06 | Phase 3 | Pending |
-| ROUT-01 | Phase 3 | Pending |
+| PROV-06 | Phase 3 | Complete |
+| ROUT-01 | Phase 3 | Complete |
 | ROUT-02 | Phase 3 | Pending |
 | ROUT-03 | Phase 3 | Pending |
 | ROUT-04 | Phase 6 | Pending |
@@ -126,7 +126,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INT-01 | Phase 2 | Pending |
 | INT-02 | Phase 5 | Pending |
 | INT-03 | Phase 5 | Pending |
-| INT-04 | Phase 3 | Pending |
+| INT-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 29 total
