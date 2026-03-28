@@ -15,12 +15,22 @@ export class ProviderRouter {
   async routeCapability(capability: CapabilityType, prompt: string, nanoModel?: any): Promise<BaseProviderAdapter> {
     const prefs = await this.settingsManager.getRoutingPreferences();
     const primary = prefs[capability];
-    
+
     let executionChain = [primary, ...prefs.fallbackChain].filter(Boolean) as string[];
 
+    // Initialize configManager early — needed for both auto mode and execution chain
+    const configManager = getProviderConfigManager();
+    if (!configManager.isInitialized()) {
+      await configManager.initialize();
+    }
+
+    // Get modelSheet early — needed for heuristic scoring and enabled filtering
+    const modelSheet = await this.settingsManager.getModelSheet();
+
+    // Auto mode: trigger words + heuristic scoring
     if (capability === 'chat' && prefs.routingMode === 'auto') {
       let matchedWord = false;
-      
+
       if (prefs.triggerWords) {
         for (const [word, providerId] of Object.entries(prefs.triggerWords)) {
           if (prompt.toLowerCase().includes(word.toLowerCase())) {
@@ -33,14 +43,20 @@ export class ProviderRouter {
 
       if (!matchedWord) {
         const intentMeta = await classifyPromptWithNano(prompt, nanoModel);
-        const modelSheet = await this.settingsManager.getModelSheet();
 
         let bestMatchId: string | null = null;
         let bestScore = -1;
 
-        for (const [providerId, entry] of Object.entries(modelSheet)) {
+        for (const [modelKey, entry] of Object.entries(modelSheet)) {
+          // D-11: Skip disabled models
+          if (entry.enabled === false) continue;
+
+          // D-11: Check provider enabled status
+          const providerConfig = await configManager.getProvider(entry.providerId);
+          if (!providerConfig || !providerConfig.enabled) continue;
+
           let score = 0;
-          
+
           if (intentMeta.budget_signal === 'low' && entry.tier.cost === 'low') score += 2;
           else if (intentMeta.budget_signal === 'high' && entry.tier.cost === 'high') score += 2;
           else if (intentMeta.budget_signal === 'medium' && entry.tier.cost === 'medium') score += 2;
@@ -52,7 +68,7 @@ export class ProviderRouter {
 
           if (score > bestScore) {
             bestScore = score;
-            bestMatchId = providerId;
+            bestMatchId = entry.providerId;
           }
         }
 
@@ -63,24 +79,36 @@ export class ProviderRouter {
     }
 
     executionChain = [...new Set(executionChain)];
-    
-    const diagnostics: { providerId: string; error: string }[] = [];
-    const configManager = getProviderConfigManager();
 
-    if (!configManager.isInitialized()) {
-      await configManager.initialize();
-    }
+    const diagnostics: { providerId: string; error: string }[] = [];
 
     for (const providerId of executionChain) {
       try {
         const config = await configManager.getProvider(providerId);
+
+        // D-09: Check provider exists
         if (!config) {
-          throw new Error(`Provider config not found for ID: ${providerId}`);
+          diagnostics.push({ providerId, error: 'Provider config not found' });
+          continue;
+        }
+
+        // D-09: Check provider-level enabled
+        if (!config.enabled) {
+          diagnostics.push({ providerId, error: 'Provider is disabled' });
+          continue;
+        }
+
+        // D-09: Check at least one enabled model exists for this provider
+        const providerModels = Object.values(modelSheet)
+          .filter(entry => entry.providerId === providerId && entry.enabled !== false);
+        if (providerModels.length === 0) {
+          diagnostics.push({ providerId, error: 'No enabled models for this provider' });
+          continue;
         }
 
         const adapter = await ProviderFactory.createAdapter(config);
         const validation = await adapter.validateConnection();
-        
+
         if (!validation.success) {
           throw new Error(validation.error || 'Connection validation failed');
         }
@@ -91,6 +119,11 @@ export class ProviderRouter {
       }
     }
 
-    throw new Error("All providers in fallback chain failed: " + JSON.stringify(diagnostics));
+    // D-10: Clear actionable error when all filtered out
+    throw new Error(
+      `No enabled providers available for '${capability}' capability. ` +
+      `Enable a provider and its models in settings. ` +
+      `Diagnostics: ${JSON.stringify(diagnostics)}`
+    );
   }
 }
