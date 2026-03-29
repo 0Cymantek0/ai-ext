@@ -115,6 +115,10 @@ export type MessageKind =
   | "PROVIDER_SETTINGS_VALIDATE_ENDPOINT"
   | "SPEECH_SETTINGS_LOAD"
   | "SPEECH_SETTINGS_SAVE"
+  // Settings UI messages (Phase 06)
+  | "SETTINGS_ROUTING_LOAD"
+  | "SETTINGS_ROUTING_SAVE"
+  | "SETTINGS_SNAPSHOT_LOAD"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -1074,6 +1078,32 @@ export interface SpeechSettingsSavePayload {
     temperature?: number;
     prompt?: string;
   };
+}
+
+// Settings UI Payloads (Phase 06)
+
+export interface SettingsRoutingLoadPayload {}
+
+export interface SettingsRoutingSavePayload {
+  routingPreferences?: any;
+  modelSheet?: any;
+}
+
+export interface SettingsSnapshotLoadPayload {}
+
+export interface ProviderSettingsSnapshot {
+  providers: Array<{
+    id: string;
+    type: string;
+    name: string;
+    enabled: boolean;
+    baseUrl?: string;
+    apiKeyId?: string;
+    endpointMode?: string;
+  }>;
+  modelSheet: Record<string, any>;
+  routingPreferences: any;
+  speechSettings: any;
 }
 
 // Storage Keys
