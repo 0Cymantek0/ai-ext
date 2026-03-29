@@ -1,143 +1,124 @@
-# Roadmap: AI Pocket - Multi-Provider Settings
+# Roadmap: AI Pocket - Autonomous Browser Agent + Deep Research
 
 ## Overview
 
-This roadmap delivers a comprehensive multi-provider settings system for AI Pocket, enabling users to configure and switch between multiple LLM and speech-to-text providers. The journey starts with secure storage foundation, builds provider adapters, implements intelligent routing, extends to additional providers, integrates with the existing system, and culminates in a polished settings UI.
+This roadmap turns AI Pocket into an agentic browser workspace centered on two major workflows: browser-action execution and research-grade deep research. The roadmap begins with an architectural reset of partial agent systems already in the repository, then builds a safe browser runtime, deep research orchestration, pocket-native evidence accumulation, dense report generation, and a polished side-panel control experience.
 
 ## Phases
 
 **Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+- Integer phases continue from the previous milestone
+- Decimal phases remain reserved for urgent insertions
 
-Decimal phases appear between their surrounding integers in numeric order.
-
-- [x] **Phase 1: Foundation** - Secure storage, provider types, and encryption system
-- [x] **Phase 2: Core Adapters** - Provider implementations (Gemini Nano, Gemini Cloud, OpenAI, Anthropic)
-- [ ] **Phase 3: Router + Settings Manager** - Per-capability routing and centralized settings management
-- [x] **Phase 4: Additional Providers** - Extended providers (Ollama, OpenRouter, Groq, Custom) and STT config
-- [x] **Phase 5: Integration** - HybridAIEngine integration and message handlers
-- [ ] **Phase 6: Settings UI** - Side panel settings interface with provider configuration
+- [ ] **Phase 7: Agent Architecture Reset** - Audit existing agentic systems, converge runtime contracts, and establish resumable run state
+- [ ] **Phase 8: Browser Action Runtime** - Deliver a reliable browser-action agent loop with tool execution and recovery
+- [ ] **Phase 9: Human-in-the-Loop Control Layer** - Add approvals, run governance, and safety-aware action visibility
+- [ ] **Phase 10: Deep Research Orchestrator** - Build iterative research planning, source gathering, and mid-run synthesis
+- [ ] **Phase 11: Pocket Evidence Pipeline** - Make research pockets the live evidence store for agent findings and notes
+- [ ] **Phase 12: Citation-Backed Report Engine** - Generate dense multi-page reports grounded in captured evidence
+- [ ] **Phase 13: Agentic Side Panel Experience** - Unify launch flows, timelines, model selection, and run review UX
 
 ## Phase Details
 
-### Phase 1: Foundation
-**Goal**: Secure infrastructure for storing provider configurations and encrypted API keys
-**Depends on**: Nothing (first phase)
-**Requirements**: PROV-01, PROV-03, PROV-05, KEYS-01, KEYS-02
+### Phase 7: Agent Architecture Reset
+**Goal**: Convert the repo's partial browser-agent, research, and report code into one coherent runtime foundation that can support the new product direction
+**Depends on**: Phase 6 and existing v1.0 infrastructure
+**Requirements**: ARCH-01, ARCH-02, ARCH-03, ARCH-04
 **Success Criteria** (what must be TRUE):
-  1. User can define provider configurations with name, type, and enabled status
-  2. API keys are encrypted using AES-GCM before storage
-  3. Encrypted keys are stored in chrome.storage.local (not sync)
-  4. User can enable/disable providers without deleting configuration
-  5. Encryption service can encrypt and decrypt keys on demand
-**Plans**: 3 plans (Complete)
+1. Existing browser-agent, research, and report subsystems are audited with explicit keep/refactor/remove outcomes
+2. One typed runtime contract exists for run state, tool events, evidence writes, and terminal outcomes
+3. Agent checkpoints can restore enough state to resume or inspect interrupted runs
+4. Obsolete or conflicting agent abstractions identified by the audit are removed or isolated behind the new runtime
+**Plans**: TBD
 
-### Phase 2: Core Adapters
-**Goal**: Working provider adapters for Gemini Nano, Gemini Cloud, OpenAI, and Anthropic with model selection
-**Depends on**: Phase 1
-**Requirements**: PROV-04, KEYS-04, KEYS-05, INT-01
+### Phase 8: Browser Action Runtime
+**Goal**: Deliver a dependable browser-action agent that can inspect and interact with pages through extension-safe tools
+**Depends on**: Phase 7
+**Requirements**: AGENT-01, AGENT-02, AGENT-03, AGENT-04, AGENT-05
 **Success Criteria** (what must be TRUE):
-  1. User can select specific models per provider (GPT-4, Claude 3.5, Gemini Pro, etc.)
-  2. System validates API keys by testing connection before saving
-  3. Connection status indicator shows per configured provider
-  4. Gemini Nano remains available as a free provider option (no API key required)
-  5. Each provider adapter can send chat requests and stream responses
-**Plans**: 3 plans (Complete)
-- [x] 02-01-PLAN.md — Foundation, Base Adapter Interface, and Factory
-- [x] 02-02-PLAN.md — OpenAI and Anthropic Adapters with validation
-- [x] 02-03-PLAN.md — Google Cloud and Gemini Nano Adapters with local AI support
+1. User can start a browser-action run from the side panel with a chosen model
+2. Agent can navigate, inspect page state, and execute non-destructive actions through registered tools
+3. Side panel receives streaming step updates, current intent, and tool results during execution
+4. Failed actions produce recoverable replanning or actionable user feedback instead of opaque termination
+5. Pausing, resuming, and cancelling preserve coherent run state
+**Plans**: TBD
 
-### Phase 3: Router + Settings Manager
-**Goal**: Intelligent routing system that directs AI requests to the correct provider per capability
-**Depends on**: Phase 2
-**Requirements**: PROV-06, ROUT-01, ROUT-02, ROUT-03, INT-04
+### Phase 9: Human-in-the-Loop Control Layer
+**Goal**: Add explicit control boundaries so autonomy remains understandable and safe
+**Depends on**: Phase 8
+**Requirements**: CTRL-01, CTRL-02, CTRL-03, CTRL-04
 **Success Criteria** (what must be TRUE):
-  1. User can assign different providers for chat, embeddings, and speech capabilities
-  2. System automatically routes AI requests to the configured provider for each capability
-  3. System falls back to next available provider if primary fails
-  4. User receives warning when switching embedding providers (dimension mismatch risk)
-  5. Settings manager persists and retrieves all provider configurations
-**Plans**: 2 plans (Complete)
+1. Sensitive actions require approval before execution
+2. Approval prompts include target context and reason for the action
+3. Run timeline records approvals, rejections, pauses, resumes, and cancellations
+4. UI clearly communicates whether the agent is running, blocked on user input, cancelled, failed, or completed
+**Plans**: TBD
 
-### Phase 03.1: Phase 3 Hardening & Model Capabilities (INSERTED)
-**Goal**: Harden Phase 3 routing — enabled provider/model filtering, predefined model catalog with capabilities (context window, max output tokens, image/video/audio analysis), missing SettingsManager methods, intent-aware heuristics, and comprehensive test coverage
-**Requirements**: PROV-06, ROUT-02, ROUT-03
-**Depends on**: Phase 3
+### Phase 10: Deep Research Orchestrator
+**Goal**: Build a research-grade agent loop that iterates through subquestions, gathers evidence, and synthesizes as it goes
+**Depends on**: Phase 9
+**Requirements**: RES-01, RES-02, RES-03, RES-04, RES-05
 **Success Criteria** (what must be TRUE):
-  1. Router only routes to enabled providers with enabled models
-  2. Predefined model catalog seeds the model sheet on first use
-  3. Users can configure model capabilities (context window, max output tokens, image/video/audio analysis)
-  4. SettingsManager exposes methods for routingMode, fallbackChain, triggerWords, and model management
-  5. Heuristic scoring uses intent from Nano classifier
-  6. Clear error messages for misconfigured capabilities
-  7. All routing paths have test coverage (trigger words, embeddings, speech, enabled filtering)
-**Plans**: 2 plans
-- [ ] 03.1-01-PLAN.md — Extend types, create model catalog, implement SettingsManager methods with Zod validation
-- [ ] 03.1-02-PLAN.md — Add enabled filtering to ProviderRouter and comprehensive test coverage
+1. User can start a deep research project with topic, goal, and model selection
+2. Research run maintains an explicit plan with subquestions, progress, and open gaps
+3. Agent performs multi-step browsing and collection rather than a single summarization call
+4. Intermediate synthesis influences subsequent browsing or extraction decisions
+5. Every meaningful finding carries source metadata for later citation
+**Plans**: TBD
 
-### Phase 4: Additional Providers
-**Goal**: Extended provider support including local, aggregator, and custom endpoints with STT configuration
-**Depends on**: Phase 3
-**Requirements**: PROV-02, UI-05, STT-01, STT-03
+### Phase 11: Pocket Evidence Pipeline
+**Goal**: Turn pockets into the native evidence workspace for in-progress and completed research projects
+**Depends on**: Phase 10
+**Requirements**: POCKET-01, POCKET-02, POCKET-03, POCKET-04, POCKET-05
 **Success Criteria** (what must be TRUE):
-  1. User can configure custom OpenAI-compatible endpoints with custom base URL
-  2. Ollama, OpenRouter, and Groq adapters are available for selection
-  3. User can select speech-to-text provider (OpenAI Whisper, Groq Whisper, NVIDIA Parakeet)
-  4. User can configure STT-specific settings (language, model variant)
-  5. Custom endpoint form validates URLs and optional API keys
-**Plans**: 3 plans
-- [x] 04-01-PLAN.md — Provider transport schema, persistence, and OpenAI-compatible adapter infrastructure
-- [x] 04-02-PLAN.md — Typed STT settings and richer capability metadata
-- [x] 04-03-PLAN.md — Minimal sidepanel configuration flow for providers and STT
+1. Research project creation provisions or links a dedicated research pocket
+2. Agent writes structured evidence entries into that pocket during execution
+3. Evidence entries include source metadata, excerpts or claims, timestamps, and research context
+4. User can inspect live evidence accumulation in the pocket UI before final report generation
+5. Duplicate or repeated-source evidence is prevented or clearly marked
+**Plans**: TBD
 
-### Phase 5: Integration
-**Goal**: New provider system integrated with existing HybridAIEngine and message handling
-**Depends on**: Phase 4
-**Requirements**: STT-02, INT-02, INT-03
+### Phase 12: Citation-Backed Report Engine
+**Goal**: Produce in-depth research reports from pocket evidence with strong grounding and traceability
+**Depends on**: Phase 11
+**Requirements**: REPORT-01, REPORT-02, REPORT-03, REPORT-04, REPORT-05
 **Success Criteria** (what must be TRUE):
-  1. HybridAIEngine delegates to ProviderRouter instead of direct CloudAIManager
-  2. Audio transcription requests route to selected STT provider
-  3. Existing conversations continue working after provider configuration changes
-  4. All provider-related messages use typed message contracts
-  5. Service worker handles the existing `PROVIDER_SETTINGS_*` and `SPEECH_SETTINGS_*` message types through typed provider-aware contracts
-**Plans**: 4 plans
-- [x] 05-01-PLAN.md — Build provider execution contracts and convert HybridAIEngine into the provider-routed compatibility facade
-- [x] 05-02-PLAN.md — Implement the background transcription executor with exact provider endpoint handling
-- [x] 05-03-PLAN.md — Wire typed transcription/settings contracts through the service worker and media-capture flow
-- [x] 05-04-PLAN.md — Persist provider/fallback provenance for streamed chat without breaking historical conversations
+1. User can generate a long-form report from a research pocket
+2. Report sections are backed by explicit evidence and citations
+3. Weakly supported or unresolved claims are distinguished from grounded findings
+4. User can inspect which evidence supports each section or major claim
+5. Final report quality is dense and research-oriented rather than generic summary output
+**Plans**: TBD
 
-### Phase 6: Settings UI
-**Goal**: Complete settings interface in side panel for configuring all providers and routing
-**Depends on**: Phase 5
-**Requirements**: ROUT-04, KEYS-03, UI-01, UI-02, UI-03, UI-04, UI-06, UI-07
+### Phase 13: Agentic Side Panel Experience
+**Goal**: Make the full agent experience smooth, understandable, and ready for daily use
+**Depends on**: Phase 12
+**Requirements**: UX-01, UX-02, UX-03, UX-04, UX-05
 **Success Criteria** (what must be TRUE):
-  1. User can access settings page from side panel header (settings icon)
-  2. Provider cards display provider name, connection status, and model selector
-  3. API key input has show/hide toggle and validation indicator
-  4. Capability routing section shows chat/embeddings/speech provider assignments
-  5. User sees which provider is handling each request in the UI
-  6. User can view and delete saved API keys per provider
-  7. Model selector dropdown populated from provider's available models
+1. User can clearly choose between browser-action and deep-research workflows
+2. User can select configured models appropriate to the chosen workflow
+3. Side panel shows a live timeline of planning, tool calls, approvals, evidence writes, and errors
+4. Historical runs remain inspectable after completion
+5. Long-running agent work does not block normal pocket browsing and side panel responsiveness
 **Plans**: TBD
 **UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4 -> 5 -> 6
+Phases execute in numeric order: 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 3/3 | Completed | 2026-03-28 |
-| 2. Core Adapters | 3/3 | Completed | 2026-03-28 |
-| 3. Router + Settings Manager | 2/2 | Completed | 2026-03-28 |
-| 3.1 Hardening & Model Capabilities | 0/2 | Planning complete | - |
-| 4. Additional Providers | 3/3 | Completed | 2026-03-29 |
-| 5. Integration | 4/4 | Completed | 2026-03-29 |
-| 6. Settings UI | 0/TBD | Not started | - |
+| 7. Agent Architecture Reset | 0/TBD | Not started | - |
+| 8. Browser Action Runtime | 0/TBD | Not started | - |
+| 9. Human-in-the-Loop Control Layer | 0/TBD | Not started | - |
+| 10. Deep Research Orchestrator | 0/TBD | Not started | - |
+| 11. Pocket Evidence Pipeline | 0/TBD | Not started | - |
+| 12. Citation-Backed Report Engine | 0/TBD | Not started | - |
+| 13. Agentic Side Panel Experience | 0/TBD | Not started | - |
 
 ---
 
-*Roadmap created: 2026-03-27*
+*Roadmap created: 2026-03-29*
 *Granularity: standard*

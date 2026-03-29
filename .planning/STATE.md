@@ -1,31 +1,32 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: Ready to execute
-stopped_at: Phase 6 context gathered
-last_updated: "2026-03-28T23:28:08.299Z"
+milestone: v2.0
+milestone_name: autonomous-browser-agent-deep-research
+status: Defining requirements
+stopped_at: Milestone v2.0 initialized
+last_updated: "2026-03-29T00:00:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 17
-  completed_plans: 17
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-27)
+See: .planning/PROJECT.md (updated 2026-03-29)
 
-**Core value:** User choice and flexibility — use any AI provider with your own API keys
-**Current focus:** Phase 06 — settings ui
+**Core value:** Trustworthy autonomous research and action
+**Current focus:** Phase 07 - agent-architecture-reset
 
 ## Current Position
 
-Phase: 05 (integration) — COMPLETE
-Plan: 4 of 4
-All plans executed and summarized (4/4)
+Phase: Not started (defining requirements)
+Plan: -
+Status: Defining requirements
+Last activity: 2026-03-29 - Milestone v2.0 started
 
 ## Performance Metrics
 
@@ -47,13 +48,6 @@ All plans executed and summarized (4/4)
 - Trend: N/A
 
 *Updated after each plan completion*
-| Phase 01 P02 | 30m | 6 tasks | 1 files |
-| Phase 02-core-adapters P01 | 15m | 3 tasks | 4 files |
-| Phase 03 P01 | 10m | 3 tasks | 3 files |
-| Phase 03-router-settings-manager P02 | 10m | 3 tasks | 3 files |
-| Phase 05 P02 | 8min | 2 tasks | 3 files |
-| Phase 05 P03 | 7min | 2 tasks | 8 files |
-| Phase 05 P04 | 16min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -62,32 +56,14 @@ All plans executed and summarized (4/4)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Init]: Per-capability routing architecture chosen for flexibility
-- [Init]: AES-GCM encryption via Web Crypto API for key security
-- [Init]: Vercel AI SDK as unified provider abstraction layer
-- [Phase 01]: Always generate apiKeyId even if no key is initially provided
-- [Phase 01]: Master key initialization in background
-- [Phase 02]: Made ProviderFactory.createAdapter asynchronous to support lazy fetching of API keys from storage
-- [Phase 02]: Used LanguageModel type from ai package instead of LanguageModelV1 due to Vercel AI SDK export changes
-- [Phase 03]: Store routing preferences and model sheet in chrome.storage.local for persistence
-- [Phase 03-router-settings-manager]: Used Gemini Nano via Vercel AI SDK for prompt intent classification
-- [Phase 03-router-settings-manager]: Adopted dynamic fallback execution using the configuration manager for runtime resolution
-- [Phase 03-router-settings-manager]: Implemented a heuristic scoring system mapping complexity/budget to provider tier/cost
-- [Phase 04-additional-providers]: Added typed provider transport metadata and OpenAI-compatible adapters for OpenRouter, Ollama, Groq, and custom endpoints
-- [Phase 04-additional-providers]: Optional-auth providers no longer require placeholder API key IDs in provider storage
-- [Phase 04-additional-providers]: Speech settings use typed Zod-validated contract instead of untyped providerParameters
-- [Phase 04-additional-providers]: ProviderRouter exposes getSpeechSettings() without wiring end-to-end transcription
-- [Phase 04-additional-providers]: Custom endpoint form validates URLs with new URL() constructor
-- [Phase 05]: TranscriptionExecutor resolves provider and model from SettingsManager on every call so saved speech changes affect the next request immediately.
-- [Phase 05]: Word timestamps are requested deterministically as segment plus word granularity and normalized into provider-agnostic result fields.
-- [Phase 05]: Kept existing AI_PROCESS_REQUEST and settings message kinds while replacing loose service-worker payload casts with shared typed contracts.
-- [Phase 05]: Media capture now serializes audio into AUDIO_TRANSCRIBE_REQUEST payloads so the background TranscriptionExecutor remains the single STT execution boundary.
-- [Phase 05]: Stored provider/model/fallback provenance additively under message.metadata.providerExecution while keeping source for backward compatibility
-- [Phase 05]: Rendered assistant-turn provider/model/fallback provenance inline in ChatApp using both live stream metadata and persisted conversation hydration
+- [Milestone v2.0] Product direction shifts from provider/settings completion to an autonomous browser and deep research workspace
+- [Milestone v2.0] Existing unfinished browser-agent and research subsystems must be audited before net-new implementation
+- [Milestone v2.0] Pockets remain the canonical store for research evidence and synthesis artifacts
+- [Milestone v2.0] Human approval remains mandatory for sensitive browser actions
 
 ### Pending Todos
 
-[From .planning/todos/pending/ — ideas captured during sessions]
+[From .planning/todos/pending/ - ideas captured during sessions]
 
 None yet.
 
@@ -95,18 +71,19 @@ None yet.
 
 [Issues that affect future work]
 
-None yet.
+- Existing v1.0 Phase 6 settings UI work is still incomplete and may need explicit disposition if it conflicts with the v2.0 product direction
+- In-tree browser-agent and report-generation code may contain overlapping abstractions that should be removed rather than extended
 
 ### Roadmap Evolution
 
-- Phase 03.1 inserted after Phase 3: Phase 3 Hardening & Model Capabilities (URGENT) — fixes enabled provider/model filtering, adds predefined model catalog, missing SettingsManager methods, intent-aware heuristics, and test coverage
+- New milestone v2.0 begins at Phase 7 to preserve milestone history and existing phase directories
 
 ## Session Continuity
 
-Last session: 2026-03-28T23:28:08.294Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-settings-ui/06-CONTEXT.md
+Last session: 2026-03-29T00:00:00.000Z
+Stopped at: Milestone v2.0 initialized
+Resume file: .planning/ROADMAP.md
 
 ---
 
-*State initialized: 2026-03-27*
+*State initialized: 2026-03-29*
