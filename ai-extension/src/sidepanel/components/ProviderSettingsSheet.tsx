@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Settings, X, Loader2 } from "lucide-react";
 import { SettingsTabs, type TabId } from "./settings/SettingsTabs";
 import { ProviderOverviewTab } from "./settings/ProviderOverviewTab";
+import { AddProviderFlow } from "./settings/AddProviderFlow";
+import { ProviderDetailView } from "./settings/ProviderDetailView";
 import { buildProviderCards } from "./settings/settings-state";
 import { SpeechSettingsSection } from "./SpeechSettingsSection";
 import type { ProviderSettingsSnapshot } from "../../shared/types";
@@ -21,6 +23,8 @@ export function ProviderSettingsSheet({
     React.useState<ProviderSettingsSnapshot | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [isAddingProvider, setIsAddingProvider] = React.useState(false);
+  const [selectedProviderId, setSelectedProviderId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -46,11 +50,6 @@ export function ProviderSettingsSheet({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleProviderSelect = (providerId: string) => {
-    // Placeholder for when provider details are implemented
-    console.log("Selected provider:", providerId);
   };
 
   const providerCards = React.useMemo(
@@ -88,19 +87,37 @@ export function ProviderSettingsSheet({
           </div>
         )}
 
-        {isLoading ? (
+        {isLoading && !snapshot ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <div className="flex-1">
-            {activeTab === "providers" && (
-              <ProviderOverviewTab
-                providers={providerCards}
-                onAddClick={() => console.log("Add provider clicked")}
-                onSelect={handleProviderSelect}
-              />
-            )}
+            {activeTab === "providers" &&
+              (isAddingProvider ? (
+                <AddProviderFlow
+                  onBack={() => setIsAddingProvider(false)}
+                  onComplete={() => {
+                    setIsAddingProvider(false);
+                    loadSettings();
+                  }}
+                />
+              ) : selectedProviderId ? (
+                <ProviderDetailView
+                  provider={snapshot?.providers.find(
+                    (p) => p.id === selectedProviderId,
+                  )}
+                  modelSheet={snapshot?.modelSheet || {}}
+                  onBack={() => setSelectedProviderId(null)}
+                  onUpdate={loadSettings}
+                />
+              ) : (
+                <ProviderOverviewTab
+                  providers={providerCards}
+                  onAddClick={() => setIsAddingProvider(true)}
+                  onSelect={setSelectedProviderId}
+                />
+              ))}
 
             {activeTab === "routing" && (
               <div className="text-sm text-muted-foreground text-center py-8">

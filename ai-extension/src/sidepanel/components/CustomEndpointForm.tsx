@@ -22,14 +22,54 @@ interface CustomEndpointFormProps {
 }
 
 const PROVIDER_TYPES = [
-  { value: "openai", label: "OpenAI", defaultUrl: "https://api.openai.com", requiresKey: true },
-  { value: "anthropic", label: "Anthropic", defaultUrl: "https://api.anthropic.com", requiresKey: true },
-  { value: "google", label: "Google Gemini", defaultUrl: "https://generativelanguage.googleapis.com", requiresKey: true },
-  { value: "openrouter", label: "OpenRouter", defaultUrl: "https://openrouter.ai", requiresKey: true },
-  { value: "groq", label: "Groq", defaultUrl: "https://api.groq.com", requiresKey: true },
-  { value: "nvidia", label: "NVIDIA NIM", defaultUrl: "https://integrate.api.nvidia.com", requiresKey: true },
-  { value: "ollama", label: "Ollama (Local)", defaultUrl: "http://localhost:11434", requiresKey: false },
-  { value: "custom", label: "Custom (OpenAI-compatible)", defaultUrl: "", requiresKey: false },
+  {
+    value: "openai",
+    label: "OpenAI",
+    defaultUrl: "https://api.openai.com",
+    requiresKey: true,
+  },
+  {
+    value: "anthropic",
+    label: "Anthropic",
+    defaultUrl: "https://api.anthropic.com",
+    requiresKey: true,
+  },
+  {
+    value: "google",
+    label: "Google Gemini",
+    defaultUrl: "https://generativelanguage.googleapis.com",
+    requiresKey: true,
+  },
+  {
+    value: "openrouter",
+    label: "OpenRouter",
+    defaultUrl: "https://openrouter.ai",
+    requiresKey: true,
+  },
+  {
+    value: "groq",
+    label: "Groq",
+    defaultUrl: "https://api.groq.com",
+    requiresKey: true,
+  },
+  {
+    value: "nvidia",
+    label: "NVIDIA NIM",
+    defaultUrl: "https://integrate.api.nvidia.com",
+    requiresKey: true,
+  },
+  {
+    value: "ollama",
+    label: "Ollama (Local)",
+    defaultUrl: "http://localhost:11434",
+    requiresKey: false,
+  },
+  {
+    value: "custom",
+    label: "Custom (OpenAI-compatible)",
+    defaultUrl: "",
+    requiresKey: false,
+  },
 ];
 
 export function CustomEndpointForm({
@@ -52,7 +92,9 @@ export function CustomEndpointForm({
   const [isValidating, setIsValidating] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const selectedTypeConfig = PROVIDER_TYPES.find((t) => t.value === providerType);
+  const selectedTypeConfig = PROVIDER_TYPES.find(
+    (t) => t.value === providerType,
+  );
   const isApiKeyOptional = optionalKeyTypes.includes(providerType);
 
   // When provider type changes, set default URL if empty
@@ -106,7 +148,7 @@ export function CustomEndpointForm({
       } else {
         setError(response?.data?.error ?? "Endpoint validation failed");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to validate endpoint");
     } finally {
       setIsValidating(false);
@@ -131,7 +173,11 @@ export function CustomEndpointForm({
       return;
     }
     // API key is required for providers that need it, unless we already have one
-    if (selectedTypeConfig?.requiresKey && !apiKey.trim() && !initialValues?.apiKey) {
+    if (
+      selectedTypeConfig?.requiresKey &&
+      !apiKey.trim() &&
+      !initialValues?.apiKey
+    ) {
       setError("API key is required for this provider type");
       return;
     }
@@ -222,21 +268,33 @@ export function CustomEndpointForm({
       {/* API Key */}
       <div>
         <label className="block text-xs font-medium text-muted-foreground mb-1">
-          API Key {isApiKeyOptional && (
+          API Key{" "}
+          {isApiKeyOptional && (
             <span className="text-muted-foreground/60">(optional)</span>
           )}
         </label>
-        <Input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder={
-            isApiKeyOptional
-              ? "Optional for local/self-hosted endpoints"
-              : "Enter your API key"
-          }
-          className="h-9 text-sm"
-        />
+        <div className="flex gap-2">
+          <Input
+            type={showKey ? "text" : "password"}
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={
+              isApiKeyOptional
+                ? "Optional for local/self-hosted endpoints"
+                : "Enter your API key"
+            }
+            className="h-9 text-sm flex-1"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowKey(!showKey)}
+            className="h-9 px-3 shrink-0"
+          >
+            {showKey ? "hide" : "show"}
+          </Button>
+        </div>
         {isApiKeyOptional && (
           <p className="text-xs text-muted-foreground/60 mt-1">
             This provider type supports connections without an API key
