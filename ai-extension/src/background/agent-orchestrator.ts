@@ -110,7 +110,7 @@ export class AgentOrchestrator {
     for (const tool of ALL_BROWSER_TOOLS) {
       this.registry.register(tool);
       registered++;
-      
+
       if (tool.requiresHumanApproval) {
         destructive++;
       }
@@ -140,7 +140,10 @@ export class AgentOrchestrator {
   /**
    * Initialize a new workflow
    */
-  initializeWorkflow(workflowId: string, config?: WorkflowConfig): WorkflowStatus {
+  initializeWorkflow(
+    workflowId: string,
+    config?: WorkflowConfig,
+  ): WorkflowStatus {
     this.registry.initializeWorkflow(workflowId);
 
     const status: WorkflowStatus = {
@@ -277,7 +280,9 @@ export class AgentOrchestrator {
       workflow.lastUpdate = Date.now();
       workflow.progress = Math.min(
         100,
-        Math.floor((workflow.toolCallCount / Math.max(workflow.totalSteps, 1)) * 100),
+        Math.floor(
+          (workflow.toolCallCount / Math.max(workflow.totalSteps, 1)) * 100,
+        ),
       );
 
       if (result.success) {
@@ -328,7 +333,8 @@ export class AgentOrchestrator {
       }
     } catch (error) {
       const executionTimeMs = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       const workflow = this.workflows.get(workflowId);
       if (workflow) {
@@ -366,7 +372,10 @@ export class AgentOrchestrator {
   /**
    * Approve a tool execution
    */
-  async approveToolExecution(workflowId: string, approved: boolean): Promise<void> {
+  async approveToolExecution(
+    workflowId: string,
+    approved: boolean,
+  ): Promise<void> {
     const approval = this.pendingApprovals.get(workflowId);
     if (!approval) {
       throw new Error(`No pending approval for workflow: ${workflowId}`);
@@ -526,11 +535,18 @@ export class AgentOrchestrator {
   /**
    * Send message to UI (side panel)
    */
-  private async sendToUI(message: { kind: string; payload: any }): Promise<void> {
+  private async sendToUI(message: {
+    kind: string;
+    payload: any;
+  }): Promise<void> {
     try {
       await chrome.runtime.sendMessage(message);
     } catch (error) {
-      this.logger.warn("AgentOrchestrator", "Failed to send message to UI", error);
+      this.logger.warn(
+        "AgentOrchestrator",
+        "Failed to send message to UI",
+        error,
+      );
     }
   }
 
@@ -583,11 +599,18 @@ export function initializeOrchestrator(
   },
 ): AgentOrchestrator {
   if (orchestratorInstance) {
-    logger.warn("AgentOrchestrator", "Already initialized, returning existing instance");
+    logger.warn(
+      "AgentOrchestrator",
+      "Already initialized, returning existing instance",
+    );
     return orchestratorInstance;
   }
 
-  orchestratorInstance = new AgentOrchestrator(logger, performanceMonitor, config);
+  orchestratorInstance = new AgentOrchestrator(
+    logger,
+    performanceMonitor,
+    config,
+  );
   return orchestratorInstance;
 }
 

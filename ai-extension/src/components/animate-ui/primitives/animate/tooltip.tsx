@@ -205,36 +205,35 @@ type TooltipArrowProps = Omit<
   withTransition?: boolean;
 };
 
-const TooltipArrow = React.forwardRef<
-  SVGSVGElement | null,
-  TooltipArrowProps
->(({ withTransition = true, ...props }, ref) => {
-  const { side, align, open } = useRenderedTooltip();
-  const { context, arrowRef } = useFloatingContext();
-  const { transition, globalId } = useGlobalTooltip();
-  React.useImperativeHandle(
-    ref,
-    () => arrowRef.current || ({} as SVGSVGElement),
-    [arrowRef],
-  );
+const TooltipArrow = React.forwardRef<SVGSVGElement | null, TooltipArrowProps>(
+  ({ withTransition = true, ...props }, ref) => {
+    const { side, align, open } = useRenderedTooltip();
+    const { context, arrowRef } = useFloatingContext();
+    const { transition, globalId } = useGlobalTooltip();
+    React.useImperativeHandle(
+      ref,
+      () => arrowRef.current || ({} as SVGSVGElement),
+      [arrowRef],
+    );
 
-  const deg = { top: 0, right: 90, bottom: 180, left: -90 }[side];
+    const deg = { top: 0, right: 90, bottom: 180, left: -90 }[side];
 
-  return (
-    <MotionTooltipArrow
-      ref={arrowRef}
-      context={context}
-      data-state={open ? "open" : "closed"}
-      data-side={side}
-      data-align={align}
-      data-slot="tooltip-arrow"
-      style={{ rotate: deg }}
-      layoutId={withTransition ? `tooltip-arrow-${globalId}` : ""}
-      transition={withTransition ? (transition as any) : undefined}
-      {...props}
-    />
-  );
-});
+    return (
+      <MotionTooltipArrow
+        ref={arrowRef}
+        context={context}
+        data-state={open ? "open" : "closed"}
+        data-side={side}
+        data-align={align}
+        data-slot="tooltip-arrow"
+        style={{ rotate: deg }}
+        layoutId={withTransition ? `tooltip-arrow-${globalId}` : ""}
+        transition={withTransition ? (transition as any) : undefined}
+        {...props}
+      />
+    );
+  },
+);
 
 TooltipArrow.displayName = "TooltipArrow";
 
@@ -440,7 +439,10 @@ function TooltipContent({ asChild = false, ...props }: TooltipContentProps) {
 
 type TooltipTriggerProps = WithAsChild<Omit<HTMLMotionProps<"div">, "ref">>;
 
-const TooltipTrigger = React.forwardRef<HTMLDivElement | null, TooltipTriggerProps>(
+const TooltipTrigger = React.forwardRef<
+  HTMLDivElement | null,
+  TooltipTriggerProps
+>(
   (
     {
       onMouseEnter,
@@ -453,123 +455,124 @@ const TooltipTrigger = React.forwardRef<HTMLDivElement | null, TooltipTriggerPro
     },
     ref,
   ) => {
-  const {
-    props: contentProps,
-    asChild: contentAsChild,
-    side,
-    sideOffset,
-    align,
-    alignOffset,
-    id,
-  } = useTooltip();
-  const {
-    showTooltip,
-    hideTooltip,
-    hideImmediate,
-    currentTooltip,
-    setReferenceEl,
-  } = useGlobalTooltip();
-
-  const triggerRef = React.useRef<HTMLDivElement>(null);
-  React.useImperativeHandle(
-    ref,
-    () => triggerRef.current || ({} as HTMLDivElement),
-    [triggerRef],
-  );
-
-  const suppressNextFocusRef = React.useRef(false);
-
-  const handleOpen = React.useCallback(() => {
-    if (!triggerRef.current) return;
-    setReferenceEl(triggerRef.current);
-    const rect = triggerRef.current.getBoundingClientRect();
-    showTooltip({
-      contentProps,
-      contentAsChild,
-      rect,
+    const {
+      props: contentProps,
+      asChild: contentAsChild,
       side,
       sideOffset,
       align,
       alignOffset,
       id,
-    });
-  }, [
-    showTooltip,
-    setReferenceEl,
-    contentProps,
-    contentAsChild,
-    side,
-    sideOffset,
-    align,
-    alignOffset,
-    id,
-  ]);
+    } = useTooltip();
+    const {
+      showTooltip,
+      hideTooltip,
+      hideImmediate,
+      currentTooltip,
+      setReferenceEl,
+    } = useGlobalTooltip();
 
-  const handlePointerDown = React.useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      onPointerDown?.(e);
-      if (currentTooltip?.id === id) {
-        suppressNextFocusRef.current = true;
-        hideImmediate();
-        Promise.resolve().then(() => {
-          suppressNextFocusRef.current = false;
-        });
-      }
-    },
-    [onPointerDown, currentTooltip?.id, id, hideImmediate],
-  );
+    const triggerRef = React.useRef<HTMLDivElement>(null);
+    React.useImperativeHandle(
+      ref,
+      () => triggerRef.current || ({} as HTMLDivElement),
+      [triggerRef],
+    );
 
-  const handleMouseEnter = React.useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      onMouseEnter?.(e);
-      handleOpen();
-    },
-    [handleOpen, onMouseEnter],
-  );
+    const suppressNextFocusRef = React.useRef(false);
 
-  const handleMouseLeave = React.useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      onMouseLeave?.(e);
-      hideTooltip();
-    },
-    [hideTooltip, onMouseLeave],
-  );
+    const handleOpen = React.useCallback(() => {
+      if (!triggerRef.current) return;
+      setReferenceEl(triggerRef.current);
+      const rect = triggerRef.current.getBoundingClientRect();
+      showTooltip({
+        contentProps,
+        contentAsChild,
+        rect,
+        side,
+        sideOffset,
+        align,
+        alignOffset,
+        id,
+      });
+    }, [
+      showTooltip,
+      setReferenceEl,
+      contentProps,
+      contentAsChild,
+      side,
+      sideOffset,
+      align,
+      alignOffset,
+      id,
+    ]);
 
-  const handleFocus = React.useCallback(
-    (e: React.FocusEvent<HTMLDivElement>) => {
-      onFocus?.(e);
-      if (suppressNextFocusRef.current) return;
-      handleOpen();
-    },
-    [handleOpen, onFocus],
-  );
+    const handlePointerDown = React.useCallback(
+      (e: React.PointerEvent<HTMLDivElement>) => {
+        onPointerDown?.(e);
+        if (currentTooltip?.id === id) {
+          suppressNextFocusRef.current = true;
+          hideImmediate();
+          Promise.resolve().then(() => {
+            suppressNextFocusRef.current = false;
+          });
+        }
+      },
+      [onPointerDown, currentTooltip?.id, id, hideImmediate],
+    );
 
-  const handleBlur = React.useCallback(
-    (e: React.FocusEvent<HTMLDivElement>) => {
-      onBlur?.(e);
-      hideTooltip();
-    },
-    [hideTooltip, onBlur],
-  );
+    const handleMouseEnter = React.useCallback(
+      (e: React.MouseEvent<HTMLDivElement>) => {
+        onMouseEnter?.(e);
+        handleOpen();
+      },
+      [handleOpen, onMouseEnter],
+    );
 
-  const Component: any = asChild ? Slot : motion.div;
+    const handleMouseLeave = React.useCallback(
+      (e: React.MouseEvent<HTMLDivElement>) => {
+        onMouseLeave?.(e);
+        hideTooltip();
+      },
+      [hideTooltip, onMouseLeave],
+    );
 
-  return (
-    <Component
-      ref={triggerRef}
-      onPointerDown={handlePointerDown}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      data-slot="tooltip-trigger"
-      data-side={side}
-      data-align={align}
-      data-state={currentTooltip?.id === id ? "open" : "closed"}
-      {...props}
-    />
-  );
-});
+    const handleFocus = React.useCallback(
+      (e: React.FocusEvent<HTMLDivElement>) => {
+        onFocus?.(e);
+        if (suppressNextFocusRef.current) return;
+        handleOpen();
+      },
+      [handleOpen, onFocus],
+    );
+
+    const handleBlur = React.useCallback(
+      (e: React.FocusEvent<HTMLDivElement>) => {
+        onBlur?.(e);
+        hideTooltip();
+      },
+      [hideTooltip, onBlur],
+    );
+
+    const Component: any = asChild ? Slot : motion.div;
+
+    return (
+      <Component
+        ref={triggerRef}
+        onPointerDown={handlePointerDown}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        data-slot="tooltip-trigger"
+        data-side={side}
+        data-align={align}
+        data-state={currentTooltip?.id === id ? "open" : "closed"}
+        {...props}
+      />
+    );
+  },
+);
 
 TooltipTrigger.displayName = "TooltipTrigger";
 

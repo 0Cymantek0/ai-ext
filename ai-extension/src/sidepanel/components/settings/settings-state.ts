@@ -17,12 +17,10 @@ export function buildProviderCards(
 
   return snapshot.providers.map((p) => {
     let modelLabel: string | undefined;
-    // Attempt to extract a model if we can from routing/modelsheet
-    if (snapshot.routingPreferences?.chat?.providerId === p.id) {
-      const modelId = snapshot.routingPreferences.chat.modelId;
-      if (modelId && snapshot.modelSheet?.[modelId]) {
-        modelLabel = snapshot.modelSheet[modelId].name || modelId;
-      }
+    // Attempt to extract a provider-scoped model label from the provider record itself.
+    if (p.modelId && snapshot.modelSheet?.[p.modelId]) {
+      const modelEntry = snapshot.modelSheet[p.modelId];
+      modelLabel = modelEntry?.name || p.modelId;
     }
 
     const card: ProviderCardState = {

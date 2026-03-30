@@ -1,5 +1,13 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowLeft, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { CustomEndpointForm } from "../CustomEndpointForm";
 
@@ -82,8 +90,7 @@ export function ProviderDetailView({
     }
   };
 
-  const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const modelId = e.target.value;
+  const handleModelChange = async (modelId: string) => {
     setSelectedModelId(modelId);
     await chrome.runtime.sendMessage({
       kind: "PROVIDER_SETTINGS_SAVE",
@@ -133,11 +140,11 @@ export function ProviderDetailView({
           ) : (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   type={showKey ? "text" : "password"}
                   value={newKey}
                   onChange={(e) => setNewKey(e.target.value)}
-                  className="flex-1 h-9 rounded-md border border-input bg-card px-3 text-sm"
+                  className="flex-1 h-9 text-sm"
                   placeholder="Enter API Key"
                 />
                 <Button
@@ -172,19 +179,18 @@ export function ProviderDetailView({
 
         <div className="space-y-2">
           <label className="text-xs font-medium">Model</label>
-          <select
-            aria-label="Model"
-            value={selectedModelId}
-            onChange={handleModelChange}
-            className="w-full h-9 rounded-md border border-input bg-card px-3 text-sm"
-          >
-            <option value="">Select a model...</option>
-            {providerModels.map((m: ModelData) => (
-              <option key={`${m.providerId}-${m.modelId}`} value={m.modelId}>
-                {m.modelId}
-              </option>
-            ))}
-          </select>
+          <Select value={selectedModelId} onValueChange={handleModelChange}>
+            <SelectTrigger className="w-full h-10">
+              <SelectValue placeholder="Select a model..." />
+            </SelectTrigger>
+            <SelectContent>
+              {providerModels.map((m: ModelData) => (
+                <SelectItem key={`${m.providerId}-${m.modelId}`} value={m.modelId}>
+                  {m.modelId}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="border rounded-md">

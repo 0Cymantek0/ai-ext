@@ -19,7 +19,8 @@ export const VISION_MODELS = {
   FLASH_LITE: "gemini-2.5-flash-lite" as const,
 };
 
-export type VisionModelType = (typeof VISION_MODELS)[keyof typeof VISION_MODELS];
+export type VisionModelType =
+  (typeof VISION_MODELS)[keyof typeof VISION_MODELS];
 
 /**
  * Vision feature configuration stored in chrome.storage.local.
@@ -115,7 +116,13 @@ export interface AnalysisResult {
 
 export interface DetectionResult {
   detected: boolean;
-  type: "captcha" | "auth-required" | "error-page" | "rate-limited" | "normal" | "unknown";
+  type:
+    | "captcha"
+    | "auth-required"
+    | "error-page"
+    | "rate-limited"
+    | "normal"
+    | "unknown";
   confidence: number;
   details?: string;
   requiresHumanIntervention: boolean;
@@ -154,7 +161,10 @@ function bufferToBase64(buffer: ArrayBuffer): string {
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {
-  const binaryString = typeof atob === "function" ? atob(base64) : Buffer.from(base64, "base64").toString("binary");
+  const binaryString =
+    typeof atob === "function"
+      ? atob(base64)
+      : Buffer.from(base64, "base64").toString("binary");
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
@@ -222,7 +232,11 @@ export class VisionManager {
   private configLoaded: Promise<void>;
   private resolveConfigLoaded: (() => void) | null = null;
 
-  constructor(logger: Logger, config?: Partial<VisionConfig>, deps?: VisionManagerDeps) {
+  constructor(
+    logger: Logger,
+    config?: Partial<VisionConfig>,
+    deps?: VisionManagerDeps,
+  ) {
     this.logger = logger;
     this.deps = deps ?? {};
     this.config = { ...DEFAULT_VISION_CONFIG, ...config };
@@ -274,16 +288,26 @@ export class VisionManager {
   private initialize(): void {
     if (!this.config.apiKey) {
       this.genAI = null;
-      this.logger.warn("VisionManager", "API key missing; vision features unavailable");
+      this.logger.warn(
+        "VisionManager",
+        "API key missing; vision features unavailable",
+      );
       return;
     }
 
     try {
       this.genAI = new GoogleGenerativeAI(this.config.apiKey);
-      this.logger.info("VisionManager", "Google Generative AI client initialized");
+      this.logger.info(
+        "VisionManager",
+        "Google Generative AI client initialized",
+      );
     } catch (error) {
       this.genAI = null;
-      this.logger.error("VisionManager", "Failed to initialize Google Generative AI", error);
+      this.logger.error(
+        "VisionManager",
+        "Failed to initialize Google Generative AI",
+        error,
+      );
     }
   }
 
@@ -300,7 +324,10 @@ export class VisionManager {
     await this.ensureConfigLoaded();
     this.config.enabled = enabled;
     await this.saveConfig();
-    this.logger.info("VisionManager", `Vision feature ${enabled ? "enabled" : "disabled"}`);
+    this.logger.info(
+      "VisionManager",
+      `Vision feature ${enabled ? "enabled" : "disabled"}`,
+    );
   }
 
   /** Update configuration with partial overrides. */
@@ -339,7 +366,10 @@ export class VisionManager {
       if (tabId) {
         tab = await chrome.tabs.get(tabId);
       } else {
-        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const [activeTab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
         if (!activeTab?.id) {
           throw new Error("No active tab available for capture");
         }
@@ -352,7 +382,7 @@ export class VisionManager {
       }
 
       const format = options.format ?? "png";
-      const quality = format === "jpeg" ? options.quality ?? 90 : undefined;
+      const quality = format === "jpeg" ? (options.quality ?? 90) : undefined;
 
       const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
         format,
@@ -360,7 +390,8 @@ export class VisionManager {
       });
 
       const { width, height } = await this.getImageDimensions(dataUrl);
-      const includeMappings = options.includeMappings || options.annotateElements;
+      const includeMappings =
+        options.includeMappings || options.annotateElements;
 
       let mappingData: ElementMapping[] | undefined;
       let devicePixelRatio: number | undefined;
@@ -434,18 +465,25 @@ export class VisionManager {
     }
 
     const start = this.now();
-    const dataUrl = typeof screenshot === "string" ? screenshot : screenshot.dataUrl;
-    const tabUrl = options.tabUrl ?? (typeof screenshot === "string" ? undefined : screenshot.tabUrl);
+    const dataUrl =
+      typeof screenshot === "string" ? screenshot : screenshot.dataUrl;
+    const tabUrl =
+      options.tabUrl ??
+      (typeof screenshot === "string" ? undefined : screenshot.tabUrl);
     const model = options.model ?? this.config.defaultModel;
 
     const screenshotHash = await hashString(dataUrl);
-    const cacheKey = await hashString(`${tabUrl ?? "unknown"}::${options.prompt}::${screenshotHash}::${model}`);
+    const cacheKey = await hashString(
+      `${tabUrl ?? "unknown"}::${options.prompt}::${screenshotHash}::${model}`,
+    );
 
     if (options.useCache !== false && this.config.cacheEnabled) {
       const cached = this.cache.get(cacheKey);
       if (cached && cached.expiresAt > Date.now()) {
         this.usage.cacheHits++;
-        this.logger.info("VisionManager", "Returning cached vision analysis", { cacheKey });
+        this.logger.info("VisionManager", "Returning cached vision analysis", {
+          cacheKey,
+        });
         return { ...cached.result, fromCache: true };
       }
       this.usage.cacheMisses++;
@@ -486,7 +524,9 @@ export class VisionManager {
     const response = result.response;
     const text = response.text();
     const processingTimeMs = this.now() - start;
-    const cost = this.config.costTrackingEnabled ? MODEL_COST_ESTIMATE_PER_CALL[model] : undefined;
+    const cost = this.config.costTrackingEnabled
+      ? MODEL_COST_ESTIMATE_PER_CALL[model]
+      : undefined;
 
     const analysisResult: AnalysisResult = {
       text,
@@ -514,7 +554,9 @@ export class VisionManager {
   }
 
   /** Detect CAPTCHA, layout issues, or human-required states. */
-  async detectPageState(screenshot: string | CaptureResult): Promise<DetectionResult> {
+  async detectPageState(
+    screenshot: string | CaptureResult,
+  ): Promise<DetectionResult> {
     const analysis = await this.analyzeScreenshot(screenshot, {
       prompt: `Analyze this screenshot and categorize the page state. Respond ONLY with JSON in the following shape:\n{\n  "type": "captcha" | "auth-required" | "error-page" | "rate-limited" | "normal",\n  "confidence": number between 0 and 1,\n  "details": string\n}`,
       model: VISION_MODELS.FLASH_LITE,
@@ -537,8 +579,11 @@ export class VisionManager {
     }
 
     const type = parsed.type ?? "unknown";
-    const confidence = typeof parsed.confidence === "number" ? parsed.confidence : 0;
-    const requiresHuman = ["captcha", "auth-required", "rate-limited"].includes(type);
+    const confidence =
+      typeof parsed.confidence === "number" ? parsed.confidence : 0;
+    const requiresHuman = ["captcha", "auth-required", "rate-limited"].includes(
+      type,
+    );
 
     const result: DetectionResult = {
       detected: type !== "normal",
@@ -562,12 +607,18 @@ export class VisionManager {
     screenshot: CaptureResult,
     description: string,
   ): Promise<{ index: number; selector: string; confidence: number } | null> {
-    if (!screenshot.elementMappings || screenshot.elementMappings.length === 0) {
+    if (
+      !screenshot.elementMappings ||
+      screenshot.elementMappings.length === 0
+    ) {
       throw new Error("Element mappings required to perform vision lookup");
     }
 
     const elementSummary = screenshot.elementMappings
-      .map((mapping) => `${mapping.index}: <${mapping.tagName.toLowerCase()}> ${mapping.text ?? ""}`)
+      .map(
+        (mapping) =>
+          `${mapping.index}: <${mapping.tagName.toLowerCase()}> ${mapping.text ?? ""}`,
+      )
       .join("\n");
 
     const analysis = await this.analyzeScreenshot(screenshot, {
@@ -589,9 +640,13 @@ Respond ONLY with JSON in the form {"index": number, "confidence": number, "reas
 
     const parsed = extractJsonObject(analysis.text);
     if (!parsed || typeof parsed.index !== "number") {
-      this.logger.warn("VisionManager", "Vision lookup returned invalid payload", {
-        response: analysis.text,
-      });
+      this.logger.warn(
+        "VisionManager",
+        "Vision lookup returned invalid payload",
+        {
+          response: analysis.text,
+        },
+      );
       return null;
     }
 
@@ -599,7 +654,9 @@ Respond ONLY with JSON in the form {"index": number, "confidence": number, "reas
       return null;
     }
 
-    const mapping = screenshot.elementMappings.find((item) => item.index === parsed.index);
+    const mapping = screenshot.elementMappings.find(
+      (item) => item.index === parsed.index,
+    );
     if (!mapping) {
       return null;
     }
@@ -653,7 +710,10 @@ Respond ONLY with JSON in the form {"index": number, "confidence": number, "reas
   }
 
   /** Extract inline data (base64 + mime type) from data URL. */
-  private extractImageData(dataUrl: string): { mimeType: string; base64Data: string } {
+  private extractImageData(dataUrl: string): {
+    mimeType: string;
+    base64Data: string;
+  } {
     const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
     if (!match) {
       throw new Error("Invalid screenshot data URL");
@@ -665,11 +725,17 @@ Respond ONLY with JSON in the form {"index": number, "confidence": number, "reas
   }
 
   /** Resolve screenshot dimensions. */
-  private async getImageDimensions(dataUrl: string): Promise<{ width: number; height: number }> {
-    const createBitmap = this.deps.createImageBitmap ?? (globalThis as any).createImageBitmap;
+  private async getImageDimensions(
+    dataUrl: string,
+  ): Promise<{ width: number; height: number }> {
+    const createBitmap =
+      this.deps.createImageBitmap ?? (globalThis as any).createImageBitmap;
 
     if (!createBitmap) {
-      this.logger.warn("VisionManager", "createImageBitmap unavailable; returning zero dimensions");
+      this.logger.warn(
+        "VisionManager",
+        "createImageBitmap unavailable; returning zero dimensions",
+      );
       return { width: 0, height: 0 };
     }
 
@@ -680,13 +746,19 @@ Respond ONLY with JSON in the form {"index": number, "confidence": number, "reas
       bitmap.close?.();
       return dimensions;
     } catch (error) {
-      this.logger.error("VisionManager", "Failed to decode screenshot dimensions", error);
+      this.logger.error(
+        "VisionManager",
+        "Failed to decode screenshot dimensions",
+        error,
+      );
       return { width: 0, height: 0 };
     }
   }
 
   /** Request element mappings from the content script. */
-  private async extractElementMappings(tabId: number): Promise<ElementMappingsResponse> {
+  private async extractElementMappings(
+    tabId: number,
+  ): Promise<ElementMappingsResponse> {
     try {
       const response = await chrome.tabs.sendMessage(tabId, {
         kind: "EXTRACT_ELEMENT_MAPPINGS",
@@ -696,27 +768,42 @@ Respond ONLY with JSON in the form {"index": number, "confidence": number, "reas
       if (response?.success && Array.isArray(response.mappings)) {
         return {
           mappings: response.mappings as ElementMapping[],
-          devicePixelRatio: typeof response.devicePixelRatio === "number" ? response.devicePixelRatio : undefined,
+          devicePixelRatio:
+            typeof response.devicePixelRatio === "number"
+              ? response.devicePixelRatio
+              : undefined,
         };
       }
     } catch (error) {
-      this.logger.warn("VisionManager", "Failed to extract element mappings", error);
+      this.logger.warn(
+        "VisionManager",
+        "Failed to extract element mappings",
+        error,
+      );
     }
 
     return { mappings: [] };
   }
 
   /** Draw bounding boxes on screenshot via OffscreenCanvas. */
-  private async annotateScreenshot(dataUrl: string, mappings: ElementMapping[]): Promise<string> {
+  private async annotateScreenshot(
+    dataUrl: string,
+    mappings: ElementMapping[],
+  ): Promise<string> {
     if (!mappings.length) {
       return dataUrl;
     }
 
-    const OffscreenCanvasCtor = this.deps.OffscreenCanvas ?? (globalThis as any).OffscreenCanvas;
-    const createBitmap = this.deps.createImageBitmap ?? (globalThis as any).createImageBitmap;
+    const OffscreenCanvasCtor =
+      this.deps.OffscreenCanvas ?? (globalThis as any).OffscreenCanvas;
+    const createBitmap =
+      this.deps.createImageBitmap ?? (globalThis as any).createImageBitmap;
 
     if (!OffscreenCanvasCtor || !createBitmap) {
-      this.logger.warn("VisionManager", "Canvas APIs unavailable; skipping annotation");
+      this.logger.warn(
+        "VisionManager",
+        "Canvas APIs unavailable; skipping annotation",
+      );
       return dataUrl;
     }
 
@@ -748,7 +835,12 @@ Respond ONLY with JSON in the form {"index": number, "confidence": number, "reas
         const labelWidth = metrics.width + 12;
         const labelHeight = 20;
 
-        context.fillRect(x, Math.max(0, y - labelHeight), labelWidth, labelHeight);
+        context.fillRect(
+          x,
+          Math.max(0, y - labelHeight),
+          labelWidth,
+          labelHeight,
+        );
         context.fillStyle = "#fff";
         context.fillText(label, x + 6, Math.max(0, y - labelHeight + 2));
       }
@@ -757,7 +849,11 @@ Respond ONLY with JSON in the form {"index": number, "confidence": number, "reas
       bitmap.close?.();
       return await this.blobToDataUrl(annotatedBlob);
     } catch (error) {
-      this.logger.error("VisionManager", "Failed to annotate screenshot", error);
+      this.logger.error(
+        "VisionManager",
+        "Failed to annotate screenshot",
+        error,
+      );
       return dataUrl;
     }
   }

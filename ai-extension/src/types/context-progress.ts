@@ -1,6 +1,6 @@
 /**
  * Context Progress Types
- * 
+ *
  * Message types for real-time context gathering progress updates
  */
 

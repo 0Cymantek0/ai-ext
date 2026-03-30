@@ -4,7 +4,11 @@
  * Requirements: Task 9 - LangGraph State Manager (Phase 2)
  */
 
-import { WorkflowStateMachine, type BrowserAgentState, type WorkflowDefinition } from "./agent-state.js";
+import {
+  WorkflowStateMachine,
+  type BrowserAgentState,
+  type WorkflowDefinition,
+} from "./agent-state.js";
 import { IndexedDBCheckpointManager } from "./checkpoint-manager.js";
 import type { BrowserToolRegistry } from "./tool-registry.js";
 import type { DatabaseManager } from "../storage/schema.js";
@@ -38,7 +42,7 @@ export class WorkflowManager {
   private stateManager: WorkflowStateMachine;
   private checkpointManager: IndexedDBCheckpointManager;
   private logger: Logger;
-  
+
   constructor(
     toolRegistry: BrowserToolRegistry,
     database: DatabaseManager,
@@ -52,22 +56,24 @@ export class WorkflowManager {
       this.checkpointManager,
     );
   }
-  
+
   /**
    * Start a new workflow
    */
-  async startWorkflow(request: StartWorkflowRequest): Promise<BrowserAgentState> {
+  async startWorkflow(
+    request: StartWorkflowRequest,
+  ): Promise<BrowserAgentState> {
     try {
       this.logger.info("WorkflowManager", "Starting workflow", {
         workflowId: request.workflowId,
       });
-      
+
       const state = await this.stateManager.startWorkflow(
         request.workflowId,
         request.variables,
         request.config,
       );
-      
+
       // Set tab ID and user ID if provided
       if (request.tabId !== undefined) {
         state.tabId = request.tabId;
@@ -75,13 +81,13 @@ export class WorkflowManager {
       if (request.userId !== undefined) {
         state.userId = request.userId;
       }
-      
+
       // Save initial state
       await this.checkpointManager.saveWorkflowState(state);
-      
+
       // Execute workflow asynchronously
       void this.executeWorkflowAsync(request.workflowId);
-      
+
       return state;
     } catch (error) {
       this.logger.error("WorkflowManager", "Failed to start workflow", {
@@ -91,7 +97,7 @@ export class WorkflowManager {
       throw error;
     }
   }
-  
+
   /**
    * Execute workflow asynchronously
    */
@@ -100,7 +106,7 @@ export class WorkflowManager {
     const heartbeatInterval = setInterval(() => {
       chrome.runtime.getPlatformInfo(() => {});
     }, 20000); // Every 20 seconds
-    
+
     try {
       await this.stateManager.executeWorkflow(workflowId);
     } catch (error) {
@@ -108,7 +114,7 @@ export class WorkflowManager {
         workflowId,
         error,
       });
-      
+
       // Propagate error via message to UI
       try {
         await chrome.runtime.sendMessage({
@@ -120,9 +126,13 @@ export class WorkflowManager {
           },
         });
       } catch (msgError) {
-        this.logger.warn("WorkflowManager", "Failed to send error message", msgError);
+        this.logger.warn(
+          "WorkflowManager",
+          "Failed to send error message",
+          msgError,
+        );
       }
-      
+
       // Update workflow state to failed
       const state = this.stateManager.getWorkflowStatus(workflowId);
       if (state) {
@@ -134,17 +144,14 @@ export class WorkflowManager {
       clearInterval(heartbeatInterval);
     }
   }
-  
+
   /**
    * Pause a workflow
    */
-  async pauseWorkflow(
-    workflowId: string,
-    reason?: string,
-  ): Promise<void> {
+  async pauseWorkflow(workflowId: string, reason?: string): Promise<void> {
     try {
       await this.stateManager.pauseWorkflow(workflowId, reason);
-      
+
       this.logger.info("WorkflowManager", "Workflow paused", {
         workflowId,
         reason,
@@ -157,7 +164,7 @@ export class WorkflowManager {
       throw error;
     }
   }
-  
+
   /**
    * Resume a paused workflow
    */
@@ -167,10 +174,10 @@ export class WorkflowManager {
   ): Promise<void> {
     try {
       await this.stateManager.resumeWorkflow(workflowId, userInput);
-      
+
       // Continue execution
       void this.executeWorkflowAsync(workflowId);
-      
+
       this.logger.info("WorkflowManager", "Workflow resumed", {
         workflowId,
         hasUserInput: !!userInput,
@@ -183,7 +190,7 @@ export class WorkflowManager {
       throw error;
     }
   }
-  
+
   /**
    * Cancel a workflow
    */
@@ -193,7 +200,7 @@ export class WorkflowManager {
   ): Promise<void> {
     try {
       await this.stateManager.cancelWorkflow(workflowId, options);
-      
+
       this.logger.info("WorkflowManager", "Workflow cancelled", {
         workflowId,
         options,
@@ -206,26 +213,30 @@ export class WorkflowManager {
       throw error;
     }
   }
-  
+
   /**
    * Get workflow status
    */
-  async getWorkflowStatus(workflowId: string): Promise<WorkflowStatusResponse | null> {
+  async getWorkflowStatus(
+    workflowId: string,
+  ): Promise<WorkflowStatusResponse | null> {
     try {
       let state = this.stateManager.getWorkflowStatus(workflowId);
-      
+
       // If not in memory, try to load from database
       if (!state) {
-        const storedState = await this.checkpointManager.loadWorkflowState(workflowId);
+        const storedState =
+          await this.checkpointManager.loadWorkflowState(workflowId);
         state = storedState ?? undefined;
       }
-      
+
       if (!state) {
         return null;
       }
-      
-      const checkpoints = await this.checkpointManager.listWorkflowCheckpoints(workflowId);
-      
+
+      const checkpoints =
+        await this.checkpointManager.listWorkflowCheckpoints(workflowId);
+
       return {
         workflowId,
         state,
@@ -239,29 +250,34 @@ export class WorkflowManager {
       throw error;
     }
   }
-  
+
   /**
    * Resume incomplete workflows on service worker start
    */
   async resumeIncompleteWorkflows(): Promise<void> {
     try {
       this.logger.info("WorkflowManager", "Resuming incomplete workflows");
-      
-      const incompleteWorkflows = await this.checkpointManager.getIncompleteWorkflows();
-      
+
+      const incompleteWorkflows =
+        await this.checkpointManager.getIncompleteWorkflows();
+
       this.logger.info("WorkflowManager", "Found incomplete workflows", {
         count: incompleteWorkflows.length,
       });
-      
+
       // Resume each incomplete workflow
       for (const workflow of incompleteWorkflows) {
         // Hydrate workflow state into memory
         this.stateManager.hydrateWorkflowState(workflow);
-        
+
         if (workflow.status === "paused") {
-          this.logger.info("WorkflowManager", "Workflow paused, awaiting resume", {
-            workflowId: workflow.workflowId,
-          });
+          this.logger.info(
+            "WorkflowManager",
+            "Workflow paused, awaiting resume",
+            {
+              workflowId: workflow.workflowId,
+            },
+          );
         } else if (workflow.status === "running") {
           this.logger.info("WorkflowManager", "Resuming running workflow", {
             workflowId: workflow.workflowId,
@@ -271,48 +287,57 @@ export class WorkflowManager {
         }
       }
     } catch (error) {
-      this.logger.error("WorkflowManager", "Failed to resume incomplete workflows", {
-        error,
-      });
+      this.logger.error(
+        "WorkflowManager",
+        "Failed to resume incomplete workflows",
+        {
+          error,
+        },
+      );
       throw error;
     }
   }
-  
+
   /**
    * Cleanup stale checkpoints (> 1 hour old)
    */
   async cleanupStaleCheckpoints(): Promise<number> {
     try {
       const oneHourMs = 60 * 60 * 1000;
-      const deleted = await this.checkpointManager.cleanupStaleCheckpoints(oneHourMs);
-      
+      const deleted =
+        await this.checkpointManager.cleanupStaleCheckpoints(oneHourMs);
+
       this.logger.info("WorkflowManager", "Cleaned up stale checkpoints", {
         deleted,
       });
-      
+
       return deleted;
     } catch (error) {
-      this.logger.error("WorkflowManager", "Failed to cleanup stale checkpoints", {
-        error,
-      });
+      this.logger.error(
+        "WorkflowManager",
+        "Failed to cleanup stale checkpoints",
+        {
+          error,
+        },
+      );
       throw error;
     }
   }
-  
+
   /**
    * Get all active workflows
    */
   getAllWorkflows(): BrowserAgentState[] {
     return this.stateManager.getAllWorkflows();
   }
-  
+
   /**
    * Get the state manager for advanced operations
    */
   getStateManager(): WorkflowStateMachine {
     return this.stateManager;
   }
-  
+
   /**
    * Get the checkpoint manager for advanced operations
    */

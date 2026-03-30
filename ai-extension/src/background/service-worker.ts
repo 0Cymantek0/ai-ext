@@ -2962,13 +2962,27 @@ messageRouter.registerHandler(
       if (!configManager.isInitialized()) {
         await configManager.initialize();
       }
-      const { providerId, type, name, apiKey, enabled } = payload;
+      const {
+        providerId,
+        type,
+        name,
+        apiKey,
+        enabled,
+        baseUrl,
+        endpointMode,
+        modelId,
+      } = payload;
 
       if (providerId) {
-        const updated = await configManager.updateProvider(providerId, {
+        const updates: any = {
           name,
           enabled: enabled ?? true,
-        });
+        };
+        if (baseUrl !== undefined) updates.baseUrl = baseUrl;
+        if (endpointMode !== undefined) updates.endpointMode = endpointMode;
+        if (modelId !== undefined) updates.modelId = modelId;
+
+        const updated = await configManager.updateProvider(providerId, updates);
         if (apiKey) {
           await configManager.setProviderApiKey(providerId, apiKey);
         }
@@ -2980,11 +2994,24 @@ messageRouter.registerHandler(
         name: string;
         apiKey?: string;
         enabled: boolean;
+        baseUrl?: string;
+        endpointMode?: any;
+        modelId?: string;
       } = {
         type: type as any,
-        name,
+        name: name ?? "New Provider",
         enabled: enabled ?? true,
       };
+
+      if (baseUrl !== undefined) {
+        addPayload.baseUrl = baseUrl;
+      }
+      if (endpointMode !== undefined) {
+        addPayload.endpointMode = endpointMode as any;
+      }
+      if (modelId !== undefined) {
+        addPayload.modelId = modelId;
+      }
 
       if (apiKey) {
         addPayload.apiKey = apiKey;
@@ -2995,6 +3022,82 @@ messageRouter.registerHandler(
     } catch (error) {
       logger.error("Handler", "PROVIDER_SETTINGS_SAVE error", error);
       throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "PROVIDER_SETTINGS_DELETE_KEY",
+  async (payload: { providerId: string }) => {
+    logger.info("Handler", "PROVIDER_SETTINGS_DELETE_KEY");
+    try {
+      const configManager = getProviderConfigManager();
+      if (!configManager.isInitialized()) {
+        await configManager.initialize();
+      }
+      await configManager.updateProvider(payload.providerId, { apiKey: null });
+      return { success: true };
+    } catch (error) {
+      logger.error("Handler", "PROVIDER_SETTINGS_DELETE_KEY error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "PROVIDER_SETTINGS_RETEST",
+  async (payload: { providerId: string }) => {
+    logger.info("Handler", "PROVIDER_SETTINGS_RETEST");
+    try {
+      const configManager = getProviderConfigManager();
+      if (!configManager.isInitialized()) {
+        await configManager.initialize();
+      }
+      const provider = await configManager.getProvider(payload.providerId);
+      if (!provider) {
+        return { valid: false, error: "Provider not found" };
+      }
+
+      const apiKey = await configManager.getDecryptedApiKey(provider.id);
+
+      // Attempt to validate by fetching models list
+      let url = "";
+      if (provider.baseUrl) {
+        url = `${provider.baseUrl.replace(/\/$/, "")}/models`;
+      } else if (provider.type === "anthropic") {
+        url = "https://api.anthropic.com/v1/models";
+      } else if (provider.type === "openai") {
+        url = "https://api.openai.com/v1/models";
+      } else if (provider.type === "google") {
+        url = "https://generativelanguage.googleapis.com/v1beta/models";
+      } else {
+        url = "https://api.openai.com/v1/models";
+      }
+
+      const headers: Record<string, string> = {};
+      if (apiKey) {
+        if (provider.type === "anthropic") {
+          headers["x-api-key"] = apiKey;
+          headers["anthropic-version"] = "2023-06-01";
+        } else {
+          headers["Authorization"] = `Bearer ${apiKey}`;
+        }
+      }
+
+      const response = await fetch(url, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        const count = data.data?.length || 0;
+        return { valid: true, modelsAvailable: count };
+      } else {
+        return {
+          valid: false,
+          error: `HTTP ${response.status}: ${response.statusText}`,
+        };
+      }
+    } catch (error) {
+      logger.error("Handler", "PROVIDER_SETTINGS_RETEST error", error);
+      return { valid: false, error: "Network error or invalid endpoint" };
     }
   },
 );
@@ -3108,10 +3211,14 @@ messageRouter.registerHandler(
     logger.info("Handler", "SETTINGS_ROUTING_SAVE");
     try {
       if (payload.routingPreferences) {
-        await settingsManager.updateRoutingPreferences(payload.routingPreferences);
+        await settingsManager.updateRoutingPreferences(
+          payload.routingPreferences,
+        );
       }
       if (payload.modelSheet) {
-        await settingsManager.updateModelSheet(payload.modelSheet);
+        await settingsManager.updateModelSheet(
+          payload.modelSheet as Record<string, any>,
+        );
       }
       return { success: true };
     } catch (error) {
@@ -3120,6 +3227,34 @@ messageRouter.registerHandler(
     }
   },
 );
+
+messageRouter.registerHandler("SETTINGS_SNAPSHOT_LOAD", async () => {
+  logger.info("Handler", "SETTINGS_SNAPSHOT_LOAD");
+  try {
+    const configManager = getProviderConfigManager();
+    if (!configManager.isInitialized()) {
+      await configManager.initialize();
+    }
+
+    const [providers, modelSheet, routingPreferences, speechSettings] =
+      await Promise.all([
+        configManager.listProviders(),
+        settingsManager.getModelSheet(),
+        settingsManager.getRoutingPreferences(),
+        settingsManager.getSpeechSettings(),
+      ]);
+
+    return {
+      providers,
+      modelSheet,
+      routingPreferences,
+      speechSettings,
+    };
+  } catch (error) {
+    logger.error("Handler", "SETTINGS_SNAPSHOT_LOAD error", error);
+    throw error;
+  }
+});
 
 messageRouter.registerHandler("ERROR", async (payload) => {
   logger.error("Handler", "ERROR", payload);

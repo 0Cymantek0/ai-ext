@@ -5,16 +5,16 @@
  */
 
 const KONAMI_CODE = [
-  'ArrowUp',
-  'ArrowUp',
-  'ArrowDown',
-  'ArrowDown',
-  'ArrowLeft',
-  'ArrowRight',
-  'ArrowLeft',
-  'ArrowRight',
-  'KeyB',
-  'KeyA',
+  "ArrowUp",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowLeft",
+  "ArrowRight",
+  "KeyB",
+  "KeyA",
 ];
 
 export class KonamiCodeListener {
@@ -29,12 +29,12 @@ export class KonamiCodeListener {
   start(): void {
     if (this.isActive) return;
     this.isActive = true;
-    document.addEventListener('keydown', this.handleKeyPress);
+    document.addEventListener("keydown", this.handleKeyPress);
   }
 
   stop(): void {
     this.isActive = false;
-    document.removeEventListener('keydown', this.handleKeyPress);
+    document.removeEventListener("keydown", this.handleKeyPress);
   }
 
   private handleKeyPress = (event: KeyboardEvent): void => {

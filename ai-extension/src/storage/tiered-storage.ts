@@ -2,7 +2,7 @@
  * Tiered Storage Service
  * Implements intelligent routing between IndexedDB and filesystem storage tiers
  * based on content size, asset type, user preferences, and quota pressure.
- * 
+ *
  * Requirements: Maintains IndexedDB as baseline with filesystem offloading for
  * large assets like screenshots, full articles, and long-form archives.
  */
@@ -114,7 +114,7 @@ const DEFAULT_FILESYSTEM_ASSETS: ResearchAssetKind[] = [
 
 function getExtensionForMimeType(mimeType?: string): string {
   if (!mimeType) return ".bin";
-  
+
   const mimeToExt: Record<string, string> = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
@@ -128,13 +128,13 @@ function getExtensionForMimeType(mimeType?: string): string {
     "application/json": ".json",
     "application/pdf": ".pdf",
   };
-  
+
   return mimeToExt[mimeType.toLowerCase()] || ".bin";
 }
 
 function getDirectoryForAssetKind(kind: ResearchAssetKind): string {
   const kindStr = String(kind);
-  
+
   if (kindStr.includes("screenshot") || kindStr.includes("image")) {
     return "screenshots";
   }
@@ -150,7 +150,7 @@ function getDirectoryForAssetKind(kind: ResearchAssetKind): string {
   if (kindStr.includes("text") || kindStr.includes("excerpt")) {
     return "excerpts";
   }
-  
+
   return "content";
 }
 
@@ -183,12 +183,14 @@ export class TieredStorageService implements TieredStorage {
   ) {
     this.filesystem = filesystem;
     this.config = {
-      filesystemThreshold: config.filesystemThreshold ?? FILESYSTEM_SIZE_THRESHOLD_BYTES,
-      preferFilesystemForAssets: config.preferFilesystemForAssets ?? DEFAULT_FILESYSTEM_ASSETS,
+      filesystemThreshold:
+        config.filesystemThreshold ?? FILESYSTEM_SIZE_THRESHOLD_BYTES,
+      preferFilesystemForAssets:
+        config.preferFilesystemForAssets ?? DEFAULT_FILESYSTEM_ASSETS,
       enableFilesystemOffload: config.enableFilesystemOffload ?? true,
       handleId: config.handleId ?? "workspace",
     };
-    
+
     this.metrics = {
       filesystemWrites: 0,
       filesystemReads: 0,
@@ -288,15 +290,18 @@ export class TieredStorageService implements TieredStorage {
 
   async saveContent(options: SaveContentOptions): Promise<SaveContentResult> {
     const dataSize = calculateDataSize(options.data);
-    
-    const decisionOptions: { forceFilesystem?: boolean; forceIndexedDb?: boolean } = {};
+
+    const decisionOptions: {
+      forceFilesystem?: boolean;
+      forceIndexedDb?: boolean;
+    } = {};
     if (options.forceFilesystem !== undefined) {
       decisionOptions.forceFilesystem = options.forceFilesystem;
     }
     if (options.forceIndexedDb !== undefined) {
       decisionOptions.forceIndexedDb = options.forceIndexedDb;
     }
-    
+
     const decision = await this.shouldArchiveToFilesystem(
       options.assetKind,
       dataSize,
@@ -335,7 +340,9 @@ export class TieredStorageService implements TieredStorage {
         archiveHandleId: this.config.handleId,
         relativePath: result.path,
         estimatedBytes: result.bytesWritten ?? dataSize,
-        ...(options.mimeType !== undefined ? { mimeType: options.mimeType } : {}),
+        ...(options.mimeType !== undefined
+          ? { mimeType: options.mimeType }
+          : {}),
         compression: options.compression ?? "none",
         lastModified: Date.now(),
       };
@@ -352,18 +359,22 @@ export class TieredStorageService implements TieredStorage {
         descriptor,
         reason: decision.reason,
       };
-      
+
       if (result.bytesWritten !== undefined) {
         saveResult.bytesWritten = result.bytesWritten;
       }
-      
+
       return saveResult;
     }
 
-    logger.warn("TieredStorage", "Filesystem write failed, fallback to IndexedDB", {
-      contentId: options.contentId,
-      reason: result.reason,
-    });
+    logger.warn(
+      "TieredStorage",
+      "Filesystem write failed, fallback to IndexedDB",
+      {
+        contentId: options.contentId,
+        reason: result.reason,
+      },
+    );
 
     this.metrics.indexedDbFallbacks += 1;
     this.metrics.totalBytesSaved += dataSize;
@@ -480,7 +491,9 @@ export class TieredStorageService implements TieredStorage {
     return failureResult;
   }
 
-  async deleteContent(options: DeleteContentOptions): Promise<DeleteContentResult> {
+  async deleteContent(
+    options: DeleteContentOptions,
+  ): Promise<DeleteContentResult> {
     const descriptor = options.descriptor;
 
     if (!descriptor || !descriptor.relativePath) {

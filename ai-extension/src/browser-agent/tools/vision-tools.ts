@@ -4,10 +4,7 @@
  */
 
 import { z } from "zod";
-import {
-  ToolCategory,
-  ToolComplexity,
-} from "../tool-registry.js";
+import { ToolCategory, ToolComplexity } from "../tool-registry.js";
 import type {
   BrowserToolDefinition,
   ToolExecutionContext,
@@ -20,8 +17,16 @@ import { getVisionManager, type CaptureResult } from "../vision.js";
 const captureForVisionSchema = z.object({
   tabId: z.number().optional().describe("Tab ID, defaults to active tab"),
   format: z.enum(["png", "jpeg"]).default("png").describe("Screenshot format"),
-  quality: z.number().min(0).max(100).default(90).describe("JPEG quality (0-100)"),
-  annotateElements: z.boolean().default(false).describe("Add numbered bounding boxes for elements"),
+  quality: z
+    .number()
+    .min(0)
+    .max(100)
+    .default(90)
+    .describe("JPEG quality (0-100)"),
+  annotateElements: z
+    .boolean()
+    .default(false)
+    .describe("Add numbered bounding boxes for elements"),
 });
 
 async function captureForVisionHandler(
@@ -32,18 +37,22 @@ async function captureForVisionHandler(
   format: string;
   width: number;
   height: number;
-  elementMappings?: Array<{
-    index: number;
-    selector: string;
-    boundingBox: any;
-    tagName: string;
-    text?: string;
-  }> | undefined;
+  elementMappings?:
+    | Array<{
+        index: number;
+        selector: string;
+        boundingBox: any;
+        tagName: string;
+        text?: string;
+      }>
+    | undefined;
 }> {
   const visionManager = getVisionManager();
 
   if (!visionManager || !(await visionManager.isAvailable())) {
-    throw new Error("Vision features are not available. Please enable and configure API key.");
+    throw new Error(
+      "Vision features are not available. Please enable and configure API key.",
+    );
   }
 
   const captureOptions: Parameters<typeof visionManager.captureForVision>[0] = {
@@ -71,7 +80,8 @@ async function captureForVisionHandler(
 
 export const captureForVisionTool: BrowserToolDefinition = {
   name: "capture_for_vision",
-  description: "Capture a screenshot optimized for vision analysis with optional element annotations",
+  description:
+    "Capture a screenshot optimized for vision analysis with optional element annotations",
   category: ToolCategory.VISION,
   complexity: ToolComplexity.MEDIUM,
   requiresHumanApproval: false,
@@ -94,7 +104,10 @@ const analyzeScreenshotSchema = z.object({
     .enum(["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"])
     .default("gemini-2.5-flash")
     .describe("Vision model to use"),
-  useCache: z.boolean().default(true).describe("Use cached results if available"),
+  useCache: z
+    .boolean()
+    .default(true)
+    .describe("Use cached results if available"),
 });
 
 async function analyzeScreenshotHandler(
@@ -111,7 +124,9 @@ async function analyzeScreenshotHandler(
   const visionManager = getVisionManager();
 
   if (!visionManager || !(await visionManager.isAvailable())) {
-    throw new Error("Vision features are not available. Please enable and configure API key.");
+    throw new Error(
+      "Vision features are not available. Please enable and configure API key.",
+    );
   }
 
   const result = await visionManager.analyzeScreenshot(input.screenshot, {
@@ -132,7 +147,8 @@ async function analyzeScreenshotHandler(
 
 export const analyzeScreenshotTool: BrowserToolDefinition = {
   name: "analyze_screenshot",
-  description: "Analyze a screenshot using Gemini Vision models to extract information or answer questions",
+  description:
+    "Analyze a screenshot using Gemini Vision models to extract information or answer questions",
   category: ToolCategory.VISION,
   complexity: ToolComplexity.HIGH,
   requiresHumanApproval: false,
@@ -165,7 +181,9 @@ async function detectPageStateHandler(
   const visionManager = getVisionManager();
 
   if (!visionManager || !(await visionManager.isAvailable())) {
-    throw new Error("Vision features are not available. Please enable and configure API key.");
+    throw new Error(
+      "Vision features are not available. Please enable and configure API key.",
+    );
   }
 
   const result = await visionManager.detectPageState(input.screenshot);
@@ -175,7 +193,8 @@ async function detectPageStateHandler(
 
 export const detectPageStateTool: BrowserToolDefinition = {
   name: "detect_page_state",
-  description: "Detect if page requires human intervention (CAPTCHA, authentication, errors, rate limiting)",
+  description:
+    "Detect if page requires human intervention (CAPTCHA, authentication, errors, rate limiting)",
   category: ToolCategory.VISION,
   complexity: ToolComplexity.HIGH,
   requiresHumanApproval: false,
@@ -192,17 +211,19 @@ export const detectPageStateTool: BrowserToolDefinition = {
  * Find element by description using vision
  */
 const findElementByVisionSchema = z.object({
-  screenshot: z.object({
-    dataUrl: z.string(),
-    format: z.string(),
-    width: z.number(),
-    height: z.number(),
-    timestamp: z.number().optional(),
-    tabId: z.number().optional(),
-    tabUrl: z.string().optional(),
-    devicePixelRatio: z.number().optional(),
-    elementMappings: z.array(z.any()).optional(),
-  }).describe("Screenshot with element mappings"),
+  screenshot: z
+    .object({
+      dataUrl: z.string(),
+      format: z.string(),
+      width: z.number(),
+      height: z.number(),
+      timestamp: z.number().optional(),
+      tabId: z.number().optional(),
+      tabUrl: z.string().optional(),
+      devicePixelRatio: z.number().optional(),
+      elementMappings: z.array(z.any()).optional(),
+    })
+    .describe("Screenshot with element mappings"),
   description: z.string().describe("Description of the element to find"),
 });
 
@@ -217,7 +238,9 @@ async function findElementByVisionHandler(
   const visionManager = getVisionManager();
 
   if (!visionManager || !(await visionManager.isAvailable())) {
-    throw new Error("Vision features are not available. Please enable and configure API key.");
+    throw new Error(
+      "Vision features are not available. Please enable and configure API key.",
+    );
   }
 
   const captureResult: CaptureResult = {
@@ -242,7 +265,8 @@ async function findElementByVisionHandler(
 
 export const findElementByVisionTool: BrowserToolDefinition = {
   name: "find_element_by_vision",
-  description: "Find an element on the page by describing it in natural language (fallback for selector failures)",
+  description:
+    "Find an element on the page by describing it in natural language (fallback for selector failures)",
   category: ToolCategory.VISION,
   complexity: ToolComplexity.HIGH,
   requiresHumanApproval: false,

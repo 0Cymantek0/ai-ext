@@ -40,7 +40,11 @@ export class AICache {
     return this.getFromCache(this.dialogueCache, key);
   }
 
-  private addToCache<T>(cache: Map<string, CacheEntry<T>>, key: string, data: T): void {
+  private addToCache<T>(
+    cache: Map<string, CacheEntry<T>>,
+    key: string,
+    data: T,
+  ): void {
     // Remove oldest entries if cache is full
     if (cache.size >= this.maxCacheSize) {
       const oldestKey = this.findOldestEntry(cache);
@@ -56,7 +60,10 @@ export class AICache {
     });
   }
 
-  private getFromCache<T>(cache: Map<string, CacheEntry<T>>, key: string): T | null {
+  private getFromCache<T>(
+    cache: Map<string, CacheEntry<T>>,
+    key: string,
+  ): T | null {
     const entry = cache.get(key);
     if (!entry) {
       return null;

@@ -1,6 +1,9 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText } from "ai";
-import type { AdapterValidationResult, BaseProviderAdapter } from "./base-adapter.js";
+import type {
+  AdapterValidationResult,
+  BaseProviderAdapter,
+} from "./base-adapter.js";
 import type { ProviderConfig, ProviderType } from "../provider-types.js";
 
 export class OpenAICompatibleAdapter implements BaseProviderAdapter {
@@ -34,10 +37,13 @@ export class OpenAICompatibleAdapter implements BaseProviderAdapter {
                     this.config.providerOptions.attributionHeaders.xTitle,
                 }
               : {}),
-            ...(this.config.providerOptions.attributionHeaders?.xCategories?.length
+            ...(this.config.providerOptions.attributionHeaders?.xCategories
+              ?.length
               ? {
                   "X-OpenRouter-Categories":
-                    this.config.providerOptions.attributionHeaders.xCategories.join(","),
+                    this.config.providerOptions.attributionHeaders.xCategories.join(
+                      ",",
+                    ),
                 }
               : {}),
           }

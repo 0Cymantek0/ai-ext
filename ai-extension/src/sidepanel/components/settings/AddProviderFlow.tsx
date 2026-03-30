@@ -1,10 +1,8 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import {
-  CustomEndpointForm,
-  CustomEndpointFormValues,
-} from "../CustomEndpointForm";
+import { CustomEndpointForm } from "../CustomEndpointForm";
+import type { CustomEndpointFormValues } from "../CustomEndpointForm";
 
 interface AddProviderFlowProps {
   onBack: () => void;
@@ -80,7 +78,7 @@ export function AddProviderFlow({ onBack, onComplete }: AddProviderFlowProps) {
       <CustomEndpointForm
         initialValues={{
           providerType: selectedType,
-          name: presets.find((p) => p.value === selectedType)?.label,
+          name: presets.find((p) => p.value === selectedType)?.label ?? "",
         }}
         showTypeSelector={false}
         onSubmit={handleSubmit}

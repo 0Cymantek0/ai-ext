@@ -190,7 +190,10 @@ class LRUCache<K, V> {
 /**
  * Compute cosine similarity between two vectors.
  */
-export function cosineSimilarity(vecA: readonly number[], vecB: readonly number[]): number {
+export function cosineSimilarity(
+  vecA: readonly number[],
+  vecB: readonly number[],
+): number {
   if (vecA.length !== vecB.length) {
     throw new Error("Vectors must have the same length");
   }
@@ -223,7 +226,10 @@ function buildPocketSearchText(pocket: Pocket): string {
 }
 
 function extractContentText(content: CapturedContent): string {
-  if (typeof content.content === "string" && content.content.trim().length > 0) {
+  if (
+    typeof content.content === "string" &&
+    content.content.trim().length > 0
+  ) {
     return content.content;
   }
   const metadata = content.metadata ?? ({} as CapturedContent["metadata"]);
@@ -250,7 +256,11 @@ function toChunkMatch(chunk: StoredChunk): VectorChunkMatch {
   };
 }
 
-function limitResults<T>(results: T[], limit: number | undefined, fallback: number): T[] {
+function limitResults<T>(
+  results: T[],
+  limit: number | undefined,
+  fallback: number,
+): T[] {
   const resolvedLimit = limit ?? fallback;
   if (resolvedLimit <= 0) {
     return [];
@@ -328,7 +338,8 @@ export class TieredVectorSearchService
       }
 
       const queryEmbedding = await this.getQueryEmbedding(normalizedQuery);
-      const minRelevance = options.minRelevance ?? this.config.defaultMinRelevance;
+      const minRelevance =
+        options.minRelevance ?? this.config.defaultMinRelevance;
 
       const results: SearchResult<Pocket>[] = [];
       for (const pocket of pockets) {
@@ -355,12 +366,22 @@ export class TieredVectorSearchService
           options.limit,
           this.config.defaultLimit,
         );
-        this.recordMetrics(normalizedQuery, "pockets", pockets.length, limited.length, fallback, start);
+        this.recordMetrics(
+          normalizedQuery,
+          "pockets",
+          pockets.length,
+          limited.length,
+          fallback,
+          start,
+        );
         return limited;
       }
 
       fallback = "keyword";
-      const keywordResults = this.keywordSearchPockets(pockets, normalizedQuery);
+      const keywordResults = this.keywordSearchPockets(
+        pockets,
+        normalizedQuery,
+      );
       const limitedKeyword = limitResults(
         keywordResults,
         options.limit,
@@ -381,7 +402,10 @@ export class TieredVectorSearchService
         error,
       });
       const pockets = await this.resolvePockets(options.pocketIds);
-      const keywordResults = this.keywordSearchPockets(pockets, normalizedQuery);
+      const keywordResults = this.keywordSearchPockets(
+        pockets,
+        normalizedQuery,
+      );
       const limitedKeyword = limitResults(
         keywordResults,
         options.limit,
@@ -439,13 +463,24 @@ export class TieredVectorSearchService
 
     const pockets = await this.resolvePockets(options.pocketIds);
     if (pockets.length === 0) {
-      this.recordMetrics(normalizedQuery, this.resolveScope(options), 0, 0, "empty", start);
+      this.recordMetrics(
+        normalizedQuery,
+        this.resolveScope(options),
+        0,
+        0,
+        "empty",
+        start,
+      );
       return [];
     }
-    const pocketMap = new Map(pockets.map((pocket) => [pocket.id, pocket] as const));
+    const pocketMap = new Map(
+      pockets.map((pocket) => [pocket.id, pocket] as const),
+    );
 
     const contents = await this.fetchContents(pockets);
-    const contentMap = new Map(contents.map((content) => [content.id, content] as const));
+    const contentMap = new Map(
+      contents.map((content) => [content.id, content] as const),
+    );
 
     try {
       const chunks = await this.fetchChunks(pockets, options.pocketIds);
@@ -515,14 +550,18 @@ export class TieredVectorSearchService
     }
 
     const queryEmbedding = await this.getQueryEmbedding(query);
-    const minRelevance = options.minRelevance ?? this.config.defaultMinRelevance;
+    const minRelevance =
+      options.minRelevance ?? this.config.defaultMinRelevance;
     const dedupe = options.dedupeByContentId ?? true;
 
     const bestByContent = new Map<string, SearchResult<VectorContentMatch>>();
     const results: SearchResult<VectorContentMatch>[] = [];
 
     for (const chunk of chunks) {
-      if (!Array.isArray(chunk.embedding) || chunk.embedding.length !== queryEmbedding.length) {
+      if (
+        !Array.isArray(chunk.embedding) ||
+        chunk.embedding.length !== queryEmbedding.length
+      ) {
         continue;
       }
       const similarity = cosineSimilarity(queryEmbedding, chunk.embedding);
@@ -711,7 +750,10 @@ export class TieredVectorSearchService
     return cloned.slice();
   }
 
-  private async getDocumentEmbedding(key: string, text: string): Promise<number[]> {
+  private async getDocumentEmbedding(
+    key: string,
+    text: string,
+  ): Promise<number[]> {
     const cached = this.documentCache.get(key);
     if (cached) {
       return Array.isArray(cached) ? cached.slice() : cached;

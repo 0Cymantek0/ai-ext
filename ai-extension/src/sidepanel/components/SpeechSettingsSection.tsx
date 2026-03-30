@@ -2,57 +2,27 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-
-/**
- * STT provider entries available for selection.
- * In a full implementation this would come from the model catalog,
- * but for the minimal settings surface we use a static list
- * seeded from the routing types.
- */
-const STT_PROVIDERS = [
-  {
-    providerId: "openai-stt",
-    providerType: "openai",
-    label: "OpenAI Whisper",
-    models: ["whisper-1"],
-    supportsTranslation: true,
-    supportsWordTimestamps: true,
-    supportsDiarization: false,
-  },
-  {
-    providerId: "openai-stt-gpt4o",
-    providerType: "openai",
-    label: "OpenAI GPT-4o Transcribe",
-    models: ["gpt-4o-transcribe", "gpt-4o-mini-transcribe"],
-    supportsTranslation: false,
-    supportsWordTimestamps: true,
-    supportsDiarization: false,
-  },
-  {
-    providerId: "groq-stt",
-    providerType: "groq",
-    label: "Groq Whisper",
-    models: ["whisper-large-v3", "whisper-large-v3-turbo", "distil-whisper-large-v3-en"],
-    supportsTranslation: true,
-    supportsWordTimestamps: true,
-    supportsDiarization: false,
-  },
-  {
-    providerId: "nvidia-stt",
-    providerType: "nvidia",
-    label: "NVIDIA Parakeet",
-    models: ["nvidia/parakeet-ctc-1.1b-asr", "nvidia/parakeet-rnnt-1.1b-asr", "nvidia/canary-1b-flash"],
-    supportsTranslation: false,
-    supportsWordTimestamps: true,
-    supportsDiarization: true,
-  },
-];
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { ProviderSettingsSnapshot } from "../../shared/types";
+import { motion } from "framer-motion";
 
 interface SpeechSettingsSectionProps {
   className?: string;
+  snapshot: ProviderSettingsSnapshot;
+  onUpdate?: () => void;
 }
 
-export function SpeechSettingsSection({ className }: SpeechSettingsSectionProps) {
+export function SpeechSettingsSection({
+  className,
+  snapshot,
+  onUpdate,
+}: SpeechSettingsSectionProps) {
   const [settings, setSettings] = React.useState({
     provider: { providerId: "", modelId: "" },
     language: "en",
@@ -86,13 +56,49 @@ export function SpeechSettingsSection({ className }: SpeechSettingsSectionProps)
     }
   };
 
-  // Get selected provider config for provider-aware controls
-  const selectedProvider = STT_PROVIDERS.find(
-    (p) => p.providerId === settings.provider.providerId,
+  const speechProviders = React.useMemo(() => {
+    const modelEntries = Object.values(snapshot.modelSheet);
+
+    return snapshot.providers
+      .filter((provider) => provider.enabled)
+      .map((provider) => {
+        const providerModels = modelEntries.filter(
+          (model) =>
+            model.providerId === provider.id &&
+            (model.capabilities?.supportsTranscription ||
+              model.modelId === snapshot.speechSettings.provider.modelId),
+        );
+
+        const supportsTranslation =
+          provider.type === "openai" || provider.type === "groq";
+        const supportsDiarization = provider.type === "nvidia";
+        const supportsWordTimestamps = providerModels.some(
+          (model) => model.capabilities?.supportsWordTimestamps,
+        );
+
+        return {
+          providerId: provider.id,
+          providerType: provider.type,
+          label: provider.name,
+          models: providerModels.map((model) => model.modelId),
+          supportsTranslation,
+          supportsWordTimestamps,
+          supportsDiarization,
+        };
+      })
+      .filter(
+        (provider) =>
+          provider.models.length > 0 ||
+          provider.providerId === settings.provider.providerId,
+      );
+  }, [snapshot, settings.provider.providerId]);
+
+  const selectedProvider = speechProviders.find(
+    (provider) => provider.providerId === settings.provider.providerId,
   );
 
   const handleProviderChange = (providerId: string) => {
-    const provider = STT_PROVIDERS.find((p) => p.providerId === providerId);
+    const provider = speechProviders.find((p) => p.providerId === providerId);
     setSettings((prev) => ({
       ...prev,
       provider: {
@@ -141,6 +147,7 @@ export function SpeechSettingsSection({ className }: SpeechSettingsSectionProps)
       });
       if (response?.success) {
         setSaved(true);
+        onUpdate?.();
       } else {
         setError(response?.error?.message ?? "Failed to save speech settings");
       }
@@ -160,167 +167,194 @@ export function SpeechSettingsSection({ className }: SpeechSettingsSectionProps)
   }
 
   return (
-    <div className={className}>
-      <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-        Speech-to-Text Settings
-      </h3>
+    <motion.div 
+      className={className}
+      initial="hidden"
+      animate="show"
+      variants={{
+        hidden: { opacity: 0 },
+        show: {
+          opacity: 1,
+          transition: {
+            staggerChildren: 0.05,
+          },
+        },
+      }}
+    >
+      <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+          Speech Intelligence
+        </h3>
+      </motion.div>
 
       <div className="space-y-3">
-        {/* STT Provider */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
-            STT Provider
-          </label>
-          <select
-            value={settings.provider.providerId}
-            onChange={(e) => handleProviderChange(e.target.value)}
-            className="w-full h-9 rounded-md border border-input bg-card px-3 text-sm"
-          >
-            <option value="">Select a provider</option>
-            {STT_PROVIDERS.map((p) => (
-              <option key={p.providerId} value={p.providerId}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* STT Model */}
-        {selectedProvider && (
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
-              STT Model
-            </label>
-            <select
-              value={settings.provider.modelId}
-              onChange={(e) => handleModelChange(e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-card px-3 text-sm"
-            >
-              {selectedProvider.models.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Language */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
-            Language
-          </label>
-          <Input
-            value={settings.language}
-            onChange={(e) => handleLanguageChange(e.target.value)}
-            placeholder="en"
-            className="h-9 text-sm"
-          />
-        </div>
-
-        {/* Timestamp Granularity */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
-            Timestamp Granularity
-          </label>
-          <select
-            value={settings.timestampGranularity}
-            onChange={(e) =>
-              handleTimestampGranularityChange(
-                e.target.value as "none" | "segment" | "word",
-              )
-            }
-            className="w-full h-9 rounded-md border border-input bg-card px-3 text-sm"
-          >
-            <option value="none">None</option>
-            <option value="segment">Segment</option>
-            <option value="word">Word-level</option>
-          </select>
-        </div>
-
-        {/* Provider-aware advanced controls */}
-        {selectedProvider && (
-          <div className="space-y-2 pt-2 border-t border-border/50">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Advanced Options
-            </p>
-
-            {/* Translation - only if provider supports it */}
-            {selectedProvider.supportsTranslation && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={
-                    (settings.advancedOptions as Record<string, unknown>)
-                      ?.enableTranslation === true
-                  }
-                  onChange={(e) =>
-                    handleAdvancedOption("enableTranslation", e.target.checked)
-                  }
-                  className="rounded border-input"
-                />
-                <span>Enable translation (output in English)</span>
-              </label>
-            )}
-
-            {/* Diarization - only if provider supports it */}
-            {selectedProvider.supportsDiarization && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={
-                    (settings.advancedOptions as Record<string, unknown>)
-                      ?.enableDiarization === true
-                  }
-                  onChange={(e) =>
-                    handleAdvancedOption("enableDiarization", e.target.checked)
-                  }
-                  className="rounded border-input"
-                />
-                <span>Enable speaker diarization</span>
-              </label>
-            )}
-
-            {/* No advanced options available for this provider */}
-            {!selectedProvider.supportsTranslation &&
-              !selectedProvider.supportsDiarization && (
-                <p className="text-xs text-muted-foreground/60">
-                  No additional options for this provider
-                </p>
-              )}
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2">
-            <p className="text-xs text-destructive">{error}</p>
-          </div>
-        )}
-
-        {/* Save indicator */}
-        {saved && (
-          <p className="text-xs text-green-600">Settings saved</p>
-        )}
-
-        {/* Save Button */}
-        <Button
-          type="button"
-          size="sm"
-          onClick={handleSave}
-          disabled={isSaving || !settings.provider.providerId}
-          className="w-full"
+        <motion.div 
+          variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+          className="grid grid-cols-1 gap-4"
         >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-              Saving...
-            </>
-          ) : (
-            "Save Speech Settings"
+          {/* STT Header Card */}
+          <div className="rounded-2xl border border-border/60 bg-card/40 p-5 shadow-sm space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-tight mb-2">
+                Provider & Model
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Select
+                  value={settings.provider.providerId || "none"}
+                  onValueChange={(val) => handleProviderChange(val === "none" ? "" : val)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select provider</SelectItem>
+                    {speechProviders.map((p) => (
+                      <SelectItem key={p.providerId} value={p.providerId}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {selectedProvider && (
+                  <Select
+                    value={settings.provider.modelId || "none"}
+                    onValueChange={(val) => handleModelChange(val === "none" ? "" : val)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select model</SelectItem>
+                      {selectedProvider.models.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Configuration Card */}
+          <div className="rounded-2xl border border-border/60 bg-card/40 p-5 shadow-sm space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-tight mb-2">
+                  Language
+                </label>
+                <Input
+                  value={settings.language}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                  placeholder="en"
+                  className="h-10 text-sm rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-tight mb-2">
+                  Granularity
+                </label>
+                <Select
+                  value={settings.timestampGranularity}
+                  onValueChange={(val) =>
+                    handleTimestampGranularityChange(
+                      val as "none" | "segment" | "word",
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full rounded-xl">
+                    <SelectValue placeholder="Granularity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="segment">Segment</SelectItem>
+                    <SelectItem value="word">Word-level</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Advanced Card */}
+          {selectedProvider && (selectedProvider.supportsTranslation || selectedProvider.supportsDiarization) && (
+            <div className="rounded-2xl border border-border/60 bg-card/40 p-5 shadow-sm space-y-4">
+              <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-tight">
+                Advanced Features
+              </label>
+              <div className="space-y-3">
+                {selectedProvider.supportsTranslation && (
+                  <label className="group flex items-center justify-between p-3 rounded-xl border border-border/40 hover:bg-accent/30 transition-all cursor-pointer">
+                    <span className="text-sm font-medium">Auto-translation (to English)</span>
+                    <input
+                      type="checkbox"
+                      checked={(settings.advancedOptions as Record<string, unknown>)?.enableTranslation === true}
+                      onChange={(e) => handleAdvancedOption("enableTranslation", e.target.checked)}
+                      className="size-4 rounded-md border-input accent-primary"
+                    />
+                  </label>
+                )}
+                {selectedProvider.supportsDiarization && (
+                  <label className="group flex items-center justify-between p-3 rounded-xl border border-border/40 hover:bg-accent/30 transition-all cursor-pointer">
+                    <span className="text-sm font-medium">Speaker Diarization</span>
+                    <input
+                      type="checkbox"
+                      checked={(settings.advancedOptions as Record<string, unknown>)?.enableDiarization === true}
+                      onChange={(e) => handleAdvancedOption("enableDiarization", e.target.checked)}
+                      className="size-4 rounded-md border-input accent-primary"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
           )}
-        </Button>
+        </motion.div>
+
+        {/* Status Messaging */}
+        <div className="px-2">
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3"
+            >
+              <p className="text-xs text-destructive font-medium">{error}</p>
+            </motion.div>
+          )}
+
+          {saved && (
+            <motion.p 
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-[11px] text-emerald-600 font-bold uppercase tracking-widest text-center"
+            >
+              ✓ Preferences Synchronized
+            </motion.p>
+          )}
+        </div>
+
+        {/* Primary Action */}
+        <div className="pt-4">
+          <Button
+            type="button"
+            size="lg"
+            onClick={handleSave}
+            disabled={isSaving || !settings.provider.providerId}
+            className="w-full rounded-2xl h-12 shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:shadow-xl hover:shadow-primary/30"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Updating Engine...
+              </>
+            ) : (
+              "Save Speech Configuration"
+            )}
+          </Button>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -223,7 +223,11 @@ async function callWithCatch<T>(
 function sanitizeSegments(
   relativePath: string,
   rootDirectory: string,
-): { directorySegments: string[]; fileName: string; normalizedPath: string } | null {
+): {
+  directorySegments: string[];
+  fileName: string;
+  normalizedPath: string;
+} | null {
   const normalized = String(relativePath ?? "")
     .replace(/\\/g, "/")
     .split("/")
@@ -344,14 +348,16 @@ export class FilesystemAccessService {
   constructor(options: FilesystemAccessServiceOptions = {}) {
     this.storage = options.storage ?? new ChromeLocalStorage();
     this.defaultHandleId = options.defaultHandleId ?? DEFAULT_HANDLE_ID;
-    this.rootDirectoryName = options.rootDirectoryName ?? DEFAULT_ROOT_DIRECTORY;
+    this.rootDirectoryName =
+      options.rootDirectoryName ?? DEFAULT_ROOT_DIRECTORY;
     this.now = options.now ?? Date.now;
     this.directoryPickerOverride = options.directoryPicker;
   }
 
   isSupported(): boolean {
     return Boolean(
-      this.directoryPickerOverride || isFunction((globalThis as any).showDirectoryPicker),
+      this.directoryPickerOverride ||
+        isFunction((globalThis as any).showDirectoryPicker),
     );
   }
 
@@ -371,10 +377,7 @@ export class FilesystemAccessService {
 
     const picker = this.getDirectoryPicker();
     if (!picker) {
-      logger.warn(
-        "FilesystemAccessService",
-        "Directory picker not available",
-      );
+      logger.warn("FilesystemAccessService", "Directory picker not available");
       return { granted: false, reason: "unsupported" };
     }
 
@@ -391,11 +394,9 @@ export class FilesystemAccessService {
       const permission = await this.ensurePermission(handle, mode);
       if (permission === "granted") {
         await this.persistFlag(handleId);
-        logger.info(
-          "FilesystemAccessService",
-          "Directory access granted",
-          { handleId },
-        );
+        logger.info("FilesystemAccessService", "Directory access granted", {
+          handleId,
+        });
         return { granted: true, handle };
       }
 
@@ -562,7 +563,10 @@ export class FilesystemAccessService {
       };
     }
 
-    if (!isFunction(rootHandle.getDirectoryHandle) || !isFunction(rootHandle.getFileHandle)) {
+    if (
+      !isFunction(rootHandle.getDirectoryHandle) ||
+      !isFunction(rootHandle.getFileHandle)
+    ) {
       return {
         success: false,
         reason: "unsupported",
@@ -655,7 +659,10 @@ export class FilesystemAccessService {
       };
     }
 
-    if (!isFunction(rootHandle.getDirectoryHandle) || !isFunction(rootHandle.getFileHandle)) {
+    if (
+      !isFunction(rootHandle.getDirectoryHandle) ||
+      !isFunction(rootHandle.getFileHandle)
+    ) {
       return {
         success: false,
         reason: "unsupported",
@@ -737,7 +744,9 @@ export class FilesystemAccessService {
     }
   }
 
-  async deleteFile(options: FilesystemDeleteOptions): Promise<FileDeleteResult> {
+  async deleteFile(
+    options: FilesystemDeleteOptions,
+  ): Promise<FileDeleteResult> {
     const handleId = options.handleId ?? this.defaultHandleId;
     const segments = sanitizeSegments(
       options.relativePath,
@@ -754,7 +763,11 @@ export class FilesystemAccessService {
     }
 
     const rootHandle = this.getCachedHandle(handleId);
-    if (!rootHandle || !isFunction(rootHandle.getDirectoryHandle) || !isFunction(rootHandle.removeEntry)) {
+    if (
+      !rootHandle ||
+      !isFunction(rootHandle.getDirectoryHandle) ||
+      !isFunction(rootHandle.removeEntry)
+    ) {
       return {
         success: false,
         reason: rootHandle ? "unsupported" : "missing-handle",
@@ -809,7 +822,9 @@ export class FilesystemAccessService {
     return this.revokeFileSystemAccess({ handleId: this.defaultHandleId });
   }
 
-  async getDirectoryHandle(handleId = this.defaultHandleId): Promise<DirectoryHandleLike | null> {
+  async getDirectoryHandle(
+    handleId = this.defaultHandleId,
+  ): Promise<DirectoryHandleLike | null> {
     return this.getCachedHandle(handleId);
   }
 
@@ -854,38 +869,46 @@ export class FilesystemAccessService {
       timestamp: this.now(),
     };
 
-    await callWithCatch(async () => {
-      const state = await this.readAllFlags();
-      state[handleId] = record;
-      await this.storage.set({ [FS_ACCESS_STORAGE_KEY]: state });
-    }, (error) => {
-      logger.warn(
-        "FilesystemAccessService",
-        "Failed to persist directory access flag",
-        { handleId, error },
-      );
-    });
+    await callWithCatch(
+      async () => {
+        const state = await this.readAllFlags();
+        state[handleId] = record;
+        await this.storage.set({ [FS_ACCESS_STORAGE_KEY]: state });
+      },
+      (error) => {
+        logger.warn(
+          "FilesystemAccessService",
+          "Failed to persist directory access flag",
+          { handleId, error },
+        );
+      },
+    );
   }
 
   protected async clearFlag(handleId: string): Promise<void> {
-    await callWithCatch(async () => {
-      const state = await this.readAllFlags();
-      delete state[handleId];
-      if (Object.keys(state).length === 0) {
-        await this.storage.remove(FS_ACCESS_STORAGE_KEY);
-      } else {
-        await this.storage.set({ [FS_ACCESS_STORAGE_KEY]: state });
-      }
-    }, (error) => {
-      logger.warn(
-        "FilesystemAccessService",
-        "Failed to clear directory access flag",
-        { handleId, error },
-      );
-    });
+    await callWithCatch(
+      async () => {
+        const state = await this.readAllFlags();
+        delete state[handleId];
+        if (Object.keys(state).length === 0) {
+          await this.storage.remove(FS_ACCESS_STORAGE_KEY);
+        } else {
+          await this.storage.set({ [FS_ACCESS_STORAGE_KEY]: state });
+        }
+      },
+      (error) => {
+        logger.warn(
+          "FilesystemAccessService",
+          "Failed to clear directory access flag",
+          { handleId, error },
+        );
+      },
+    );
   }
 
-  protected async readFlag(handleId: string): Promise<FsAccessStorageRecord | null> {
+  protected async readFlag(
+    handleId: string,
+  ): Promise<FsAccessStorageRecord | null> {
     const state = await this.readAllFlags();
     return state[handleId] ?? null;
   }

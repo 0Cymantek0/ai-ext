@@ -3,7 +3,7 @@
  * Manages the complete state of the game
  */
 
-import type { GameState, Player, Location, NPC, Item } from '../types';
+import type { GameState, Player, Location, NPC, Item } from "../types";
 
 export class GameStateManager {
   private state: GameState;
@@ -14,20 +14,20 @@ export class GameStateManager {
 
   private createInitialState(): GameState {
     const startingLocation: Location = {
-      id: 'start',
-      name: 'Open Field',
+      id: "start",
+      name: "Open Field",
       description:
-        'You are standing in an open field west of a white house, with a boarded front door. But this is no ordinary house... The world beyond is infinite, shaped by your choices and powered by artificial intelligence.',
+        "You are standing in an open field west of a white house, with a boarded front door. But this is no ordinary house... The world beyond is infinite, shaped by your choices and powered by artificial intelligence.",
       exits: [
-        { direction: 'north', destination: '', locked: false },
-        { direction: 'east', destination: '', locked: false },
-        { direction: 'south', destination: '', locked: false },
+        { direction: "north", destination: "", locked: false },
+        { direction: "east", destination: "", locked: false },
+        { direction: "south", destination: "", locked: false },
       ],
       items: [
         {
-          id: 'lamp',
-          name: 'brass lamp',
-          description: 'A shiny brass lamp. It appears to be magical.',
+          id: "lamp",
+          name: "brass lamp",
+          description: "A shiny brass lamp. It appears to be magical.",
           takeable: true,
           useable: true,
           weight: 2,
@@ -35,12 +35,12 @@ export class GameStateManager {
       ],
       npcs: [],
       visited: true,
-      atmosphere: 'mysterious and inviting',
+      atmosphere: "mysterious and inviting",
     };
 
     return {
       player: {
-        location: 'start',
+        location: "start",
         inventory: [],
         health: 100,
         maxHealth: 100,
@@ -49,13 +49,13 @@ export class GameStateManager {
         maxInventoryWeight: 20,
       },
       world: {
-        locations: new Map([['start', startingLocation]]),
+        locations: new Map([["start", startingLocation]]),
         npcs: new Map(),
         quests: [],
-        currentTheme: 'fantasy-adventure',
+        currentTheme: "fantasy-adventure",
       },
       history: {
-        visitedLocations: ['start'],
+        visitedLocations: ["start"],
         completedPuzzles: [],
         npcInteractions: new Map(),
         commands: [],
@@ -63,7 +63,7 @@ export class GameStateManager {
       meta: {
         startTime: Date.now(),
         lastSave: Date.now(),
-        difficulty: 'medium',
+        difficulty: "medium",
         achievements: [],
       },
     };
@@ -104,7 +104,10 @@ export class GameStateManager {
   }
 
   addItemToInventory(item: Item): boolean {
-    const currentWeight = this.state.player.inventory.reduce((sum, i) => sum + i.weight, 0);
+    const currentWeight = this.state.player.inventory.reduce(
+      (sum, i) => sum + i.weight,
+      0,
+    );
     if (currentWeight + item.weight > this.state.player.maxInventoryWeight) {
       return false;
     }
@@ -138,7 +141,10 @@ export class GameStateManager {
   updateNPCRelationship(npcId: string, change: number): void {
     const npc = this.state.world.npcs.get(npcId);
     if (npc) {
-      npc.relationship = Math.max(-100, Math.min(100, npc.relationship + change));
+      npc.relationship = Math.max(
+        -100,
+        Math.min(100, npc.relationship + change),
+      );
     }
   }
 
@@ -167,7 +173,10 @@ export class GameStateManager {
   }
 
   updateHealth(change: number): void {
-    this.state.player.health = Math.max(0, Math.min(this.state.player.maxHealth, this.state.player.health + change));
+    this.state.player.health = Math.max(
+      0,
+      Math.min(this.state.player.maxHealth, this.state.player.health + change),
+    );
   }
 
   isDead(): boolean {
@@ -185,7 +194,9 @@ export class GameStateManager {
       },
       history: {
         ...this.state.history,
-        npcInteractions: Array.from(this.state.history.npcInteractions.entries()),
+        npcInteractions: Array.from(
+          this.state.history.npcInteractions.entries(),
+        ),
       },
     };
 

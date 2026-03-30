@@ -34,7 +34,11 @@ const ConversationContent = React.forwardRef<
     const threshold = 12; // px tolerance for fractional scroll values
     const shouldAutoScroll = forceAutoScroll || distanceFromBottom <= threshold;
     if (shouldAutoScroll) {
-      element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
+      if (typeof element.scrollTo === "function") {
+        element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
+      } else {
+        element.scrollTop = element.scrollHeight;
+      }
     }
   }, [children, forceAutoScroll]);
 

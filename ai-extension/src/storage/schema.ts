@@ -39,9 +39,7 @@ import type {
   StateCheckpoint,
   WorkflowStep,
 } from "../browser-agent/agent-state.js";
-import type {
-  DatabaseManager as StorageDatabaseContract,
-} from "../services/storage-manager.js";
+import type { DatabaseManager as StorageDatabaseContract } from "../services/storage-manager.js";
 
 const DB_NAME = "ai-pocket-db";
 const DB_VERSION = 4;
@@ -448,8 +446,8 @@ export class DatabaseManager implements StorageDatabaseContract {
   private dbPromise: Promise<IDBPDatabase<AiPocketDBSchema>> | null = null;
 
   /**
-    * Lazily open the IndexedDB connection, upgrading the schema when needed.
-    */
+   * Lazily open the IndexedDB connection, upgrading the schema when needed.
+   */
   async open(): Promise<IDBPDatabase<AiPocketDBSchema>> {
     if (this.db) {
       return this.db;
@@ -459,31 +457,43 @@ export class DatabaseManager implements StorageDatabaseContract {
       return this.dbPromise;
     }
 
-    this.dbPromise = openDB<AiPocketDBSchema>(DB_CONFIG.name, DB_CONFIG.version, {
-      upgrade: (database, oldVersion, _newVersion, transaction) => {
-        this.handleUpgrade(database, transaction, oldVersion);
+    this.dbPromise = openDB<AiPocketDBSchema>(
+      DB_CONFIG.name,
+      DB_CONFIG.version,
+      {
+        upgrade: (database, oldVersion, _newVersion, transaction) => {
+          this.handleUpgrade(database, transaction, oldVersion);
+        },
+        blocked: () => {
+          logger.warn(
+            "DatabaseManager",
+            "Database upgrade blocked by another context",
+          );
+        },
+        blocking: () => {
+          logger.info(
+            "DatabaseManager",
+            "Closing older database connection to allow upgrade",
+          );
+          this.db?.close();
+        },
+        terminated: () => {
+          logger.error(
+            "DatabaseManager",
+            "Database connection terminated unexpectedly. Resetting state.",
+          );
+          this.db?.close();
+          this.db = null;
+          this.dbPromise = null;
+        },
       },
-      blocked: () => {
-        logger.warn("DatabaseManager", "Database upgrade blocked by another context");
-      },
-      blocking: () => {
-        logger.info("DatabaseManager", "Closing older database connection to allow upgrade");
-        this.db?.close();
-      },
-      terminated: () => {
-        logger.error(
-          "DatabaseManager",
-          "Database connection terminated unexpectedly. Resetting state.",
-        );
-        this.db?.close();
-        this.db = null;
-        this.dbPromise = null;
-      },
-    });
+    );
 
     try {
       this.db = await this.dbPromise;
-      logger.info("DatabaseManager", "Database opened", { version: this.db.version });
+      logger.info("DatabaseManager", "Database opened", {
+        version: this.db.version,
+      });
       return this.db;
     } catch (error) {
       this.dbPromise = null;
@@ -610,7 +620,9 @@ export class DatabaseManager implements StorageDatabaseContract {
       [STORE_NAMES.CAPTURED_CONTENT],
       "readonly",
       async (tx) => {
-        const index = tx.objectStore(STORE_NAMES.CAPTURED_CONTENT).index("pocketId");
+        const index = tx
+          .objectStore(STORE_NAMES.CAPTURED_CONTENT)
+          .index("pocketId");
         return index.getAll(pocketId);
       },
     );
@@ -649,7 +661,9 @@ export class DatabaseManager implements StorageDatabaseContract {
       [STORE_NAMES.VECTOR_CHUNKS],
       "readonly",
       async (tx) => {
-        const index = tx.objectStore(STORE_NAMES.VECTOR_CHUNKS).index("contentId");
+        const index = tx
+          .objectStore(STORE_NAMES.VECTOR_CHUNKS)
+          .index("contentId");
         return index.getAll(contentId);
       },
     );
@@ -660,7 +674,9 @@ export class DatabaseManager implements StorageDatabaseContract {
       [STORE_NAMES.VECTOR_CHUNKS],
       "readwrite",
       async (tx) => {
-        const index = tx.objectStore(STORE_NAMES.VECTOR_CHUNKS).index("contentId");
+        const index = tx
+          .objectStore(STORE_NAMES.VECTOR_CHUNKS)
+          .index("contentId");
         let cursor = await index.openCursor(contentId);
         while (cursor) {
           await cursor.delete();
@@ -738,7 +754,9 @@ export class DatabaseManager implements StorageDatabaseContract {
       [STORE_NAMES.METADATA],
       "readonly",
       async (tx) => {
-        return (await tx.objectStore(STORE_NAMES.METADATA).get(contentId)) ?? null;
+        return (
+          (await tx.objectStore(STORE_NAMES.METADATA).get(contentId)) ?? null
+        );
       },
     );
   }
@@ -837,9 +855,13 @@ export class DatabaseManager implements StorageDatabaseContract {
       contentIds: pocket.contentIds ?? [],
     };
 
-    await this.runTransaction([STORE_NAMES.POCKETS], "readwrite", async (tx) => {
-      await tx.objectStore(STORE_NAMES.POCKETS).add(record);
-    });
+    await this.runTransaction(
+      [STORE_NAMES.POCKETS],
+      "readwrite",
+      async (tx) => {
+        await tx.objectStore(STORE_NAMES.POCKETS).add(record);
+      },
+    );
 
     return id;
   }
@@ -848,21 +870,28 @@ export class DatabaseManager implements StorageDatabaseContract {
     id: string,
     updates: Partial<Omit<Pocket, "id" | "createdAt">>,
   ): Promise<void> {
-    await this.runTransaction([STORE_NAMES.POCKETS], "readwrite", async (tx) => {
-      const store = tx.objectStore(STORE_NAMES.POCKETS);
-      const existing = await store.get(id);
-      if (!existing) {
-        throw new DatabaseError(DatabaseErrorType.NOT_FOUND, `Pocket ${id} not found`);
-      }
+    await this.runTransaction(
+      [STORE_NAMES.POCKETS],
+      "readwrite",
+      async (tx) => {
+        const store = tx.objectStore(STORE_NAMES.POCKETS);
+        const existing = await store.get(id);
+        if (!existing) {
+          throw new DatabaseError(
+            DatabaseErrorType.NOT_FOUND,
+            `Pocket ${id} not found`,
+          );
+        }
 
-      await store.put({
-        ...existing,
-        ...updates,
-        id: existing.id,
-        createdAt: existing.createdAt,
-        updatedAt: Date.now(),
-      });
-    });
+        await store.put({
+          ...existing,
+          ...updates,
+          id: existing.id,
+          createdAt: existing.createdAt,
+          updatedAt: Date.now(),
+        });
+      },
+    );
   }
 
   async deletePocket(id: string): Promise<void> {
@@ -879,7 +908,9 @@ export class DatabaseManager implements StorageDatabaseContract {
       async (tx) => {
         await tx.objectStore(STORE_NAMES.POCKETS).delete(id);
 
-        const contentIndex = tx.objectStore(STORE_NAMES.CAPTURED_CONTENT).index("pocketId");
+        const contentIndex = tx
+          .objectStore(STORE_NAMES.CAPTURED_CONTENT)
+          .index("pocketId");
         let cursor = await contentIndex.openCursor(id);
         while (cursor) {
           const contentId = cursor.value.id;
@@ -893,9 +924,13 @@ export class DatabaseManager implements StorageDatabaseContract {
   }
 
   async listPockets(): Promise<Pocket[]> {
-    return this.runTransaction([STORE_NAMES.POCKETS], "readonly", async (tx) => {
-      return tx.objectStore(STORE_NAMES.POCKETS).getAll();
-    });
+    return this.runTransaction(
+      [STORE_NAMES.POCKETS],
+      "readonly",
+      async (tx) => {
+        return tx.objectStore(STORE_NAMES.POCKETS).getAll();
+      },
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -904,7 +939,11 @@ export class DatabaseManager implements StorageDatabaseContract {
 
   private handleUpgrade(
     db: IDBPDatabase<AiPocketDBSchema>,
-    transaction: IDBPTransaction<AiPocketDBSchema, StoreName[], "versionchange">,
+    transaction: IDBPTransaction<
+      AiPocketDBSchema,
+      StoreName[],
+      "versionchange"
+    >,
     oldVersion: number,
   ): void {
     if (oldVersion < 1) {
@@ -947,11 +986,15 @@ export class DatabaseManager implements StorageDatabaseContract {
 
   private ensureStore(
     db: IDBPDatabase<AiPocketDBSchema>,
-    transaction: IDBPTransaction<AiPocketDBSchema, StoreName[], "versionchange">,
+    transaction: IDBPTransaction<
+      AiPocketDBSchema,
+      StoreName[],
+      "versionchange"
+    >,
     storeName: StoreName,
   ): void {
     const config = STORE_CONFIGS[storeName];
-    
+
     // Using 'any' here to work around TypeScript's inability to narrow union types
     // in generic contexts when accessing dynamic properties
     let store: any;
@@ -973,18 +1016,22 @@ export class DatabaseManager implements StorageDatabaseContract {
     }
   }
 
-  private createMetadataRecord(content: CapturedContent): ContentMetadataRecord {
+  private createMetadataRecord(
+    content: CapturedContent,
+  ): ContentMetadataRecord {
     const metadata: ContentMetadata = {
       ...(content.metadata ?? {}),
     };
 
     const timestamp =
-      typeof metadata.timestamp === "number" && !Number.isNaN(metadata.timestamp)
+      typeof metadata.timestamp === "number" &&
+      !Number.isNaN(metadata.timestamp)
         ? metadata.timestamp
         : content.capturedAt;
 
     const updatedAt =
-      typeof metadata.updatedAt === "number" && !Number.isNaN(metadata.updatedAt)
+      typeof metadata.updatedAt === "number" &&
+      !Number.isNaN(metadata.updatedAt)
         ? metadata.updatedAt
         : Date.now();
 
@@ -1032,14 +1079,18 @@ export class DatabaseManager implements StorageDatabaseContract {
       embeddingCursor = await embeddingCursor.continue();
     }
 
-    const chunkIndex = tx.objectStore(STORE_NAMES.VECTOR_CHUNKS).index("contentId");
+    const chunkIndex = tx
+      .objectStore(STORE_NAMES.VECTOR_CHUNKS)
+      .index("contentId");
     let chunkCursor = await chunkIndex.openCursor(contentId);
     while (chunkCursor) {
       await chunkCursor.delete();
       chunkCursor = await chunkCursor.continue();
     }
 
-    const searchIndex = tx.objectStore(STORE_NAMES.SEARCH_INDEX).index("contentId");
+    const searchIndex = tx
+      .objectStore(STORE_NAMES.SEARCH_INDEX)
+      .index("contentId");
     let searchCursor = await searchIndex.openCursor(contentId);
     while (searchCursor) {
       await searchCursor.delete();

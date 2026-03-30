@@ -10,11 +10,12 @@ export function FloatingPanel({ className, children }: FloatingControlsProps) {
   return (
     <>
       {/* Apple-style gradual blur overlay for depth and contrast */}
-      <div 
+      <div
         className="fixed top-0 left-0 right-0 z-30 h-56 pointer-events-none bg-background/90 backdrop-blur-xl"
         style={{
-          WebkitMaskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)',
-          maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)'
+          WebkitMaskImage:
+            "linear-gradient(to bottom, black 50%, transparent 100%)",
+          maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
         }}
       />
       <div

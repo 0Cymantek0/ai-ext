@@ -1,9 +1,9 @@
 /**
  * Tiered Storage Integration Example
- * 
+ *
  * This file demonstrates how to integrate TieredStorageService with the existing
  * IndexedDB manager and content capture workflow.
- * 
+ *
  * NOTE: This is an example/reference file, not part of the active codebase.
  */
 
@@ -183,7 +183,7 @@ async function batchSaveWithMetrics(
     filesystemWrites: metrics.filesystemWrites,
     indexedDbFallbacks: metrics.indexedDbFallbacks,
     totalBytesOffloaded: metrics.totalBytesOffloaded,
-    offloadPercentage: 
+    offloadPercentage:
       (metrics.totalBytesOffloaded / metrics.totalBytesSaved) * 100,
   });
 }
@@ -195,11 +195,13 @@ async function ensureFilesystemAccess(
   tieredStorage: TieredStorage,
 ): Promise<boolean> {
   const hasAccess = await tieredStorage.hasFilesystemAccess();
-  
+
   if (!hasAccess) {
-    console.warn("Filesystem access not available - will use IndexedDB fallback");
+    console.warn(
+      "Filesystem access not available - will use IndexedDB fallback",
+    );
   }
-  
+
   return hasAccess;
 }
 

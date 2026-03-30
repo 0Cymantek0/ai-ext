@@ -33,7 +33,10 @@ export interface ProviderExecutionEvent {
   metadata: ProviderExecutionMetadata;
 }
 
-export type ProviderStreamEvent = string | ProviderExecutionEvent | ProviderTextResult;
+export type ProviderStreamEvent =
+  | string
+  | ProviderExecutionEvent
+  | ProviderTextResult;
 
 export interface ProviderStreamRequest {
   prompt: string;

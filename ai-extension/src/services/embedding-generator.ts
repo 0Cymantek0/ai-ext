@@ -65,8 +65,7 @@ export interface EmbeddingRequestErrorEvent
   error: unknown;
 }
 
-export interface EmbeddingRequestRetryEvent
-  extends EmbeddingRequestErrorEvent {
+export interface EmbeddingRequestRetryEvent extends EmbeddingRequestErrorEvent {
   nextDelayMs: number;
 }
 
@@ -95,8 +94,7 @@ export interface GenerateEmbeddingOptions {
   preferNano?: boolean;
 }
 
-export interface GenerateEmbeddingsOptions
-  extends GenerateEmbeddingOptions {
+export interface GenerateEmbeddingsOptions extends GenerateEmbeddingOptions {
   /** Maximum number of texts processed per batch (default derived from config). */
   batchSize?: number;
   /** Abort signal allowing callers to cancel long running generation. */
@@ -289,7 +287,8 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
     this.logger = dependencies.logger ?? consoleLogger;
     this.nowFn = dependencies.now ?? (() => Date.now());
     this.waitFn =
-      dependencies.wait ?? ((ms: number) => new Promise((res) => setTimeout(res, ms)));
+      dependencies.wait ??
+      ((ms: number) => new Promise((res) => setTimeout(res, ms)));
     this.cache = new LRUCache<string, number[]>(mergedConfig.cacheSize);
   }
 
@@ -356,7 +355,9 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
     texts.forEach((text, index) => {
       const normalized = this.normalizeText(text);
       if (!normalized) {
-        throw new Error(`Embedding generation requires non-empty text at index ${index}`);
+        throw new Error(
+          `Embedding generation requires non-empty text at index ${index}`,
+        );
       }
 
       if (useCache) {
@@ -411,7 +412,9 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
         const targetIndices = pending.get(textKey) ?? [];
 
         if (!Array.isArray(embedding) || embedding.length === 0) {
-          throw new Error("Embedding engine returned an invalid vector in batch");
+          throw new Error(
+            "Embedding engine returned an invalid vector in batch",
+          );
         }
 
         if (useCache) {
@@ -441,8 +444,7 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
     const chunkConfig: Required<ChunkingOptions> = {
       wordsPerChunk:
         options.wordsPerChunk ?? this.config.chunking.wordsPerChunk,
-      overlapWords:
-        options.overlapWords ?? this.config.chunking.overlapWords,
+      overlapWords: options.overlapWords ?? this.config.chunking.overlapWords,
       respectSentences:
         options.respectSentences ?? this.config.chunking.respectSentences,
       respectParagraphs:
@@ -546,7 +548,10 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
   }
 
   private pruneRequestLog(now: number, interval: number): void {
-    while (this.requestLog.length > 0 && now - this.requestLog[0]! >= interval) {
+    while (
+      this.requestLog.length > 0 &&
+      now - this.requestLog[0]! >= interval
+    ) {
       this.requestLog.shift();
     }
   }
@@ -624,10 +629,11 @@ export class EmbeddingGeneratorService implements EmbeddingGenerator {
       return Boolean((error as any).retryable);
     }
 
-    const message =
-      (error instanceof Error ? error.message : String(error ?? ""))
-        .toLowerCase()
-        .trim();
+    const message = (
+      error instanceof Error ? error.message : String(error ?? "")
+    )
+      .toLowerCase()
+      .trim();
 
     if (!message) {
       return true;

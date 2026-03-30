@@ -553,9 +553,7 @@ export interface TieredStorageCoordinator {
    * @param options - Save options
    * @returns Save result
    */
-  saveContent(
-    options: StorageSaveOptions,
-  ): Promise<StorageSaveResult>;
+  saveContent(options: StorageSaveOptions): Promise<StorageSaveResult>;
 
   /**
    * Load content from appropriate tier

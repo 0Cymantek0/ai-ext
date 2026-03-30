@@ -84,9 +84,9 @@ export type AriaRunResult = AriaRunSuccess | AriaRunFailure;
 
 interface InternalAriaRunState extends AriaRunState {}
 
-function cloneContext(context?: Record<string, unknown>):
-  | Record<string, unknown>
-  | undefined {
+function cloneContext(
+  context?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
   if (!context) {
     return undefined;
   }
@@ -101,9 +101,7 @@ export class AriaController {
   /**
    * Subscribe to controller events. Returns an unsubscribe function.
    */
-  onEvent(
-    listener: (detail: AriaControllerEventDetail) => void,
-  ): () => void {
+  onEvent(listener: (detail: AriaControllerEventDetail) => void): () => void {
     const handler = (event: Event): void => {
       listener((event as AriaControllerDispatchEvent).detail);
     };
@@ -134,7 +132,9 @@ export class AriaController {
           config,
         },
       );
-      return this.makeInvalidConfigError("Run configuration must include a mode");
+      return this.makeInvalidConfigError(
+        "Run configuration must include a mode",
+      );
     }
 
     const runId = this.generateRunId();
@@ -370,7 +370,9 @@ export class AriaController {
       metrics: { ...run.metrics },
       ...(context ? { context } : {}),
       ...(run.lastEvent !== undefined ? { lastEvent: run.lastEvent } : {}),
-      ...(run.lastMessage !== undefined ? { lastMessage: run.lastMessage } : {}),
+      ...(run.lastMessage !== undefined
+        ? { lastMessage: run.lastMessage }
+        : {}),
     };
   }
 

@@ -305,7 +305,8 @@ class ContentScriptManager {
           message: `Clicked element: ${selector}`,
         };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         console.error("[ContentScript] CLICK_ELEMENT failed", error);
         this.recordEvent("interaction:click:error", { error });
         return {
@@ -351,7 +352,10 @@ class ContentScriptManager {
           element.value += text;
           element.dispatchEvent(new Event("input", { bubbles: true }));
           element.dispatchEvent(new Event("change", { bubbles: true }));
-        } else if (element instanceof HTMLElement && element.isContentEditable) {
+        } else if (
+          element instanceof HTMLElement &&
+          element.isContentEditable
+        ) {
           if (clear) {
             element.textContent = "";
           }
@@ -370,7 +374,8 @@ class ContentScriptManager {
           message: `Typed text into ${selector}`,
         };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         console.error("[ContentScript] TYPE_TEXT failed", error);
         this.recordEvent("interaction:type:error", { error });
         return {
@@ -408,7 +413,8 @@ class ContentScriptManager {
           message: `Scrolled to ${selector}`,
         };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         console.error("[ContentScript] SCROLL_TO_ELEMENT failed", error);
         this.recordEvent("interaction:scroll:error", { error });
         return {
@@ -559,7 +565,7 @@ class ContentScriptManager {
           redactionCount: number;
           piiTypes: string[];
         } | null = null;
-        let captureTimestamp = captureResult?.metadata?.timestamp;
+        const captureTimestamp = captureResult?.metadata?.timestamp;
 
         if (captureResult?.content) {
           const textContent =

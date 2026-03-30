@@ -14,7 +14,10 @@ export type ProviderType =
   | "nvidia"
   | "custom";
 
-export type ProviderEndpointMode = "native" | "openai-compatible" | "nvidia-nim";
+export type ProviderEndpointMode =
+  | "native"
+  | "openai-compatible"
+  | "nvidia-nim";
 
 export interface OpenRouterProviderOptions {
   type: "openrouter";

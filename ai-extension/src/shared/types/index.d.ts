@@ -1051,8 +1051,8 @@ export interface ProviderSettingsLoadPayload {
 
 export interface ProviderSettingsSavePayload {
   providerId?: string;
-  type: string;
-  name: string;
+  type?: string;
+  name?: string;
   baseUrl?: string;
   apiKey?: string;
   enabled?: boolean;
@@ -1102,8 +1102,16 @@ export interface SpeechSettingsSavePayload {
 export interface SettingsRoutingLoadPayload {}
 
 export interface SettingsRoutingSavePayload {
-  routingPreferences?: any;
-  modelSheet?: any;
+  routingPreferences?: Partial<{
+    chat: string | null;
+    embeddings: string | null;
+    speech: string | null;
+    fallbackChain: string[];
+    routingMode: "auto" | "manual";
+    triggerWords: Record<string, string>;
+    providerParameters: Record<string, Record<string, unknown>>;
+  }>;
+  modelSheet?: Record<string, unknown>;
 }
 
 export interface SettingsSnapshotLoadPayload {}
@@ -1117,10 +1125,48 @@ export interface ProviderSettingsSnapshot {
     baseUrl?: string;
     apiKeyId?: string;
     endpointMode?: string;
+    modelId?: string;
+    status?: "connected" | "error" | "disconnected" | "unknown";
+    validationError?: string;
   }>;
-  modelSheet: Record<string, any>;
-  routingPreferences: any;
-  speechSettings: any;
+  modelSheet: Record<
+    string,
+    {
+      modelId: string;
+      providerId: string;
+      providerType: string;
+      enabled?: boolean;
+      capabilities?: {
+        supportsTranscription?: boolean;
+        supportsTranslation?: boolean;
+        supportsWordTimestamps?: boolean;
+      };
+      name?: string;
+    }
+  >;
+  routingPreferences: {
+    chat: string | null;
+    embeddings: string | null;
+    speech: string | null;
+    fallbackChain: string[];
+    routingMode: "auto" | "manual";
+    triggerWords: Record<string, string>;
+    providerParameters: Record<string, Record<string, unknown>>;
+  };
+  speechSettings: {
+    provider: {
+      providerId: string;
+      modelId: string;
+    };
+    language: string;
+    timestampGranularity: "none" | "segment" | "word";
+    advancedOptions?: {
+      enableTranslation?: boolean;
+      enableDiarization?: boolean;
+      temperature?: number;
+      prompt?: string;
+    };
+  };
 }
 
 // Storage Keys

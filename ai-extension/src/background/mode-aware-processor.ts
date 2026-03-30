@@ -106,7 +106,11 @@ export class ModeAwareProcessor {
   async *processRequest(
     request: ModeAwareRequest,
     signal?: AbortSignal,
-  ): AsyncGenerator<string | ProviderExecutionEvent, ModeAwareResponse, undefined> {
+  ): AsyncGenerator<
+    string | ProviderExecutionEvent,
+    ModeAwareResponse,
+    undefined
+  > {
     const startTime = performance.now();
 
     logger.info("ModeAwareProcessor", "Processing request", {
@@ -296,7 +300,7 @@ export class ModeAwareProcessor {
         const conversation = await indexedDBManager.getConversation(
           request.conversationId,
         );
-        let attachedPocketIds = conversation?.attachedPocketIds || [];
+        const attachedPocketIds = conversation?.attachedPocketIds || [];
         if (
           conversation?.attachedPocketId &&
           !attachedPocketIds.includes(conversation.attachedPocketId)
@@ -454,7 +458,7 @@ export class ModeAwareProcessor {
         const conversation = await indexedDBManager.getConversation(
           request.conversationId,
         );
-        let attachedPocketIds = conversation?.attachedPocketIds || [];
+        const attachedPocketIds = conversation?.attachedPocketIds || [];
         if (
           conversation?.attachedPocketId &&
           !attachedPocketIds.includes(conversation.attachedPocketId)

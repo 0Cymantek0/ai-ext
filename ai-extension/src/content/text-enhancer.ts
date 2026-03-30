@@ -328,7 +328,10 @@ class UniversalTextEnhancer {
       const result = await chrome.storage.local.get("customPresets");
       if (result.customPresets && Array.isArray(result.customPresets)) {
         this.customPresets = result.customPresets;
-        console.info("[TextEnhancer] Custom presets loaded", this.customPresets);
+        console.info(
+          "[TextEnhancer] Custom presets loaded",
+          this.customPresets,
+        );
       }
     } catch (error) {
       console.error("[TextEnhancer] Failed to load custom presets", error);
@@ -364,7 +367,7 @@ class UniversalTextEnhancer {
     }
 
     const words = promptValue.split(/\s+/);
-    
+
     if (words.length === 1) {
       // Single word: use it as both name and prompt
       this.addCustomPreset(promptValue, promptValue, "✨");
@@ -400,7 +403,9 @@ class UniversalTextEnhancer {
       animation: slideDown 0.3s ease;
     `;
 
-    const wrapper = this.customPromptInputRef.closest(".ai-pocket-custom-prompt-wrapper") as HTMLElement;
+    const wrapper = this.customPromptInputRef.closest(
+      ".ai-pocket-custom-prompt-wrapper",
+    ) as HTMLElement;
     if (wrapper) {
       wrapper.style.position = "relative";
       wrapper.appendChild(messageEl);
@@ -602,7 +607,10 @@ class UniversalTextEnhancer {
   /**
    * Show custom delete confirmation modal
    */
-  private showDeleteConfirmModal(presetName: string, onConfirm: () => void): void {
+  private showDeleteConfirmModal(
+    presetName: string,
+    onConfirm: () => void,
+  ): void {
     const overlay = document.createElement("div");
     overlay.className = "ai-pocket-preset-modal-overlay";
     overlay.style.cssText = `
@@ -2848,10 +2856,7 @@ class UniversalTextEnhancer {
               node.textContent = translatedText;
             }
           } catch (error) {
-            console.error(
-              "[TextEnhancer] Failed to translate node:",
-              error,
-            );
+            console.error("[TextEnhancer] Failed to translate node:", error);
             // Continue with next node
           }
         }
@@ -2869,35 +2874,31 @@ class UniversalTextEnhancer {
    */
   private getTextNodes(element: Node): Text[] {
     const textNodes: Text[] = [];
-    const walker = document.createTreeWalker(
-      element,
-      NodeFilter.SHOW_TEXT,
-      {
-        acceptNode: (node) => {
-          // Skip script, style, and other non-visible elements
-          const parent = node.parentElement;
-          if (!parent) return NodeFilter.FILTER_REJECT;
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        // Skip script, style, and other non-visible elements
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
 
-          const tagName = parent.tagName.toLowerCase();
-          if (
-            tagName === "script" ||
-            tagName === "style" ||
-            tagName === "noscript" ||
-            tagName === "iframe"
-          ) {
-            return NodeFilter.FILTER_REJECT;
-          }
+        const tagName = parent.tagName.toLowerCase();
+        if (
+          tagName === "script" ||
+          tagName === "style" ||
+          tagName === "noscript" ||
+          tagName === "iframe"
+        ) {
+          return NodeFilter.FILTER_REJECT;
+        }
 
-          // Skip empty or whitespace-only nodes
-          const text = node.textContent?.trim();
-          if (!text || text.length === 0) {
-            return NodeFilter.FILTER_REJECT;
-          }
+        // Skip empty or whitespace-only nodes
+        const text = node.textContent?.trim();
+        if (!text || text.length === 0) {
+          return NodeFilter.FILTER_REJECT;
+        }
 
-          return NodeFilter.FILTER_ACCEPT;
-        },
+        return NodeFilter.FILTER_ACCEPT;
       },
-    );
+    });
 
     let node;
     while ((node = walker.nextNode())) {
@@ -2931,7 +2932,9 @@ class UniversalTextEnhancer {
     dragHandle.appendChild(dragIndicator);
 
     // Add drag event listeners
-    dragHandle.addEventListener("mousedown", (e) => this.handleDragStart(e, menu));
+    dragHandle.addEventListener("mousedown", (e) =>
+      this.handleDragStart(e, menu),
+    );
 
     menu.appendChild(dragHandle);
 
@@ -2988,7 +2991,7 @@ class UniversalTextEnhancer {
     customPromptInput.setAttribute("placeholder", "prompt for enhance");
     customPromptInput.setAttribute("rows", "1");
     customPromptInput.setAttribute("aria-label", "Custom enhancement prompt");
-    
+
     // Store reference for preset saving
     this.customPromptInputRef = customPromptInput;
 
@@ -3043,7 +3046,11 @@ class UniversalTextEnhancer {
 
     // Add custom presets
     this.customPresets.forEach((option, index) => {
-      const optionButton = this.createPresetButton(option, presetOptions.length + index, true);
+      const optionButton = this.createPresetButton(
+        option,
+        presetOptions.length + index,
+        true,
+      );
       presetsGrid.appendChild(optionButton);
     });
 

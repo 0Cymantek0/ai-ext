@@ -177,7 +177,7 @@ function openVectorDB(): Promise<IDBDatabase> {
       // Note: This upgrade handler is minimal since the main database managers
       // (IndexedDBManager and DatabaseManager) handle the full schema creation.
       // This is only used for reading vector chunks during export.
-      
+
       // Create vectorChunks object store if it doesn't exist (version 2)
       if (!db.objectStoreNames.contains("vectorChunks")) {
         const store = db.createObjectStore("vectorChunks", { keyPath: "id" });

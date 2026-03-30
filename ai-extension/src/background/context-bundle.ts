@@ -293,17 +293,19 @@ export class ContextBundleBuilder {
     // Emit context gathering complete event
     if (options.conversationId) {
       try {
-        chrome.runtime.sendMessage({
-          kind: "CONTEXT_PROGRESS",
-          requestId: crypto.randomUUID(),
-          payload: {
-            type: "CONTEXT_GATHERING_COMPLETE",
-            conversationId: options.conversationId,
-            data: {
-              signals: bundle.signals,
+        chrome.runtime
+          .sendMessage({
+            kind: "CONTEXT_PROGRESS",
+            requestId: crypto.randomUUID(),
+            payload: {
+              type: "CONTEXT_GATHERING_COMPLETE",
+              conversationId: options.conversationId,
+              data: {
+                signals: bundle.signals,
+              },
             },
-          },
-        }).catch(() => {});
+          })
+          .catch(() => {});
       } catch (error) {}
     }
 
@@ -562,29 +564,37 @@ export class ContextBundleBuilder {
     remainingTokens: number,
   ): Promise<number> {
     if (!this.preferences.page) {
-      logger.info("ContextBundleBuilder", "Page context disabled in preferences");
+      logger.info(
+        "ContextBundleBuilder",
+        "Page context disabled in preferences",
+      );
       return remainingTokens;
     }
 
     // Emit page context started event
     if (options.conversationId) {
       try {
-        chrome.runtime.sendMessage({
-          kind: "CONTEXT_PROGRESS",
-          requestId: crypto.randomUUID(),
-          payload: {
-            type: "PAGE_CONTEXT_STARTED",
-            conversationId: options.conversationId,
-          },
-        }).catch(() => {});
+        chrome.runtime
+          .sendMessage({
+            kind: "CONTEXT_PROGRESS",
+            requestId: crypto.randomUUID(),
+            payload: {
+              type: "PAGE_CONTEXT_STARTED",
+              conversationId: options.conversationId,
+            },
+          })
+          .catch(() => {});
       } catch (error) {}
     }
 
     try {
       logger.info("ContextBundleBuilder", "Collecting page context directly");
-      
+
       // Get the active tab directly instead of using message passing
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       if (!tab || !tab.id) {
         logger.warn("ContextBundleBuilder", "No active tab found");
         return remainingTokens;
@@ -599,97 +609,124 @@ export class ContextBundleBuilder {
             title: document.title,
             url: window.location.href,
             domain: window.location.hostname,
-            contextType: "general" as const
+            contextType: "general" as const,
           };
 
           // Try to get meta description
           const metaDesc = document.querySelector('meta[name="description"]');
-          const metaDescContent = metaDesc?.getAttribute('content');
+          const metaDescContent = metaDesc?.getAttribute("content");
           if (metaDescContent) {
             pageContext.metaDescription = metaDescContent;
           }
 
           // Try to get meta keywords
           const metaKeywords = document.querySelector('meta[name="keywords"]');
-          const metaKeywordsContent = metaKeywords?.getAttribute('content');
+          const metaKeywordsContent = metaKeywords?.getAttribute("content");
           if (metaKeywordsContent) {
-            pageContext.metaKeywords = metaKeywordsContent.split(',').map((k: string) => k.trim());
+            pageContext.metaKeywords = metaKeywordsContent
+              .split(",")
+              .map((k: string) => k.trim());
           }
 
           // Extract main headings (H1, H2)
           const headings: string[] = [];
-          const h1Elements = document.querySelectorAll('h1');
-          const h2Elements = document.querySelectorAll('h2');
-          
-          h1Elements.forEach(h => {
+          const h1Elements = document.querySelectorAll("h1");
+          const h2Elements = document.querySelectorAll("h2");
+
+          h1Elements.forEach((h) => {
             const text = h.textContent?.trim();
             if (text && text.length > 0 && text.length < 200) {
               headings.push(text);
             }
           });
-          
-          h2Elements.forEach(h => {
+
+          h2Elements.forEach((h) => {
             const text = h.textContent?.trim();
-            if (text && text.length > 0 && text.length < 200 && headings.length < 10) {
+            if (
+              text &&
+              text.length > 0 &&
+              text.length < 200 &&
+              headings.length < 10
+            ) {
               headings.push(text);
             }
           });
-          
+
           if (headings.length > 0) {
             pageContext.headings = headings;
           }
 
           // Extract main content intelligently
-          let mainContent = '';
-          
+          let mainContent = "";
+
           // Try to find main content area
-          const mainElement = document.querySelector('main, article, [role="main"], .main-content, #main-content, #content');
-          
+          const mainElement = document.querySelector(
+            'main, article, [role="main"], .main-content, #main-content, #content',
+          );
+
           if (mainElement) {
             // Get text from main element, excluding scripts and styles
             const clone = mainElement.cloneNode(true) as HTMLElement;
-            clone.querySelectorAll('script, style, nav, header, footer, aside').forEach(el => el.remove());
-            mainContent = clone.textContent || '';
+            clone
+              .querySelectorAll("script, style, nav, header, footer, aside")
+              .forEach((el) => el.remove());
+            mainContent = clone.textContent || "";
           } else {
             // Fallback: get body text
             const bodyClone = document.body.cloneNode(true) as HTMLElement;
-            bodyClone.querySelectorAll('script, style, nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]').forEach(el => el.remove());
-            mainContent = bodyClone.textContent || '';
+            bodyClone
+              .querySelectorAll(
+                'script, style, nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]',
+              )
+              .forEach((el) => el.remove());
+            mainContent = bodyClone.textContent || "";
           }
-          
+
           // Clean and truncate main content
           mainContent = mainContent
-            .replace(/\s+/g, ' ')
+            .replace(/\s+/g, " ")
             .trim()
             .substring(0, 2000); // Limit to 2000 characters
-          
+
           if (mainContent.length > 100) {
             pageContext.mainContent = mainContent;
           }
 
           // Detect page type
-          const ogType = document.querySelector('meta[property="og:type"]')?.getAttribute('content');
+          const ogType = document
+            .querySelector('meta[property="og:type"]')
+            ?.getAttribute("content");
           if (ogType) {
             pageContext.pageType = ogType;
           } else {
             // Infer from structure
-            if (document.querySelector('article')) {
-              pageContext.pageType = 'article';
-            } else if (document.querySelector('form[role="search"], input[type="search"]')) {
-              pageContext.pageType = 'search';
-            } else if (document.querySelector('.product, [itemtype*="Product"]')) {
-              pageContext.pageType = 'product';
+            if (document.querySelector("article")) {
+              pageContext.pageType = "article";
+            } else if (
+              document.querySelector(
+                'form[role="search"], input[type="search"]',
+              )
+            ) {
+              pageContext.pageType = "search";
+            } else if (
+              document.querySelector('.product, [itemtype*="Product"]')
+            ) {
+              pageContext.pageType = "product";
             }
           }
 
           // Get page language
-          const lang = document.documentElement.lang || document.querySelector('meta[http-equiv="content-language"]')?.getAttribute('content');
+          const lang =
+            document.documentElement.lang ||
+            document
+              .querySelector('meta[http-equiv="content-language"]')
+              ?.getAttribute("content");
           if (lang) {
             pageContext.language = lang;
           }
 
           return pageContext;
-        }
+        },
       });
 
       if (!results || !results[0] || !results[0].result) {
@@ -698,13 +735,17 @@ export class ContextBundleBuilder {
       }
 
       const context = results[0].result;
-      
-      logger.info("ContextBundleBuilder", "Page context collected successfully", {
-        title: context.title,
-        hasMainContent: !!context.mainContent,
-        headingsCount: context.headings?.length || 0,
-      });
-      
+
+      logger.info(
+        "ContextBundleBuilder",
+        "Page context collected successfully",
+        {
+          title: context.title,
+          hasMainContent: !!context.mainContent,
+          headingsCount: context.headings?.length || 0,
+        },
+      );
+
       if (context) {
         const pageContext: PageContext = {
           title: context.title,
@@ -723,9 +764,9 @@ export class ContextBundleBuilder {
         const contentForTokens = [
           pageContext.title,
           pageContext.metaDescription || "",
-          pageContext.headings?.join(' ') || "",
-          pageContext.mainContent || ""
-        ].join(' ');
+          pageContext.headings?.join(" ") || "",
+          pageContext.mainContent || "",
+        ].join(" ");
 
         const pageTokens = this.estimateTokens(contentForTokens);
 
@@ -747,21 +788,27 @@ export class ContextBundleBuilder {
           // Emit page context complete event
           if (options.conversationId) {
             try {
-              chrome.runtime.sendMessage({
-                kind: "CONTEXT_PROGRESS",
-                requestId: crypto.randomUUID(),
-                payload: {
-                  type: "PAGE_CONTEXT_COMPLETE",
-                  conversationId: options.conversationId,
-                },
-              }).catch(() => {});
+              chrome.runtime
+                .sendMessage({
+                  kind: "CONTEXT_PROGRESS",
+                  requestId: crypto.randomUUID(),
+                  payload: {
+                    type: "PAGE_CONTEXT_COMPLETE",
+                    conversationId: options.conversationId,
+                  },
+                })
+                .catch(() => {});
             } catch (error) {}
           }
         } else {
-          logger.warn("ContextBundleBuilder", "Page context exceeds token budget", {
-            required: pageTokens,
-            available: remainingTokens,
-          });
+          logger.warn(
+            "ContextBundleBuilder",
+            "Page context exceeds token budget",
+            {
+              required: pageTokens,
+              available: remainingTokens,
+            },
+          );
         }
       }
     } catch (error) {
@@ -788,7 +835,10 @@ export class ContextBundleBuilder {
 
     try {
       // Get the active tab
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       if (!tab || !tab.id) {
         return remainingTokens;
       }
@@ -804,33 +854,36 @@ export class ContextBundleBuilder {
 
           const range = selection.getRangeAt(0);
           const selectedText = range.toString().trim();
-          
+
           if (!selectedText) {
             return null;
           }
 
           // Get surrounding context
           const container = range.commonAncestorContainer;
-          const fullText = container.textContent || '';
+          const fullText = container.textContent || "";
           const offset = fullText.indexOf(selectedText);
-          
-          let surroundingText = '';
+
+          let surroundingText = "";
           if (offset !== -1) {
             const contextRadius = 200;
             const start = Math.max(0, offset - contextRadius);
-            const end = Math.min(fullText.length, offset + selectedText.length + contextRadius);
+            const end = Math.min(
+              fullText.length,
+              offset + selectedText.length + contextRadius,
+            );
             surroundingText = fullText.substring(start, end);
           }
 
           return {
             text: selectedText,
-            surroundingText: surroundingText
+            surroundingText: surroundingText,
           };
-        }
+        },
       });
 
       const context = results?.[0]?.result;
-      
+
       if (context && context.text) {
         const selectionContext: SelectionContext = {
           text: context.text,
@@ -857,7 +910,11 @@ export class ContextBundleBuilder {
         logger.info("ContextBundleBuilder", "No selection available");
       }
     } catch (error) {
-      logger.error("ContextBundleBuilder", "Failed to add selection context", error);
+      logger.error(
+        "ContextBundleBuilder",
+        "Failed to add selection context",
+        error,
+      );
     }
 
     return remainingTokens;
@@ -877,7 +934,10 @@ export class ContextBundleBuilder {
 
     try {
       // Get the active tab
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       if (!tab || !tab.id) {
         return remainingTokens;
       }
@@ -892,32 +952,33 @@ export class ContextBundleBuilder {
           }
 
           const tagName = activeElement.tagName.toLowerCase();
-          const type = (activeElement as HTMLInputElement).type || '';
-          const role = activeElement.getAttribute('role') || undefined;
-          const placeholder = (activeElement as HTMLInputElement).placeholder || undefined;
-          
+          const type = (activeElement as HTMLInputElement).type || "";
+          const role = activeElement.getAttribute("role") || undefined;
+          const placeholder =
+            (activeElement as HTMLInputElement).placeholder || undefined;
+
           // Basic intent detection
-          let intent = '';
-          if (tagName === 'input' || tagName === 'textarea') {
-            if (type === 'search') {
-              intent = 'search';
-            } else if (type === 'email') {
-              intent = 'email';
-            } else if (type === 'password') {
-              intent = 'password';
-            } else if (type === 'tel') {
-              intent = 'phone';
+          let intent = "";
+          if (tagName === "input" || tagName === "textarea") {
+            if (type === "search") {
+              intent = "search";
+            } else if (type === "email") {
+              intent = "email";
+            } else if (type === "password") {
+              intent = "password";
+            } else if (type === "tel") {
+              intent = "phone";
             } else if (placeholder) {
-              if (placeholder.toLowerCase().includes('search')) {
-                intent = 'search';
-              } else if (placeholder.toLowerCase().includes('email')) {
-                intent = 'email';
-              } else if (placeholder.toLowerCase().includes('message')) {
-                intent = 'message';
+              if (placeholder.toLowerCase().includes("search")) {
+                intent = "search";
+              } else if (placeholder.toLowerCase().includes("email")) {
+                intent = "email";
+              } else if (placeholder.toLowerCase().includes("message")) {
+                intent = "message";
               }
             }
-          } else if (tagName === 'select') {
-            intent = 'selection';
+          } else if (tagName === "select") {
+            intent = "selection";
           }
 
           return {
@@ -925,13 +986,13 @@ export class ContextBundleBuilder {
             type,
             role,
             placeholder,
-            intent
+            intent,
           };
-        }
+        },
       });
 
       const context = results?.[0]?.result;
-      
+
       if (context) {
         const inputContext: InputContext = {
           tagName: context.tagName,
@@ -962,7 +1023,11 @@ export class ContextBundleBuilder {
         logger.info("ContextBundleBuilder", "No input context available");
       }
     } catch (error) {
-      logger.error("ContextBundleBuilder", "Failed to add input context", error);
+      logger.error(
+        "ContextBundleBuilder",
+        "Failed to add input context",
+        error,
+      );
     }
 
     return remainingTokens;
@@ -980,25 +1045,40 @@ export class ContextBundleBuilder {
       // Get tabs directly
       const tabs = await chrome.tabs.query({});
       const maxTabs = 6;
-      
+
       // Filter and map tabs
       const tabContexts: TabContext[] = tabs
-        .filter(tab => tab.url && tab.title && !tab.url.startsWith('chrome://'))
+        .filter(
+          (tab) => tab.url && tab.title && !tab.url.startsWith("chrome://"),
+        )
         .slice(0, maxTabs)
-        .map(tab => {
+        .map((tab) => {
           const url = new URL(tab.url!);
           const domain = url.hostname;
-          
+
           // Basic context type detection
-          let contextType: "general" | "sensitive" | "work" | "social" = "general";
-          if (domain.includes('bank') || domain.includes('health') || domain.includes('gov')) {
+          let contextType: "general" | "sensitive" | "work" | "social" =
+            "general";
+          if (
+            domain.includes("bank") ||
+            domain.includes("health") ||
+            domain.includes("gov")
+          ) {
             contextType = "sensitive";
-          } else if (domain.includes('work') || domain.includes('company') || domain.includes('office')) {
+          } else if (
+            domain.includes("work") ||
+            domain.includes("company") ||
+            domain.includes("office")
+          ) {
             contextType = "work";
-          } else if (domain.includes('social') || domain.includes('twitter') || domain.includes('facebook')) {
+          } else if (
+            domain.includes("social") ||
+            domain.includes("twitter") ||
+            domain.includes("facebook")
+          ) {
             contextType = "social";
           }
-          
+
           return {
             title: tab.title!,
             url: tab.url!,
@@ -1007,20 +1087,20 @@ export class ContextBundleBuilder {
           };
         });
 
-        // Estimate tokens for tabs (rough approximation)
-        const tabsTokens = tabContexts.length * 50; // ~50 tokens per tab
+      // Estimate tokens for tabs (rough approximation)
+      const tabsTokens = tabContexts.length * 50; // ~50 tokens per tab
 
-        if (tabsTokens <= remainingTokens) {
-          bundle.tabs = tabContexts;
-          bundle.signals.push("tabs");
-          remainingTokens -= tabsTokens;
-          bundle.totalTokens += tabsTokens;
+      if (tabsTokens <= remainingTokens) {
+        bundle.tabs = tabContexts;
+        bundle.signals.push("tabs");
+        remainingTokens -= tabsTokens;
+        bundle.totalTokens += tabsTokens;
 
-          logger.info("ContextBundleBuilder", "Added tabs context", {
-            tabsCount: tabContexts.length,
-            tokensUsed: tabsTokens,
-          });
-        }
+        logger.info("ContextBundleBuilder", "Added tabs context", {
+          tabsCount: tabContexts.length,
+          tokensUsed: tabsTokens,
+        });
+      }
     } catch (error) {
       logger.error("ContextBundleBuilder", "Failed to add tabs context", error);
     }
@@ -1056,20 +1136,19 @@ export class ContextBundleBuilder {
 
       if (searchResponse.results.length > 0) {
         // Convert search results to context format
-        const tabSearchContexts: TabSearchContext[] = searchResponse.results.map(
-          (result) => ({
+        const tabSearchContexts: TabSearchContext[] =
+          searchResponse.results.map((result) => ({
             tabId: result.tabId,
             url: result.url,
             title: result.title,
             snippet: result.snippet,
             relevanceScore: (result.score || 0) / 100, // Normalize to 0-1
-          })
-        );
+          }));
 
         // Estimate tokens for search results
         const searchTokens = tabSearchContexts.reduce(
           (sum, ctx) => sum + this.estimateTokens(ctx.snippet + ctx.title),
-          0
+          0,
         );
 
         if (searchTokens <= remainingTokens) {
@@ -1085,15 +1164,23 @@ export class ContextBundleBuilder {
             searchedTabs: searchResponse.searchedTabs,
           });
         } else {
-          logger.warn("ContextBundleBuilder", "Tab search results exceed token budget", {
-            required: searchTokens,
-            available: remainingTokens,
-          });
+          logger.warn(
+            "ContextBundleBuilder",
+            "Tab search results exceed token budget",
+            {
+              required: searchTokens,
+              available: remainingTokens,
+            },
+          );
         }
       } else {
-        logger.info("ContextBundleBuilder", "No relevant content found in tabs", {
-          searchedTabs: searchResponse.searchedTabs,
-        });
+        logger.info(
+          "ContextBundleBuilder",
+          "No relevant content found in tabs",
+          {
+            searchedTabs: searchResponse.searchedTabs,
+          },
+        );
       }
     } catch (error) {
       logger.error("ContextBundleBuilder", "Failed to add tab search context", {
@@ -1223,28 +1310,28 @@ export function serializeContextBundle(
     parts.push(`- Page Title: ${bundle.page.title}`);
     parts.push(`- URL: ${bundle.page.url}`);
     parts.push(`- Domain: ${bundle.page.domain}`);
-    
+
     if (bundle.page.pageType) {
       parts.push(`- Type: ${bundle.page.pageType}`);
     }
-    
+
     if (bundle.page.language) {
       parts.push(`- Language: ${bundle.page.language}`);
     }
-    
+
     if (bundle.page.metaDescription) {
       parts.push(`- Description: ${bundle.page.metaDescription}`);
     }
-    
+
     if (bundle.page.metaKeywords && bundle.page.metaKeywords.length > 0) {
-      parts.push(`- Keywords: ${bundle.page.metaKeywords.join(', ')}`);
+      parts.push(`- Keywords: ${bundle.page.metaKeywords.join(", ")}`);
     }
-    
+
     if (bundle.page.headings && bundle.page.headings.length > 0) {
       parts.push(`\n### Main Headings on Page:`);
-      parts.push(bundle.page.headings.slice(0, 5).join(' | '));
+      parts.push(bundle.page.headings.slice(0, 5).join(" | "));
     }
-    
+
     if (bundle.page.mainContent) {
       parts.push(`\n### Page Content Excerpt:`);
       parts.push(bundle.page.mainContent);
@@ -1337,15 +1424,15 @@ export function serializeContextBundle(
   if (bundle.tabSearch && bundle.tabSearch.length > 0) {
     parts.push(`\n## Relevant Content from Open Tabs`);
     parts.push(
-      `Found ${bundle.tabSearch.length} tab(s) with content relevant to your query:`
+      `Found ${bundle.tabSearch.length} tab(s) with content relevant to your query:`,
     );
 
     for (let i = 0; i < bundle.tabSearch.length; i++) {
       const result = bundle.tabSearch[i];
       if (!result) continue;
-      
+
       parts.push(
-        `\n### Tab ${i + 1}: ${result.title} (Relevance: ${(result.relevanceScore * 100).toFixed(0)}%)`
+        `\n### Tab ${i + 1}: ${result.title} (Relevance: ${(result.relevanceScore * 100).toFixed(0)}%)`,
       );
       parts.push(`URL: ${result.url}`);
       parts.push(`Content excerpt: ${result.snippet}`);

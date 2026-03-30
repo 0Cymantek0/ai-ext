@@ -31,15 +31,9 @@ export type {
   FileArchiveDescriptor,
 } from "./content.js";
 
-export {
-  ContentType,
-  ProcessingStatus,
-} from "./content.js";
+export { ContentType, ProcessingStatus } from "./content.js";
 
-export type {
-  StorageTier,
-  ArchiveCompression,
-} from "./content.js";
+export type { StorageTier, ArchiveCompression } from "./content.js";
 
 // Storage interfaces
 export type {
@@ -64,9 +58,7 @@ export type {
   EmbeddingRecord,
 } from "./storage-interfaces.js";
 
-export {
-  StorageErrorType,
-} from "./storage-interfaces.js";
+export { StorageErrorType } from "./storage-interfaces.js";
 
 // Search interfaces
 export type {

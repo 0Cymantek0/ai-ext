@@ -603,14 +603,14 @@ export class CloudAIManager {
 
   /**
    * Generate image using Gemini 2.5 Flash Image model
-   * 
+   *
    * @param prompt Text prompt for image generation
    * @param options Processing options including aspect ratio
    * @returns Base64 encoded image data URL
    */
   async generateImage(
     prompt: string,
-    options?: CloudProcessingOptions & { aspectRatio?: string }
+    options?: CloudProcessingOptions & { aspectRatio?: string },
   ): Promise<string | null> {
     if (!this.isAvailable()) {
       throw new Error("Cloud AI Manager not initialized");
@@ -620,7 +620,7 @@ export class CloudAIManager {
 
     try {
       const model = this.getModel(GeminiModel.FLASH_IMAGE);
-      
+
       const config: any = {
         temperature: options?.temperature ?? 0.9,
         maxOutputTokens: options?.maxOutputTokens ?? 1000,
@@ -629,7 +629,7 @@ export class CloudAIManager {
       // Add aspect ratio if specified
       if (options?.aspectRatio) {
         config.imageConfig = {
-          aspectRatio: options.aspectRatio
+          aspectRatio: options.aspectRatio,
         };
       }
 
@@ -639,15 +639,15 @@ export class CloudAIManager {
       });
 
       const response = result.response;
-      
+
       // Extract image data from response
       for (const candidate of response.candidates || []) {
         for (const part of candidate.content.parts) {
           if (part.inlineData) {
             const imageData = part.inlineData.data;
-            const mimeType = part.inlineData.mimeType || 'image/png';
+            const mimeType = part.inlineData.mimeType || "image/png";
             const dataUrl = `data:${mimeType};base64,${imageData}`;
-            
+
             // Record operation
             aiPerformanceMonitor.recordOperation({
               timestamp: Date.now(),
@@ -655,9 +655,9 @@ export class CloudAIManager {
               model: AIModel.GEMINI_FLASH,
               operation: AIOperation.GENERATE_IMAGE,
               responseTime: Date.now() - startTime,
-              tokensUsed: 1290 // Fixed token count for image generation
+              tokensUsed: 1290, // Fixed token count for image generation
             });
-            
+
             return dataUrl;
           }
         }
@@ -670,9 +670,9 @@ export class CloudAIManager {
         model: AIModel.GEMINI_FLASH,
         operation: AIOperation.GENERATE_IMAGE,
         responseTime: Date.now() - startTime,
-        tokensUsed: 0
+        tokensUsed: 0,
       });
-      
+
       return null;
     } catch (error) {
       // Record failed operation
@@ -682,9 +682,9 @@ export class CloudAIManager {
         model: AIModel.GEMINI_FLASH,
         operation: AIOperation.GENERATE_IMAGE,
         responseTime: Date.now() - startTime,
-        tokensUsed: 0
+        tokensUsed: 0,
       });
-      
+
       console.error("Image generation failed:", error);
       throw error;
     }

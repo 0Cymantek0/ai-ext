@@ -168,7 +168,11 @@ export class FullContentLoader {
     const storage = normalizeStorageReference(captured.metadata);
 
     if (storage.tier === "filesystem") {
-      const resolved = await this.loadFromFilesystem(contentId, captured, storage);
+      const resolved = await this.loadFromFilesystem(
+        contentId,
+        captured,
+        storage,
+      );
       this.setCache(contentId, resolved);
       return resolved;
     }
@@ -177,7 +181,12 @@ export class FullContentLoader {
     const availability = hasContentPayload(captured.content)
       ? "full"
       : "unavailable";
-    const result = this.createFullContent(captured, storage, payload, availability);
+    const result = this.createFullContent(
+      captured,
+      storage,
+      payload,
+      availability,
+    );
     this.setCache(contentId, result);
     return result;
   }
@@ -244,7 +253,13 @@ export class FullContentLoader {
       );
       const fallback = this.extractFallback(captured, storage);
       const availability = fallback != null ? "partial" : "unavailable";
-      return this.createFullContent(captured, storage, fallback, availability, error);
+      return this.createFullContent(
+        captured,
+        storage,
+        fallback,
+        availability,
+        error,
+      );
     }
 
     if (!this.filesystem) {
@@ -260,7 +275,13 @@ export class FullContentLoader {
       );
       const fallback = this.extractFallback(captured, storage);
       const availability = fallback != null ? "partial" : "unavailable";
-      return this.createFullContent(captured, storage, fallback, availability, error);
+      return this.createFullContent(
+        captured,
+        storage,
+        fallback,
+        availability,
+        error,
+      );
     }
 
     let hasAccess: boolean;
@@ -279,7 +300,13 @@ export class FullContentLoader {
       );
       const fallback = this.extractFallback(captured, storage);
       const availability = fallback != null ? "partial" : "unavailable";
-      return this.createFullContent(captured, storage, fallback, availability, error);
+      return this.createFullContent(
+        captured,
+        storage,
+        fallback,
+        availability,
+        error,
+      );
     }
 
     if (!hasAccess) {
@@ -295,7 +322,13 @@ export class FullContentLoader {
       );
       const fallback = this.extractFallback(captured, storage);
       const availability = fallback != null ? "partial" : "unavailable";
-      return this.createFullContent(captured, storage, fallback, availability, error);
+      return this.createFullContent(
+        captured,
+        storage,
+        fallback,
+        availability,
+        error,
+      );
     }
 
     try {
@@ -314,7 +347,13 @@ export class FullContentLoader {
       );
       const fallback = this.extractFallback(captured, storage);
       const availability = fallback != null ? "partial" : "unavailable";
-      return this.createFullContent(captured, storage, fallback, availability, error);
+      return this.createFullContent(
+        captured,
+        storage,
+        fallback,
+        availability,
+        error,
+      );
     }
   }
 
@@ -327,7 +366,9 @@ export class FullContentLoader {
   ): FullContent {
     const storageCopy: FullContentStorage = {
       tier: storage.tier,
-      ...(storage.archive ? { archive: cloneArchiveDescriptor(storage.archive) } : {}),
+      ...(storage.archive
+        ? { archive: cloneArchiveDescriptor(storage.archive) }
+        : {}),
       ...(storage.fallbackPreview
         ? { fallbackPreview: storage.fallbackPreview }
         : {}),
@@ -367,7 +408,8 @@ export class FullContentLoader {
       return storage.fallbackPreview;
     }
 
-    const metadata = captured.metadata as ContentMetadata & Record<string, unknown>;
+    const metadata = captured.metadata as ContentMetadata &
+      Record<string, unknown>;
 
     const fallbackCandidate = [
       metadata.fallbackPreview,
@@ -386,7 +428,10 @@ export class FullContentLoader {
       return captured.content;
     }
 
-    if (captured.content instanceof ArrayBuffer && captured.content.byteLength > 0) {
+    if (
+      captured.content instanceof ArrayBuffer &&
+      captured.content.byteLength > 0
+    ) {
       return captured.content;
     }
 
@@ -503,7 +548,8 @@ function normalizeStorageReference(
       | undefined;
 
     const reason =
-      typeof storageRecord.reason === "string" && storageRecord.reason.length > 0
+      typeof storageRecord.reason === "string" &&
+      storageRecord.reason.length > 0
         ? storageRecord.reason
         : undefined;
 
@@ -515,8 +561,8 @@ function normalizeStorageReference(
       ...(storageFallback
         ? { fallbackPreview: storageFallback }
         : metadataFallback
-        ? { fallbackPreview: metadataFallback }
-        : {}),
+          ? { fallbackPreview: metadataFallback }
+          : {}),
       ...(reason ? { reason } : {}),
     };
   }
@@ -530,7 +576,11 @@ function normalizeStorageReference(
 function normalizeStorageTier(value: unknown): StorageTier {
   if (typeof value === "string") {
     const normalized = value.toLowerCase();
-    if (normalized === "filesystem" || normalized === "fs" || normalized === "archive") {
+    if (
+      normalized === "filesystem" ||
+      normalized === "fs" ||
+      normalized === "archive"
+    ) {
       return "filesystem";
     }
   }

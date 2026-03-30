@@ -147,7 +147,11 @@ function calculateRetryDelay(
 /**
  * Check if status code should trigger retry
  */
-function shouldRetry(status: number, attempt: number, maxRetries: number): boolean {
+function shouldRetry(
+  status: number,
+  attempt: number,
+  maxRetries: number,
+): boolean {
   if (attempt >= maxRetries) {
     return false;
   }
@@ -179,7 +183,10 @@ class ApiRequestError extends Error {
   status: number | undefined;
   retryable: boolean;
 
-  constructor(message: string, options: { status?: number; retryable?: boolean } = {}) {
+  constructor(
+    message: string,
+    options: { status?: number; retryable?: boolean } = {},
+  ) {
     super(message);
     this.name = "ApiRequestError";
     this.status = options.status ?? undefined;
@@ -205,12 +212,19 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-function hasHeader(headers: Record<string, string>, name: string): string | undefined {
+function hasHeader(
+  headers: Record<string, string>,
+  name: string,
+): string | undefined {
   const target = name.toLowerCase();
   return Object.keys(headers).find((key) => key.toLowerCase() === target);
 }
 
-function setHeader(headers: Record<string, string>, name: string, value: string): void {
+function setHeader(
+  headers: Record<string, string>,
+  name: string,
+  value: string,
+): void {
   const existing = hasHeader(headers, name);
   if (existing) {
     headers[existing] = value;
@@ -274,7 +288,9 @@ function serializeRequestBody(
 /**
  * Parse response body based on content type
  */
-async function parseResponseBody(response: Response): Promise<ParsedResponseBody> {
+async function parseResponseBody(
+  response: Response,
+): Promise<ParsedResponseBody> {
   const contentTypeRaw = response.headers.get("content-type") || "";
   const contentType = contentTypeRaw.toLowerCase();
 
@@ -384,7 +400,8 @@ async function executeInPageContext(
         // Parse response body
         const contentType = response.headers.get("content-type") || "";
         let parsedBody: any;
-        let bodyType: "json" | "text" | "arrayBuffer" | "blob" | "unknown" = "unknown";
+        let bodyType: "json" | "text" | "arrayBuffer" | "blob" | "unknown" =
+          "unknown";
 
         if (contentType.includes("application/json")) {
           try {
@@ -469,7 +486,11 @@ async function executeInServiceWorker(
     credentials: "include",
   };
 
-  const serializedBody = serializeRequestBody(options.body, headers, options.method);
+  const serializedBody = serializeRequestBody(
+    options.body,
+    headers,
+    options.method,
+  );
   if (serializedBody !== undefined) {
     fetchOptions.body = serializedBody;
   }
@@ -526,7 +547,10 @@ async function executeInServiceWorker(
 /**
  * Validate response against schema
  */
-function validateResponse<T>(response: ApiResponse, schema?: ZodSchema<T>): ApiResponse<T> {
+function validateResponse<T>(
+  response: ApiResponse,
+  schema?: ZodSchema<T>,
+): ApiResponse<T> {
   if (!schema) {
     return response as ApiResponse<T>;
   }
@@ -560,7 +584,8 @@ export async function apiRequest<T = any>(
     exponentialBackoff: options.retryConfig?.exponentialBackoff ?? true,
   };
 
-  const validateStatus = options.validateStatus || ((status) => status >= 200 && status < 300);
+  const validateStatus =
+    options.validateStatus || ((status) => status >= 200 && status < 300);
 
   let lastError: Error | null = null;
   let retryCount = 0;
@@ -573,7 +598,11 @@ export async function apiRequest<T = any>(
       // Execute request
       let response: ApiResponse;
       if (options.usePageContext && options.tabId) {
-        response = await executeInPageContext(options, authToken, options.tabId);
+        response = await executeInPageContext(
+          options,
+          authToken,
+          options.tabId,
+        );
       } else {
         response = await executeInServiceWorker(options, authToken);
       }
@@ -581,12 +610,16 @@ export async function apiRequest<T = any>(
       // Check status
       if (!validateStatus(response.status)) {
         // Check if we should retry
-        const canRetry = shouldRetry(response.status, attempt, retryConfig.maxRetries);
-        
+        const canRetry = shouldRetry(
+          response.status,
+          attempt,
+          retryConfig.maxRetries,
+        );
+
         if (canRetry) {
           lastError = new ApiRequestError(
             `Request failed with status ${response.status}: ${response.statusText}`,
-            { status: response.status, retryable: true }
+            { status: response.status, retryable: true },
           );
           retryCount++;
 
@@ -597,7 +630,7 @@ export async function apiRequest<T = any>(
 
         throw new ApiRequestError(
           `Request failed with status ${response.status}: ${response.statusText}`,
-          { status: response.status, retryable: false }
+          { status: response.status, retryable: false },
         );
       }
 
@@ -611,10 +644,14 @@ export async function apiRequest<T = any>(
 
       return validatedResponse;
     } catch (error) {
-      const normalizedError = error instanceof Error ? error : new Error(String(error));
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
       lastError = normalizedError;
 
-      if (normalizedError instanceof ApiRequestError && normalizedError.retryable === false) {
+      if (
+        normalizedError instanceof ApiRequestError &&
+        normalizedError.retryable === false
+      ) {
         throw normalizedError;
       }
 

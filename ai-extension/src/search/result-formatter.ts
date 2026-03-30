@@ -167,20 +167,22 @@ function formatSingleResult<T>(
       )
     : null;
 
-  const thumbnailUrl = options.getThumbnail?.(item) ?? defaultGetThumbnail(item);
-  const accentColor = options.getAccentColor?.(item) ?? defaultGetAccentColor(item);
+  const thumbnailUrl =
+    options.getThumbnail?.(item) ?? defaultGetThumbnail(item);
+  const accentColor =
+    options.getAccentColor?.(item) ?? defaultGetAccentColor(item);
   const timestamp = options.getTimestamp?.(item) ?? defaultGetTimestamp(item);
   const metadata = options.getMetadata?.(item) ?? undefined;
 
   const idCandidate = options.getId?.(item, index) ?? extractId(item);
-  const id = typeof idCandidate === "string" || typeof idCandidate === "number"
-    ? String(idCandidate)
-    : `result-${index}`;
+  const id =
+    typeof idCandidate === "string" || typeof idCandidate === "number"
+      ? String(idCandidate)
+      : `result-${index}`;
 
   const normalized = normalizedScore;
-  const scorePercentage = normalized != null
-    ? Math.round(clamp(normalized, 0, 1) * 100)
-    : null;
+  const scorePercentage =
+    normalized != null ? Math.round(clamp(normalized, 0, 1) * 100) : null;
   const scoreLabel = scorePercentage != null ? `${scorePercentage}%` : null;
 
   const formatted: FormattedSearchResult<T> = {
@@ -296,9 +298,13 @@ function defaultGetSnippet(item: unknown): string | undefined {
     return undefined;
   }
 
-  const genericCandidate = (item as { summary?: unknown; description?: unknown })
-    .summary ?? (item as { summary?: unknown; description?: unknown }).description;
-  if (typeof genericCandidate === "string" && genericCandidate.trim().length > 0) {
+  const genericCandidate =
+    (item as { summary?: unknown; description?: unknown }).summary ??
+    (item as { summary?: unknown; description?: unknown }).description;
+  if (
+    typeof genericCandidate === "string" &&
+    genericCandidate.trim().length > 0
+  ) {
     return stripHtml(genericCandidate);
   }
 
@@ -489,7 +495,9 @@ function highlightSegments(
   return mergeAdjacentSegments(segments);
 }
 
-function mergeAdjacentSegments(segments: HighlightSegment[]): HighlightSegment[] {
+function mergeAdjacentSegments(
+  segments: HighlightSegment[],
+): HighlightSegment[] {
   if (segments.length <= 1) {
     return segments;
   }
@@ -523,7 +531,10 @@ function computeNormalizedScores<T>(
 ): Array<number | null> {
   const scores = results
     .map((result) => result.relevanceScore)
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    .filter(
+      (value): value is number =>
+        typeof value === "number" && Number.isFinite(value),
+    );
 
   if (scores.length === 0) {
     return results.map(() => null);
@@ -536,13 +547,13 @@ function computeNormalizedScores<T>(
   const providedMin = options?.minScore;
   const providedMax = options?.maxScore;
 
-  let min =
+  const min =
     typeof providedMin === "number" && Number.isFinite(providedMin)
       ? providedMin
       : dynamic
         ? Math.min(...scores)
         : 0;
-  let max =
+  const max =
     typeof providedMax === "number" && Number.isFinite(providedMax)
       ? providedMax
       : dynamic
@@ -566,7 +577,8 @@ function computeNormalizedScores<T>(
       return results.map(() => 0);
     }
     return results.map((result) =>
-      typeof result.relevanceScore === "number" && Number.isFinite(result.relevanceScore)
+      typeof result.relevanceScore === "number" &&
+      Number.isFinite(result.relevanceScore)
         ? 1
         : null,
     );
@@ -594,7 +606,8 @@ function computeNormalizedScores<T>(
     // match relative to the dataset, unless they are 0.
     const normalizedValue = min === 0 ? 0 : 1;
     return results.map((result) =>
-      typeof result.relevanceScore === "number" && Number.isFinite(result.relevanceScore)
+      typeof result.relevanceScore === "number" &&
+      Number.isFinite(result.relevanceScore)
         ? normalizedValue
         : null,
     );
@@ -657,15 +670,23 @@ function adjustForwardToBoundary(text: string, end: number): number {
   return index;
 }
 
-function buildAriaLabel(kind: "title" | "snippet", segments: HighlightSegment[]): string {
-  const text = segments.map((segment) => segment.text).join("").trim();
+function buildAriaLabel(
+  kind: "title" | "snippet",
+  segments: HighlightSegment[],
+): string {
+  const text = segments
+    .map((segment) => segment.text)
+    .join("")
+    .trim();
   if (!text) {
     return "";
   }
   const highlights = segments
     .filter((segment) => segment.highlight)
     .map((segment) => segment.text.toLowerCase());
-  const uniqueHighlights = [...new Set(highlights)].filter((value) => value.trim().length > 0);
+  const uniqueHighlights = [...new Set(highlights)].filter(
+    (value) => value.trim().length > 0,
+  );
   if (uniqueHighlights.length === 0) {
     return `${capitalize(kind)}: ${text}`;
   }

@@ -10,7 +10,7 @@ interface AISession {
 }
 
 interface AICapabilities {
-  available: 'readily' | 'after-download' | 'no';
+  available: "readily" | "after-download" | "no";
   defaultTemperature?: number;
   defaultTopK?: number;
   maxTopK?: number;
@@ -24,28 +24,28 @@ export class GeminiNanoEngine {
   async initialize(): Promise<boolean> {
     try {
       // Check if Chrome AI is available
-      if (!('ai' in window)) {
-        console.error('Chrome AI not available');
+      if (!("ai" in window)) {
+        console.error("Chrome AI not available");
         return false;
       }
 
       const ai = (window as any).ai;
-      
+
       // Check capabilities
       this.capabilities = await ai.languageModel.capabilities();
-      
+
       if (!this.capabilities) {
-        console.error('Could not get AI capabilities');
-        return false;
-      }
-      
-      if (this.capabilities.available === 'no') {
-        console.error('Gemini Nano not available on this device');
+        console.error("Could not get AI capabilities");
         return false;
       }
 
-      if (this.capabilities.available === 'after-download') {
-        console.log('Downloading Gemini Nano model...');
+      if (this.capabilities.available === "no") {
+        console.error("Gemini Nano not available on this device");
+        return false;
+      }
+
+      if (this.capabilities.available === "after-download") {
+        console.log("Downloading Gemini Nano model...");
         // Model will download in background
       }
 
@@ -58,28 +58,30 @@ export class GeminiNanoEngine {
       this.isInitialized = true;
       return true;
     } catch (error) {
-      console.error('Failed to initialize Gemini Nano:', error);
+      console.error("Failed to initialize Gemini Nano:", error);
       return false;
     }
   }
 
   async generate(prompt: string): Promise<string> {
     if (!this.session) {
-      throw new Error('AI Engine not initialized');
+      throw new Error("AI Engine not initialized");
     }
 
     try {
       const response = await this.session.prompt(prompt);
       return response;
     } catch (error) {
-      console.error('Generation failed:', error);
+      console.error("Generation failed:", error);
       throw error;
     }
   }
 
-  async *generateStreaming(prompt: string): AsyncGenerator<string, void, unknown> {
+  async *generateStreaming(
+    prompt: string,
+  ): AsyncGenerator<string, void, unknown> {
     if (!this.session) {
-      throw new Error('AI Engine not initialized');
+      throw new Error("AI Engine not initialized");
     }
 
     try {
@@ -90,12 +92,12 @@ export class GeminiNanoEngine {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value, { stream: true });
         yield chunk;
       }
     } catch (error) {
-      console.error('Streaming generation failed:', error);
+      console.error("Streaming generation failed:", error);
       throw error;
     }
   }

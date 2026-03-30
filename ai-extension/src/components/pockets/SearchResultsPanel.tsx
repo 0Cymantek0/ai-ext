@@ -4,7 +4,10 @@ import { motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import type { PocketData } from "./PocketCard";
 import type { CapturedContent } from "@/background/indexeddb-manager";
-import { formatSearchResults, type FormattedSearchResult } from "@/search/result-formatter";
+import {
+  formatSearchResults,
+  type FormattedSearchResult,
+} from "@/search/result-formatter";
 
 type PocketResult = {
   item: PocketData;
@@ -64,9 +67,9 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
   if (!open) return null;
 
   const isPockets = props.kind === "pockets";
-  
+
   // Format search results using the result formatter with proper typing
-  const formattedResults = isPockets 
+  const formattedResults = isPockets
     ? formatSearchResults(props.results as PocketResult[], { query })
     : formatSearchResults(props.results as ContentResult[], { query });
 
@@ -170,7 +173,9 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
           {isPockets ? (
             <PocketResultsList
               results={(props as PocketResultsProps).results}
-              formattedResults={formattedResults as FormattedSearchResult<PocketData>[]}
+              formattedResults={
+                formattedResults as FormattedSearchResult<PocketData>[]
+              }
               onSelect={(p) =>
                 (props as PocketResultsProps).onSelectPocket?.(p)
               }
@@ -178,7 +183,9 @@ export function SearchResultsPanel(props: SearchResultsPanelProps) {
           ) : (
             <ContentResultsList
               results={(props as ContentResultsProps).results}
-              formattedResults={formattedResults as FormattedSearchResult<CapturedContent>[]}
+              formattedResults={
+                formattedResults as FormattedSearchResult<CapturedContent>[]
+              }
               onSelect={(c) =>
                 (props as ContentResultsProps).onSelectContent?.(c)
               }
@@ -232,7 +239,7 @@ function PocketResultsList({
       {results.map((result, index) => {
         const formatted = formattedResults?.[index];
         const { item, relevanceScore, matchedFields } = result;
-        
+
         return (
           <button
             key={item.id}
@@ -253,7 +260,11 @@ function PocketResultsList({
                         {formatted.title.segments.map((segment, i) => (
                           <span
                             key={i}
-                            className={segment.highlight ? "bg-primary/20 text-primary rounded px-0.5" : ""}
+                            className={
+                              segment.highlight
+                                ? "bg-primary/20 text-primary rounded px-0.5"
+                                : ""
+                            }
                           >
                             {segment.text}
                           </span>
@@ -321,7 +332,7 @@ function ContentResultsList({
       {results.map((result, index) => {
         const formatted = formattedResults?.[index];
         const { item, relevanceScore, matchedFields } = result;
-        
+
         const getDomain = () => {
           if (!item.sourceUrl) return "";
           try {
@@ -330,7 +341,7 @@ function ContentResultsList({
             return "";
           }
         };
-        
+
         return (
           <button
             key={item.id}
@@ -351,7 +362,11 @@ function ContentResultsList({
                         {formatted.title.segments.map((segment, i) => (
                           <span
                             key={i}
-                            className={segment.highlight ? "bg-primary/20 text-primary rounded px-0.5" : ""}
+                            className={
+                              segment.highlight
+                                ? "bg-primary/20 text-primary rounded px-0.5"
+                                : ""
+                            }
                           >
                             {segment.text}
                           </span>
@@ -372,7 +387,11 @@ function ContentResultsList({
                     {formatted.snippet.segments.map((segment, i) => (
                       <span
                         key={i}
-                        className={segment.highlight ? "bg-primary/20 text-primary rounded px-0.5" : ""}
+                        className={
+                          segment.highlight
+                            ? "bg-primary/20 text-primary rounded px-0.5"
+                            : ""
+                        }
                       >
                         {segment.text}
                       </span>

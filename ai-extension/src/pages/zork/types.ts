@@ -75,7 +75,7 @@ export interface GameState {
   meta: {
     startTime: number;
     lastSave: number;
-    difficulty: 'easy' | 'medium' | 'hard';
+    difficulty: "easy" | "medium" | "hard";
     achievements: string[];
   };
 }
@@ -94,7 +94,7 @@ export interface AIGenerationContext {
   visitedCount: number;
 }
 
-export type ColorScheme = 'green' | 'amber' | 'white' | 'blue' | 'apple';
+export type ColorScheme = "green" | "amber" | "white" | "blue" | "apple";
 
 export interface TerminalSettings {
   colorScheme: ColorScheme;

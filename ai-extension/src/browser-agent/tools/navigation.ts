@@ -4,10 +4,7 @@
  */
 
 import { z } from "zod";
-import {
-  ToolCategory,
-  ToolComplexity,
-} from "../tool-registry.js";
+import { ToolCategory, ToolComplexity } from "../tool-registry.js";
 import type {
   BrowserToolDefinition,
   ToolExecutionContext,
@@ -19,7 +16,10 @@ import type {
 const navigateToUrlSchema = z.object({
   url: z.string().url().describe("URL to navigate to"),
   tabId: z.number().optional().describe("Tab ID, defaults to active tab"),
-  waitForLoad: z.boolean().default(true).describe("Wait for page to finish loading"),
+  waitForLoad: z
+    .boolean()
+    .default(true)
+    .describe("Wait for page to finish loading"),
 });
 
 async function navigateToUrlHandler(
@@ -27,13 +27,13 @@ async function navigateToUrlHandler(
   context: ToolExecutionContext,
 ): Promise<{ success: boolean; url: string; title?: string }> {
   const tabId = input.tabId || context.tabId;
-  
+
   if (!tabId) {
     const tab = await chrome.tabs.create({ url: input.url, active: true });
     if (!tab.id) {
       throw new Error("Failed to create tab");
     }
-    
+
     const result: { success: boolean; url: string; title?: string } = {
       success: true,
       url: input.url,
@@ -61,7 +61,7 @@ async function navigateToUrlHandler(
         }
       };
       chrome.tabs.onUpdated.addListener(listener);
-      
+
       // Timeout after 30 seconds
       const timeoutId = setTimeout(() => {
         chrome.tabs.onUpdated.removeListener(listener);
@@ -86,7 +86,8 @@ async function navigateToUrlHandler(
 
 export const navigateToUrlTool: BrowserToolDefinition = {
   name: "navigate_to_url",
-  description: "Navigate to a specific URL in the browser. Can create a new tab or use an existing one.",
+  description:
+    "Navigate to a specific URL in the browser. Can create a new tab or use an existing one.",
   category: ToolCategory.NAVIGATION,
   complexity: ToolComplexity.MEDIUM,
   requiresHumanApproval: false,
@@ -104,7 +105,10 @@ export const navigateToUrlTool: BrowserToolDefinition = {
  */
 const reloadPageSchema = z.object({
   tabId: z.number().optional().describe("Tab ID, defaults to active tab"),
-  bypassCache: z.boolean().default(false).describe("Bypass cache when reloading"),
+  bypassCache: z
+    .boolean()
+    .default(false)
+    .describe("Bypass cache when reloading"),
 });
 
 async function reloadPageHandler(
@@ -112,7 +116,7 @@ async function reloadPageHandler(
   context: ToolExecutionContext,
 ): Promise<{ success: boolean }> {
   const tabId = input.tabId || context.tabId;
-  
+
   if (!tabId) {
     throw new Error("No tab ID provided");
   }
@@ -130,10 +134,7 @@ export const reloadPageTool: BrowserToolDefinition = {
   requiresHumanApproval: false,
   parametersSchema: reloadPageSchema,
   handler: reloadPageHandler,
-  examples: [
-    "Reload the current page",
-    "Refresh page without cache",
-  ],
+  examples: ["Reload the current page", "Refresh page without cache"],
 };
 
 /**
@@ -159,10 +160,7 @@ export const closeTabTool: BrowserToolDefinition = {
   requiresHumanApproval: true, // Destructive action
   parametersSchema: closeTabSchema,
   handler: closeTabHandler,
-  examples: [
-    "Close the current tab",
-    "Close tab with ID 123",
-  ],
+  examples: ["Close the current tab", "Close tab with ID 123"],
 };
 
 /**
@@ -171,7 +169,12 @@ export const closeTabTool: BrowserToolDefinition = {
 const takeScreenshotSchema = z.object({
   tabId: z.number().optional().describe("Tab ID, defaults to active tab"),
   format: z.enum(["png", "jpeg"]).default("png").describe("Screenshot format"),
-  quality: z.number().min(0).max(100).default(90).describe("JPEG quality (0-100)"),
+  quality: z
+    .number()
+    .min(0)
+    .max(100)
+    .default(90)
+    .describe("JPEG quality (0-100)"),
 });
 
 async function takeScreenshotHandler(

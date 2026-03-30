@@ -19,7 +19,7 @@ declare global {
   }
 
   interface AIModelAvailability {
-    available: 'readily' | 'after-download' | 'no';
+    available: "readily" | "after-download" | "no";
   }
 
   interface AIModelParams {
@@ -38,18 +38,18 @@ declare global {
   }
 
   interface AIPrompt {
-    role: 'system' | 'user' | 'assistant';
+    role: "system" | "user" | "assistant";
     content: string;
   }
 
   interface AIDownloadMonitor {
     addEventListener(
-      type: 'downloadprogress',
-      listener: (event: AIDownloadProgressEvent) => void
+      type: "downloadprogress",
+      listener: (event: AIDownloadProgressEvent) => void,
     ): void;
     removeEventListener(
-      type: 'downloadprogress',
-      listener: (event: AIDownloadProgressEvent) => void
+      type: "downloadprogress",
+      listener: (event: AIDownloadProgressEvent) => void,
     ): void;
     dispatchEvent(event: Event): boolean;
   }
@@ -63,7 +63,7 @@ declare global {
     prompt(input: string, options?: AIPromptOptions): Promise<string>;
     promptStreaming(
       input: string,
-      options?: AIPromptOptions
+      options?: AIPromptOptions,
     ): ReadableStream<string>;
     clone(options?: { signal?: AbortSignal }): Promise<AISession>;
     destroy(): void;

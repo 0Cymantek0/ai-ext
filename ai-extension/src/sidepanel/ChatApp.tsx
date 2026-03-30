@@ -160,9 +160,11 @@ export function ChatApp() {
     string | null
   >(null);
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
-  
+
   // Context gathering progress
-  const { steps: contextSteps, isGathering } = useContextProgress(currentConversationId);
+  const { steps: contextSteps, isGathering } = useContextProgress(
+    currentConversationId,
+  );
   const [currentMode, setCurrentMode] = React.useState<Mode>("ask");
   const conversationContentRef = React.useRef<HTMLDivElement>(null);
   // Floating mode switcher removed; drop scroll bookkeeping
@@ -268,14 +270,16 @@ export function ChatApp() {
         // Transform IndexedDB Conversation to UI ConversationData format
         const conversationData: ConversationData[] =
           response.data.conversations.map((conv: any) => {
-            // Generate title from first user message or use default
+            // Prefer the first user message, then fall back to the first message
             const firstUserMessage = conv.messages?.find(
               (m: any) => m.role === "user",
             );
+            const firstMessage = conv.messages?.[0];
             let title = "New Conversation";
 
-            if (firstUserMessage) {
-              const content = firstUserMessage.content;
+            const titleSource = firstUserMessage || firstMessage;
+            if (titleSource?.content) {
+              const content = titleSource.content;
               title =
                 content.length > 50 ? content.slice(0, 50) + "..." : content;
             }
@@ -315,25 +319,28 @@ export function ChatApp() {
   };
 
   // Streaming handlers with useCallback to prevent stale closures
-  const handleStreamStart = React.useCallback((payload: AiStreamStartPayload) => {
-    const providerExecution = getProviderExecutionMetadata(payload);
-    const newMessage: ChatMessage = {
-      id: payload.messageId || crypto.randomUUID(), // Use messageId from backend if available
-      role: "assistant",
-      content: "",
-      timestamp: Date.now(),
-      isStreaming: true,
-      ...(providerExecution
-        ? {
-            metadata: {
-              providerExecution,
-            },
-          }
-        : {}),
-    };
-    setMessages((prev) => [...prev, newMessage]);
-    setIsLoading(false);
-  }, []);
+  const handleStreamStart = React.useCallback(
+    (payload: AiStreamStartPayload) => {
+      const providerExecution = getProviderExecutionMetadata(payload);
+      const newMessage: ChatMessage = {
+        id: payload.messageId || crypto.randomUUID(), // Use messageId from backend if available
+        role: "assistant",
+        content: "",
+        timestamp: Date.now(),
+        isStreaming: true,
+        ...(providerExecution
+          ? {
+              metadata: {
+                providerExecution,
+              },
+            }
+          : {}),
+      };
+      setMessages((prev) => [...prev, newMessage]);
+      setIsLoading(false);
+    },
+    [],
+  );
 
   const handleStreamChunk = React.useCallback((payload: { chunk: string }) => {
     setMessages((prev) => {
@@ -353,50 +360,55 @@ export function ChatApp() {
 
   const saveConversationRef = React.useRef<(() => Promise<void>) | null>(null);
 
-  const handleStreamEnd = React.useCallback(async (payload: AiStreamEndPayload) => {
-    const providerExecution = getProviderExecutionMetadata(payload);
+  const handleStreamEnd = React.useCallback(
+    async (payload: AiStreamEndPayload) => {
+      const providerExecution = getProviderExecutionMetadata(payload);
 
-    // Update the streaming status first
-    setMessages((prev) => {
-      const lastMessage = prev[prev.length - 1];
-      if (lastMessage && lastMessage.isStreaming) {
-        return [
-          ...prev.slice(0, -1),
-          {
-            ...lastMessage,
-            isStreaming: false,
-            source: payload.source,
-            metadata: {
-              ...(lastMessage.metadata || {}),
-              ...(payload.processingTime !== undefined
-                ? { processingTime: payload.processingTime }
-                : {}),
-              ...(payload.totalTokens !== undefined
-                ? { tokensUsed: payload.totalTokens }
-                : {}),
-              ...(payload.mode ? { mode: payload.mode } : {}),
-              ...(payload.contextUsed ? { contextUsed: payload.contextUsed } : {}),
-              ...(providerExecution ? { providerExecution } : {}),
+      // Update the streaming status first
+      setMessages((prev) => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage && lastMessage.isStreaming) {
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...lastMessage,
+              isStreaming: false,
+              source: payload.source,
+              metadata: {
+                ...(lastMessage.metadata || {}),
+                ...(payload.processingTime !== undefined
+                  ? { processingTime: payload.processingTime }
+                  : {}),
+                ...(payload.totalTokens !== undefined
+                  ? { tokensUsed: payload.totalTokens }
+                  : {}),
+                ...(payload.mode ? { mode: payload.mode } : {}),
+                ...(payload.contextUsed
+                  ? { contextUsed: payload.contextUsed }
+                  : {}),
+                ...(providerExecution ? { providerExecution } : {}),
+              },
             },
-          },
-        ];
-      }
-      return prev;
-    });
-    setCurrentRequestId(null);
-
-    // Save conversation - wait for state to settle
-    setTimeout(async () => {
-      try {
-        if (saveConversationRef.current) {
-          await saveConversationRef.current();
-          console.log("✅ Conversation saved successfully");
+          ];
         }
-      } catch (error) {
-        console.error("❌ Failed to save conversation:", error);
-      }
-    }, 100);
-  }, []);
+        return prev;
+      });
+      setCurrentRequestId(null);
+
+      // Save conversation - wait for state to settle
+      setTimeout(async () => {
+        try {
+          if (saveConversationRef.current) {
+            await saveConversationRef.current();
+            console.log("✅ Conversation saved successfully");
+          }
+        } catch (error) {
+          console.error("❌ Failed to save conversation:", error);
+        }
+      }, 100);
+    },
+    [],
+  );
 
   const handleStreamError = React.useCallback((payload: { error: string }) => {
     setMessages((prev) => [
@@ -512,8 +524,8 @@ export function ChatApp() {
   React.useEffect(() => {
     const handleKonamiCode = () => {
       // Open Zork game in a new window
-      const zorkUrl = chrome.runtime.getURL('src/pages/zork/index.html');
-      window.open(zorkUrl, '_blank', 'width=1024,height=768');
+      const zorkUrl = chrome.runtime.getURL("src/pages/zork/index.html");
+      window.open(zorkUrl, "_blank", "width=1024,height=768");
     };
 
     initKonamiCode(handleKonamiCode);
@@ -1325,10 +1337,12 @@ export function ChatApp() {
                                 vi.index === messages.length - 1 &&
                                 isGathering && (
                                   <div className="px-4 mb-2">
-                                    <ContextGatheringIndicator steps={contextSteps} />
+                                    <ContextGatheringIndicator
+                                      steps={contextSteps}
+                                    />
                                   </div>
                                 )}
-                              
+
                               <Message key={message.id} from={message.role}>
                                 <MessageAvatar
                                   src={message.role === "user" ? "" : ""}

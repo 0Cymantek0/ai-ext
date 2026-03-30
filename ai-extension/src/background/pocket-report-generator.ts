@@ -5,7 +5,12 @@
  */
 
 import { CloudAIManager, GeminiModel } from "./cloud-ai-manager";
-import { IndexedDBManager, StoreName, type Pocket, type CapturedContent } from "./indexeddb-manager";
+import {
+  IndexedDBManager,
+  StoreName,
+  type Pocket,
+  type CapturedContent,
+} from "./indexeddb-manager";
 import { logger } from "./monitoring";
 
 export interface ReportData {
@@ -63,22 +68,36 @@ export class PocketReportGenerator {
    */
   async generateReport(pocketId?: string): Promise<ReportData> {
     try {
-      logger.info("PocketReport", "Starting report generation", pocketId || "all");
+      logger.info(
+        "PocketReport",
+        "Starting report generation",
+        pocketId || "all",
+      );
 
       // Check if Cloud AI is available
       if (!this.cloudAI.isAvailable()) {
-        throw new Error("Cloud AI not available. Please check API key configuration.");
+        throw new Error(
+          "Cloud AI not available. Please check API key configuration.",
+        );
       }
 
       // Fetch pocket data
       logger.info("PocketReport", "Fetching pockets", "");
       const pockets = await this.fetchPockets(pocketId);
-      logger.info("PocketReport", "Pockets fetched", `${pockets.length} pockets`);
+      logger.info(
+        "PocketReport",
+        "Pockets fetched",
+        `${pockets.length} pockets`,
+      );
 
       // Fetch contents
       logger.info("PocketReport", "Fetching contents", "");
       const contents = await this.fetchContents(pocketId);
-      logger.info("PocketReport", "Contents fetched", `${contents.length} items`);
+      logger.info(
+        "PocketReport",
+        "Contents fetched",
+        `${contents.length} items`,
+      );
 
       // Prepare data for AI analysis
       logger.info("PocketReport", "Preparing analysis data", "");
@@ -86,18 +105,29 @@ export class PocketReportGenerator {
 
       // PHASE 1: Generate report structure/plan
       logger.info("PocketReport", "Phase 1: Planning report structure", "");
-      const reportPlan = await this.generateReportPlan(analysisData, pockets[0]?.name);
+      const reportPlan = await this.generateReportPlan(
+        analysisData,
+        pockets[0]?.name,
+      );
       logger.info("PocketReport", "Report plan generated", "");
 
       // PHASE 2: Generate detailed content following the plan
       logger.info("PocketReport", "Phase 2: Generating report content", "");
-      const reportData = await this.generateReportContent(reportPlan, analysisData, contents, pockets[0]?.name);
+      const reportData = await this.generateReportContent(
+        reportPlan,
+        analysisData,
+        contents,
+        pockets[0]?.name,
+      );
       logger.info("PocketReport", "Report content generated", "");
 
       // Generate hero background image (optional - gracefully handle failures)
       try {
         logger.info("PocketReport", "Generating hero image", "");
-        const heroImage = await this.generateHeroImage(reportData.hero.title, pockets[0]?.name);
+        const heroImage = await this.generateHeroImage(
+          reportData.hero.title,
+          pockets[0]?.name,
+        );
         if (heroImage) {
           reportData.hero.backgroundImage = heroImage;
           logger.info("PocketReport", "Hero image generated successfully", "");
@@ -106,14 +136,23 @@ export class PocketReportGenerator {
         }
       } catch (imageError) {
         // Image generation is optional - don't fail the entire report
-        logger.warn("PocketReport", "Hero image generation failed, continuing without image", imageError);
+        logger.warn(
+          "PocketReport",
+          "Hero image generation failed, continuing without image",
+          imageError,
+        );
       }
 
-      logger.info("PocketReport", "Report generation completed", `${contents.length} items`);
+      logger.info(
+        "PocketReport",
+        "Report generation completed",
+        `${contents.length} items`,
+      );
 
       return reportData;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       logger.error("PocketReport", "Report generation failed", errorMessage);
       throw new Error(`Report generation failed: ${errorMessage}`);
     }
@@ -141,12 +180,12 @@ export class PocketReportGenerator {
       // Get all pockets and fetch their content
       const pockets = await this.dbManager.listPockets();
       const allContents: CapturedContent[] = [];
-      
+
       for (const pocket of pockets) {
         const contents = await this.dbManager.getContentByPocket(pocket.id);
         allContents.push(...contents);
       }
-      
+
       return allContents;
     }
   }
@@ -159,12 +198,12 @@ export class PocketReportGenerator {
     const byTag: Record<string, number> = {};
     let totalSize = 0;
 
-    contents.forEach(content => {
+    contents.forEach((content) => {
       // Count by type
       byType[content.type] = (byType[content.type] || 0) + 1;
 
       // Count by tags
-      content.metadata.tags?.forEach(tag => {
+      content.metadata.tags?.forEach((tag) => {
         byTag[tag] = (byTag[tag] || 0) + 1;
       });
 
@@ -193,7 +232,7 @@ export class PocketReportGenerator {
       return { start: Date.now(), end: Date.now() };
     }
 
-    const timestamps = contents.map(c => c.capturedAt);
+    const timestamps = contents.map((c) => c.capturedAt);
     return {
       start: Math.min(...timestamps),
       end: Math.max(...timestamps),
@@ -203,15 +242,19 @@ export class PocketReportGenerator {
   /**
    * Prepare data for AI analysis
    */
-  private prepareAnalysisData(pockets: Pocket[], contents: CapturedContent[]): string {
+  private prepareAnalysisData(
+    pockets: Pocket[],
+    contents: CapturedContent[],
+  ): string {
     const summary = {
-      pockets: pockets.map(p => ({
+      pockets: pockets.map((p) => ({
         name: p.name,
         description: p.description,
         tags: p.tags,
-        itemCount: contents.filter(c => c.pocketId === p.id).length,
+        itemCount: contents.filter((c) => c.pocketId === p.id).length,
       })),
-      contents: contents.slice(0, 50).map(c => ({ // Limit to 50 for token efficiency
+      contents: contents.slice(0, 50).map((c) => ({
+        // Limit to 50 for token efficiency
         type: c.type,
         title: c.metadata.title || "Untitled",
         tags: c.metadata.tags || [],
@@ -234,8 +277,14 @@ export class PocketReportGenerator {
       try {
         if (typeof content.content === "string") {
           const parsedContent = JSON.parse(content.content);
-          const width = parsedContent.image?.width || content.metadata.dimensions?.width || 0;
-          const height = parsedContent.image?.height || content.metadata.dimensions?.height || 0;
+          const width =
+            parsedContent.image?.width ||
+            content.metadata.dimensions?.width ||
+            0;
+          const height =
+            parsedContent.image?.height ||
+            content.metadata.dimensions?.height ||
+            0;
           const alt = parsedContent.image?.alt || parsedContent.alt || "";
           return `Image: ${width}x${height}${alt ? ` - ${alt}` : ""}`;
         }
@@ -244,7 +293,7 @@ export class PocketReportGenerator {
       }
       return `[Image content]`;
     }
-    
+
     if (typeof content.content === "string") {
       return content.content.substring(0, 200);
     }
@@ -293,9 +342,9 @@ Example format:
 
       // Clean the response - remove markdown code blocks if present
       let cleanedResponse = response.result.trim();
-      cleanedResponse = cleanedResponse.replace(/```json\s*/g, '');
-      cleanedResponse = cleanedResponse.replace(/```\s*/g, '');
-      
+      cleanedResponse = cleanedResponse.replace(/```json\s*/g, "");
+      cleanedResponse = cleanedResponse.replace(/```\s*/g, "");
+
       // Extract JSON object
       const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -307,32 +356,40 @@ Example format:
           logger.error("PocketReport", "JSON parse error", parseError);
           // Try to fix common JSON issues
           let fixedJson = jsonMatch[0];
-          
+
           // Fix 1: Remove trailing commas before closing brackets
-          fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
-          
+          fixedJson = fixedJson.replace(/,(\s*[}\]])/g, "$1");
+
           // Fix 2: Remove trailing commas in arrays (more aggressive)
-          fixedJson = fixedJson.replace(/,(\s*\])/g, '$1');
-          
+          fixedJson = fixedJson.replace(/,(\s*\])/g, "$1");
+
           // Fix 3: Remove trailing commas in objects
-          fixedJson = fixedJson.replace(/,(\s*\})/g, '$1');
-          
+          fixedJson = fixedJson.replace(/,(\s*\})/g, "$1");
+
           // Fix 4: Fix double commas
-          fixedJson = fixedJson.replace(/,,+/g, ',');
-          
+          fixedJson = fixedJson.replace(/,,+/g, ",");
+
           // Fix 5: Remove comments if any
-          fixedJson = fixedJson.replace(/\/\/.*/g, '');
-          fixedJson = fixedJson.replace(/\/\*[\s\S]*?\*\//g, '');
-          
+          fixedJson = fixedJson.replace(/\/\/.*/g, "");
+          fixedJson = fixedJson.replace(/\/\*[\s\S]*?\*\//g, "");
+
           // Try parsing again
           try {
             const parsed = JSON.parse(fixedJson);
-            logger.info("PocketReport", "JSON fixed and parsed successfully", "");
+            logger.info(
+              "PocketReport",
+              "JSON fixed and parsed successfully",
+              "",
+            );
             return parsed;
           } catch (secondError) {
             logger.error("PocketReport", "Failed to fix JSON", secondError);
             // Log the problematic JSON for debugging
-            logger.error("PocketReport", "Problematic JSON snippet", fixedJson.substring(0, 500));
+            logger.error(
+              "PocketReport",
+              "Problematic JSON snippet",
+              fixedJson.substring(0, 500),
+            );
           }
         }
       }
@@ -341,18 +398,19 @@ Example format:
       logger.warn("PocketReport", "Using fallback plan", "");
       return {
         title: `${pocketName || "Content"} Analysis Report`,
-        subtitle: "A comprehensive overview of your saved content and insights.",
+        subtitle:
+          "A comprehensive overview of your saved content and insights.",
         sections: [
           { title: "Overview", topics: ["Summary"], visualizations: [] },
-          { title: "Key Findings", topics: ["Insights"], visualizations: [] }
-        ]
+          { title: "Key Findings", topics: ["Insights"], visualizations: [] },
+        ],
       };
     } catch (error) {
       logger.error("PocketReport", "Report plan generation failed", error);
       return {
         title: `${pocketName || "Content"} Report`,
         subtitle: "Analysis of your saved content.",
-        sections: [{ title: "Overview", topics: [], visualizations: [] }]
+        sections: [{ title: "Overview", topics: [], visualizations: [] }],
       };
     }
   }
@@ -360,14 +418,19 @@ Example format:
   /**
    * PHASE 2: Generate detailed report content following the plan
    */
-  private async generateReportContent(plan: any, analysisData: string, contents: CapturedContent[], pocketName?: string): Promise<ReportData> {
+  private async generateReportContent(
+    plan: any,
+    analysisData: string,
+    contents: CapturedContent[],
+    pocketName?: string,
+  ): Promise<ReportData> {
     // Extract images from content
-    const imageContents = contents.filter(c => c.type === 'image');
+    const imageContents = contents.filter((c) => c.type === "image");
     const imageData = imageContents.map((img, idx) => ({
       index: idx,
       title: img.metadata.title || `Image ${idx + 1}`,
       tags: img.metadata.tags || [],
-      content: this.getContentPreview(img)
+      content: this.getContentPreview(img),
     }));
 
     const prompt = `You are writing the ACTUAL CONTENT for a professional research report. Analyze the data provided and write real, substantive content - NOT descriptions of what should be written.
@@ -434,43 +497,63 @@ Example format with images:
 
       // Clean the response - remove markdown code blocks if present
       let cleanedResponse = response.result.trim();
-      cleanedResponse = cleanedResponse.replace(/```json\s*/g, '');
-      cleanedResponse = cleanedResponse.replace(/```\s*/g, '');
+      cleanedResponse = cleanedResponse.replace(/```json\s*/g, "");
+      cleanedResponse = cleanedResponse.replace(/```\s*/g, "");
 
       const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
       let sections: any[] = [];
-      
+
       if (jsonMatch) {
         try {
           const parsed = JSON.parse(jsonMatch[0]);
           sections = parsed.sections || [];
-          logger.info("PocketReport", "Report content parsed successfully", `${sections.length} sections`);
+          logger.info(
+            "PocketReport",
+            "Report content parsed successfully",
+            `${sections.length} sections`,
+          );
         } catch (parseError) {
           logger.error("PocketReport", "Content JSON parse error", parseError);
           // Try to fix common JSON issues
           let fixedJson = jsonMatch[0];
-          
+
           // Apply all JSON fixes
-          fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
-          fixedJson = fixedJson.replace(/,(\s*\])/g, '$1');
-          fixedJson = fixedJson.replace(/,(\s*\})/g, '$1');
-          fixedJson = fixedJson.replace(/,,+/g, ',');
-          fixedJson = fixedJson.replace(/\/\/.*/g, '');
-          fixedJson = fixedJson.replace(/\/\*[\s\S]*?\*\//g, '');
-          
+          fixedJson = fixedJson.replace(/,(\s*[}\]])/g, "$1");
+          fixedJson = fixedJson.replace(/,(\s*\])/g, "$1");
+          fixedJson = fixedJson.replace(/,(\s*\})/g, "$1");
+          fixedJson = fixedJson.replace(/,,+/g, ",");
+          fixedJson = fixedJson.replace(/\/\/.*/g, "");
+          fixedJson = fixedJson.replace(/\/\*[\s\S]*?\*\//g, "");
+
           try {
             const parsed = JSON.parse(fixedJson);
             sections = parsed.sections || [];
-            logger.info("PocketReport", "Content JSON fixed and parsed", `${sections.length} sections`);
+            logger.info(
+              "PocketReport",
+              "Content JSON fixed and parsed",
+              `${sections.length} sections`,
+            );
           } catch (secondError) {
-            logger.error("PocketReport", "Failed to fix content JSON", secondError);
-            logger.error("PocketReport", "Problematic JSON snippet", fixedJson.substring(0, 500));
+            logger.error(
+              "PocketReport",
+              "Failed to fix content JSON",
+              secondError,
+            );
+            logger.error(
+              "PocketReport",
+              "Problematic JSON snippet",
+              fixedJson.substring(0, 500),
+            );
             // Use fallback sections
             sections = this.createFallbackSections(plan);
           }
         }
       } else {
-        logger.warn("PocketReport", "No JSON found in response, using fallback", "");
+        logger.warn(
+          "PocketReport",
+          "No JSON found in response, using fallback",
+          "",
+        );
         sections = this.createFallbackSections(plan);
       }
 
@@ -482,66 +565,73 @@ Example format with images:
         hero: {
           ...(pocketName && { pocketName: pocketName }),
           title: plan.title || "Content Analysis Report",
-          subtitle: plan.subtitle || "Comprehensive insights from your saved content"
+          subtitle:
+            plan.subtitle || "Comprehensive insights from your saved content",
         },
         sidebar: {
           showTextSize: true,
           index: sections.map((s: any, i: number) => ({
             title: s.title,
-            id: `section-${i}`
-          }))
+            id: `section-${i}`,
+          })),
         },
         sections: sections,
         footer: {
-          sources: this.extractSources(contents)
+          sources: this.extractSources(contents),
         },
         metadata: {
           generatedAt: Date.now(),
-          totalItems: contents.length
-        }
+          totalItems: contents.length,
+        },
       };
 
       return reportData;
     } catch (error) {
       logger.error("PocketReport", "Report content generation failed", error);
-      
+
       // Fallback report
       return {
         hero: {
           title: plan.title || "Content Report",
-          subtitle: plan.subtitle || "Analysis of your content"
+          subtitle: plan.subtitle || "Analysis of your content",
         },
         sidebar: {
           showTextSize: true,
-          index: [{ title: "Overview", id: "section-0" }]
+          index: [{ title: "Overview", id: "section-0" }],
         },
-        sections: [{
-          title: "Overview",
-          content: [
-            { 
-              type: "text", 
-              data: { 
-                content: "Report generation encountered an issue. Please try again." 
-              } 
-            }
-          ]
-        }],
+        sections: [
+          {
+            title: "Overview",
+            content: [
+              {
+                type: "text",
+                data: {
+                  content:
+                    "Report generation encountered an issue. Please try again.",
+                },
+              },
+            ],
+          },
+        ],
         footer: {
-          sources: this.extractSources(contents)
+          sources: this.extractSources(contents),
         },
         metadata: {
           generatedAt: Date.now(),
-          totalItems: contents.length
-        }
+          totalItems: contents.length,
+        },
       };
     }
-  }               
+  }
 
   /**
    * Generate hero background image using Gemini image generation
    * Returns null if generation fails or quota is exceeded
    */
-  private async generateHeroImage(title: string, pocketName?: string): Promise<string | null> {
+  private async generateHeroImage(
+    title: string,
+    pocketName?: string,
+  ): Promise<string | null> {
     try {
       const prompt = `Create a professional, artistic hero background image for a report titled "${title}". 
 The image should be:
@@ -555,14 +645,21 @@ The image should be:
       const imageData = await this.cloudAI.generateImage(prompt, {
         temperature: 0.9,
         maxOutputTokens: 1000,
-        aspectRatio: "16:9"
+        aspectRatio: "16:9",
       });
 
       return imageData;
     } catch (error: any) {
       // Check if it's a quota error
-      if (error?.message?.includes('quota') || error?.message?.includes('429')) {
-        logger.warn("PocketReport", "Image generation quota exceeded, skipping image", "");
+      if (
+        error?.message?.includes("quota") ||
+        error?.message?.includes("429")
+      ) {
+        logger.warn(
+          "PocketReport",
+          "Image generation quota exceeded, skipping image",
+          "",
+        );
       } else {
         logger.error("PocketReport", "Hero image generation failed", error);
       }
@@ -575,14 +672,14 @@ The image should be:
    */
   private extractSources(contents: CapturedContent[]) {
     const sources = new Map();
-    
-    contents.slice(0, 20).forEach(content => {
+
+    contents.slice(0, 20).forEach((content) => {
       if (content.sourceUrl && !sources.has(content.sourceUrl)) {
         sources.set(content.sourceUrl, {
           title: content.metadata.title || "Untitled",
           url: content.sourceUrl,
           type: content.type,
-          icon: this.getIconForType(content.type)
+          icon: this.getIconForType(content.type),
         });
       }
     });
@@ -595,15 +692,15 @@ The image should be:
    */
   private getIconForType(type: string): string {
     const icons: Record<string, string> = {
-      'text': '📄',
-      'image': '🖼️',
-      'link': '🔗',
-      'video': '🎥',
-      'audio': '🎵',
-      'pdf': '📕',
-      'code': '💻'
+      text: "📄",
+      image: "🖼️",
+      link: "🔗",
+      video: "🎥",
+      audio: "🎵",
+      pdf: "📕",
+      code: "💻",
     };
-    return icons[type] || '📄';
+    return icons[type] || "📄";
   }
 
   /**
@@ -611,7 +708,7 @@ The image should be:
    */
   private createFallbackSections(plan: any): any[] {
     const sections: any[] = [];
-    
+
     // Create basic sections from plan
     if (plan.sections && Array.isArray(plan.sections)) {
       for (const planSection of plan.sections) {
@@ -621,10 +718,10 @@ The image should be:
             {
               type: "text",
               data: {
-                content: `This section covers ${planSection.topics?.join(', ') || 'content analysis and insights'}. The AI content generation encountered an issue. Please try regenerating the report for detailed analysis.`
-              }
-            }
-          ]
+                content: `This section covers ${planSection.topics?.join(", ") || "content analysis and insights"}. The AI content generation encountered an issue. Please try regenerating the report for detailed analysis.`,
+              },
+            },
+          ],
         });
       }
     }
@@ -637,10 +734,11 @@ The image should be:
           {
             type: "text",
             data: {
-              content: "Report content generation encountered an issue. Please try generating the report again to see detailed analysis and insights."
-            }
-          }
-        ]
+              content:
+                "Report content generation encountered an issue. Please try generating the report again to see detailed analysis and insights.",
+            },
+          },
+        ],
       });
     }
 
@@ -650,46 +748,56 @@ The image should be:
   /**
    * Integrate actual image data into sections
    */
-  private integrateImages(sections: any[], imageContents: CapturedContent[]): any[] {
-    return sections.map(section => {
-      const updatedContent = section.content?.map((item: any) => {
-        if (item.type === 'image' && item.data?.imageIndex !== undefined) {
-          const imageIndex = item.data.imageIndex;
-          const imageContent = imageContents[imageIndex];
-          
-          if (imageContent) {
-            // Extract image data
-            let imageSrc = '';
-            try {
-              if (typeof imageContent.content === 'string') {
-                const parsedContent = JSON.parse(imageContent.content);
-                imageSrc = parsedContent.image?.src || parsedContent.src || '';
-              }
-            } catch (error) {
-              // If parsing fails, try to use the content directly if it's a data URL
-              if (typeof imageContent.content === 'string' && imageContent.content.startsWith('data:image/')) {
-                imageSrc = imageContent.content;
-              }
-            }
+  private integrateImages(
+    sections: any[],
+    imageContents: CapturedContent[],
+  ): any[] {
+    return sections.map((section) => {
+      const updatedContent =
+        section.content?.map((item: any) => {
+          if (item.type === "image" && item.data?.imageIndex !== undefined) {
+            const imageIndex = item.data.imageIndex;
+            const imageContent = imageContents[imageIndex];
 
-            if (imageSrc) {
-              return {
-                type: 'diagram',
-                data: {
-                  src: imageSrc,
-                  alt: imageContent.metadata.title || 'Image',
-                  caption: item.data.caption || 'The above image provides visual context for the discussed concepts.'
+            if (imageContent) {
+              // Extract image data
+              let imageSrc = "";
+              try {
+                if (typeof imageContent.content === "string") {
+                  const parsedContent = JSON.parse(imageContent.content);
+                  imageSrc =
+                    parsedContent.image?.src || parsedContent.src || "";
                 }
-              };
+              } catch (error) {
+                // If parsing fails, try to use the content directly if it's a data URL
+                if (
+                  typeof imageContent.content === "string" &&
+                  imageContent.content.startsWith("data:image/")
+                ) {
+                  imageSrc = imageContent.content;
+                }
+              }
+
+              if (imageSrc) {
+                return {
+                  type: "diagram",
+                  data: {
+                    src: imageSrc,
+                    alt: imageContent.metadata.title || "Image",
+                    caption:
+                      item.data.caption ||
+                      "The above image provides visual context for the discussed concepts.",
+                  },
+                };
+              }
             }
           }
-        }
-        return item;
-      }) || [];
+          return item;
+        }) || [];
 
       return {
         ...section,
-        content: updatedContent
+        content: updatedContent,
       };
     });
   }
@@ -698,7 +806,7 @@ The image should be:
    * Format content list for report
    */
   private formatContentList(contents: CapturedContent[]) {
-    return contents.map(content => {
+    return contents.map((content) => {
       const formatted: any = {
         id: content.id,
         type: content.type,
@@ -720,7 +828,7 @@ The image should be:
           }
         } catch (error) {
           // If parsing fails, try to use the content directly if it's a data URL
-          if (content.content.startsWith('data:image/')) {
+          if (content.content.startsWith("data:image/")) {
             formatted.imageData = content.content;
           }
         }

@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BootSequence } from './components/BootSequence';
-import { Terminal, type OutputLine } from './components/Terminal';
-import { GameEngine } from './game/GameEngine';
-import type { ColorScheme } from './types';
-import './styles/terminal.css';
+import React, { useState, useEffect, useCallback } from "react";
+import { BootSequence } from "./components/BootSequence";
+import { Terminal, type OutputLine } from "./components/Terminal";
+import { GameEngine } from "./game/GameEngine";
+import type { ColorScheme } from "./types";
+import "./styles/terminal.css";
 
-type GamePhase = 'boot' | 'playing';
+type GamePhase = "boot" | "playing";
 
 export const ZorkGame: React.FC = () => {
-  const [phase, setPhase] = useState<GamePhase>('boot');
+  const [phase, setPhase] = useState<GamePhase>("boot");
   const [output, setOutput] = useState<OutputLine[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [colorScheme, setColorScheme] = useState<ColorScheme>('green');
+  const [colorScheme, setColorScheme] = useState<ColorScheme>("green");
   const [crtEffect, setCrtEffect] = useState(true);
   const [gameEngine] = useState(() => new GameEngine());
   const [showSettings, setShowSettings] = useState(false);
@@ -24,18 +24,18 @@ export const ZorkGame: React.FC = () => {
         if (!success) {
           setOutput([
             {
-              text: 'WARNING: Gemini Nano AI not available. The game will use fallback responses.',
-              type: 'error',
+              text: "WARNING: Gemini Nano AI not available. The game will use fallback responses.",
+              type: "error",
               timestamp: Date.now(),
             },
           ]);
         }
       } catch (error) {
-        console.error('Zork: Error initializing game engine:', error);
+        console.error("Zork: Error initializing game engine:", error);
         setOutput([
           {
-            text: `ERROR: Failed to initialize game: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            type: 'error',
+            text: `ERROR: Failed to initialize game: ${error instanceof Error ? error.message : "Unknown error"}`,
+            type: "error",
             timestamp: Date.now(),
           },
         ]);
@@ -49,47 +49,47 @@ export const ZorkGame: React.FC = () => {
   }, [gameEngine]);
 
   const handleBootComplete = useCallback(() => {
-    setPhase('playing');
+    setPhase("playing");
     const location = gameEngine.getStateManager().getCurrentLocation();
     setOutput([
       {
-        text: '═══════════════════════════════════════════════════════',
-        type: 'system',
+        text: "═══════════════════════════════════════════════════════",
+        type: "system",
         timestamp: Date.now(),
       },
       {
-        text: 'ZORK: INFINITE EDITION',
-        type: 'system',
+        text: "ZORK: INFINITE EDITION",
+        type: "system",
         timestamp: Date.now() + 1,
       },
       {
-        text: 'A Text Adventure Powered by AI',
-        type: 'system',
+        text: "A Text Adventure Powered by AI",
+        type: "system",
         timestamp: Date.now() + 2,
       },
       {
-        text: '═══════════════════════════════════════════════════════',
-        type: 'system',
+        text: "═══════════════════════════════════════════════════════",
+        type: "system",
         timestamp: Date.now() + 3,
       },
       {
-        text: '',
-        type: 'system',
+        text: "",
+        type: "system",
         timestamp: Date.now() + 4,
       },
       {
-        text: location?.description || 'You are in a mysterious place.',
-        type: 'response',
+        text: location?.description || "You are in a mysterious place.",
+        type: "response",
         timestamp: Date.now() + 5,
       },
       {
-        text: '',
-        type: 'system',
+        text: "",
+        type: "system",
         timestamp: Date.now() + 6,
       },
       {
         text: "Type 'help' for a list of commands.",
-        type: 'system',
+        type: "system",
         timestamp: Date.now() + 7,
       },
     ]);
@@ -102,18 +102,21 @@ export const ZorkGame: React.FC = () => {
         ...prev,
         {
           text: command,
-          type: 'command',
+          type: "command",
           timestamp: Date.now(),
         },
       ]);
 
       // Handle special commands
-      if (command.toLowerCase() === 'quit' || command.toLowerCase() === 'exit') {
+      if (
+        command.toLowerCase() === "quit" ||
+        command.toLowerCase() === "exit"
+      ) {
         setOutput((prev) => [
           ...prev,
           {
-            text: 'Thanks for playing ZORK: INFINITE EDITION!',
-            type: 'system',
+            text: "Thanks for playing ZORK: INFINITE EDITION!",
+            type: "system",
             timestamp: Date.now(),
           },
         ]);
@@ -123,12 +126,15 @@ export const ZorkGame: React.FC = () => {
         return;
       }
 
-      if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') {
+      if (
+        command.toLowerCase() === "clear" ||
+        command.toLowerCase() === "cls"
+      ) {
         setOutput([]);
         return;
       }
 
-      if (command.toLowerCase() === 'settings') {
+      if (command.toLowerCase() === "settings") {
         setShowSettings(!showSettings);
         return;
       }
@@ -142,20 +148,23 @@ export const ZorkGame: React.FC = () => {
           ...prev,
           {
             text: result.message,
-            type: result.success ? 'response' : 'error',
+            type: result.success ? "response" : "error",
             timestamp: Date.now(),
           },
         ]);
 
         // Check for achievements
         const state = gameEngine.getStateManager().getState();
-        if (state.history.visitedLocations.length === 10 && !state.meta.achievements.includes('explorer')) {
-          gameEngine.getStateManager().addAchievement('explorer');
+        if (
+          state.history.visitedLocations.length === 10 &&
+          !state.meta.achievements.includes("explorer")
+        ) {
+          gameEngine.getStateManager().addAchievement("explorer");
           setOutput((prev) => [
             ...prev,
             {
-              text: '🏆 Achievement Unlocked: Explorer - Visit 10 locations',
-              type: 'system',
+              text: "🏆 Achievement Unlocked: Explorer - Visit 10 locations",
+              type: "system",
               timestamp: Date.now() + 1,
             },
           ]);
@@ -164,8 +173,8 @@ export const ZorkGame: React.FC = () => {
         setOutput((prev) => [
           ...prev,
           {
-            text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            type: 'error',
+            text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            type: "error",
             timestamp: Date.now(),
           },
         ]);
@@ -173,7 +182,7 @@ export const ZorkGame: React.FC = () => {
         setIsProcessing(false);
       }
     },
-    [gameEngine, showSettings]
+    [gameEngine, showSettings],
   );
 
   const handleColorSchemeChange = (scheme: ColorScheme) => {
@@ -184,15 +193,20 @@ export const ZorkGame: React.FC = () => {
     setCrtEffect(!crtEffect);
   };
 
-  const containerClass = `zork-container scheme-${colorScheme} ${crtEffect ? 'crt-effect' : ''}`;
+  const containerClass = `zork-container scheme-${colorScheme} ${crtEffect ? "crt-effect" : ""}`;
 
   return (
     <div className={containerClass}>
-      {phase === 'boot' && <BootSequence onComplete={handleBootComplete} />}
+      {phase === "boot" && <BootSequence onComplete={handleBootComplete} />}
 
-      {phase === 'playing' && (
+      {phase === "playing" && (
         <>
-          <Terminal output={output} onCommand={handleCommand} isProcessing={isProcessing} colorScheme={colorScheme} />
+          <Terminal
+            output={output}
+            onCommand={handleCommand}
+            isProcessing={isProcessing}
+            colorScheme={colorScheme}
+          />
 
           {showSettings && (
             <div className="settings-panel">
@@ -200,16 +214,30 @@ export const ZorkGame: React.FC = () => {
               <div>
                 <label>Color Scheme:</label>
                 <div>
-                  <button onClick={() => handleColorSchemeChange('green')}>Green</button>
-                  <button onClick={() => handleColorSchemeChange('amber')}>Amber</button>
-                  <button onClick={() => handleColorSchemeChange('white')}>White</button>
-                  <button onClick={() => handleColorSchemeChange('blue')}>Blue</button>
-                  <button onClick={() => handleColorSchemeChange('apple')}>Apple II</button>
+                  <button onClick={() => handleColorSchemeChange("green")}>
+                    Green
+                  </button>
+                  <button onClick={() => handleColorSchemeChange("amber")}>
+                    Amber
+                  </button>
+                  <button onClick={() => handleColorSchemeChange("white")}>
+                    White
+                  </button>
+                  <button onClick={() => handleColorSchemeChange("blue")}>
+                    Blue
+                  </button>
+                  <button onClick={() => handleColorSchemeChange("apple")}>
+                    Apple II
+                  </button>
                 </div>
               </div>
               <div>
                 <label>
-                  <input type="checkbox" checked={crtEffect} onChange={handleCrtToggle} />
+                  <input
+                    type="checkbox"
+                    checked={crtEffect}
+                    onChange={handleCrtToggle}
+                  />
                   CRT Effect
                 </label>
               </div>

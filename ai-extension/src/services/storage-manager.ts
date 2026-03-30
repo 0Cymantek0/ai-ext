@@ -1,10 +1,10 @@
 /**
  * Storage Manager Service
- * 
+ *
  * Orchestrates content ingestion, retrieval, updates, and exports across IndexedDB
  * and filesystem tiers. Provides a unified interface for all storage operations with
  * validation, compression, chunking, and quota monitoring.
- * 
+ *
  * Requirements: 2.6, 5.8, 7.1, 7.2, 13.1
  */
 
@@ -155,7 +155,9 @@ export class StorageManagerError extends Error {
  * Database manager interface required by storage manager
  */
 export interface DatabaseManager {
-  saveContent(content: Omit<CapturedContent, "id" | "capturedAt">): Promise<string>;
+  saveContent(
+    content: Omit<CapturedContent, "id" | "capturedAt">,
+  ): Promise<string>;
   getContent(id: string): Promise<CapturedContent | null>;
   updateContent(
     id: string,
@@ -167,7 +169,9 @@ export interface DatabaseManager {
   saveChunk(chunk: Omit<StoredChunk, "createdAt">): Promise<string>;
   getChunksByContent(contentId: string): Promise<StoredChunk[]>;
   deleteChunksByContent(contentId: string): Promise<void>;
-  saveEmbedding(embedding: Omit<Embedding, "id" | "createdAt">): Promise<string>;
+  saveEmbedding(
+    embedding: Omit<Embedding, "id" | "createdAt">,
+  ): Promise<string>;
   getEmbeddingByContentId(contentId: string): Promise<Embedding | null>;
   deleteEmbeddingByContentId(contentId: string): Promise<void>;
 }
@@ -198,7 +202,10 @@ export interface StorageManager {
   /**
    * Update existing content
    */
-  updateContent(contentId: string, options: UpdateContentOptions): Promise<void>;
+  updateContent(
+    contentId: string,
+    options: UpdateContentOptions,
+  ): Promise<void>;
 
   /**
    * Delete content and all associated data (chunks, embeddings, archives)
@@ -263,7 +270,7 @@ export class StorageManagerImpl implements StorageManager {
       let contentData = options.content;
       let tier: "indexeddb" | "filesystem" = "indexeddb";
       let bytesStored = this.calculateDataSize(contentData);
-      let compressed = false;
+      const compressed = false;
       let archiveDescriptor: FileArchiveDescriptor | undefined;
 
       if (this.tieredStorage && !options.forceIndexedDb) {
@@ -313,15 +320,17 @@ export class StorageManagerImpl implements StorageManager {
             tier = "filesystem";
             archiveDescriptor = saveResult.descriptor;
             bytesStored = saveResult.bytesWritten || bytesStored;
-            
+
             // Store only preview/excerpt in IndexedDB
             contentData = metadata.excerpt || metadata.preview || "";
-            
+
             // Update metadata to reflect filesystem storage
             metadata.storage = {
               tier: "filesystem",
               archive: archiveDescriptor,
-              ...(metadata.excerpt ? { fallbackPreview: metadata.excerpt } : {}),
+              ...(metadata.excerpt
+                ? { fallbackPreview: metadata.excerpt }
+                : {}),
             };
           }
         }
@@ -349,12 +358,18 @@ export class StorageManagerImpl implements StorageManager {
         // Rollback filesystem save if database save fails
         if (archiveDescriptor && this.tieredStorage) {
           try {
-            await this.tieredStorage.deleteContent({ descriptor: archiveDescriptor });
-          } catch (deleteError) {
-            logger.error("StorageManager", "Failed to rollback filesystem save", {
-              archiveDescriptor,
-              deleteError,
+            await this.tieredStorage.deleteContent({
+              descriptor: archiveDescriptor,
             });
+          } catch (deleteError) {
+            logger.error(
+              "StorageManager",
+              "Failed to rollback filesystem save",
+              {
+                archiveDescriptor,
+                deleteError,
+              },
+            );
           }
         }
         throw error;
@@ -450,7 +465,10 @@ export class StorageManagerImpl implements StorageManager {
           if (loadResult.success && loadResult.data !== undefined) {
             let payload: string | ArrayBuffer;
 
-            if (typeof Blob !== "undefined" && loadResult.data instanceof Blob) {
+            if (
+              typeof Blob !== "undefined" &&
+              loadResult.data instanceof Blob
+            ) {
               // Convert Blob to string for text-based content types, ArrayBuffer for binary
               if (this.isTextBasedContentType(content.type)) {
                 payload = await loadResult.data.text();
@@ -467,10 +485,14 @@ export class StorageManagerImpl implements StorageManager {
             };
           }
         } catch (error) {
-          logger.warn("StorageManager", "Failed to load from filesystem, using fallback", {
-            contentId,
-            error,
-          });
+          logger.warn(
+            "StorageManager",
+            "Failed to load from filesystem, using fallback",
+            {
+              contentId,
+              error,
+            },
+          );
         }
       }
 
@@ -534,7 +556,7 @@ export class StorageManagerImpl implements StorageManager {
 
       if (options.embedding !== undefined) {
         updates.embedding = options.embedding;
-        
+
         // Update embedding in separate table
         try {
           await this.database.saveEmbedding({
@@ -715,7 +737,11 @@ export class StorageManagerImpl implements StorageManager {
             });
           });
         } catch (error) {
-          logger.debug("StorageManager", "Could not get chrome.storage.local usage", error);
+          logger.debug(
+            "StorageManager",
+            "Could not get chrome.storage.local usage",
+            error,
+          );
         }
       }
 
@@ -805,7 +831,10 @@ export class StorageManagerImpl implements StorageManager {
 
       // TODO: Add support for including conversations when requested
       if (options.includeConversations) {
-        logger.debug("StorageManager", "Conversation export not yet implemented");
+        logger.debug(
+          "StorageManager",
+          "Conversation export not yet implemented",
+        );
         exportData.conversations = [];
       }
 
@@ -977,10 +1006,12 @@ export class StorageManagerImpl implements StorageManager {
 
   private isTextBasedContentType(value: ContentType | string): boolean {
     const normalized = this.normalizeContentType(value);
-    return normalized === "text"
-      || normalized === "snippet"
-      || normalized === "note"
-      || normalized === "page";
+    return (
+      normalized === "text" ||
+      normalized === "snippet" ||
+      normalized === "note" ||
+      normalized === "page"
+    );
   }
 
   /**
@@ -1027,7 +1058,8 @@ export class StorageManagerImpl implements StorageManager {
       recommendations.push({
         level: "warning",
         message: "Storage is filling up",
-        action: "Consider enabling filesystem offloading or cleaning up old content",
+        action:
+          "Consider enabling filesystem offloading or cleaning up old content",
       });
     }
 

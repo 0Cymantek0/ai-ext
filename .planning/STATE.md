@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Defining requirements
-stopped_at: Completed 06-settings-ui-01-PLAN.md
-last_updated: "2026-03-29T05:33:17.598Z"
-last_activity: 2026-03-29 - Milestone v2.0 started
+stopped_at: Completed 06-settings-ui-03-PLAN.md
+last_updated: "2026-03-29T11:46:36.9224803+05:30"
+last_activity: 2026-03-29 - Phase 06 settings UI follow-up completed while milestone v2.0 planning remains active
 progress:
   total_phases: 7
   completed_phases: 0
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-29)
 Phase: Not started (defining requirements)
 Plan: -
 Status: Defining requirements
-Last activity: 2026-03-29 - Milestone v2.0 started
+Last activity: 2026-03-29 - Phase 06 settings UI follow-up completed while milestone v2.0 planning remains active
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Recent decisions affecting current work:
 - [Milestone v2.0] Pockets remain the canonical store for research evidence and synthesis artifacts
 - [Milestone v2.0] Human approval remains mandatory for sensitive browser actions
 - [Phase 06-settings-ui]: Decided to compose routing preferences and model sheet into a single snapshot payload with provider and speech settings for the UI.
+- [Phase 06-settings-ui]: Kept provider editing detail-first, moved speech configuration to configured-provider data, and preserved inline provider provenance in chat.
 
 ### Pending Todos
 
@@ -74,7 +75,7 @@ None yet.
 
 [Issues that affect future work]
 
-- Existing v1.0 Phase 6 settings UI work is still incomplete and may need explicit disposition if it conflicts with the v2.0 product direction
+- Phase 6 settings UI follow-up is now implemented through Plans 02 and 03, but final repo-wide lint and production build remain blocked by unrelated lint debt and an `@ai-sdk/gateway` dependency mismatch
 - In-tree browser-agent and report-generation code may contain overlapping abstractions that should be removed rather than extended
 
 ### Roadmap Evolution

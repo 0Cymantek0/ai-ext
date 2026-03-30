@@ -1,6 +1,6 @@
 /**
  * Browser Agent State Manager
- * State machine for orchestrating multi-step workflows with 
+ * State machine for orchestrating multi-step workflows with
  * checkpoint persistence, retry logic, and pause/resume/cancel support.
  * Requirements: Task 9 - LangGraph State Manager (Phase 2)
  */
@@ -53,46 +53,52 @@ export interface StateCheckpoint {
 export interface BrowserAgentState {
   workflowId: string;
   currentStep: WorkflowStep;
-  status: "pending" | "running" | "paused" | "completed" | "failed" | "cancelled";
+  status:
+    | "pending"
+    | "running"
+    | "paused"
+    | "completed"
+    | "failed"
+    | "cancelled";
   tabId?: number;
   userId?: string;
-  
+
   // Workflow execution data
   startTime: number;
   lastUpdate: number;
   completedSteps: WorkflowStep[];
   errors: WorkflowError[];
-  
+
   // Step-specific data
   variables: Record<string, unknown>;
-  
+
   // Navigation state
   currentUrl?: string;
   targetUrl?: string;
-  
+
   // DOM extraction state
   extractedData?: unknown;
-  
+
   // Interaction state
   interactionResults?: unknown[];
-  
+
   // Validation state
   validationResult?: {
     success: boolean;
     message: string;
     data?: unknown;
   };
-  
+
   // Pause/resume state
   paused: boolean;
   pauseReason?: string;
   pauseTimestamp?: number;
-  
+
   // Retry state
   retryCount: number;
   maxRetries: number;
   backoffMs: number;
-  
+
   // Workflow configuration
   config?: {
     maxSteps?: number;
@@ -154,7 +160,7 @@ export type NodeFunction = (
  */
 /**
  * State machine for browser agent workflows.
- * 
+ *
  * Note: This is a custom implementation designed for Chrome extension service workers.
  * It does NOT use the @langchain/langgraph library despite historical naming.
  */
@@ -163,10 +169,10 @@ export class WorkflowStateMachine {
   private logger: Logger;
   private checkpointManager: CheckpointManager;
   private workflowStates = new Map<string, BrowserAgentState>();
-  
+
   // Node function registry
   private nodeFunctions = new Map<WorkflowStep, NodeFunction>();
-  
+
   constructor(
     toolRegistry: BrowserToolRegistry,
     logger: Logger,
@@ -175,13 +181,13 @@ export class WorkflowStateMachine {
     this.toolRegistry = toolRegistry;
     this.logger = logger;
     this.checkpointManager = checkpointManager;
-    
+
     // Register default node functions
     this.registerDefaultNodeFunctions();
-    
+
     this.logger.info("WorkflowStateMachine", "Initialized");
   }
-  
+
   /**
    * Register default node functions for standard workflow steps
    */
@@ -189,11 +195,11 @@ export class WorkflowStateMachine {
     // Navigate node
     this.nodeFunctions.set(WorkflowStep.NAVIGATE, async (state, context) => {
       const { targetUrl } = state.variables;
-      
+
       if (!targetUrl || typeof targetUrl !== "string") {
         throw new Error("Navigate step requires 'targetUrl' variable");
       }
-      
+
       const result = await context.toolRegistry.execute(
         "navigate_to_url",
         { url: targetUrl, waitForLoad: true },
@@ -205,11 +211,11 @@ export class WorkflowStateMachine {
           ...(state.userId !== undefined && { userId: state.userId }),
         },
       );
-      
+
       if (!result.success) {
         throw new Error(`Navigation failed: ${result.error?.message}`);
       }
-      
+
       return {
         currentUrl: targetUrl,
         targetUrl,
@@ -219,14 +225,17 @@ export class WorkflowStateMachine {
         },
       };
     });
-    
+
     // Extract DOM node
     this.nodeFunctions.set(WorkflowStep.EXTRACT_DOM, async (state, context) => {
       const { selector } = state.variables;
-      
+
       const result = await context.toolRegistry.execute(
         "extract_page_content",
-        { selector: selector as string | undefined || undefined, sanitize: true },
+        {
+          selector: (selector as string | undefined) || undefined,
+          sanitize: true,
+        },
         {
           workflowId: state.workflowId,
           stepNumber: state.completedSteps.length + 1,
@@ -235,11 +244,11 @@ export class WorkflowStateMachine {
           ...(state.userId !== undefined && { userId: state.userId }),
         },
       );
-      
+
       if (!result.success) {
         throw new Error(`DOM extraction failed: ${result.error?.message}`);
       }
-      
+
       return {
         extractedData: result.data,
         variables: {
@@ -248,11 +257,11 @@ export class WorkflowStateMachine {
         },
       };
     });
-    
+
     // Interact node
     this.nodeFunctions.set(WorkflowStep.INTERACT, async (state, context) => {
       const { interactions } = state.variables;
-      
+
       if (!Array.isArray(interactions)) {
         // If no interactions array, skip this step
         return {
@@ -263,13 +272,13 @@ export class WorkflowStateMachine {
           },
         };
       }
-      
+
       const results: unknown[] = [];
-      
+
       for (const interaction of interactions) {
         const { type, ...params } = interaction as any;
         let toolName: string;
-        
+
         // Map interaction type to tool name
         switch (type) {
           case "click":
@@ -284,26 +293,22 @@ export class WorkflowStateMachine {
           default:
             throw new Error(`Unknown interaction type: ${type}`);
         }
-        
-        const result = await context.toolRegistry.execute(
-          toolName,
-          params,
-          {
-            workflowId: state.workflowId,
-            stepNumber: state.completedSteps.length + 1,
-            timestamp: Date.now(),
-            ...(state.tabId !== undefined && { tabId: state.tabId }),
-            ...(state.userId !== undefined && { userId: state.userId }),
-          },
-        );
-        
+
+        const result = await context.toolRegistry.execute(toolName, params, {
+          workflowId: state.workflowId,
+          stepNumber: state.completedSteps.length + 1,
+          timestamp: Date.now(),
+          ...(state.tabId !== undefined && { tabId: state.tabId }),
+          ...(state.userId !== undefined && { userId: state.userId }),
+        });
+
         if (!result.success) {
           throw new Error(`Interaction failed: ${result.error?.message}`);
         }
-        
+
         results.push(result.data);
       }
-      
+
       return {
         interactionResults: results,
         variables: {
@@ -312,15 +317,15 @@ export class WorkflowStateMachine {
         },
       };
     });
-    
+
     // Validate node
     this.nodeFunctions.set(WorkflowStep.VALIDATE, async (state) => {
       const { validationFn, expectedValue } = state.variables;
-      
+
       let success = true;
       let message = "Validation passed";
       let data: unknown;
-      
+
       if (typeof validationFn === "function") {
         const result = await validationFn(state);
         success = result.success ?? true;
@@ -334,7 +339,7 @@ export class WorkflowStateMachine {
           : `Expected ${expectedValue}, got ${actualValue}`;
         data = { expected: expectedValue, actual: actualValue };
       }
-      
+
       return {
         validationResult: {
           success,
@@ -348,15 +353,18 @@ export class WorkflowStateMachine {
       };
     });
   }
-  
+
   /**
    * Register a custom node function for a specific step
    */
   registerNodeFunction(step: WorkflowStep, fn: NodeFunction): void {
     this.nodeFunctions.set(step, fn);
-    this.logger.info("WorkflowStateMachine", `Registered custom node function for ${step}`);
+    this.logger.info(
+      "WorkflowStateMachine",
+      `Registered custom node function for ${step}`,
+    );
   }
-  
+
   /**
    * Execute a node with error handling and checkpointing
    */
@@ -372,34 +380,37 @@ export class WorkflowStateMachine {
       logger: this.logger,
       checkpointManager: this.checkpointManager,
     };
-    
+
     try {
       // Check if paused
       if (state.paused) {
-        this.logger.info("WorkflowStateMachine", `Workflow ${state.workflowId} is paused at ${step}`);
+        this.logger.info(
+          "WorkflowStateMachine",
+          `Workflow ${state.workflowId} is paused at ${step}`,
+        );
         return { currentStep: step };
       }
-      
+
       // Validate prerequisites
       await this.validatePrerequisites(step, state);
-      
+
       // Get node function
       const nodeFunction = this.nodeFunctions.get(step);
       if (!nodeFunction) {
         throw new Error(`No node function registered for step: ${step}`);
       }
-      
+
       this.logger.info("WorkflowStateMachine", `Executing step ${step}`, {
         workflowId: state.workflowId,
       });
-      
+
       // Execute node with retry logic
       const updates = await this.executeWithRetry(
         async () => await nodeFunction(state, context),
         state,
         step,
       );
-      
+
       // Update state
       const updatedState: Partial<BrowserAgentState> = {
         ...updates,
@@ -408,27 +419,28 @@ export class WorkflowStateMachine {
         completedSteps: [...state.completedSteps, step],
         retryCount: 0,
       };
-      
+
       // Save checkpoint
       await this.saveCheckpoint(state.workflowId, step, {
         ...state,
         ...updatedState,
       } as BrowserAgentState);
-      
+
       this.logger.info("WorkflowStateMachine", `Step ${step} completed`, {
         workflowId: state.workflowId,
         duration: Date.now() - startTime,
       });
-      
+
       return updatedState;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
       this.logger.error("WorkflowStateMachine", `Step ${step} failed`, {
         workflowId: state.workflowId,
         error: errorMessage,
       });
-      
+
       const workflowError: WorkflowError = {
         code: "STEP_EXECUTION_FAILED",
         message: errorMessage,
@@ -438,7 +450,7 @@ export class WorkflowStateMachine {
         retryCount: state.retryCount,
         details: error,
       };
-      
+
       return {
         currentStep: step,
         status: "failed",
@@ -447,7 +459,7 @@ export class WorkflowStateMachine {
       };
     }
   }
-  
+
   /**
    * Execute a function with retry logic and exponential backoff
    */
@@ -457,30 +469,34 @@ export class WorkflowStateMachine {
     step: WorkflowStep,
   ): Promise<T> {
     let lastError: Error | unknown;
-    
+
     for (let attempt = 0; attempt <= state.maxRetries; attempt++) {
       try {
         return await fn();
       } catch (error) {
         lastError = error;
-        
+
         if (attempt < state.maxRetries) {
           const backoff = state.backoffMs * Math.pow(2, attempt);
-          
-          this.logger.warn("WorkflowStateMachine", `Step ${step} failed, retrying in ${backoff}ms`, {
-            workflowId: state.workflowId,
-            attempt: attempt + 1,
-            maxRetries: state.maxRetries,
-          });
-          
+
+          this.logger.warn(
+            "WorkflowStateMachine",
+            `Step ${step} failed, retrying in ${backoff}ms`,
+            {
+              workflowId: state.workflowId,
+              attempt: attempt + 1,
+              maxRetries: state.maxRetries,
+            },
+          );
+
           await new Promise((resolve) => setTimeout(resolve, backoff));
         }
       }
     }
-    
+
     throw lastError;
   }
-  
+
   /**
    * Validate step prerequisites before execution
    */
@@ -496,15 +512,17 @@ export class WorkflowStateMachine {
         throw new Error(`Tab ${state.tabId} no longer exists`);
       }
     }
-    
+
     // Check required steps
     const requiredSteps = this.getRequiredSteps(step);
     for (const requiredStep of requiredSteps) {
       if (!state.completedSteps.includes(requiredStep)) {
-        throw new Error(`Step ${step} requires ${requiredStep} to be completed first`);
+        throw new Error(
+          `Step ${step} requires ${requiredStep} to be completed first`,
+        );
       }
     }
-    
+
     // Check required variables
     const requiredVars = this.getRequiredVariables(step);
     for (const varName of requiredVars) {
@@ -513,7 +531,7 @@ export class WorkflowStateMachine {
       }
     }
   }
-  
+
   /**
    * Get required steps for a given step
    */
@@ -526,10 +544,10 @@ export class WorkflowStateMachine {
       [WorkflowStep.VALIDATE]: [],
       [WorkflowStep.END]: [],
     };
-    
+
     return requirements[step] || [];
   }
-  
+
   /**
    * Get required variables for a given step
    */
@@ -542,10 +560,10 @@ export class WorkflowStateMachine {
       [WorkflowStep.VALIDATE]: [],
       [WorkflowStep.END]: [],
     };
-    
+
     return requirements[step] || [];
   }
-  
+
   /**
    * Determine next step based on state and branching logic
    */
@@ -561,7 +579,7 @@ export class WorkflowStateMachine {
         return nextStep;
       }
     }
-    
+
     // Default flow: NAVIGATE → EXTRACT_DOM → INTERACT → VALIDATE → END
     const defaultFlow: Record<WorkflowStep, WorkflowStep | null> = {
       [WorkflowStep.START]: WorkflowStep.NAVIGATE,
@@ -571,7 +589,7 @@ export class WorkflowStateMachine {
       [WorkflowStep.VALIDATE]: null,
       [WorkflowStep.END]: null,
     };
-    
+
     // Check if validation failed and config requires validation
     if (
       currentStep === WorkflowStep.VALIDATE &&
@@ -581,10 +599,10 @@ export class WorkflowStateMachine {
     ) {
       return null; // Stop workflow on validation failure
     }
-    
+
     return defaultFlow[currentStep] ?? null;
   }
-  
+
   /**
    * Save checkpoint to persistence layer
    */
@@ -601,48 +619,61 @@ export class WorkflowStateMachine {
       timestamp: Date.now(),
       success: true,
     };
-    
+
     try {
       await this.checkpointManager.saveCheckpoint(checkpoint);
-      
+
       this.logger.debug("WorkflowStateMachine", "Checkpoint saved", {
         checkpointId: checkpoint.checkpointId,
         workflowId,
         step,
       });
     } catch (error) {
-      this.logger.error("WorkflowStateMachine", "CRITICAL: Failed to save checkpoint", {
-        workflowId,
-        step,
-        error,
-      });
-      
+      this.logger.error(
+        "WorkflowStateMachine",
+        "CRITICAL: Failed to save checkpoint",
+        {
+          workflowId,
+          step,
+          error,
+        },
+      );
+
       // CRITICAL: Checkpoint persistence failure means workflow cannot recover
       // Fail fast rather than continuing without persistence
       throw new Error(
         `Checkpoint persistence failed for ${workflowId} at ${step}. ` +
-        `Workflow cannot continue safely. Error: ${error instanceof Error ? error.message : String(error)}`,
+          `Workflow cannot continue safely. Error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
-  
+
   /**
    * Create initial state for a new workflow
    */
-  createInitialState(workflowId: string, config?: WorkflowDefinition): BrowserAgentState {
+  createInitialState(
+    workflowId: string,
+    config?: WorkflowDefinition,
+  ): BrowserAgentState {
     const now = Date.now();
-    
+
     const workflowConfig = config
       ? {
-          ...(Array.isArray(config.steps) ? { maxSteps: config.steps.length } : {}),
-          ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
+          ...(Array.isArray(config.steps)
+            ? { maxSteps: config.steps.length }
+            : {}),
+          ...(config.timeoutMs !== undefined
+            ? { timeoutMs: config.timeoutMs }
+            : {}),
           ...(config.requireValidation !== undefined
             ? { requireValidation: config.requireValidation }
             : {}),
-          ...(config.branchingLogic ? { branchingLogic: config.branchingLogic } : {}),
+          ...(config.branchingLogic
+            ? { branchingLogic: config.branchingLogic }
+            : {}),
         }
       : undefined;
-    
+
     return {
       workflowId,
       currentStep: WorkflowStep.START,
@@ -659,7 +690,7 @@ export class WorkflowStateMachine {
       ...(workflowConfig ? { config: workflowConfig } : {}),
     };
   }
-  
+
   /**
    * Start a new workflow
    */
@@ -671,66 +702,67 @@ export class WorkflowStateMachine {
     const state = this.createInitialState(workflowId, config);
     state.variables = initialVariables;
     state.status = "running";
-    
+
     this.workflowStates.set(workflowId, state);
-    
+
     this.logger.info("WorkflowStateMachine", "Workflow started", {
       workflowId,
       config,
     });
-    
+
     // Save initial checkpoint
     await this.saveCheckpoint(workflowId, WorkflowStep.START, state);
-    
+
     return state;
   }
-  
+
   /**
    * Execute workflow steps
    */
   async executeWorkflow(workflowId: string): Promise<BrowserAgentState> {
     let state = this.workflowStates.get(workflowId);
-    
+
     if (!state) {
       throw new Error(`Workflow not found: ${workflowId}`);
     }
-    
+
     let currentStep = this.determineNextStep(state, state.currentStep);
-    
-    while (currentStep !== null && state.status === "running" && !state.paused) {
+
+    while (
+      currentStep !== null &&
+      state.status === "running" &&
+      !state.paused
+    ) {
       const updates = await this.executeNode(currentStep, state);
       state = { ...state, ...updates };
       this.workflowStates.set(workflowId, state);
-      
+
       if (state.status === "failed") {
         break;
       }
-      
+
       currentStep = this.determineNextStep(state, currentStep);
     }
-    
+
     if (currentStep === null && state.status === "running") {
       state.status = "completed";
       state.lastUpdate = Date.now();
       this.workflowStates.set(workflowId, state);
     }
-    
+
     return state;
   }
-  
+
   /**
    * Pause a workflow
    */
-  async pauseWorkflow(
-    workflowId: string,
-    reason?: string,
-  ): Promise<void> {
+  async pauseWorkflow(workflowId: string, reason?: string): Promise<void> {
     const state = this.workflowStates.get(workflowId);
-    
+
     if (!state) {
       throw new Error(`Workflow not found: ${workflowId}`);
     }
-    
+
     state.paused = true;
     if (reason !== undefined) {
       state.pauseReason = reason;
@@ -740,18 +772,18 @@ export class WorkflowStateMachine {
     state.pauseTimestamp = Date.now();
     state.status = "paused";
     state.lastUpdate = Date.now();
-    
+
     this.workflowStates.set(workflowId, state);
-    
+
     // Save checkpoint
     await this.saveCheckpoint(workflowId, state.currentStep, state);
-    
+
     this.logger.info("WorkflowStateMachine", "Workflow paused", {
       workflowId,
       reason,
     });
   }
-  
+
   /**
    * Resume a paused workflow
    */
@@ -760,29 +792,30 @@ export class WorkflowStateMachine {
     userInput?: Record<string, unknown>,
   ): Promise<void> {
     const state = this.workflowStates.get(workflowId);
-    
+
     if (!state) {
       // Try to load from checkpoint
-      const checkpoint = await this.checkpointManager.loadLatestCheckpoint(workflowId);
-      
+      const checkpoint =
+        await this.checkpointManager.loadLatestCheckpoint(workflowId);
+
       if (!checkpoint) {
         throw new Error(`Workflow not found: ${workflowId}`);
       }
-      
+
       this.workflowStates.set(workflowId, checkpoint.state);
       return this.resumeWorkflow(workflowId, userInput);
     }
-    
+
     if (!state.paused) {
       throw new Error(`Workflow is not paused: ${workflowId}`);
     }
-    
+
     state.paused = false;
     delete state.pauseReason;
     delete state.pauseTimestamp;
     state.status = "running";
     state.lastUpdate = Date.now();
-    
+
     // Merge user input into variables
     if (userInput) {
       state.variables = {
@@ -790,15 +823,15 @@ export class WorkflowStateMachine {
         ...userInput,
       };
     }
-    
+
     this.workflowStates.set(workflowId, state);
-    
+
     this.logger.info("WorkflowStateMachine", "Workflow resumed", {
       workflowId,
       hasUserInput: !!userInput,
     });
   }
-  
+
   /**
    * Cancel a workflow
    */
@@ -807,11 +840,11 @@ export class WorkflowStateMachine {
     options?: { cleanupResources?: boolean; closeTabs?: boolean },
   ): Promise<void> {
     const state = this.workflowStates.get(workflowId);
-    
+
     if (state) {
       state.status = "cancelled";
       state.lastUpdate = Date.now();
-      
+
       // Close tabs created by workflow if requested
       if (options?.closeTabs && state.tabId) {
         try {
@@ -825,48 +858,49 @@ export class WorkflowStateMachine {
         }
       }
     }
-    
+
     // Cleanup resources
     if (options?.cleanupResources) {
       await this.checkpointManager.deleteWorkflowCheckpoints(workflowId);
     }
-    
+
     this.workflowStates.delete(workflowId);
-    
+
     this.logger.info("WorkflowStateMachine", "Workflow cancelled", {
       workflowId,
       options,
     });
   }
-  
+
   /**
    * Get workflow status
    */
   getWorkflowStatus(workflowId: string): BrowserAgentState | undefined {
     return this.workflowStates.get(workflowId);
   }
-  
+
   /**
    * Hydrate workflow state from persistence
    */
   hydrateWorkflowState(state: BrowserAgentState): void {
     this.workflowStates.set(state.workflowId, state);
   }
-  
+
   /**
    * Get all active workflows
    */
   getAllWorkflows(): BrowserAgentState[] {
     return Array.from(this.workflowStates.values());
   }
-  
+
   /**
    * Cleanup stale checkpoints (> 1 hour old)
    */
   async cleanupStaleCheckpoints(): Promise<void> {
     const oneHourMs = 60 * 60 * 1000;
-    const deleted = await this.checkpointManager.cleanupStaleCheckpoints(oneHourMs);
-    
+    const deleted =
+      await this.checkpointManager.cleanupStaleCheckpoints(oneHourMs);
+
     this.logger.info("WorkflowStateMachine", "Cleaned up stale checkpoints", {
       deleted,
     });

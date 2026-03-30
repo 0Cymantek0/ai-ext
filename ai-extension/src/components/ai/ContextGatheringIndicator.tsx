@@ -1,6 +1,6 @@
 /**
  * Context Gathering Indicator
- * 
+ *
  * Shows real-time progress when AI is gathering context from tabs and other sources
  * Similar to tool call indicators in agentic AI systems
  */
@@ -32,7 +32,7 @@ export function ContextGatheringIndicator({
       className={cn(
         "rounded-lg border border-border/50 bg-muted/30 p-3 mb-3 backdrop-blur-sm",
         "animate-in fade-in-0 slide-in-from-top-2 duration-300",
-        className
+        className,
       )}
     >
       <div className="flex items-center gap-2 mb-2">
@@ -114,7 +114,8 @@ function ContextStepItem({ step }: { step: ContextStep }) {
     <div
       className={cn(
         "flex items-center gap-2 text-xs transition-all duration-200",
-        step.status === "loading" && "animate-in fade-in-0 slide-in-from-left-1"
+        step.status === "loading" &&
+          "animate-in fade-in-0 slide-in-from-left-1",
       )}
     >
       <div className="flex-shrink-0">{getStatusIcon()}</div>

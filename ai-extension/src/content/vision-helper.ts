@@ -43,7 +43,7 @@ export function extractElementMappings(): ElementMapping[] {
 
     // Get bounding box
     const rect = element.getBoundingClientRect();
-    
+
     // Skip elements outside viewport or with no size
     if (
       rect.width === 0 ||
@@ -61,7 +61,10 @@ export function extractElementMappings(): ElementMapping[] {
 
     // Extract text content
     let text = "";
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+    if (
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLTextAreaElement
+    ) {
       text = element.placeholder || element.value || "";
     } else if (element instanceof HTMLSelectElement) {
       text = element.options[element.selectedIndex]?.text || "";
@@ -130,11 +133,16 @@ function generateSelector(element: Element): string {
   const path: string[] = [];
   let current: Element | null = element;
 
-  while (current && current.parentElement && current !== document.body && current !== document.documentElement) {
+  while (
+    current &&
+    current.parentElement &&
+    current !== document.body &&
+    current !== document.documentElement
+  ) {
     const tagName = current.tagName.toLowerCase();
     const siblings = Array.from(current.parentElement.children);
     const sameTagSiblings = siblings.filter(
-      (sibling) => sibling.tagName.toLowerCase() === tagName
+      (sibling) => sibling.tagName.toLowerCase() === tagName,
     );
 
     let selector = tagName;

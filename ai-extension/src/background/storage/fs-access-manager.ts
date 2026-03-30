@@ -33,9 +33,10 @@ export const fsAccessManager = new FsAccessManager();
 interface MessageRouterLike {
   registerHandler(
     kind: MessageKind,
-    handler: (payload: unknown, sender?: chrome.runtime.MessageSender) =>
-      | Promise<unknown>
-      | unknown,
+    handler: (
+      payload: unknown,
+      sender?: chrome.runtime.MessageSender,
+    ) => Promise<unknown> | unknown,
   ): void;
 }
 

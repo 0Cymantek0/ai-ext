@@ -5,7 +5,12 @@
 
 export interface WorldEvent {
   id: string;
-  type: 'environmental' | 'npc_action' | 'consequence' | 'time_based' | 'reality_shift';
+  type:
+    | "environmental"
+    | "npc_action"
+    | "consequence"
+    | "time_based"
+    | "reality_shift";
   description: string;
   affectedLocations: string[];
   timestamp: number;
@@ -29,7 +34,7 @@ export class WorldEvolutionEngine {
 
   recordLocationVisit(locationId: string, description: string): void {
     const existing = this.locations.get(locationId);
-    
+
     if (existing) {
       existing.visitCount++;
       existing.lastVisit = Date.now();
@@ -41,7 +46,7 @@ export class WorldEvolutionEngine {
         modifications: [],
         lastVisit: Date.now(),
         visitCount: 1,
-        hasChanged: false
+        hasChanged: false,
       });
     }
   }
@@ -51,7 +56,8 @@ export class WorldEvolutionEngine {
     const triggeredEvents: WorldEvent[] = [];
 
     // Check for time-based events
-    if (this.timeElapsed % 30 === 0) { // Every 30 minutes
+    if (this.timeElapsed % 30 === 0) {
+      // Every 30 minutes
       const event = this.generateTimeBasedEvent();
       if (event) {
         this.worldEvents.push(event);
@@ -66,31 +72,34 @@ export class WorldEvolutionEngine {
   private generateTimeBasedEvent(): WorldEvent | null {
     const eventTypes = [
       {
-        type: 'environmental' as const,
+        type: "environmental" as const,
         descriptions: [
-          'A strange fog rolls in, obscuring familiar landmarks',
-          'The temperature drops suddenly and unnaturally',
-          'Distant thunder echoes through the corridors',
-          'An eerie silence falls over everything',
-          'The air shimmers with an otherworldly energy'
-        ]
+          "A strange fog rolls in, obscuring familiar landmarks",
+          "The temperature drops suddenly and unnaturally",
+          "Distant thunder echoes through the corridors",
+          "An eerie silence falls over everything",
+          "The air shimmers with an otherworldly energy",
+        ],
       },
       {
-        type: 'reality_shift' as const,
+        type: "reality_shift" as const,
         descriptions: [
-          'Reality flickers - some locations have subtly changed',
-          'The geometry of space feels wrong somehow',
-          'Paths that were there before have vanished',
-          'New passages have appeared where none existed',
-          'The world rearranges itself when you\'re not looking'
-        ]
-      }
+          "Reality flickers - some locations have subtly changed",
+          "The geometry of space feels wrong somehow",
+          "Paths that were there before have vanished",
+          "New passages have appeared where none existed",
+          "The world rearranges itself when you're not looking",
+        ],
+      },
     ];
 
     const category = eventTypes[Math.floor(Math.random() * eventTypes.length)];
     if (!category) return null;
-    
-    const description = category.descriptions[Math.floor(Math.random() * category.descriptions.length)];
+
+    const description =
+      category.descriptions[
+        Math.floor(Math.random() * category.descriptions.length)
+      ];
     if (!description) return null;
 
     return {
@@ -99,49 +108,52 @@ export class WorldEvolutionEngine {
       description,
       affectedLocations: this.getRandomLocations(3),
       timestamp: Date.now(),
-      permanent: Math.random() < 0.3 // 30% chance of permanent change
+      permanent: Math.random() < 0.3, // 30% chance of permanent change
     };
   }
 
   private getRandomLocations(count: number): string[] {
     const allLocations = Array.from(this.locations.keys());
     const selected: string[] = [];
-    
+
     for (let i = 0; i < Math.min(count, allLocations.length); i++) {
       const index = Math.floor(Math.random() * allLocations.length);
       const location = allLocations[index];
       if (location) selected.push(location);
     }
-    
+
     return selected;
   }
 
   private applyEvent(event: WorldEvent): void {
-    event.affectedLocations.forEach(locId => {
+    event.affectedLocations.forEach((locId) => {
       const location = this.locations.get(locId);
       if (location) {
         location.modifications.push(event.description);
         location.hasChanged = true;
-        
+
         // Reduce reality stability
         this.realityStability = Math.max(0, this.realityStability - 2);
       }
     });
   }
 
-  triggerConsequenceEvent(action: string, affectedLocations: string[]): WorldEvent {
+  triggerConsequenceEvent(
+    action: string,
+    affectedLocations: string[],
+  ): WorldEvent {
     const event: WorldEvent = {
       id: `consequence_${Date.now()}`,
-      type: 'consequence',
+      type: "consequence",
       description: `The consequences of ${action} ripple through the world`,
       affectedLocations,
       timestamp: Date.now(),
-      permanent: true
+      permanent: true,
     };
 
     this.worldEvents.push(event);
     this.applyEvent(event);
-    
+
     return event;
   }
 
@@ -157,16 +169,16 @@ export class WorldEvolutionEngine {
 
   generateEvolutionPrompt(locationId: string): string {
     const location = this.locations.get(locationId);
-    if (!location) return '';
+    if (!location) return "";
 
     const timeSinceLastVisit = Date.now() - location.lastVisit;
     const minutesSince = Math.floor(timeSinceLastVisit / 60000);
 
     let prompt = `WORLD EVOLUTION:\n`;
-    
+
     if (location.hasChanged) {
       prompt += `This location has changed since last visit:\n`;
-      location.modifications.slice(-3).forEach(mod => {
+      location.modifications.slice(-3).forEach((mod) => {
         prompt += `- ${mod}\n`;
       });
     }
@@ -184,18 +196,18 @@ export class WorldEvolutionEngine {
 
   destabilizeReality(amount: number): void {
     this.realityStability = Math.max(0, this.realityStability - amount);
-    
+
     if (this.realityStability < 50) {
       // Trigger reality shift event
       const event: WorldEvent = {
         id: `reality_shift_${Date.now()}`,
-        type: 'reality_shift',
-        description: 'Reality fractures - the world is no longer stable',
+        type: "reality_shift",
+        description: "Reality fractures - the world is no longer stable",
         affectedLocations: this.getRandomLocations(5),
         timestamp: Date.now(),
-        permanent: false
+        permanent: false,
       };
-      
+
       this.worldEvents.push(event);
       this.applyEvent(event);
     }
@@ -226,15 +238,15 @@ export class WorldEvolutionEngine {
     desc += `- Reality Stability: ${this.realityStability}/100\n`;
     desc += `- Locations Tracked: ${this.locations.size}\n`;
     desc += `- World Events: ${this.worldEvents.length}\n`;
-    
+
     if (this.realityStability < 70) {
       desc += `- WARNING: Reality is becoming unstable\n`;
     }
-    
+
     if (this.realityStability < 30) {
       desc += `- CRITICAL: Reality is fracturing\n`;
     }
-    
+
     return desc;
   }
 
@@ -250,7 +262,7 @@ export class WorldEvolutionEngine {
       locations: Array.from(this.locations.entries()),
       worldEvents: this.worldEvents,
       timeElapsed: this.timeElapsed,
-      realityStability: this.realityStability
+      realityStability: this.realityStability,
     };
   }
 

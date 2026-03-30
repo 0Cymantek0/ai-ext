@@ -117,7 +117,9 @@ function hasSnippetCue(prompt: string, explicitSignal = false): boolean {
   return Boolean(findKeywordMatch(prompt, SNIPPET_CUE_MATCHERS));
 }
 
-function hasPocketContext(activeContext: RouterInput["activeContext"]): boolean {
+function hasPocketContext(
+  activeContext: RouterInput["activeContext"],
+): boolean {
   if (!activeContext) {
     return false;
   }
@@ -164,7 +166,11 @@ export function routeQuery(input: RouterInput): RouteDecision {
     hasPocketContext(context) ||
     hasSnippetCue(prompt, context?.hasExplicitSnippet === true);
 
-  if (wordCount > 0 && wordCount <= SHORT_QUERY_WORD_THRESHOLD && hasContextualCue) {
+  if (
+    wordCount > 0 &&
+    wordCount <= SHORT_QUERY_WORD_THRESHOLD &&
+    hasContextualCue
+  ) {
     matchedRules.push("short-contextual-query");
     return {
       targetModel: "nano",
@@ -188,4 +194,3 @@ export function routeQuery(input: RouterInput): RouteDecision {
     },
   };
 }
-

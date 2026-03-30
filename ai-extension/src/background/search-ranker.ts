@@ -1,6 +1,6 @@
 /**
  * Search Ranker
- * 
+ *
  * Ranks tab search results by relevance
  */
 
@@ -20,7 +20,7 @@ export interface TabSearchResult {
  */
 export function rankSearchResults(
   results: TabSearchResult[],
-  keywords: string[]
+  keywords: string[],
 ): TabSearchResult[] {
   if (results.length === 0) {
     return [];
@@ -28,7 +28,7 @@ export function rankSearchResults(
 
   // Group results by tab
   const resultsByTab = new Map<number, TabSearchResult[]>();
-  
+
   for (const result of results) {
     if (!resultsByTab.has(result.tabId)) {
       resultsByTab.set(result.tabId, []);
@@ -43,7 +43,9 @@ export function rankSearchResults(
     // Calculate tab-level metrics
     const uniqueKeywords = new Set(tabResults.map((r) => r.keyword)).size;
     const totalMatches = tabResults.length;
-    const avgPosition = tabResults.reduce((sum, r) => sum + r.positionPercent, 0) / tabResults.length;
+    const avgPosition =
+      tabResults.reduce((sum, r) => sum + r.positionPercent, 0) /
+      tabResults.length;
 
     // Score each result
     for (const result of tabResults) {

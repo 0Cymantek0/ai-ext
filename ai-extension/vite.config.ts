@@ -88,7 +88,6 @@ export default defineConfig(({ mode }) => {
         "@devtools-shared": path.resolve(__dirname, "../dev-tools/shared"),
       },
       dedupe: ["react", "react-dom"],
-      preserveSymlinks: true,
     },
     server: {
       fs: {

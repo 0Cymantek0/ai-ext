@@ -1,6 +1,13 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 
 export interface CustomEndpointFormValues {
@@ -88,6 +95,7 @@ export function CustomEndpointForm({
   const [endpointMode, setEndpointMode] = React.useState<
     "native" | "openai-compatible" | "nvidia-nim"
   >(initialValues?.endpointMode ?? "openai-compatible");
+  const [showKey, setShowKey] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [isValidating, setIsValidating] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -206,17 +214,18 @@ export function CustomEndpointForm({
           <label className="block text-xs font-medium text-muted-foreground mb-1">
             Provider Type
           </label>
-          <select
-            value={providerType}
-            onChange={(e) => handleTypeChange(e.target.value)}
-            className="w-full h-9 rounded-md border border-input bg-card px-3 text-sm"
-          >
-            {PROVIDER_TYPES.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
+          <Select value={providerType} onValueChange={handleTypeChange}>
+            <SelectTrigger className="w-full h-10">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              {PROVIDER_TYPES.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -307,19 +316,23 @@ export function CustomEndpointForm({
         <label className="block text-xs font-medium text-muted-foreground mb-1">
           Endpoint Mode
         </label>
-        <select
+        <Select
           value={endpointMode}
-          onChange={(e) =>
+          onValueChange={(val) =>
             setEndpointMode(
-              e.target.value as "native" | "openai-compatible" | "nvidia-nim",
+              val as "native" | "openai-compatible" | "nvidia-nim",
             )
           }
-          className="w-full h-9 rounded-md border border-input bg-card px-3 text-sm"
         >
-          <option value="native">Native API</option>
-          <option value="openai-compatible">OpenAI-Compatible</option>
-          <option value="nvidia-nim">NVIDIA NIM</option>
-        </select>
+          <SelectTrigger className="w-full h-10">
+            <SelectValue placeholder="Select mode" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="native">Native API</SelectItem>
+            <SelectItem value="openai-compatible">OpenAI-Compatible</SelectItem>
+            <SelectItem value="nvidia-nim">NVIDIA NIM</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Error Display */}
@@ -351,7 +364,7 @@ export function CustomEndpointForm({
               Saving...
             </>
           ) : (
-            "Save Provider"
+            "Validate and save"
           )}
         </Button>
       </div>

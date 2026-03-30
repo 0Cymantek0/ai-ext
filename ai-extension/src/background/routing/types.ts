@@ -1,11 +1,11 @@
-export type CapabilityType = 'chat' | 'embeddings' | 'speech';
+export type CapabilityType = "chat" | "embeddings" | "speech";
 
 export interface RoutingPreferences {
   chat: string | null;
   embeddings: string | null;
   speech: string | null;
   fallbackChain: string[];
-  routingMode: 'auto' | 'manual';
+  routingMode: "auto" | "manual";
   triggerWords: Record<string, string>;
   providerParameters: Record<string, Record<string, any>>;
 }
@@ -13,14 +13,14 @@ export interface RoutingPreferences {
 export class EmbeddingProviderSwitchError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'EmbeddingProviderSwitchError';
+    this.name = "EmbeddingProviderSwitchError";
   }
 }
 
 export interface ModelTier {
-  cost: 'free' | 'low' | 'medium' | 'high';
-  speed: 'fast' | 'medium' | 'slow';
-  quality: 'basic' | 'advanced' | 'expert';
+  cost: "free" | "low" | "medium" | "high";
+  speed: "fast" | "medium" | "slow";
+  quality: "basic" | "advanced" | "expert";
 }
 
 export interface ModelCapabilities {
@@ -55,7 +55,7 @@ export interface ModelSheetEntry {
  * - 'segment': Segment-level timestamps
  * - 'word': Word-level timestamps
  */
-export type TimestampGranularity = 'none' | 'segment' | 'word';
+export type TimestampGranularity = "none" | "segment" | "word";
 
 /**
  * Provider-aware advanced options for STT providers.
@@ -96,7 +96,7 @@ export interface SpeechSettings {
   /** Language code for transcription (e.g., 'en', 'es', 'fr') */
   language: string;
   /** Timestamp granularity level */
-  timestampGranularity: 'none' | 'segment' | 'word';
+  timestampGranularity: "none" | "segment" | "word";
   /** Provider-specific advanced options, only applied when supported */
   advancedOptions: SpeechProviderAdvancedOptions;
 }

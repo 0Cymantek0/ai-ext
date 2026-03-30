@@ -1,10 +1,10 @@
-import { chromeai } from 'chrome-ai';
-import { generateText } from 'ai';
-import type { BaseProviderAdapter } from './base-adapter.js';
-import type { ProviderConfig, ProviderType } from '../provider-types.js';
+import { chromeai } from "chrome-ai";
+import { generateText } from "ai";
+import type { BaseProviderAdapter } from "./base-adapter.js";
+import type { ProviderConfig, ProviderType } from "../provider-types.js";
 
 export class GeminiNanoAdapter implements BaseProviderAdapter {
-  providerType: ProviderType = 'gemini-nano';
+  providerType: ProviderType = "gemini-nano";
   config: ProviderConfig;
 
   constructor(config: ProviderConfig) {
@@ -13,7 +13,7 @@ export class GeminiNanoAdapter implements BaseProviderAdapter {
 
   getLanguageModel(modelId?: string): any {
     // If we're not in the environment with native self.ai, chromeai will throw unless proxied
-    return chromeai((modelId || 'text') as 'text');
+    return chromeai((modelId || "text") as "text");
   }
 
   async checkAvailability(): Promise<{ available: boolean; error?: string }> {
@@ -26,38 +26,50 @@ export class GeminiNanoAdapter implements BaseProviderAdapter {
       }
 
       if (!ai || !ai.languageModel) {
-        return { available: false, error: 'Prompt API is not available in this environment' };
+        return {
+          available: false,
+          error: "Prompt API is not available in this environment",
+        };
       }
 
       const capabilities = await ai.languageModel.capabilities();
-      if (capabilities.available === 'no') {
-        return { available: false, error: 'Gemini Nano is not available or model needs downloading.' };
+      if (capabilities.available === "no") {
+        return {
+          available: false,
+          error: "Gemini Nano is not available or model needs downloading.",
+        };
       }
 
       return { available: true };
     } catch (error: any) {
-      return { available: false, error: error.message || 'Error checking availability' };
+      return {
+        available: false,
+        error: error.message || "Error checking availability",
+      };
     }
   }
 
   async validateConnection(): Promise<{ success: boolean; error?: string }> {
     const availability = await this.checkAvailability();
     if (!availability.available) {
-      return { success: false, ...(availability.error ? { error: availability.error } : {}) };
+      return {
+        success: false,
+        ...(availability.error ? { error: availability.error } : {}),
+      };
     }
 
     try {
       const model = this.getLanguageModel();
       await generateText({
         model: model as any,
-        prompt: 'test',
+        prompt: "test",
         maxOutputTokens: 1,
       });
       return { success: true };
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to generate test completion'
+        error: error.message || "Failed to generate test completion",
       };
     }
   }
@@ -66,18 +78,22 @@ export class GeminiNanoAdapter implements BaseProviderAdapter {
     if ((self as any).__aiProxySetup || !chrome.offscreen) return;
 
     try {
-      const OFFSCREEN_DOCUMENT_PATH = 'src/offscreen/offscreen.html';
+      const OFFSCREEN_DOCUMENT_PATH = "src/offscreen/offscreen.html";
 
       const existingContexts = await chrome.runtime.getContexts({
         contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
-        documentUrls: [chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH)]
+        documentUrls: [chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH)],
       });
 
       if (existingContexts.length === 0) {
         await chrome.offscreen.createDocument({
           url: OFFSCREEN_DOCUMENT_PATH,
-          reasons: [chrome.offscreen.Reason.WORKERS || chrome.offscreen.Reason.DOM_PARSER],
-          justification: 'Proxy AI Prompt API requests from background service worker'
+          reasons: [
+            chrome.offscreen.Reason.WORKERS ||
+              chrome.offscreen.Reason.DOM_PARSER,
+          ],
+          justification:
+            "Proxy AI Prompt API requests from background service worker",
         });
       }
 
@@ -86,11 +102,14 @@ export class GeminiNanoAdapter implements BaseProviderAdapter {
       (self as any).ai = {
         languageModel: {
           capabilities: async () => {
-            return await chrome.runtime.sendMessage({ type: 'NANO_PROXY', action: 'capabilities' });
-          }
+            return await chrome.runtime.sendMessage({
+              type: "NANO_PROXY",
+              action: "capabilities",
+            });
+          },
           // Note: Full proxy for `create` and streaming is left to the offscreen implementation
           // if it needs to intercept LanguageModelV1 methods.
-        }
+        },
       };
       (self as any).__aiProxySetup = true;
     } catch (e) {

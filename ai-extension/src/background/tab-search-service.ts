@@ -1,6 +1,6 @@
 /**
  * Tab Search Service
- * 
+ *
  * Performs distributed real-time search across all open tabs
  * without heavy indexing. Uses parallel execution for speed.
  */
@@ -28,7 +28,7 @@ export interface TabSearchResponse {
  * Search across all open tabs in parallel
  */
 export async function searchAllTabs(
-  options: TabSearchOptions
+  options: TabSearchOptions,
 ): Promise<TabSearchResponse> {
   const startTime = performance.now();
   const maxResults = options.maxResults ?? 10;
@@ -43,7 +43,7 @@ export async function searchAllTabs(
 
   // Extract keywords from query
   const keywords = extractKeywords(options.query);
-  
+
   if (keywords.length === 0) {
     logger.warn("TabSearchService", "No keywords extracted from query");
     return {
@@ -65,7 +65,7 @@ export async function searchAllTabs(
       !tab.url.startsWith("chrome://") &&
       !tab.url.startsWith("chrome-extension://") &&
       !tab.url.startsWith("about:") &&
-      !tab.url.startsWith("file://")
+      !tab.url.startsWith("file://"),
   );
 
   logger.info("TabSearchService", "Found searchable tabs", {
@@ -76,19 +76,21 @@ export async function searchAllTabs(
   // Emit search started event
   if (options.conversationId) {
     try {
-      chrome.runtime.sendMessage({
-        kind: "CONTEXT_PROGRESS",
-        requestId: crypto.randomUUID(),
-        payload: {
-          type: "TAB_SEARCH_STARTED",
-          conversationId: options.conversationId,
-          data: {
-            totalTabs: searchableTabs.length,
+      chrome.runtime
+        .sendMessage({
+          kind: "CONTEXT_PROGRESS",
+          requestId: crypto.randomUUID(),
+          payload: {
+            type: "TAB_SEARCH_STARTED",
+            conversationId: options.conversationId,
+            data: {
+              totalTabs: searchableTabs.length,
+            },
           },
-        },
-      }).catch(() => {
-        // Ignore errors - progress updates are non-critical
-      });
+        })
+        .catch(() => {
+          // Ignore errors - progress updates are non-critical
+        });
     } catch (error) {
       // Ignore errors
     }
@@ -105,7 +107,14 @@ export async function searchAllTabs(
 
   // Execute search in parallel across all tabs
   const searchPromises = searchableTabs.map((tab) =>
-    searchTabContent(tab.id!, tab.url!, tab.title || "", keywords, maxTextPerTab, timeout)
+    searchTabContent(
+      tab.id!,
+      tab.url!,
+      tab.title || "",
+      keywords,
+      maxTextPerTab,
+      timeout,
+    ),
   );
 
   // Wait for all searches with timeout
@@ -134,7 +143,7 @@ export async function searchAllTabs(
   // Rank and limit results
   const rankedResults = rankSearchResults(allMatches, keywords).slice(
     0,
-    maxResults
+    maxResults,
   );
 
   const duration = performance.now() - startTime;
@@ -147,21 +156,23 @@ export async function searchAllTabs(
   // Emit search complete event
   if (options.conversationId) {
     try {
-      chrome.runtime.sendMessage({
-        kind: "CONTEXT_PROGRESS",
-        requestId: crypto.randomUUID(),
-        payload: {
-          type: "TAB_SEARCH_COMPLETE",
-          conversationId: options.conversationId,
-          data: {
-            searchedTabs: searchedCount,
-            resultsCount: rankedResults.length,
-            duration,
+      chrome.runtime
+        .sendMessage({
+          kind: "CONTEXT_PROGRESS",
+          requestId: crypto.randomUUID(),
+          payload: {
+            type: "TAB_SEARCH_COMPLETE",
+            conversationId: options.conversationId,
+            data: {
+              searchedTabs: searchedCount,
+              resultsCount: rankedResults.length,
+              duration,
+            },
           },
-        },
-      }).catch(() => {
-        // Ignore errors
-      });
+        })
+        .catch(() => {
+          // Ignore errors
+        });
     } catch (error) {
       // Ignore errors
     }
@@ -184,12 +195,12 @@ async function searchTabContent(
   title: string,
   keywords: string[],
   maxTextLength: number,
-  timeout: number
+  timeout: number,
 ): Promise<TabSearchResult[]> {
   try {
     // Execute search script in tab with timeout
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Search timeout")), timeout)
+      setTimeout(() => reject(new Error("Search timeout")), timeout),
     );
 
     const searchPromise = chrome.scripting.executeScript({
@@ -231,14 +242,16 @@ function searchInPage(keywords: string[], maxTextLength: number) {
   try {
     // Extract clean text from page
     const bodyClone = document.body.cloneNode(true) as HTMLElement;
-    
+
     // Remove unwanted elements
-    bodyClone.querySelectorAll(
-      'script, style, nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]'
-    ).forEach((el) => el.remove());
+    bodyClone
+      .querySelectorAll(
+        'script, style, nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]',
+      )
+      .forEach((el) => el.remove());
 
     let fullText = bodyClone.textContent || "";
-    
+
     // Clean whitespace
     fullText = fullText.replace(/\s+/g, " ").trim();
 
@@ -261,13 +274,16 @@ function searchInPage(keywords: string[], maxTextLength: number) {
 
       while (index < lowerText.length) {
         index = lowerText.indexOf(lowerKeyword, index);
-        
+
         if (index === -1) break;
 
         // Extract snippet with context (±200 chars)
         const contextRadius = 200;
         const start = Math.max(0, index - contextRadius);
-        const end = Math.min(fullText.length, index + keyword.length + contextRadius);
+        const end = Math.min(
+          fullText.length,
+          index + keyword.length + contextRadius,
+        );
         const snippet = fullText.substring(start, end);
 
         // Calculate position percentage

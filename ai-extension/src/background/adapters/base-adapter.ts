@@ -1,4 +1,4 @@
-import type { ProviderType, ProviderConfig } from '../provider-types.js';
+import type { ProviderType, ProviderConfig } from "../provider-types.js";
 
 export interface AdapterValidationResult {
   success: boolean;

@@ -25,9 +25,9 @@ export enum ToolCategory {
  * Tool complexity levels for rate limiting and resource management
  */
 export enum ToolComplexity {
-  LOW = "low",       // Fast operations (< 100ms)
+  LOW = "low", // Fast operations (< 100ms)
   MEDIUM = "medium", // Moderate operations (100ms - 1s)
-  HIGH = "high",     // Complex operations (> 1s)
+  HIGH = "high", // Complex operations (> 1s)
 }
 
 /**
@@ -106,10 +106,12 @@ class RateLimiter {
   isAllowed(key: string): boolean {
     const now = Date.now();
     const requests = this.requestCounts.get(key) || [];
-    
+
     // Remove old requests outside the time window
-    const validRequests = requests.filter((timestamp) => now - timestamp < this.windowMs);
-    
+    const validRequests = requests.filter(
+      (timestamp) => now - timestamp < this.windowMs,
+    );
+
     if (validRequests.length >= this.maxRequests) {
       return false;
     }
@@ -126,8 +128,10 @@ class RateLimiter {
   getUsage(key: string): { current: number; limit: number } {
     const now = Date.now();
     const requests = this.requestCounts.get(key) || [];
-    const validRequests = requests.filter((timestamp) => now - timestamp < this.windowMs);
-    
+    const validRequests = requests.filter(
+      (timestamp) => now - timestamp < this.windowMs,
+    );
+
     return {
       current: validRequests.length,
       limit: this.maxRequests,
@@ -177,9 +181,12 @@ export class BrowserToolRegistry {
     this.logger = logger;
     this.performanceMonitor = performanceMonitor;
 
-    this.maxRequestsPerMinute = config?.maxRequestsPerMinute ?? this.maxRequestsPerMinute;
-    this.maxToolCallsPerWorkflow = config?.maxToolCallsPerWorkflow ?? this.maxToolCallsPerWorkflow;
-    this.defaultWorkflowTimeoutMs = config?.defaultWorkflowTimeoutMs ?? this.defaultWorkflowTimeoutMs;
+    this.maxRequestsPerMinute =
+      config?.maxRequestsPerMinute ?? this.maxRequestsPerMinute;
+    this.maxToolCallsPerWorkflow =
+      config?.maxToolCallsPerWorkflow ?? this.maxToolCallsPerWorkflow;
+    this.defaultWorkflowTimeoutMs =
+      config?.defaultWorkflowTimeoutMs ?? this.defaultWorkflowTimeoutMs;
 
     this.rateLimiter = new RateLimiter(this.maxRequestsPerMinute, 60000);
 
@@ -197,18 +204,25 @@ export class BrowserToolRegistry {
     definition: BrowserToolDefinition<TInput, TOutput>,
   ): void {
     if (this.tools.has(definition.name)) {
-      this.logger.warn("BrowserToolRegistry", `Overwriting tool: ${definition.name}`);
+      this.logger.warn(
+        "BrowserToolRegistry",
+        `Overwriting tool: ${definition.name}`,
+      );
     }
 
     // Validate the tool definition
     this.validateToolDefinition(definition);
 
     this.tools.set(definition.name, definition);
-    this.logger.info("BrowserToolRegistry", `Registered tool: ${definition.name}`, {
-      category: definition.category,
-      complexity: definition.complexity,
-      requiresHumanApproval: definition.requiresHumanApproval,
-    });
+    this.logger.info(
+      "BrowserToolRegistry",
+      `Registered tool: ${definition.name}`,
+      {
+        category: definition.category,
+        complexity: definition.complexity,
+        requiresHumanApproval: definition.requiresHumanApproval,
+      },
+    );
   }
 
   /**
@@ -250,7 +264,9 @@ export class BrowserToolRegistry {
    * Get tools by category
    */
   getToolsByCategory(category: ToolCategory): BrowserToolDefinition[] {
-    return Array.from(this.tools.values()).filter((tool) => tool.category === category);
+    return Array.from(this.tools.values()).filter(
+      (tool) => tool.category === category,
+    );
   }
 
   /**
@@ -316,10 +332,14 @@ export class BrowserToolRegistry {
       });
 
       // Log success
-      this.logger.info("BrowserToolRegistry", `Tool executed successfully: ${toolName}`, {
-        workflowId: context.workflowId,
-        executionTimeMs,
-      });
+      this.logger.info(
+        "BrowserToolRegistry",
+        `Tool executed successfully: ${toolName}`,
+        {
+          workflowId: context.workflowId,
+          executionTimeMs,
+        },
+      );
 
       // Record metrics
       this.recordToolMetrics(toolName, true, executionTimeMs, tool.complexity);
@@ -338,13 +358,18 @@ export class BrowserToolRegistry {
       };
     } catch (error) {
       const executionTimeMs = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
-      this.logger.error("BrowserToolRegistry", `Tool execution failed: ${toolName}`, {
-        workflowId: context.workflowId,
-        error: errorMessage,
-        executionTimeMs,
-      });
+      this.logger.error(
+        "BrowserToolRegistry",
+        `Tool execution failed: ${toolName}`,
+        {
+          workflowId: context.workflowId,
+          error: errorMessage,
+          executionTimeMs,
+        },
+      );
 
       // Record failure metrics
       this.recordToolMetrics(toolName, false, executionTimeMs);
@@ -352,7 +377,10 @@ export class BrowserToolRegistry {
       return {
         success: false,
         error: {
-          code: error instanceof z.ZodError ? "VALIDATION_ERROR" : "EXECUTION_ERROR",
+          code:
+            error instanceof z.ZodError
+              ? "VALIDATION_ERROR"
+              : "EXECUTION_ERROR",
           message: errorMessage,
           details: error instanceof z.ZodError ? error.errors : error,
         },
@@ -380,7 +408,10 @@ export class BrowserToolRegistry {
       status: "running",
     });
 
-    this.logger.info("BrowserToolRegistry", `Workflow initialized: ${workflowId}`);
+    this.logger.info(
+      "BrowserToolRegistry",
+      `Workflow initialized: ${workflowId}`,
+    );
   }
 
   /**
@@ -388,7 +419,7 @@ export class BrowserToolRegistry {
    */
   private checkWorkflowState(workflowId: string): void {
     const state = this.workflowStates.get(workflowId);
-    
+
     if (!state) {
       // Auto-initialize if not exists
       this.initializeWorkflow(workflowId);
@@ -399,7 +430,9 @@ export class BrowserToolRegistry {
     const elapsed = Date.now() - state.startTime;
     if (elapsed > this.defaultWorkflowTimeoutMs) {
       this.updateWorkflowState(workflowId, { status: "failed" });
-      throw new Error(`Workflow timeout: ${workflowId} exceeded ${this.defaultWorkflowTimeoutMs}ms`);
+      throw new Error(
+        `Workflow timeout: ${workflowId} exceeded ${this.defaultWorkflowTimeoutMs}ms`,
+      );
     }
 
     // Check tool call limit
@@ -483,7 +516,10 @@ export class BrowserToolRegistry {
   cancelWorkflow(workflowId: string): void {
     this.updateWorkflowState(workflowId, { status: "cancelled" });
     this.rateLimiter.reset(workflowId);
-    this.logger.info("BrowserToolRegistry", `Workflow cancelled: ${workflowId}`);
+    this.logger.info(
+      "BrowserToolRegistry",
+      `Workflow cancelled: ${workflowId}`,
+    );
   }
 
   /**
@@ -492,7 +528,10 @@ export class BrowserToolRegistry {
   completeWorkflow(workflowId: string): void {
     this.updateWorkflowState(workflowId, { status: "completed" });
     this.rateLimiter.reset(workflowId);
-    this.logger.info("BrowserToolRegistry", `Workflow completed: ${workflowId}`);
+    this.logger.info(
+      "BrowserToolRegistry",
+      `Workflow completed: ${workflowId}`,
+    );
   }
 
   /**
@@ -528,7 +567,7 @@ export class BrowserToolRegistry {
     byComplexity: Record<ToolComplexity, number>;
   } {
     const tools = this.getAllTools();
-    
+
     const byCategory: Record<ToolCategory, number> = {} as any;
     const byComplexity: Record<ToolComplexity, number> = {} as any;
 
@@ -564,6 +603,8 @@ export class BrowserToolRegistry {
    * Get tools that require human approval
    */
   getDestructiveTools(): BrowserToolDefinition[] {
-    return Array.from(this.tools.values()).filter((tool) => tool.requiresHumanApproval);
+    return Array.from(this.tools.values()).filter(
+      (tool) => tool.requiresHumanApproval,
+    );
   }
 }

@@ -125,7 +125,11 @@ interface DecodedImageHandle {
 interface CanvasHandle {
   width: number;
   height: number;
-  draw(image: DecodedImageHandle, targetWidth: number, targetHeight: number): void;
+  draw(
+    image: DecodedImageHandle,
+    targetWidth: number,
+    targetHeight: number,
+  ): void;
   toBlob(mimeType: string, quality?: number): Promise<Blob>;
 }
 
@@ -177,10 +181,17 @@ class DefaultCompressionRuntimeAdapter implements CompressionRuntimeAdapter {
       }
     }
 
-    if (typeof document !== "undefined" && typeof document.createElement === "function") {
-      const ImageCtor = (globalThis as typeof globalThis & { Image?: typeof Image }).Image;
+    if (
+      typeof document !== "undefined" &&
+      typeof document.createElement === "function"
+    ) {
+      const ImageCtor = (
+        globalThis as typeof globalThis & { Image?: typeof Image }
+      ).Image;
       if (!ImageCtor) {
-        throw new CompressionError("Image constructor unavailable in current context");
+        throw new CompressionError(
+          "Image constructor unavailable in current context",
+        );
       }
       const urlApi = globalThis.URL;
       if (!urlApi || typeof urlApi.createObjectURL !== "function") {
@@ -252,7 +263,10 @@ class DefaultCompressionRuntimeAdapter implements CompressionRuntimeAdapter {
       };
     }
 
-    if (typeof document !== "undefined" && typeof document.createElement === "function") {
+    if (
+      typeof document !== "undefined" &&
+      typeof document.createElement === "function"
+    ) {
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
@@ -330,11 +344,9 @@ export class DefaultCompressionService implements CompressionService {
     const progress = options.onProgress;
     progress?.({ stage: "decode", percent: 0 });
 
-    const decoded = await this.runtime
-      .decodeImage(blob)
-      .catch((error) => {
-        throw new CompressionError("Unable to decode image", error);
-      });
+    const decoded = await this.runtime.decodeImage(blob).catch((error) => {
+      throw new CompressionError("Unable to decode image", error);
+    });
 
     const originalWidth = Math.max(1, Math.round(decoded.width));
     const originalHeight = Math.max(1, Math.round(decoded.height));
@@ -354,7 +366,10 @@ export class DefaultCompressionService implements CompressionService {
       options.maxPixels ?? this.defaults.maxPixels,
     );
 
-    const canvas = this.runtime.createCanvas(resizeConfig.width, resizeConfig.height);
+    const canvas = this.runtime.createCanvas(
+      resizeConfig.width,
+      resizeConfig.height,
+    );
     if (!canvas) {
       decoded.close();
       progress?.({
@@ -437,7 +452,8 @@ export class DefaultCompressionService implements CompressionService {
 
     const ratio = compressedBlob.size / blob.size;
     const allowLarger = options.allowLarger ?? false;
-    const shouldFallbackToOriginal = !allowLarger && ratio >= 1 && !resizeConfig.wasResized;
+    const shouldFallbackToOriginal =
+      !allowLarger && ratio >= 1 && !resizeConfig.wasResized;
 
     if (shouldFallbackToOriginal) {
       progress?.({
@@ -509,11 +525,9 @@ export class DefaultCompressionService implements CompressionService {
     const progress = options.onProgress;
     progress?.({ stage: "decode", percent: 0 });
 
-    const decoded = await this.runtime
-      .decodeImage(blob)
-      .catch((error) => {
-        throw new CompressionError("Unable to decode image", error);
-      });
+    const decoded = await this.runtime.decodeImage(blob).catch((error) => {
+      throw new CompressionError("Unable to decode image", error);
+    });
 
     const originalWidth = Math.max(1, Math.round(decoded.width));
     const originalHeight = Math.max(1, Math.round(decoded.height));
@@ -525,7 +539,10 @@ export class DefaultCompressionService implements CompressionService {
       height: originalHeight,
     });
 
-    const targetSize = Math.max(1, Math.round(options.size ?? this.defaults.thumbnailSize));
+    const targetSize = Math.max(
+      1,
+      Math.round(options.size ?? this.defaults.thumbnailSize),
+    );
     const { width: targetWidth, height: targetHeight } = constrainToSquare(
       originalWidth,
       originalHeight,
@@ -558,7 +575,9 @@ export class DefaultCompressionService implements CompressionService {
       options.format,
       options.preferLossless,
     );
-    const quality = clampQuality(options.quality ?? this.defaults.thumbnailQuality);
+    const quality = clampQuality(
+      options.quality ?? this.defaults.thumbnailQuality,
+    );
 
     let thumbnailBlob: Blob | null = null;
     let usedFormat = attemptedFormats[0] ?? "image/webp";
@@ -615,9 +634,10 @@ export class DefaultCompressionService implements CompressionService {
     const normalize = options.normalizeWhitespace !== false;
     const ellipsisEnabled = options.ellipsis !== false;
     const maxWords = Math.max(1, options.maxWords ?? 120);
-    const maxSentences = options.maxSentences && options.maxSentences > 0
-      ? Math.floor(options.maxSentences)
-      : undefined;
+    const maxSentences =
+      options.maxSentences && options.maxSentences > 0
+        ? Math.floor(options.maxSentences)
+        : undefined;
 
     const normalizedText = normalize ? normalizeWhitespace(text) : text.trim();
     if (!normalizedText) {
@@ -657,7 +677,11 @@ export class DefaultCompressionService implements CompressionService {
         accumulatedWords = prospectiveCount;
         usedSentences += 1;
 
-        if (maxSentences && usedSentences >= maxSentences && usedSentences < sentences.length) {
+        if (
+          maxSentences &&
+          usedSentences >= maxSentences &&
+          usedSentences < sentences.length
+        ) {
           truncated = true;
           if (ellipsisEnabled && !ellipsisApplied && excerptParts.length > 0) {
             const lastIndex = excerptParts.length - 1;
@@ -673,9 +697,7 @@ export class DefaultCompressionService implements CompressionService {
       if (remaining > 0) {
         const partialSentence = words.slice(0, remaining).join(" ");
         const cleaned = partialSentence.replace(/[\s,;:]+$/u, "");
-        excerptParts.push(
-          ellipsisEnabled ? appendEllipsis(cleaned) : cleaned,
-        );
+        excerptParts.push(ellipsisEnabled ? appendEllipsis(cleaned) : cleaned);
         accumulatedWords = maxWords;
         truncated = true;
         ellipsisApplied = ellipsisEnabled;
@@ -831,7 +853,11 @@ function normalizeFormat(format: string | undefined): string | undefined {
 }
 
 function isLosslessMime(mimeType: string): boolean {
-  return mimeType === "image/png" || mimeType === "image/gif" || mimeType === "image/bmp";
+  return (
+    mimeType === "image/png" ||
+    mimeType === "image/gif" ||
+    mimeType === "image/bmp"
+  );
 }
 
 function uniqueFormats(formats: string[]): string[] {
@@ -885,9 +911,15 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bufferCtor = (globalThis as typeof globalThis & {
-    Buffer?: { from(data: ArrayBuffer | Uint8Array): { toString(encoding: string): string } };
-  }).Buffer;
+  const bufferCtor = (
+    globalThis as typeof globalThis & {
+      Buffer?: {
+        from(data: ArrayBuffer | Uint8Array): {
+          toString(encoding: string): string;
+        };
+      };
+    }
+  ).Buffer;
   if (bufferCtor && typeof bufferCtor.from === "function") {
     return bufferCtor.from(buffer).toString("base64");
   }
@@ -915,9 +947,11 @@ function normalizeWhitespace(value: string): string {
 
 function splitIntoSentences(value: string): string[] {
   if (typeof Intl !== "undefined") {
-    const segmenterCtor = (Intl as typeof Intl & {
-      Segmenter?: IntlSegmenterCtor;
-    }).Segmenter;
+    const segmenterCtor = (
+      Intl as typeof Intl & {
+        Segmenter?: IntlSegmenterCtor;
+      }
+    ).Segmenter;
     if (typeof segmenterCtor === "function") {
       const segmenter = new segmenterCtor(undefined, {
         granularity: "sentence",

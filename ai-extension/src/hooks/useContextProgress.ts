@@ -1,6 +1,6 @@
 /**
  * useContextProgress Hook
- * 
+ *
  * Manages context gathering progress state and listens for progress events
  */
 
@@ -48,8 +48,8 @@ export function useContextProgress(conversationId: string | null) {
                     status: "complete" as const,
                     detail: `${event.data?.resultsCount || 0} results`,
                   }
-                : step
-            )
+                : step,
+            ),
           );
           break;
 
@@ -70,8 +70,8 @@ export function useContextProgress(conversationId: string | null) {
             prev.map((step) =>
               step.id === "page-context"
                 ? { ...step, status: "complete" as const }
-                : step
-            )
+                : step,
+            ),
           );
           break;
 
@@ -96,8 +96,8 @@ export function useContextProgress(conversationId: string | null) {
                     status: "complete" as const,
                     detail: `${event.data?.messageCount || 0} messages`,
                   }
-                : step
-            )
+                : step,
+            ),
           );
           break;
 
@@ -122,8 +122,8 @@ export function useContextProgress(conversationId: string | null) {
                     status: "complete" as const,
                     detail: `${event.data?.chunkCount || 0} chunks`,
                   }
-                : step
-            )
+                : step,
+            ),
           );
           break;
 
@@ -133,8 +133,8 @@ export function useContextProgress(conversationId: string | null) {
             prev.map((step) =>
               step.status === "loading"
                 ? { ...step, status: "complete" as const }
-                : step
-            )
+                : step,
+            ),
           );
           // Auto-hide after 2 seconds
           setTimeout(() => {

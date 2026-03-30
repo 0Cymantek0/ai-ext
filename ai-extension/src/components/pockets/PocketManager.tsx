@@ -427,7 +427,9 @@ export const PocketManager = React.forwardRef<
 
     // Handle report generation
     const handleGenerateReport = (pocketId?: string) => {
-      const url = chrome.runtime.getURL(`src/reports/report-viewer.html${pocketId ? `?pocketId=${pocketId}` : ''}`);
+      const url = chrome.runtime.getURL(
+        `src/reports/report-viewer.html${pocketId ? `?pocketId=${pocketId}` : ""}`,
+      );
       chrome.tabs.create({ url });
     };
 
@@ -751,5 +753,5 @@ export const PocketManager = React.forwardRef<
         )}
       </div>
     );
-  }
+  },
 );

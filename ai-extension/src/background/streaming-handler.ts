@@ -10,7 +10,11 @@ import { CloudAIManager } from "./cloud-ai-manager";
 import { HybridAIEngine } from "./hybrid-ai-engine";
 import { logger } from "./monitoring";
 import { conversationContextLoader } from "./conversation-context-loader";
-import { routeQuery, type RoutingDecision, type RouteQueryInput } from "./query-router";
+import {
+  routeQuery,
+  type RoutingDecision,
+  type RouteQueryInput,
+} from "./query-router";
 import {
   getModeAwareProcessor,
   ModeAwareProcessor,
@@ -29,8 +33,7 @@ import type {
 
 type ResolvedModel = "nano" | "flash" | "pro";
 
-interface RoutingSessionDecision
-  extends Omit<RoutingDecision, "preferLocal"> {
+interface RoutingSessionDecision extends Omit<RoutingDecision, "preferLocal"> {
   mode: "ask" | "ai-pocket";
   preferLocal: boolean;
 }
@@ -130,7 +133,9 @@ export class StreamingHandler {
 
     try {
       const context =
-        await conversationContextLoader.buildConversationContext(conversationId);
+        await conversationContextLoader.buildConversationContext(
+          conversationId,
+        );
       return {
         messageCount: context.messages.length,
         totalTokens: context.totalTokens,
@@ -247,7 +252,7 @@ export class StreamingHandler {
     const loggedPreferLocal =
       userSpecifiedModel !== undefined
         ? userSpecifiedModel === "nano"
-        : session.routingDecision?.preferLocal ?? payload.preferLocal ?? true;
+        : (session.routingDecision?.preferLocal ?? payload.preferLocal ?? true);
 
     if (!session.resolvedModel) {
       session.resolvedModel = loggedPreferLocal ? "nano" : "flash";
@@ -440,7 +445,11 @@ export class StreamingHandler {
           session.totalChunks++;
 
           // Send chunk to side panel
-          this.sendStreamChunk(session.requestId, chunk, payload.conversationId);
+          this.sendStreamChunk(
+            session.requestId,
+            chunk,
+            payload.conversationId,
+          );
 
           // Requirement 13.2: Ensure UI remains responsive
           // Add small delay to prevent overwhelming the UI

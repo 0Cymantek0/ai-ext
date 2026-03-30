@@ -71,7 +71,9 @@ export interface IndexedDbEstimateConfig {
   extraBytes?: number;
 }
 
-export const DEFAULT_INDEXED_DB_ITEM_BYTES: Readonly<Record<ResearchAssetKind, number>> = Object.freeze({
+export const DEFAULT_INDEXED_DB_ITEM_BYTES: Readonly<
+  Record<ResearchAssetKind, number>
+> = Object.freeze({
   [ResearchAssetKind.TextExcerpt]: 5 * KIBIBYTE,
   [ResearchAssetKind.Embedding]: 6 * KIBIBYTE,
   [ResearchAssetKind.ThumbnailImage]: 12 * KIBIBYTE,
@@ -81,9 +83,13 @@ export const DEFAULT_INDEXED_DB_ITEM_BYTES: Readonly<Record<ResearchAssetKind, n
 });
 
 export const INDEXED_DB_CAPACITY_BYTES = 50 * 1024 * 1024; // ~50 MiB
-export const INDEXED_DB_SOFT_LIMIT_BYTES = Math.floor(INDEXED_DB_CAPACITY_BYTES * 0.9);
+export const INDEXED_DB_SOFT_LIMIT_BYTES = Math.floor(
+  INDEXED_DB_CAPACITY_BYTES * 0.9,
+);
 
-export function estimateIndexedDbBytes(config: IndexedDbEstimateConfig): number {
+export function estimateIndexedDbBytes(
+  config: IndexedDbEstimateConfig,
+): number {
   const { kind, chunkCount, bytesPerChunk, chunkBytes, extraBytes } = config;
 
   if (Array.isArray(chunkBytes) && chunkBytes.length > 0) {

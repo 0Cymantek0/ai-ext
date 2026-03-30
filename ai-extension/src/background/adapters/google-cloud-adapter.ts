@@ -1,10 +1,10 @@
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateText } from 'ai';
-import type { BaseProviderAdapter } from './base-adapter.js';
-import type { ProviderConfig, ProviderType } from '../provider-types.js';
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateText } from "ai";
+import type { BaseProviderAdapter } from "./base-adapter.js";
+import type { ProviderConfig, ProviderType } from "../provider-types.js";
 
 export class GoogleCloudAdapter implements BaseProviderAdapter {
-  providerType: ProviderType = 'google';
+  providerType: ProviderType = "google";
   config: ProviderConfig;
   private apiKey: string;
 
@@ -18,27 +18,28 @@ export class GoogleCloudAdapter implements BaseProviderAdapter {
       apiKey: this.apiKey,
     });
 
-    const selectedModelId = modelId || this.config.modelId || 'gemini-1.5-flash';
+    const selectedModelId =
+      modelId || this.config.modelId || "gemini-1.5-flash";
     return google(selectedModelId);
   }
 
   async validateConnection(): Promise<{ success: boolean; error?: string }> {
     if (!this.apiKey) {
-      return { success: false, error: 'API key is missing.' };
+      return { success: false, error: "API key is missing." };
     }
 
     try {
       const model = this.getLanguageModel();
       await generateText({
         model: model as any,
-        prompt: 'test',
+        prompt: "test",
         maxOutputTokens: 1,
       });
       return { success: true };
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to validate connection'
+        error: error.message || "Failed to validate connection",
       };
     }
   }

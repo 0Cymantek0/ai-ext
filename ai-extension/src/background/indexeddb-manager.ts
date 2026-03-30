@@ -293,7 +293,9 @@ export class IndexedDBManager {
       store.createIndex("pocketId", "pocketId", { unique: false });
       store.createIndex("term", "term", { unique: false });
       store.createIndex("term_pocket", ["term", "pocketId"], { unique: false });
-      store.createIndex("contentId_term", ["contentId", "term"], { unique: true });
+      store.createIndex("contentId_term", ["contentId", "term"], {
+        unique: true,
+      });
       store.createIndex("weight", "weight", { unique: false });
     }
 
@@ -677,8 +679,8 @@ export class IndexedDBManager {
         // Only add message if it doesn't already exist
         const updatedMessages = messageExists
           ? existing.messages.map((m: Message) =>
-            m.id === message.id ? message : m,
-          ) // Update existing message
+              m.id === message.id ? message : m,
+            ) // Update existing message
           : [...existing.messages, message]; // Add new message
 
         const updated: Conversation = {
@@ -1040,7 +1042,7 @@ export class IndexedDBManager {
         }
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
-        let attachedPocketIds = conversation.attachedPocketIds || [];
+        const attachedPocketIds = conversation.attachedPocketIds || [];
         if (
           conversation.attachedPocketId &&
           !attachedPocketIds.includes(conversation.attachedPocketId)
@@ -1151,7 +1153,7 @@ export class IndexedDBManager {
         }
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
-        let attachedPocketIds = conversation.attachedPocketIds || [];
+        const attachedPocketIds = conversation.attachedPocketIds || [];
         if (
           conversation.attachedPocketId &&
           !attachedPocketIds.includes(conversation.attachedPocketId)
@@ -1199,7 +1201,7 @@ export class IndexedDBManager {
         }
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
-        let attachedPocketIds = conversation.attachedPocketIds || [];
+        const attachedPocketIds = conversation.attachedPocketIds || [];
         if (
           conversation.attachedPocketId &&
           !attachedPocketIds.includes(conversation.attachedPocketId)
@@ -1242,7 +1244,7 @@ export class IndexedDBManager {
         }
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
-        let attachedPocketIds = conversation.attachedPocketIds || [];
+        const attachedPocketIds = conversation.attachedPocketIds || [];
         if (
           conversation.attachedPocketId &&
           !attachedPocketIds.includes(conversation.attachedPocketId)
@@ -1275,7 +1277,7 @@ export class IndexedDBManager {
         }
 
         // Migrate legacy attachedPocketId to attachedPocketIds if needed
-        let attachedPocketIds = conversation.attachedPocketIds || [];
+        const attachedPocketIds = conversation.attachedPocketIds || [];
         if (
           conversation.attachedPocketId &&
           !attachedPocketIds.includes(conversation.attachedPocketId)

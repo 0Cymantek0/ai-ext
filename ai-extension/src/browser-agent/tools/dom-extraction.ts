@@ -4,10 +4,7 @@
  */
 
 import { z } from "zod";
-import {
-  ToolCategory,
-  ToolComplexity,
-} from "../tool-registry.js";
+import { ToolCategory, ToolComplexity } from "../tool-registry.js";
 import type {
   BrowserToolDefinition,
   ToolExecutionContext,
@@ -17,7 +14,10 @@ import type {
  * Extract page title
  */
 const extractPageTitleSchema = z.object({
-  tabId: z.number().optional().describe("Tab ID to extract from, defaults to active tab"),
+  tabId: z
+    .number()
+    .optional()
+    .describe("Tab ID to extract from, defaults to active tab"),
 });
 
 async function extractPageTitleHandler(
@@ -25,7 +25,7 @@ async function extractPageTitleHandler(
   context: ToolExecutionContext,
 ): Promise<{ title: string; url: string }> {
   const tabId = input.tabId || context.tabId;
-  
+
   if (tabId) {
     const tab = await chrome.tabs.get(tabId);
     return {
@@ -47,16 +47,14 @@ async function extractPageTitleHandler(
 
 export const extractPageTitleTool: BrowserToolDefinition = {
   name: "extract_page_title",
-  description: "Extract the title and URL from the current web page or a specific tab",
+  description:
+    "Extract the title and URL from the current web page or a specific tab",
   category: ToolCategory.DOM_EXTRACTION,
   complexity: ToolComplexity.LOW,
   requiresHumanApproval: false,
   parametersSchema: extractPageTitleSchema,
   handler: extractPageTitleHandler,
-  examples: [
-    "Get the title of the current page",
-    "Extract page title and URL",
-  ],
+  examples: ["Get the title of the current page", "Extract page title and URL"],
 };
 
 /**
@@ -64,8 +62,14 @@ export const extractPageTitleTool: BrowserToolDefinition = {
  */
 const extractPageContentSchema = z.object({
   tabId: z.number().optional().describe("Tab ID to extract from"),
-  selector: z.string().optional().describe("CSS selector to extract specific element"),
-  sanitize: z.boolean().default(true).describe("Whether to sanitize HTML content"),
+  selector: z
+    .string()
+    .optional()
+    .describe("CSS selector to extract specific element"),
+  sanitize: z
+    .boolean()
+    .default(true)
+    .describe("Whether to sanitize HTML content"),
 });
 
 async function extractPageContentHandler(
@@ -73,7 +77,7 @@ async function extractPageContentHandler(
   context: ToolExecutionContext,
 ): Promise<{ content: string; html?: string }> {
   const tabId = input.tabId || context.tabId;
-  
+
   if (!tabId) {
     throw new Error("No tab ID provided");
   }
@@ -97,7 +101,8 @@ async function extractPageContentHandler(
 
 export const extractPageContentTool: BrowserToolDefinition = {
   name: "extract_page_content",
-  description: "Extract text content from the current page or a specific element using CSS selector",
+  description:
+    "Extract text content from the current page or a specific element using CSS selector",
   category: ToolCategory.CONTENT_EXTRACTION,
   complexity: ToolComplexity.MEDIUM,
   requiresHumanApproval: false,
@@ -115,7 +120,10 @@ export const extractPageContentTool: BrowserToolDefinition = {
  */
 const extractLinksSchema = z.object({
   tabId: z.number().optional().describe("Tab ID to extract from"),
-  selector: z.string().optional().describe("CSS selector to limit extraction scope"),
+  selector: z
+    .string()
+    .optional()
+    .describe("CSS selector to limit extraction scope"),
 });
 
 async function extractLinksHandler(
@@ -123,7 +131,7 @@ async function extractLinksHandler(
   context: ToolExecutionContext,
 ): Promise<{ links: Array<{ href: string; text: string; title?: string }> }> {
   const tabId = input.tabId || context.tabId;
-  
+
   if (!tabId) {
     throw new Error("No tab ID provided");
   }
@@ -144,14 +152,12 @@ async function extractLinksHandler(
 
 export const extractLinksTool: BrowserToolDefinition = {
   name: "extract_links",
-  description: "Extract all hyperlinks from a web page with their text and URLs",
+  description:
+    "Extract all hyperlinks from a web page with their text and URLs",
   category: ToolCategory.DOM_EXTRACTION,
   complexity: ToolComplexity.LOW,
   requiresHumanApproval: false,
   parametersSchema: extractLinksSchema,
   handler: extractLinksHandler,
-  examples: [
-    "Get all links from the page",
-    "Extract navigation links",
-  ],
+  examples: ["Get all links from the page", "Extract navigation links"],
 };

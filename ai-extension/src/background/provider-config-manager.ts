@@ -147,19 +147,25 @@ export class ProviderConfigManager {
     if (this.initialized) return;
 
     try {
-      const result = await this.storage.get<{ [MASTER_KEY_STORAGE_KEY]?: string }>(
-        MASTER_KEY_STORAGE_KEY,
-      );
+      const result = await this.storage.get<{
+        [MASTER_KEY_STORAGE_KEY]?: string;
+      }>(MASTER_KEY_STORAGE_KEY);
       const storedKey = result[MASTER_KEY_STORAGE_KEY];
 
       if (storedKey) {
         await this.cryptoManager.importMasterKey(storedKey);
-        logger.info("ProviderConfigManager", "Master key imported from storage");
+        logger.info(
+          "ProviderConfigManager",
+          "Master key imported from storage",
+        );
       } else {
         await this.cryptoManager.initialize();
         const newKey = await this.cryptoManager.exportMasterKey();
         await this.storage.set({ [MASTER_KEY_STORAGE_KEY]: newKey });
-        logger.info("ProviderConfigManager", "New master key generated and stored");
+        logger.info(
+          "ProviderConfigManager",
+          "New master key generated and stored",
+        );
       }
 
       this.initialized = true;
@@ -183,21 +189,29 @@ export class ProviderConfigManager {
 
   private ensureInitialized(): void {
     if (!this.initialized) {
-      throw new Error("ProviderConfigManager not initialized. Call initialize() first.");
+      throw new Error(
+        "ProviderConfigManager not initialized. Call initialize() first.",
+      );
     }
   }
 
   private async getStoredProviders(): Promise<ProviderConfig[]> {
-    const result = await this.storage.get<ProviderConfigStorage>(PROVIDER_CONFIGS_KEY);
+    const result =
+      await this.storage.get<ProviderConfigStorage>(PROVIDER_CONFIGS_KEY);
     return result[PROVIDER_CONFIGS_KEY] || [];
   }
 
-  private async saveStoredProviders(providerConfigs: ProviderConfig[]): Promise<void> {
+  private async saveStoredProviders(
+    providerConfigs: ProviderConfig[],
+  ): Promise<void> {
     await this.storage.set({ [PROVIDER_CONFIGS_KEY]: providerConfigs });
   }
 
-  private async getStoredProviderKeys(): Promise<ProviderKeyStorage["provider_keys"]> {
-    const result = await this.storage.get<ProviderKeyStorage>(PROVIDER_KEYS_KEY);
+  private async getStoredProviderKeys(): Promise<
+    ProviderKeyStorage["provider_keys"]
+  > {
+    const result =
+      await this.storage.get<ProviderKeyStorage>(PROVIDER_KEYS_KEY);
     return result[PROVIDER_KEYS_KEY] || {};
   }
 
@@ -245,7 +259,8 @@ export class ProviderConfigManager {
       const resolvedBaseUrl = config.baseUrl ?? defaults.baseUrl;
       const resolvedApiKeyRequired =
         config.apiKeyRequired ?? defaults.apiKeyRequired;
-      const resolvedDefaultHeaders = config.defaultHeaders ?? defaults.defaultHeaders;
+      const resolvedDefaultHeaders =
+        config.defaultHeaders ?? defaults.defaultHeaders;
       const resolvedDefaultQueryParams =
         config.defaultQueryParams ?? defaults.defaultQueryParams;
       const resolvedProviderOptions =
@@ -265,11 +280,15 @@ export class ProviderConfigManager {
         ...(resolvedApiKeyRequired !== undefined
           ? { apiKeyRequired: resolvedApiKeyRequired }
           : {}),
-        ...(resolvedDefaultHeaders ? { defaultHeaders: resolvedDefaultHeaders } : {}),
+        ...(resolvedDefaultHeaders
+          ? { defaultHeaders: resolvedDefaultHeaders }
+          : {}),
         ...(resolvedDefaultQueryParams
           ? { defaultQueryParams: resolvedDefaultQueryParams }
           : {}),
-        ...(resolvedProviderOptions ? { providerOptions: resolvedProviderOptions } : {}),
+        ...(resolvedProviderOptions
+          ? { providerOptions: resolvedProviderOptions }
+          : {}),
       };
 
       const providerConfigs = await this.getStoredProviders();
@@ -296,7 +315,10 @@ export class ProviderConfigManager {
       const providerConfigs = await this.getStoredProviders();
       return providerConfigs.find((config) => config.id === id) || null;
     } catch (error) {
-      logger.error("ProviderConfigManager", "Failed to get provider", { id, error });
+      logger.error("ProviderConfigManager", "Failed to get provider", {
+        id,
+        error,
+      });
       throw error;
     }
   }
@@ -333,7 +355,11 @@ export class ProviderConfigManager {
           await this.removePersistedApiKey(currentConfig.apiKeyId);
           apiKeyId = undefined;
         } else {
-          apiKeyId = await this.persistApiKey(id, updates.apiKey, currentConfig.apiKeyId);
+          apiKeyId = await this.persistApiKey(
+            id,
+            updates.apiKey,
+            currentConfig.apiKeyId,
+          );
         }
       }
 
@@ -342,7 +368,8 @@ export class ProviderConfigManager {
         ...updates,
         updatedAt: Date.now(),
       };
-      delete (mergedConfig as ProviderConfig & { apiKey?: string | null }).apiKey;
+      delete (mergedConfig as ProviderConfig & { apiKey?: string | null })
+        .apiKey;
 
       const updatedConfig: ProviderConfig = {
         ...mergedConfig,
@@ -350,7 +377,8 @@ export class ProviderConfigManager {
       };
 
       if (!apiKeyId) {
-        delete (updatedConfig as ProviderConfig & { apiKeyId?: string }).apiKeyId;
+        delete (updatedConfig as ProviderConfig & { apiKeyId?: string })
+          .apiKeyId;
       }
 
       providerConfigs[index] = updatedConfig;
@@ -363,16 +391,26 @@ export class ProviderConfigManager {
 
       return updatedConfig;
     } catch (error) {
-      logger.error("ProviderConfigManager", "Failed to update provider", { id, error });
+      logger.error("ProviderConfigManager", "Failed to update provider", {
+        id,
+        error,
+      });
       throw error;
     }
   }
 
-  public async setProviderEnabled(id: string, enabled: boolean): Promise<ProviderConfig> {
+  public async setProviderEnabled(
+    id: string,
+    enabled: boolean,
+  ): Promise<ProviderConfig> {
     this.ensureInitialized();
-    logger.info("ProviderConfigManager", `${enabled ? "Enabling" : "Disabling"} provider`, {
-      id,
-    });
+    logger.info(
+      "ProviderConfigManager",
+      `${enabled ? "Enabling" : "Disabling"} provider`,
+      {
+        id,
+      },
+    );
     return this.updateProvider(id, { enabled });
   }
 
@@ -393,7 +431,10 @@ export class ProviderConfigManager {
 
       logger.info("ProviderConfigManager", "Deleted provider", { id });
     } catch (error) {
-      logger.error("ProviderConfigManager", "Failed to delete provider", { id, error });
+      logger.error("ProviderConfigManager", "Failed to delete provider", {
+        id,
+        error,
+      });
       throw error;
     }
   }
@@ -423,12 +464,17 @@ export class ProviderConfigManager {
     }
   }
 
-  public async setProviderApiKey(providerId: string, apiKey: string): Promise<void> {
+  public async setProviderApiKey(
+    providerId: string,
+    apiKey: string,
+  ): Promise<void> {
     this.ensureInitialized();
 
     try {
       const providerConfigs = await this.getStoredProviders();
-      const index = providerConfigs.findIndex((config) => config.id === providerId);
+      const index = providerConfigs.findIndex(
+        (config) => config.id === providerId,
+      );
       if (index === -1) {
         throw new Error(`Provider with ID ${providerId} not found`);
       }

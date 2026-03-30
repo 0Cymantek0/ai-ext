@@ -3,13 +3,13 @@
  * Coordinates all AI systems to create a seamless, engaging experience
  */
 
-import { GeminiNanoEngine } from './GeminiNanoEngine';
-import { NarrativeDirector } from './NarrativeDirector';
-import { VariationEngine } from './VariationEngine';
-import type { VariationContext } from './VariationEngine';
-import { SuspenseManager } from './SuspenseManager';
-import { MemoryGraph } from './MemoryGraph';
-import type { MemoryNode } from './MemoryGraph';
+import { GeminiNanoEngine } from "./GeminiNanoEngine";
+import { NarrativeDirector } from "./NarrativeDirector";
+import { VariationEngine } from "./VariationEngine";
+import type { VariationContext } from "./VariationEngine";
+import { SuspenseManager } from "./SuspenseManager";
+import { MemoryGraph } from "./MemoryGraph";
+import type { MemoryNode } from "./MemoryGraph";
 
 export interface GameContext {
   currentLocation: string;
@@ -49,13 +49,13 @@ export class ZorkAIOrchestrator {
     this.variation = new VariationEngine();
     this.suspense = new SuspenseManager();
     this.memory = new MemoryGraph();
-    
+
     this.currentContext = {
-      currentLocation: 'start',
+      currentLocation: "start",
       inventory: [],
       health: 100,
       moveCount: 0,
-      score: 0
+      score: 0,
     };
   }
 
@@ -70,23 +70,26 @@ export class ZorkAIOrchestrator {
 
   private initializeWorld(): void {
     // Plant initial mysteries
-    this.suspense.addMystery('origin', 'How did you get here?');
-    this.suspense.addMystery('purpose', 'What is the purpose of this place?');
-    this.suspense.addMystery('escape', 'Is there a way out?');
-    
+    this.suspense.addMystery("origin", "How did you get here?");
+    this.suspense.addMystery("purpose", "What is the purpose of this place?");
+    this.suspense.addMystery("escape", "Is there a way out?");
+
     // Plant foreshadowing
-    this.suspense.plantForeshadowing('Something ancient stirs in the depths', 7);
-    this.suspense.plantForeshadowing('The walls remember everything', 5);
-    
+    this.suspense.plantForeshadowing(
+      "Something ancient stirs in the depths",
+      7,
+    );
+    this.suspense.plantForeshadowing("The walls remember everything", 5);
+
     // Set initial world state
-    this.memory.setWorldState('time_of_day', 'dusk');
-    this.memory.setWorldState('weather', 'clear');
-    this.memory.setWorldState('reality_stability', 100);
+    this.memory.setWorldState("time_of_day", "dusk");
+    this.memory.setWorldState("weather", "clear");
+    this.memory.setWorldState("reality_stability", 100);
   }
 
   async processCommand(command: string): Promise<AIResponse> {
     if (!this.isInitialized) {
-      throw new Error('AI Orchestrator not initialized');
+      throw new Error("AI Orchestrator not initialized");
     }
 
     // Increment move counter
@@ -95,7 +98,7 @@ export class ZorkAIOrchestrator {
 
     // Check for narrative beats
     const beatCheck = this.narrative.shouldTriggerBeat();
-    
+
     // Check for surprises
     const surprise = this.suspense.shouldInjectSurprise();
 
@@ -117,9 +120,11 @@ export class ZorkAIOrchestrator {
     return aiResponse;
   }
 
-  async *processCommandStreaming(command: string): AsyncGenerator<string, AIResponse, unknown> {
+  async *processCommandStreaming(
+    command: string,
+  ): AsyncGenerator<string, AIResponse, unknown> {
     if (!this.isInitialized) {
-      throw new Error('AI Orchestrator not initialized');
+      throw new Error("AI Orchestrator not initialized");
     }
 
     this.currentContext.moveCount++;
@@ -129,8 +134,8 @@ export class ZorkAIOrchestrator {
     const surprise = this.suspense.shouldInjectSurprise();
     const prompt = this.buildMasterPrompt(command, beatCheck, surprise);
 
-    let fullResponse = '';
-    
+    let fullResponse = "";
+
     for await (const chunk of this.gemini.generateStreaming(prompt)) {
       fullResponse += chunk;
       yield chunk;
@@ -146,14 +151,14 @@ export class ZorkAIOrchestrator {
   private buildMasterPrompt(
     command: string,
     beatCheck: { should: boolean; type: any },
-    surprise: boolean
+    surprise: boolean,
   ): string {
     let prompt = `You are the AI Dungeon Master for ZORK: INFINITE EDITION.\n\n`;
-    
+
     // Current context
     prompt += `CURRENT STATE:\n`;
     prompt += `Location: ${this.currentContext.currentLocation}\n`;
-    prompt += `Inventory: ${this.currentContext.inventory.join(', ') || 'empty'}\n`;
+    prompt += `Inventory: ${this.currentContext.inventory.join(", ") || "empty"}\n`;
     prompt += `Health: ${this.currentContext.health}/100\n`;
     prompt += `Move: ${this.currentContext.moveCount}\n`;
     prompt += `Score: ${this.currentContext.score}\n\n`;
@@ -185,7 +190,7 @@ export class ZorkAIOrchestrator {
       this.narrative.recordBeat({
         type: beatCheck.type,
         intensity: 7,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
 
@@ -194,15 +199,19 @@ export class ZorkAIOrchestrator {
     }
 
     // Active consequences
-    const consequences = this.memory.getActiveConsequences(this.currentContext.moveCount);
+    const consequences = this.memory.getActiveConsequences(
+      this.currentContext.moveCount,
+    );
     if (consequences.length > 0) {
       prompt += `ACTIVE CONSEQUENCES:\n`;
-      consequences.forEach(c => prompt += `- ${c}\n`);
+      consequences.forEach((c) => (prompt += `- ${c}\n`));
       prompt += `\n`;
     }
 
     // Variation requirements
-    const visitCount = this.variation.getVisitCount(this.currentContext.currentLocation);
+    const visitCount = this.variation.getVisitCount(
+      this.currentContext.currentLocation,
+    );
     if (visitCount > 0) {
       prompt += `VARIATION: This is visit #${visitCount + 1} to this location. Describe it differently.\n\n`;
     }
@@ -233,23 +242,30 @@ export class ZorkAIOrchestrator {
       text: response.trim(),
       stateChanges: {},
       metadata: {
-        wasSuccessful: !response.toLowerCase().includes('cannot') &&
-                      !response.toLowerCase().includes('fail') &&
-                      !response.toLowerCase().includes('unable')
-      }
+        wasSuccessful:
+          !response.toLowerCase().includes("cannot") &&
+          !response.toLowerCase().includes("fail") &&
+          !response.toLowerCase().includes("unable"),
+      },
     };
 
     // Detect state changes from response
-    if (response.toLowerCase().includes('you take') || response.toLowerCase().includes('you pick up')) {
+    if (
+      response.toLowerCase().includes("you take") ||
+      response.toLowerCase().includes("you pick up")
+    ) {
       const match = response.match(/(?:take|pick up) (?:the )?(\w+)/i);
       if (match && match[1]) {
         aiResponse.stateChanges.inventory = { add: [match[1]] };
       }
     }
 
-    if (response.toLowerCase().includes('you move') || response.toLowerCase().includes('you go')) {
+    if (
+      response.toLowerCase().includes("you move") ||
+      response.toLowerCase().includes("you go")
+    ) {
       // Location changed
-      aiResponse.stateChanges.location = 'new_location';
+      aiResponse.stateChanges.location = "new_location";
     }
 
     return aiResponse;
@@ -259,15 +275,15 @@ export class ZorkAIOrchestrator {
     // Create memory node for this interaction
     const node: MemoryNode = {
       id: `interaction_${Date.now()}`,
-      type: 'event',
+      type: "event",
       data: {
         command,
         response: response.text,
         location: this.currentContext.currentLocation,
-        moveCount: this.currentContext.moveCount
+        moveCount: this.currentContext.moveCount,
       },
       timestamp: Date.now(),
-      connections: []
+      connections: [],
     };
 
     this.memory.addNode(node);
@@ -279,10 +295,12 @@ export class ZorkAIOrchestrator {
 
     // Apply state changes
     if (response.stateChanges.inventory?.add) {
-      this.currentContext.inventory.push(...response.stateChanges.inventory.add);
+      this.currentContext.inventory.push(
+        ...response.stateChanges.inventory.add,
+      );
     }
     if (response.stateChanges.inventory?.remove) {
-      response.stateChanges.inventory.remove.forEach(item => {
+      response.stateChanges.inventory.remove.forEach((item) => {
         const index = this.currentContext.inventory.indexOf(item);
         if (index > -1) this.currentContext.inventory.splice(index, 1);
       });
@@ -311,14 +329,17 @@ Create a unique, atmospheric location with:
 - Vivid description (2-3 sentences)
 - Sensory details
 - Hint of mystery or danger
-- Connection to narrative themes: ${this.narrative.getThemes().join(', ')}
+- Connection to narrative themes: ${this.narrative.getThemes().join(", ")}
 
 Format: Just the description, no labels.`;
 
     return await this.gemini.generate(prompt);
   }
 
-  async generateNPCDialogue(npcName: string, playerInput: string): Promise<string> {
+  async generateNPCDialogue(
+    npcName: string,
+    playerInput: string,
+  ): Promise<string> {
     const relationship = this.memory.getNPCRelationship(npcName);
     const relationshipDesc = this.memory.getNPCRelationshipDescription(npcName);
 
@@ -351,7 +372,7 @@ Response:`;
       narrative: this.narrative.getMomentum(),
       threats: this.suspense.getThreatLevel(),
       memories: this.memory.generateContextSummary(),
-      variation: this.variation.getStats()
+      variation: this.variation.getStats(),
     };
   }
 
@@ -360,10 +381,10 @@ Response:`;
       context: this.currentContext,
       narrative: {
         themes: this.narrative.getThemes(),
-        momentum: this.narrative.getMomentum()
+        momentum: this.narrative.getMomentum(),
       },
       memory: this.memory.exportState(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 

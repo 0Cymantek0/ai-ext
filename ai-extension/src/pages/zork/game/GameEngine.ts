@@ -3,10 +3,10 @@
  * Core game logic and command processing
  */
 
-import { GameStateManager } from './GameState';
-import { GeminiNanoClient } from '../ai/GeminiNanoClient';
-import { AICache } from '../ai/AICache';
-import type { CommandResult, Location, Item, NPC } from '../types';
+import { GameStateManager } from "./GameState";
+import { GeminiNanoClient } from "../ai/GeminiNanoClient";
+import { AICache } from "../ai/AICache";
+import type { CommandResult, Location, Item, NPC } from "../types";
 
 export class GameEngine {
   private stateManager: GameStateManager;
@@ -44,38 +44,45 @@ export class GameEngine {
     const currentLocation = this.stateManager.getCurrentLocation();
 
     const parsedCommand = await this.aiClient.parseCommand(command, {
-      currentLocation: currentLocation?.name || 'Unknown',
+      currentLocation: currentLocation?.name || "Unknown",
       inventory: gameState.player.inventory.map((i) => i.name),
     });
 
     if (!parsedCommand.understood) {
       return {
         success: false,
-        message: "I don't understand that command. Try 'help' for a list of commands.",
+        message:
+          "I don't understand that command. Try 'help' for a list of commands.",
       };
     }
 
     // Route to appropriate handler
     switch (parsedCommand.verb) {
-      case 'go':
-      case 'move':
+      case "go":
+      case "move":
         return await this.handleMovement(parsedCommand.direction);
-      case 'take':
-      case 'get':
+      case "take":
+      case "get":
         return this.handleTake(parsedCommand.object);
-      case 'drop':
+      case "drop":
         return this.handleDrop(parsedCommand.object);
-      case 'examine':
-      case 'look':
+      case "examine":
+      case "look":
         return await this.handleExamine(parsedCommand.object);
-      case 'inventory':
+      case "inventory":
         return this.handleInventory();
-      case 'talk':
-        return await this.handleTalk(parsedCommand.object, parsedCommand.target);
-      case 'use':
+      case "talk":
+        return await this.handleTalk(
+          parsedCommand.object,
+          parsedCommand.target,
+        );
+      case "use":
         return await this.handleUse(parsedCommand.object, parsedCommand.target);
-      case 'attack':
-        return await this.handleAttack(parsedCommand.object, parsedCommand.target);
+      case "attack":
+        return await this.handleAttack(
+          parsedCommand.object,
+          parsedCommand.target,
+        );
       default:
         return await this.handleGenericAction(parsedCommand);
     }
@@ -85,7 +92,7 @@ export class GameEngine {
     const state = this.stateManager.getState();
 
     switch (command) {
-      case 'help':
+      case "help":
         return {
           success: true,
           message: `Available commands:
@@ -99,17 +106,17 @@ export class GameEngine {
 You can also try natural language commands!`,
         };
 
-      case 'inventory':
-      case 'i':
+      case "inventory":
+      case "i":
         return this.handleInventory();
 
-      case 'score':
+      case "score":
         return {
           success: true,
           message: `Score: ${state.player.score} | Moves: ${state.player.moves} | Health: ${state.player.health}/${state.player.maxHealth}`,
         };
 
-      case 'diagnose':
+      case "diagnose":
         return {
           success: true,
           message: `Health: ${state.player.health}/${state.player.maxHealth}
@@ -118,28 +125,28 @@ Locations visited: ${state.history.visitedLocations.length}
 Achievements: ${state.meta.achievements.length}`,
         };
 
-      case 'version':
+      case "version":
         return {
           success: true,
-          message: 'ZORK: INFINITE EDITION v1.0.0 - Powered by Gemini Nano AI',
+          message: "ZORK: INFINITE EDITION v1.0.0 - Powered by Gemini Nano AI",
         };
 
-      case 'xyzzy':
+      case "xyzzy":
         return {
           success: true,
           message: 'A hollow voice says "Fool."',
         };
 
-      case 'plugh':
+      case "plugh":
         return {
           success: true,
           message: 'A hollow voice says "Plugh."',
         };
 
-      case 'frotz':
+      case "frotz":
         return {
           success: true,
-          message: 'The air shimmers briefly, but nothing happens.',
+          message: "The air shimmers briefly, but nothing happens.",
         };
 
       default:
@@ -150,23 +157,35 @@ Achievements: ${state.meta.achievements.length}`,
   private async handleMovement(direction: string): Promise<CommandResult> {
     const currentLocation = this.stateManager.getCurrentLocation();
     if (!currentLocation) {
-      return { success: false, message: 'You are nowhere. This should not happen.' };
+      return {
+        success: false,
+        message: "You are nowhere. This should not happen.",
+      };
     }
 
     // Check if exit exists
     const exit = currentLocation.exits.find((e) => e.direction === direction);
     if (!exit) {
-      return { success: false, message: `You can't go ${direction} from here.` };
+      return {
+        success: false,
+        message: `You can't go ${direction} from here.`,
+      };
     }
 
     // Check if exit is locked
     if (exit.locked) {
-      return { success: false, message: `The way ${direction} is locked. You need a key.` };
+      return {
+        success: false,
+        message: `The way ${direction} is locked. You need a key.`,
+      };
     }
 
     // Generate new location if destination is empty
     if (!exit.destination) {
-      const newLocation = await this.generateLocation(direction, currentLocation);
+      const newLocation = await this.generateLocation(
+        direction,
+        currentLocation,
+      );
       exit.destination = newLocation.id;
       this.stateManager.addLocation(newLocation);
     }
@@ -177,11 +196,16 @@ Achievements: ${state.meta.achievements.length}`,
 
     return {
       success: true,
-      message: newLocation ? newLocation.description : 'You move to a new location.',
+      message: newLocation
+        ? newLocation.description
+        : "You move to a new location.",
     };
   }
 
-  private async generateLocation(direction: string, fromLocation: Location): Promise<Location> {
+  private async generateLocation(
+    direction: string,
+    fromLocation: Location,
+  ): Promise<Location> {
     const state = this.stateManager.getState();
     const cacheKey = `${fromLocation.id}-${direction}`;
 
@@ -206,7 +230,7 @@ Achievements: ${state.meta.achievements.length}`,
       description: generated.description,
       exits: generated.exits.map((dir: string) => ({
         direction: dir,
-        destination: '',
+        destination: "",
         locked: false,
       })),
       items: generated.items.map((item: any, index: number) => ({
@@ -245,10 +269,12 @@ Achievements: ${state.meta.achievements.length}`,
   private handleTake(itemName: string): CommandResult {
     const location = this.stateManager.getCurrentLocation();
     if (!location) {
-      return { success: false, message: 'You are nowhere.' };
+      return { success: false, message: "You are nowhere." };
     }
 
-    const item = location.items.find((i) => i.name.toLowerCase().includes(itemName.toLowerCase()));
+    const item = location.items.find((i) =>
+      i.name.toLowerCase().includes(itemName.toLowerCase()),
+    );
     if (!item) {
       return { success: false, message: `There is no ${itemName} here.` };
     }
@@ -269,7 +295,11 @@ Achievements: ${state.meta.achievements.length}`,
   }
 
   private handleDrop(itemName: string): CommandResult {
-    const item = this.stateManager.getState().player.inventory.find((i) => i.name.toLowerCase().includes(itemName.toLowerCase()));
+    const item = this.stateManager
+      .getState()
+      .player.inventory.find((i) =>
+        i.name.toLowerCase().includes(itemName.toLowerCase()),
+      );
 
     if (!item) {
       return { success: false, message: `You don't have a ${itemName}.` };
@@ -277,7 +307,7 @@ Achievements: ${state.meta.achievements.length}`,
 
     const removed = this.stateManager.removeItemFromInventory(item.id);
     if (!removed) {
-      return { success: false, message: 'Failed to drop item.' };
+      return { success: false, message: "Failed to drop item." };
     }
 
     const location = this.stateManager.getCurrentLocation();
@@ -288,17 +318,23 @@ Achievements: ${state.meta.achievements.length}`,
     return { success: true, message: `Dropped: ${item.name}` };
   }
 
-  private async handleExamine(objectName: string | null): Promise<CommandResult> {
+  private async handleExamine(
+    objectName: string | null,
+  ): Promise<CommandResult> {
     if (!objectName) {
       const location = this.stateManager.getCurrentLocation();
       return {
         success: true,
-        message: location ? location.description : 'You see nothing special.',
+        message: location ? location.description : "You see nothing special.",
       };
     }
 
     // Check inventory
-    const inventoryItem = this.stateManager.getState().player.inventory.find((i) => i.name.toLowerCase().includes(objectName.toLowerCase()));
+    const inventoryItem = this.stateManager
+      .getState()
+      .player.inventory.find((i) =>
+        i.name.toLowerCase().includes(objectName.toLowerCase()),
+      );
 
     if (inventoryItem) {
       return { success: true, message: inventoryItem.description };
@@ -307,7 +343,9 @@ Achievements: ${state.meta.achievements.length}`,
     // Check location
     const location = this.stateManager.getCurrentLocation();
     if (location) {
-      const locationItem = location.items.find((i) => i.name.toLowerCase().includes(objectName.toLowerCase()));
+      const locationItem = location.items.find((i) =>
+        i.name.toLowerCase().includes(objectName.toLowerCase()),
+      );
       if (locationItem) {
         return { success: true, message: locationItem.description };
       }
@@ -319,21 +357,24 @@ Achievements: ${state.meta.achievements.length}`,
   private handleInventory(): CommandResult {
     const inventory = this.stateManager.getState().player.inventory;
     if (inventory.length === 0) {
-      return { success: true, message: 'You are empty-handed.' };
+      return { success: true, message: "You are empty-handed." };
     }
 
-    const items = inventory.map((i) => `- ${i.name}`).join('\n');
+    const items = inventory.map((i) => `- ${i.name}`).join("\n");
     return { success: true, message: `You are carrying:\n${items}` };
   }
 
-  private async handleTalk(npcName: string | null, topic: string | null): Promise<CommandResult> {
+  private async handleTalk(
+    npcName: string | null,
+    topic: string | null,
+  ): Promise<CommandResult> {
     if (!npcName) {
-      return { success: false, message: 'Talk to whom?' };
+      return { success: false, message: "Talk to whom?" };
     }
 
     const location = this.stateManager.getCurrentLocation();
     if (!location) {
-      return { success: false, message: 'You are nowhere.' };
+      return { success: false, message: "You are nowhere." };
     }
 
     const npcId = location.npcs.find((id) => {
@@ -347,10 +388,14 @@ Achievements: ${state.meta.achievements.length}`,
 
     const npc = this.stateManager.getNPC(npcId);
     if (!npc) {
-      return { success: false, message: 'NPC not found.' };
+      return { success: false, message: "NPC not found." };
     }
 
-    const dialogue = await this.aiClient.generateNPCDialogue(npc, topic || 'hello', npc.conversationHistory);
+    const dialogue = await this.aiClient.generateNPCDialogue(
+      npc,
+      topic || "hello",
+      npc.conversationHistory,
+    );
 
     this.stateManager.addNPCInteraction(npcId, dialogue);
     npc.conversationHistory.push(dialogue);
@@ -358,12 +403,19 @@ Achievements: ${state.meta.achievements.length}`,
     return { success: true, message: `${npc.name} says: "${dialogue}"` };
   }
 
-  private async handleUse(itemName: string | null, targetName: string | null): Promise<CommandResult> {
+  private async handleUse(
+    itemName: string | null,
+    targetName: string | null,
+  ): Promise<CommandResult> {
     if (!itemName) {
-      return { success: false, message: 'Use what?' };
+      return { success: false, message: "Use what?" };
     }
 
-    const item = this.stateManager.getState().player.inventory.find((i) => i.name.toLowerCase().includes(itemName.toLowerCase()));
+    const item = this.stateManager
+      .getState()
+      .player.inventory.find((i) =>
+        i.name.toLowerCase().includes(itemName.toLowerCase()),
+      );
 
     if (!item) {
       return { success: false, message: `You don't have a ${itemName}.` };
@@ -371,37 +423,42 @@ Achievements: ${state.meta.achievements.length}`,
 
     // Generate AI response for using the item
     const response = await this.aiClient.generateResponse(
-      { verb: 'use', object: itemName, target: targetName },
+      { verb: "use", object: itemName, target: targetName },
       {
         currentLocation: this.stateManager.getCurrentLocation()?.name,
-        context: `Player uses ${itemName}${targetName ? ` on ${targetName}` : ''}`,
-      }
+        context: `Player uses ${itemName}${targetName ? ` on ${targetName}` : ""}`,
+      },
     );
 
     return { success: true, message: response };
   }
 
-  private async handleAttack(targetName: string | null, weaponName: string | null): Promise<CommandResult> {
+  private async handleAttack(
+    targetName: string | null,
+    weaponName: string | null,
+  ): Promise<CommandResult> {
     if (!targetName) {
-      return { success: false, message: 'Attack what?' };
+      return { success: false, message: "Attack what?" };
     }
 
     // Simple combat system - can be expanded
     const response = await this.aiClient.generateResponse(
-      { verb: 'attack', object: targetName, target: weaponName },
+      { verb: "attack", object: targetName, target: weaponName },
       {
         currentLocation: this.stateManager.getCurrentLocation()?.name,
-        context: `Player attacks ${targetName}${weaponName ? ` with ${weaponName}` : ''}`,
-      }
+        context: `Player attacks ${targetName}${weaponName ? ` with ${weaponName}` : ""}`,
+      },
     );
 
     return { success: true, message: response };
   }
 
-  private async handleGenericAction(parsedCommand: any): Promise<CommandResult> {
+  private async handleGenericAction(
+    parsedCommand: any,
+  ): Promise<CommandResult> {
     const response = await this.aiClient.generateResponse(parsedCommand, {
       currentLocation: this.stateManager.getCurrentLocation()?.name,
-      context: 'Generic action',
+      context: "Generic action",
     });
 
     return { success: true, message: response };

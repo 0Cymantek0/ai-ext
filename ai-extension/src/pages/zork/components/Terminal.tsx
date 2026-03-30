@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
-import type { ColorScheme } from '../types';
+import React, { useEffect, useRef, useState } from "react";
+import type { ColorScheme } from "../types";
 
 interface OutputLine {
   text: string;
-  type: 'command' | 'response' | 'error' | 'system';
+  type: "command" | "response" | "error" | "system";
   timestamp: number;
 }
 
@@ -14,8 +14,13 @@ interface TerminalProps {
   colorScheme: ColorScheme;
 }
 
-export const Terminal: React.FC<TerminalProps> = ({ onCommand, output, isProcessing, colorScheme }) => {
-  const [input, setInput] = useState('');
+export const Terminal: React.FC<TerminalProps> = ({
+  onCommand,
+  output,
+  isProcessing,
+  colorScheme,
+}) => {
+  const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -37,13 +42,13 @@ export const Terminal: React.FC<TerminalProps> = ({ onCommand, output, isProcess
     e.preventDefault();
     if (input.trim() && !isProcessing) {
       onCommand(input.trim());
-      setInput('');
+      setInput("");
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Handle special keys if needed
-    if (e.key === 'Tab') {
+    if (e.key === "Tab") {
       e.preventDefault();
       // Could implement auto-complete here
     }
@@ -52,8 +57,11 @@ export const Terminal: React.FC<TerminalProps> = ({ onCommand, output, isProcess
   return (
     <div className="terminal-content" ref={contentRef}>
       {output.map((line, index) => (
-        <div key={`${line.timestamp}-${index}`} className={`output-line ${line.type}`}>
-          {line.type === 'command' && '> '}
+        <div
+          key={`${line.timestamp}-${index}`}
+          className={`output-line ${line.type}`}
+        >
+          {line.type === "command" && "> "}
           {line.text}
         </div>
       ))}

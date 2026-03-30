@@ -722,7 +722,7 @@ export class ContentCapture {
     let text = sel.text;
     let before = sel.beforeContext;
     let after = sel.afterContext;
-    let html = sel.htmlContent;
+    const html = sel.htmlContent;
     let sanitizationInfo: any = null;
 
     if (sanitize) {

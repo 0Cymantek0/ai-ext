@@ -6,7 +6,12 @@
  * the extension, ensuring compatibility between storage, search, and AI features.
  */
 
-import type { ContentChunk, Content, ContentMetadata, ContentFilters } from "./content.js";
+import type {
+  ContentChunk,
+  Content,
+  ContentMetadata,
+  ContentFilters,
+} from "./content.js";
 
 /**
  * Search result wrapper for generic items
@@ -203,7 +208,10 @@ export interface EmbeddingGenerator {
    * @param options - Optional generation options
    * @returns Embedding vector
    */
-  generateEmbedding(text: string, options?: EmbeddingOptions): Promise<number[]>;
+  generateEmbedding(
+    text: string,
+    options?: EmbeddingOptions,
+  ): Promise<number[]>;
 
   /**
    * Generate embeddings for multiple texts
