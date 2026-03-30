@@ -57,10 +57,28 @@ Requirements for the autonomous browser agent and deep research milestone. Each 
 ### Agent Experience and Model Selection
 
 - [ ] **UX-01**: User can choose among configured models for browser-action and deep-research runs
-- [ ] **UX-02**: Side panel shows a live run timeline including plan steps, tool calls, evidence writes, approvals, and errors
-- [ ] **UX-03**: Side panel exposes distinct entry points for browser-action tasks and deep-research projects
+- [x] **UX-02**: Side panel shows a live run timeline including plan steps, tool calls, evidence writes, approvals, and errors
+- [x] **UX-03**: Side panel exposes distinct entry points for browser-action tasks and deep-research projects
 - [ ] **UX-04**: User can reopen historical runs and understand what happened, what was collected, and how the run ended
 - [ ] **UX-05**: Agent experience remains responsive during long-running sessions and does not block core pocket browsing
+
+### Multi-Model Capability Guardrails
+
+- [ ] **COMPAT-01**: Browser-action and deep-research runs only launch with provider/model combinations that satisfy the workflow's required capabilities, or they present a guided fallback
+- [ ] **COMPAT-02**: User can inspect why a model is compatible, incompatible, or downgraded for the chosen workflow before and during launch
+- [ ] **COMPAT-03**: System preserves workflow-specific preferred models and safe fallback choices across sessions
+
+### Autonomous Quality and Regression Gates
+
+- [ ] **EVAL-01**: Team can run deterministic end-to-end evaluation scenarios for browser-action and deep-research workflows across supported models/providers
+- [ ] **EVAL-02**: Evaluation outputs score task success, recovery behavior, approval handling, evidence grounding, and report provenance
+- [ ] **EVAL-03**: Critical evaluation scenarios are wired into the milestone ship path or release verification path instead of remaining ad hoc
+
+### Reliability, Performance, and Maintainability
+
+- [ ] **REL-01**: Long-running runs survive MV3 interruption and replay without duplicating browser actions, evidence writes, or report-stage artifacts
+- [ ] **REL-02**: Side panel and background runtime stay responsive during long runs, large evidence pockets, and report generation
+- [ ] **REL-03**: Central agent routing and storage surfaces are decomposed or isolated enough that future changes do not routinely risk milestone-critical regressions
 
 ## Future Requirements
 
@@ -117,17 +135,26 @@ Explicitly excluded to prevent scope creep in this milestone.
 | REPORT-04 | Phase 12 | Pending |
 | REPORT-05 | Phase 12 | Pending |
 | UX-01 | Phase 13 | Pending |
-| UX-02 | Phase 13 | Pending |
-| UX-03 | Phase 13 | Pending |
+| UX-02 | Phase 13 | Complete |
+| UX-03 | Phase 13 | Complete |
 | UX-04 | Phase 13 | Pending |
 | UX-05 | Phase 13 | Pending |
+| COMPAT-01 | Phase 14 | Pending |
+| COMPAT-02 | Phase 14 | Pending |
+| COMPAT-03 | Phase 14 | Pending |
+| EVAL-01 | Phase 15 | Pending |
+| EVAL-02 | Phase 15 | Pending |
+| EVAL-03 | Phase 15 | Pending |
+| REL-01 | Phase 16 | Pending |
+| REL-02 | Phase 16 | Pending |
+| REL-03 | Phase 16 | Pending |
 
 **Coverage:**
-- v2.0 requirements: 33 total
-- Mapped to phases: 33
+- v2.0 requirements: 42 total
+- Mapped to phases: 42
 - Unmapped: 0
 
 ---
 
 *Requirements defined: 2026-03-29*
-*Last updated: 2026-03-29 after roadmap creation*
+*Last updated: 2026-03-31 after inferred milestone gap audit*

@@ -129,7 +129,7 @@ Plans:
 5. Long-running agent work does not block normal pocket browsing and side panel responsiveness
 **Plans**: 4 plans
 Plans:
-- [ ] 13-01-PLAN.md — Extract inline agent UI from ChatApp into BrowserActionPanel, DeepResearchPanel, and AgentPanelLayout components
+- [x] 13-01-PLAN.md — Extract inline agent UI from ChatApp into BrowserActionPanel, DeepResearchPanel, and AgentPanelLayout components
 - [ ] 13-02-PLAN.md — Build AgentTimeline, AgentTimelineEntry, RunHistoryPanel, and RunHistoryItem components for live events and historical run inspection
 - [ ] 13-03-PLAN.md — Create WorkflowTabs, ModelSelector, and WorkflowLauncher for unified workflow launch with model selection
 - [ ] 13-04-PLAN.md — Optimize event subscription with useAgentRunEvents hook and service worker event batching for non-blocking UX
@@ -181,7 +181,7 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13 -> 14 -> 15
 | 10. Deep Research Orchestrator | 0/TBD | Not started | - |
 | 11. Pocket Evidence Pipeline | 0/TBD | Not started | - |
 | 12. Citation-Backed Report Engine | 0/TBD | Not started | - |
-| 13. Agentic Side Panel Experience | 0/TBD | Not started | - |
+| 13. Agentic Side Panel Experience | 1/4 | In Progress|  |
 | 14. Model Capability and Workflow Guardrails | 0/TBD | Not started | - |
 | 15. Autonomous Evaluation and Regression Harness | 0/TBD | Not started | - |
 | 16. MV3 Reliability, Performance, and Shipping Hardening | 0/TBD | Not started | - |
