@@ -70,6 +70,7 @@ import {
   selectAgentTodo,
   selectLatestAgentApproval,
 } from "@/shared/agent-runtime/selectors";
+import { buildReportViewerUrl } from "@/shared/reporting/viewer";
 import { AgentRunStatusBadge } from "@/sidepanel/components/AgentRunStatusBadge";
 import { AgentApprovalCard } from "@/sidepanel/components/AgentApprovalCard";
 import { AgentRunControls } from "@/sidepanel/components/AgentRunControls";
@@ -126,6 +127,13 @@ interface BrowserActionTabContext {
   tabId?: number;
   tabUrl?: string;
   tabTitle?: string;
+}
+
+interface PocketReportSummary {
+  reportId: string;
+  pocketId: string;
+  generatedAt: number;
+  title: string;
 }
 
 type ChatModelOption = ModelOption & {
@@ -396,6 +404,16 @@ export function ChatApp() {
   const [currentPocketId, setCurrentPocketId] = React.useState<string | null>(
     null,
   );
+  const [currentPocketName, setCurrentPocketName] = React.useState<string | null>(
+    null,
+  );
+  const [latestPocketReport, setLatestPocketReport] =
+    React.useState<PocketReportSummary | null>(null);
+  const [isGeneratingPocketReport, setIsGeneratingPocketReport] =
+    React.useState(false);
+  const [pocketReportError, setPocketReportError] = React.useState<string | null>(
+    null,
+  );
   const [linkedResearchPocketToOpen, setLinkedResearchPocketToOpen] =
     React.useState<string | null>(null);
   // Pending pocket selection request from background
@@ -538,6 +556,54 @@ export function ChatApp() {
 
   // Indexing status hook
   const indexingStatus = useIndexingStatus();
+
+  React.useEffect(() => {
+    if (!currentPocketId) {
+      setLatestPocketReport(null);
+      setPocketReportError(null);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadLatestPocketReport = async () => {
+      try {
+        const response = await chrome.runtime.sendMessage({
+          kind: "REPORT_LIST",
+          requestId: crypto.randomUUID(),
+          payload: { pocketId: currentPocketId },
+        });
+
+        if (!isActive) {
+          return;
+        }
+
+        if (response?.success) {
+          setLatestPocketReport(response.data?.reports?.[0] ?? null);
+          setPocketReportError(null);
+          return;
+        }
+
+        setLatestPocketReport(null);
+        setPocketReportError(response?.error || "Failed to load report status");
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setLatestPocketReport(null);
+        setPocketReportError(
+          error instanceof Error ? error.message : "Failed to load report status",
+        );
+      }
+    };
+
+    void loadLatestPocketReport();
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentPocketId]);
 
   const mapSelectedToPreferLocal = (
     modelOption: ChatModelOption,
@@ -1613,7 +1679,70 @@ export function ChatApp() {
 
   const handleInsidePocketChange = (isInside: boolean) => {
     setIsInsidePocket(isInside);
+    if (!isInside) {
+      setCurrentPocketId(null);
+      setCurrentPocketName(null);
+      setLatestPocketReport(null);
+      setPocketReportError(null);
+      setIsGeneratingPocketReport(false);
+    }
   };
+
+  const openPocketReport = React.useCallback(
+    (input: { reportId?: string; pocketId?: string; generate?: boolean }) => {
+      const url = buildReportViewerUrl(chrome.runtime.getURL("/"), input);
+      chrome.tabs.create({ url });
+    },
+    [],
+  );
+
+  const handleOpenPocketReport = React.useCallback(() => {
+    if (latestPocketReport?.reportId) {
+      openPocketReport({ reportId: latestPocketReport.reportId });
+      return;
+    }
+
+    if (currentPocketId) {
+      openPocketReport({ pocketId: currentPocketId, generate: true });
+    }
+  }, [currentPocketId, latestPocketReport?.reportId, openPocketReport]);
+
+  const handleGeneratePocketReport = React.useCallback(async () => {
+    if (!currentPocketId || isGeneratingPocketReport) {
+      return;
+    }
+
+    setIsGeneratingPocketReport(true);
+    setPocketReportError(null);
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        kind: "GENERATE_REPORT",
+        requestId: crypto.randomUUID(),
+        payload: { pocketId: currentPocketId },
+      });
+
+      if (!response?.success || !response?.data?.reportId) {
+        throw new Error(response?.error || "Report generation failed");
+      }
+
+      const nextReport = {
+        reportId: response.data.reportId,
+        pocketId: response.data.pocketId,
+        generatedAt: response.data.generatedAt,
+        title: response.data.title,
+      } satisfies PocketReportSummary;
+
+      setLatestPocketReport(nextReport);
+      openPocketReport({ reportId: nextReport.reportId, pocketId: currentPocketId });
+    } catch (error) {
+      setPocketReportError(
+        error instanceof Error ? error.message : "Report generation failed",
+      );
+    } finally {
+      setIsGeneratingPocketReport(false);
+    }
+  }, [currentPocketId, isGeneratingPocketReport, openPocketReport]);
 
   const handleAddNote = async () => {
     setShowNoteEditor(true);
@@ -2412,13 +2541,59 @@ export function ChatApp() {
             )}
             {currentMode === "ai-pocket" ? (
               <div className="flex flex-1 flex-col overflow-hidden">
+                {currentPocketId && (
+                  <div className="px-4 pt-16 pb-2">
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 backdrop-blur">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold">
+                          {currentPocketName || "Selected pocket"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {isGeneratingPocketReport
+                            ? "Generating report..."
+                            : pocketReportError
+                              ? "Report generation failed"
+                              : latestPocketReport
+                                ? `Open report • ${new Date(latestPocketReport.generatedAt).toLocaleString([], {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}`
+                                : "Generate a citation-backed report for this pocket"}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={latestPocketReport ? "secondary" : "default"}
+                        size="sm"
+                        onClick={
+                          latestPocketReport
+                            ? handleOpenPocketReport
+                            : handleGeneratePocketReport
+                        }
+                        disabled={isGeneratingPocketReport}
+                      >
+                        {isGeneratingPocketReport
+                          ? "Generating report..."
+                          : latestPocketReport
+                            ? "Open report"
+                            : "Generate report"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <PocketManager
                   ref={pocketManagerRef}
                   onInsidePocketChange={handleInsidePocketChange}
                   onAddNote={handleAddNote}
                   onAddFile={handleAddFile}
                   initialPocketId={linkedResearchPocketToOpen}
-                  onSelectPocket={(pocket) => setCurrentPocketId(pocket.id)}
+                  onSelectPocket={(pocket) => {
+                    setCurrentPocketId(pocket.id);
+                    setCurrentPocketName(pocket.name);
+                    setPocketReportError(null);
+                  }}
                 />
               </div>
             ) : messages.length === 0 ? (

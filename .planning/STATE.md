@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: Ready to plan
-stopped_at: Completed 09-03-PLAN.md
-last_updated: "2026-03-30T12:01:45.190Z"
+stopped_at: Completed 08.1-01-PLAN.md
+last_updated: "2026-03-30T19:16:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 2
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Trustworthy autonomous research and action
-**Current focus:** Phase 09 — human-in-the-loop-control-layer
+**Current focus:** Phase 10 — Deep Research Orchestrator
 
 ## Current Position
 
@@ -86,6 +86,10 @@ None yet.
 ### Roadmap Evolution
 
 - New milestone v2.0 begins at Phase 7 to preserve milestone history and existing phase directories
+- Phase 08.1 inserted after Phase 8: Complete Browser Action Execution Loop (URGENT) — ✅ COMPLETED 2026-03-30
+  - `BrowserActionOrchestrator` implemented and wired into `service-worker.ts`
+  - Pause/resume/cancel controls wired via `AGENT_RUN_CONTROL`
+  - 6/6 tests passing (`browser-action-runtime-loop`, `browser-action-control`)
 
 ## Session Continuity
 

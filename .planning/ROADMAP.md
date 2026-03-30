@@ -49,6 +49,16 @@ Plans:
 5. Pausing, resuming, and cancelling preserve coherent run state
 **Plans**: TBD
 
+### Phase 08.1: Complete Browser Action Execution Loop (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 8
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 08.1 to break down)
+
 ### Phase 9: Human-in-the-Loop Control Layer
 **Goal**: Add explicit control boundaries so autonomy remains understandable and safe
 **Depends on**: Phase 8

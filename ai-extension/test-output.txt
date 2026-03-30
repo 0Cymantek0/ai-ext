@@ -1,0 +1,127 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/shuvagata/Documents/dev/ai-ext/ai-extension[39m
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[90mstdout[2m | tests/browser-action-runtime-loop.test.ts
+[22m[39m[2026-03-30T18:33:33.584Z] [INFO] [PerformanceMonitor] Memory monitoring disabled: performance.memory API not available in this context (expected in service workers) 
+
+stderr | tests/browser-action-runtime-loop.test.ts
+[Logger] Failed to load logs ReferenceError: chrome is not defined
+    at Logger.loadLogs (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:217:22)
+    at new Logger (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:96:10)
+    at C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:662:23
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:399:11)
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vitest@2.1.9_@types+node@24_3fd7dfb85331d0642d1e8fd501d03b29/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:766:20)
+    at VitestExecutor.directRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:381:16)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at VitestExecutor.cachedRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:259:12)
+    at C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\storage\schema.ts:2:31
+[2026-03-30T18:33:33.583Z] [ERROR] [PerformanceMonitor] Failed to load metrics ReferenceError: chrome is not defined
+    at PerformanceMonitor.loadMetrics (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:623:22)
+    at new PerformanceMonitor (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:281:10)
+    at C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:669:35
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:399:11)
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vitest@2.1.9_@types+node@24_3fd7dfb85331d0642d1e8fd501d03b29/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:766:20)
+    at VitestExecutor.directRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:381:16)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at VitestExecutor.cachedRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:259:12)
+    at C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\storage\schema.ts:2:31
+Stack trace: ReferenceError: chrome is not defined
+    at PerformanceMonitor.loadMetrics (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:623:22)
+    at new PerformanceMonitor (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:281:10)
+    at C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:669:35
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:399:11)
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vitest@2.1.9_@types+node@24_3fd7dfb85331d0642d1e8fd501d03b29/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:766:20)
+    at VitestExecutor.directRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:381:16)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at VitestExecutor.cachedRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:259:12)
+    at C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\storage\schema.ts:2:31
+[Logger] Failed to persist logs ReferenceError: chrome is not defined
+    at Logger.persistLogs (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:204:7)
+    at Logger.log (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:167:12)
+    at Logger.error (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:125:10)
+    at PerformanceMonitor.loadMetrics (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:629:19)
+    at new PerformanceMonitor (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:281:10)
+    at C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:669:35
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:399:11)
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vitest@2.1.9_@types+node@24_3fd7dfb85331d0642d1e8fd501d03b29/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:766:20)
+    at VitestExecutor.directRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:381:16)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+[Logger] Failed to persist logs ReferenceError: chrome is not defined
+    at Logger.persistLogs (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:204:7)
+    at Logger.log (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:167:12)
+    at Logger.info (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:110:10)
+    at PerformanceMonitor.checkMemoryApiAvailability (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:294:19)
+    at new PerformanceMonitor (C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:282:10)
+    at C:\Users\shuvagata\Documents\dev\ai-ext\ai-extension\src\background\monitoring.ts:669:35
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:399:11)
+    at VitestExecutor.runModule (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vitest@2.1.9_@types+node@24_3fd7dfb85331d0642d1e8fd501d03b29/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:766:20)
+    at VitestExecutor.directRequest (file:///C:/Users/shuvagata/Documents/dev/ai-ext/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.9.1_lightningcss@1.30.2/node_modules/vite-node/dist/client.mjs:381:16)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+[90mstdout[2m | tests/browser-action-runtime-loop.test.ts[2m > [22m[2mbrowser action runtime loop[2m > [22m[2mcreates a canonical browser-action run with metadata and loop bootstrap events
+[22m[39m[2026-03-30T18:33:33.759Z] [INFO] [DatabaseManager] Database opened { version: [33m6[39m }
+
+[90mstdout[2m | tests/browser-action-runtime-loop.test.ts[2m > [22m[2mbrowser action runtime loop[2m > [22m[2mcreates a canonical browser-action run with metadata and loop bootstrap events
+[22m[39m[2026-03-30T18:33:33.781Z] [INFO] [DatabaseManager] Database closed 
+
+[90mstdout[2m | tests/browser-action-runtime-loop.test.ts[2m > [22m[2mbrowser action runtime loop[2m > [22m[2mpersists named checkpoints for pause and resume
+[22m[39m[2026-03-30T18:33:33.786Z] [INFO] [DatabaseManager] Database opened { version: [33m6[39m }
+
+ [32mΓ£ô[39m tests/browser-action-runtime-loop.test.ts[2m > [22mbrowser action runtime loop[2m > [22mcreates a canonical browser-action run with metadata and loop bootstrap events
+[90mstdout[2m | tests/browser-action-runtime-loop.test.ts[2m > [22m[2mbrowser action runtime loop[2m > [22m[2mpersists named checkpoints for pause and resume
+[22m[39m[2026-03-30T18:33:33.806Z] [INFO] [DatabaseManager] Database closed 
+
+[90mstdout[2m | tests/browser-action-runtime-loop.test.ts[2m > [22m[2mbrowser action runtime loop[2m > [22m[2mBrowserActionOrchestrator Execution[2m > [22m[2mshould execute the loop until the executor returns false and properly set breakpoints
+[22m[39m[2026-03-30T18:33:33.813Z] [INFO] [DatabaseManager] Database opened { version: [33m6[39m }
+
+ [32mΓ£ô[39m tests/browser-action-runtime-loop.test.ts[2m > [22mbrowser action runtime loop[2m > [22mpersists named checkpoints for pause and resume
+[90mstdout[2m | tests/browser-action-runtime-loop.test.ts[2m > [22m[2mbrowser action runtime loop[2m > [22m[2mBrowserActionOrchestrator Execution[2m > [22m[2mshould execute the loop until the executor returns false and properly set breakpoints
+[22m[39m[2026-03-30T18:33:33.843Z] [INFO] [DatabaseManager] Database closed 
+
+[90mstdout[2m | tests/browser-action-runtime-loop.test.ts[2m > [22m[2mbrowser action runtime loop[2m > [22m[2mBrowserActionOrchestrator Execution[2m > [22m[2mshould pause execution if pending approval
+[22m[39m[2026-03-30T18:33:33.850Z] [INFO] [DatabaseManager] Database opened { version: [33m6[39m }
+
+[90mstdout[2m | tests/browser-action-runtime-loop.test.ts[2m > [22m[2mbrowser action runtime loop[2m > [22m[2mBrowserActionOrchestrator Execution[2m > [22m[2mshould pause execution if pending approval
+[22m[39m[2026-03-30T18:33:33.862Z] [INFO] [DatabaseManager] Database closed 
+
+ [31m├ù[39m tests/browser-action-runtime-loop.test.ts[2m > [22mbrowser action runtime loop[2m > [22mBrowserActionOrchestrator Execution[2m > [22mshould execute the loop until the executor returns false and properly set breakpoints
+[31m   ΓåÆ expected [ 'plan-created', 'tool-result', ΓÇª(1) ] to include 'tool-dispatch'[39m
+ [31m├ù[39m tests/browser-action-runtime-loop.test.ts[2m > [22mbrowser action runtime loop[2m > [22mBrowserActionOrchestrator Execution[2m > [22mshould pause execution if pending approval
+[31m   ΓåÆ Run not found: apr-7966fcbe-c4a5-4ecb-af0d-38e697adc274-1774895613857[39m
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ» Failed Tests 2 ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+
+ FAIL  tests/browser-action-runtime-loop.test.ts > browser action runtime loop > BrowserActionOrchestrator Execution > should execute the loop until the executor returns false and properly set breakpoints
+AssertionError: expected [ 'plan-created', 'tool-result', ΓÇª(1) ] to include 'tool-dispatch'
+ Γ¥» tests/browser-action-runtime-loop.test.ts:220:36
+    218|         .map((event) => (event.payload as { boundary?: string }).boundΓÇª
+    219| 
+    220|       expect(checkpointBoundaries).toContain("tool-dispatch"); // BefoΓÇª
+       |                                    ^
+    221|       expect(checkpointBoundaries).toContain("tool-result");   // ManuΓÇª
+    222|       expect(checkpointBoundaries).toContain("terminal");      // End ΓÇª
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1/2]ΓÄ»
+
+ FAIL  tests/browser-action-runtime-loop.test.ts > browser action runtime loop > BrowserActionOrchestrator Execution > should pause execution if pending approval
+Error: Run not found: apr-7966fcbe-c4a5-4ecb-af0d-38e697adc274-1774895613857
+ Γ¥» AgentRuntimeService.applyEvent src/background/agent-runtime/agent-runtime-service.ts:163:15
+    161|       const record = await this.store.getRun(event.runId);
+    162|       if (!record) {
+    163|         throw new Error(`Run not found: ${event.runId}`);
+       |               ^
+    164|       }
+    165|       run = this.fromRunRecord(record);
+ Γ¥» tests/browser-action-runtime-loop.test.ts:246:11
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[2/2]ΓÄ»
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 00:03:29
+[2m   Duration [22m 4.29s[2m (transform 328ms, setup 365ms, collect 411ms, tests 121ms, environment 1.97s, prepare 245ms)[22m
+

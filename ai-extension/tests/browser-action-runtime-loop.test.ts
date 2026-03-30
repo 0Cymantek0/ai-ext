@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import "fake-indexeddb/auto";
 import { openDB } from "idb";
 import type { AiPocketDBSchema } from "../src/storage/schema.js";
+import { BrowserActionOrchestrator } from "../src/background/agent-runtime/browser-action-orchestrator.js";
 
 const DB_NAME = "ai-pocket-db";
 const DB_VERSION = 5;
@@ -170,5 +171,94 @@ describe("browser action runtime loop", () => {
     expect(checkpointBoundaries).toContain("plan-created");
     expect(checkpointBoundaries).toContain("paused");
     expect(checkpointBoundaries).toContain("resumed");
+  });
+
+  describe("BrowserActionOrchestrator Execution", () => {
+    let orchestrator: BrowserActionOrchestrator;
+    let testRunId: string;
+
+    beforeEach(async () => {
+      orchestrator = new BrowserActionOrchestrator(service);
+      const run = await service.startRun({
+        mode: "browser-action",
+        metadata: {
+          task: "Test browser action loop",
+          providerId: "test-provider",
+          providerType: "test",
+          modelId: "test-model",
+          tabId: 1,
+        },
+      });
+      testRunId = run.runId;
+    });
+
+    it("should execute the loop until the executor returns false and properly set breakpoints", async () => {
+      let callCount = 0;
+      
+      await orchestrator.start(testRunId, {
+        executor: async (context) => {
+          callCount++;
+          if (callCount >= 2) {
+            return false;
+          }
+          await service.saveCheckpoint(context.runId, "tool-result");
+          return true;
+        }
+      });
+  
+      const finalRun = await service.getRun(testRunId);
+      expect(finalRun).not.toBeNull();
+      expect(finalRun?.status).toBe("completed");
+      expect(finalRun?.phase).toBe("finalizing");
+      expect(callCount).toBe(2);
+
+      const timeline = await service.getTimeline(testRunId);
+      const checkpointBoundaries = timeline!.events
+        .filter((event) => event.eventType === "checkpoint.created")
+        .map((event) => (event.payload as { boundary?: string }).boundary);
+
+      expect(checkpointBoundaries).toContain("tool-dispatch"); // Before execution
+      expect(checkpointBoundaries).toContain("tool-result");   // Manual execution checkpoint
+      expect(checkpointBoundaries).toContain("terminal");      // End checkpoint
+    });
+
+    it("should pause execution if pending approval", async () => {
+      let callCount = 0;
+      
+      await orchestrator.start(testRunId, {
+        executor: async (context) => {
+          callCount++;
+          await service.getApprovalService().requestApproval(
+            context.runId,
+            "test-tool",
+            {},
+            "Need user click",
+            { tabId: 1 }
+          );
+          return true;
+        }
+      });
+  
+      const pausedRun = await service.getRun(testRunId);
+      expect(pausedRun).not.toBeNull();
+      expect(pausedRun?.status).not.toBe("completed");
+      expect(callCount).toBe(1);
+      
+      const pendingApproval = pausedRun?.pendingApproval;
+      if (pendingApproval) {
+          await service.getApprovalService().resolveApproval(testRunId, pendingApproval.approvalId, "approved");
+      }
+  
+      await orchestrator.resume(testRunId, {
+          executor: async () => {
+            callCount++;
+            return false;
+          }
+      });
+  
+      const finalRun = await service.getRun(testRunId);
+      expect(finalRun?.status).toBe("completed");
+      expect(callCount).toBe(2);
+    });
   });
 });

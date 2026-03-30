@@ -1,97 +1,127 @@
-/**
- * Report Viewer - Component-based report viewer
- */
+import { ReportRenderer } from "./report-renderer.js";
 
-import { ReportRenderer } from './report-renderer.js';
+const loadingElement = document.getElementById("loading");
+const loadingMessageElement = document.getElementById("loadingMessage");
+const reportContainer = document.getElementById("reportContainer");
 
-let reportData = null;
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener("DOMContentLoaded", async () => {
   await loadReport();
 });
 
-/**
- * Load report data from background script
- */
 async function loadReport() {
+  const query = new URLSearchParams(window.location.search);
+  const reportId = query.get("reportId");
+  const pocketId = query.get("pocketId");
+  const forceGenerate = query.get("generate") === "1";
+
   try {
-    // Get pocketId from URL params if provided
-    const urlParams = new URLSearchParams(window.location.search);
-    const pocketId = urlParams.get('pocketId');
-
-    console.log('Loading report for pocketId:', pocketId);
-
-    // Request report generation from background
-    const response = await chrome.runtime.sendMessage({
-      kind: 'GENERATE_REPORT',
-      requestId: crypto.randomUUID(),
-      payload: { pocketId }
-    });
-
-    console.log('Report response:', response);
-
-    if (response?.success && response?.data) {
-      reportData = response.data;
-      console.log('Report data:', reportData);
-      renderReport(reportData);
-    } else {
-      const errorPayload = response?.error;
-      const errorMsg = typeof errorPayload === 'string'
-        ? errorPayload
-        : errorPayload?.message || 'Failed to generate report';
-      console.error('Report generation failed:', errorMsg, errorPayload);
-      showError(errorMsg);
+    if (reportId) {
+      showLoading("Loading report...");
+      const report = await getReport(reportId);
+      renderReport(report);
+      return;
     }
+
+    if (!pocketId) {
+      throw new Error("A pocketId or reportId is required to open a report");
+    }
+
+    if (!forceGenerate) {
+      showLoading("Loading report...");
+      const latestReport = await getLatestReportForPocket(pocketId);
+      if (latestReport) {
+        const report = await getReport(latestReport.reportId);
+        renderReport(report);
+        return;
+      }
+    }
+
+    showLoading("Generating report...");
+    const generated = await generateReport(pocketId);
+    replaceLocationWithReportId(generated.reportId, pocketId);
+    renderReport(generated);
   } catch (error) {
-    console.error('Error loading report:', error);
-    showError('Failed to load report: ' + (error.message || error));
+    showError(error instanceof Error ? error.message : String(error));
   }
 }
 
-/**
- * Render report using component-based renderer
- */
-function renderReport(data) {
-  // Hide loading, show content
-  document.getElementById('loading').classList.add('hidden');
-  const container = document.getElementById('reportContainer');
-  container.classList.remove('hidden');
+async function getReport(reportId) {
+  const response = await chrome.runtime.sendMessage({
+    kind: "REPORT_GET",
+    requestId: crypto.randomUUID(),
+    payload: { reportId },
+  });
 
-  // Initialize renderer and render report
-  const renderer = new ReportRenderer(container);
-  renderer.render(data);
+  if (!response?.success || !response?.data) {
+    throw new Error(response?.error || "Failed to load report");
+  }
+
+  return response.data;
 }
 
-/**
- * Show error message
- */
+async function getLatestReportForPocket(pocketId) {
+  const response = await chrome.runtime.sendMessage({
+    kind: "REPORT_LIST",
+    requestId: crypto.randomUUID(),
+    payload: { pocketId },
+  });
+
+  if (!response?.success) {
+    throw new Error(response?.error || "Failed to list reports");
+  }
+
+  return response?.data?.reports?.[0] || null;
+}
+
+async function generateReport(pocketId) {
+  const response = await chrome.runtime.sendMessage({
+    kind: "GENERATE_REPORT",
+    requestId: crypto.randomUUID(),
+    payload: { pocketId },
+  });
+
+  if (!response?.success || !response?.data) {
+    throw new Error(response?.error || "Failed to generate report");
+  }
+
+  return response.data;
+}
+
+function renderReport(payload) {
+  loadingElement.classList.add("hidden");
+  reportContainer.classList.remove("hidden");
+  new ReportRenderer(reportContainer).render(payload);
+}
+
+function showLoading(message) {
+  loadingMessageElement.textContent = message;
+}
+
 function showError(message) {
-  const loading = document.getElementById('loading');
-  loading.innerHTML = `
-    <div style="text-align: center; padding: 60px 20px;">
-      <div style="font-size: 60px; margin-bottom: 20px;">⚠️</div>
-      <h2 style="font-size: 24px; color: #2d3748; margin-bottom: 10px;">Error</h2>
-      <p style="color: #718096; margin-bottom: 20px; max-width: 500px;">${escapeHtml(message)}</p>
-      <button onclick="location.reload()" style="
-        background: #667eea;
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        border-radius: 6px;
-        font-size: 16px;
-        cursor: pointer;
-        transition: background 0.2s;
-      ">Try Again</button>
+  loadingElement.innerHTML = `
+    <div class="error-state">
+      <div class="error-icon">!</div>
+      <h1>Report unavailable</h1>
+      <p>${escapeHtml(message)}</p>
+      <button type="button" id="retryButton">Try again</button>
     </div>
   `;
+
+  document.getElementById("retryButton")?.addEventListener("click", () => {
+    window.location.reload();
+  });
 }
 
-/**
- * Escape HTML to prevent XSS
- */
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
+function replaceLocationWithReportId(reportId, pocketId) {
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set("reportId", reportId);
+  nextUrl.searchParams.set("pocketId", pocketId);
+  nextUrl.searchParams.delete("generate");
+  window.history.replaceState({}, "", nextUrl);
+}
+
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value;
   return div.innerHTML;
 }

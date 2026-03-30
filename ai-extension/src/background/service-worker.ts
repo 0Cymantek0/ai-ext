@@ -44,10 +44,12 @@ import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
 import { PocketReportGenerator } from "./pocket-report-generator.js";
+import { ReportStorageService } from "./reporting/report-storage-service.js";
 import { getProviderConfigManager } from "./provider-config-manager.js";
 import { SettingsManager } from "./routing/settings-manager.js";
 import { AgentRuntimeService } from "./agent-runtime/agent-runtime-service.js";
 import { DeepResearchOrchestrator } from "./research/deep-research-orchestrator.js";
+import { BrowserActionOrchestrator } from "./agent-runtime/browser-action-orchestrator.js";
 import type {
   AgentRunStartPayload,
   AgentRunStatusPayload,
@@ -172,6 +174,7 @@ const database = createDatabaseManager();
 
 // Initialize vision manager
 const visionManager = createVisionManager(logger);
+const reportStorageService = new ReportStorageService();
 
 logger.info(
   "ServiceWorker",
@@ -1874,6 +1877,9 @@ const agentRuntimeService = new AgentRuntimeService();
 const deepResearchOrchestrator = new DeepResearchOrchestrator(
   agentRuntimeService,
 );
+const browserActionOrchestrator = new BrowserActionOrchestrator(
+  agentRuntimeService,
+);
 
 async function buildAgentRunStatusPayload(
   runId: string,
@@ -2145,6 +2151,24 @@ messageRouter.registerHandler(
             });
             await forwardAgentRunStatus(run.runId);
           });
+      } else if (payload.mode === "browser-action") {
+        void browserActionOrchestrator
+          .start(run.runId)
+          .catch(async (error) => {
+            logger.error("BrowserAction", "Orchestrator failed", error);
+            await agentRuntimeService.applyEvent({
+              eventId: `evt-${run.runId}-failed-${Date.now()}`,
+              runId: run.runId,
+              timestamp: Date.now(),
+              type: "run.failed",
+              outcome: {
+                status: "failed",
+                reason: error instanceof Error ? error.message : String(error),
+                finishedAt: Date.now(),
+              },
+            });
+            await forwardAgentRunStatus(run.runId);
+          });
       }
 
       return {
@@ -2283,6 +2307,12 @@ messageRouter.registerHandler(
               onRunUpdated: async (updatedRunId) => {
                 await forwardAgentRunStatus(updatedRunId);
               },
+            });
+          } else if (existingRun?.mode === "browser-action") {
+            void browserActionOrchestrator.resume(payload.runId).catch(async (error) => {
+              logger.error("BrowserAction", "Orchestrator resume failed", error);
+              // Event recording for failure during resume might be beneficial
+              await forwardAgentRunStatus(payload.runId);
             });
           }
           break;
@@ -3331,27 +3361,79 @@ messageRouter.registerHandler("GENERATE_REPORT", async (payload: any) => {
   logger.info("Handler", "GENERATE_REPORT", payload);
 
   try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY ?? undefined;
-
     const normalizedPocketId =
       typeof payload?.pocketId === "string" &&
       payload.pocketId.trim().length > 0
         ? payload.pocketId.trim()
         : undefined;
 
-    const reportGenerator = new PocketReportGenerator(apiKey);
+    const reportGenerator = new PocketReportGenerator();
     const reportData = await reportGenerator.generateReport(normalizedPocketId);
 
     logger.info("Handler", "GENERATE_REPORT success", {
       pocketId: normalizedPocketId ?? "all",
-      totalItems: reportData.metadata?.totalItems ?? 0,
+      sections: reportData.sections.length,
     });
 
-    return reportData;
+    return { success: true, data: reportData };
   } catch (error) {
     logger.error("Handler", "GENERATE_REPORT error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
 
-    throw error instanceof Error ? error : new Error(String(error));
+messageRouter.registerHandler("REPORT_GET", async (payload: any) => {
+  logger.info("Handler", "REPORT_GET", payload);
+
+  try {
+    const reportId =
+      typeof payload?.reportId === "string" && payload.reportId.trim().length > 0
+        ? payload.reportId.trim()
+        : "";
+
+    if (!reportId) {
+      throw new Error("REPORT_GET requires a reportId");
+    }
+
+    const report = await reportStorageService.getGeneratedReport(reportId);
+    if (!report) {
+      throw new Error(`Report ${reportId} was not found`);
+    }
+
+    return { success: true, data: report };
+  } catch (error) {
+    logger.error("Handler", "REPORT_GET error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+messageRouter.registerHandler("REPORT_LIST", async (payload: any) => {
+  logger.info("Handler", "REPORT_LIST", payload);
+
+  try {
+    const pocketId =
+      typeof payload?.pocketId === "string" && payload.pocketId.trim().length > 0
+        ? payload.pocketId.trim()
+        : "";
+
+    if (!pocketId) {
+      throw new Error("REPORT_LIST requires a pocketId");
+    }
+
+    const reports = await reportStorageService.listReportsForPocket(pocketId);
+    return { success: true, data: { reports } };
+  } catch (error) {
+    logger.error("Handler", "REPORT_LIST error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 });
 

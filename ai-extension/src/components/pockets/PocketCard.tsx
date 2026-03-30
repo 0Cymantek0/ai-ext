@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Download, FileText } from "lucide-react";
 import { exportPocket } from "@/lib/pocket-export-service";
+import { buildReportViewerUrl } from "@/shared/reporting/viewer";
 
 export interface PocketData {
   id: string;
@@ -97,9 +98,9 @@ export function PocketCard({
 
   const handleReport = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = chrome.runtime.getURL(
-      `src/reports/report-viewer.html?pocketId=${pocket.id}`,
-    );
+    const url = buildReportViewerUrl(chrome.runtime.getURL("/"), {
+      pocketId: pocket.id,
+    });
     chrome.tabs.create({ url });
   };
 

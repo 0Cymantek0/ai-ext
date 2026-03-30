@@ -47,7 +47,7 @@ import type {
 import type { DatabaseManager as StorageDatabaseContract } from "../services/storage-manager.js";
 
 const DB_NAME = "ai-pocket-db";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 /**
  * Object store names used throughout the database schema.
@@ -71,6 +71,8 @@ export const STORE_NAMES = {
   AGENT_APPROVALS: "agentApprovals",
   AGENT_ARTIFACTS: "agentArtifacts",
   AGENT_MIGRATIONS: "agentMigrations",
+  GENERATED_REPORTS: "generatedReports",
+  REPORT_SUPPORT_MAPS: "reportSupportMaps",
 } as const;
 
 export type StoreName = (typeof STORE_NAMES)[keyof typeof STORE_NAMES];
@@ -274,6 +276,21 @@ const STORE_CONFIGS: Record<StoreName, StoreConfig> = {
       { name: "appliedAt", keyPath: "appliedAt" },
     ],
   },
+  [STORE_NAMES.GENERATED_REPORTS]: {
+    keyPath: "reportId",
+    indexes: [
+      { name: "pocketId", keyPath: "pocketId" },
+      { name: "generatedAt", keyPath: "generatedAt" },
+    ],
+  },
+  [STORE_NAMES.REPORT_SUPPORT_MAPS]: {
+    keyPath: "entryId",
+    indexes: [
+      { name: "reportId", keyPath: "reportId" },
+      { name: "claimId", keyPath: "claimId" },
+      { name: "sectionId", keyPath: "sectionId" },
+    ],
+  },
 };
 
 /**
@@ -390,6 +407,25 @@ export interface AgentMigrationRecord {
   migrationKey: string;
   appliedAt: number;
   metadata?: Record<string, unknown>;
+}
+
+export interface GeneratedReportRecord {
+  reportId: string;
+  pocketId: string;
+  generatedAt: number;
+  title: string;
+  payload: unknown;
+}
+
+export interface ReportSupportMapRecord {
+  entryId: string;
+  reportId: string;
+  claimId: string;
+  sectionId: string;
+  evidenceIds: string[];
+  support: string;
+  citationIds?: string[];
+  sourceUrls?: string[];
 }
 
 /**
@@ -572,6 +608,23 @@ export interface AiPocketDBSchema extends DBSchema {
     value: AgentMigrationRecord;
     indexes: {
       appliedAt: number;
+    };
+  };
+  generatedReports: {
+    key: string;
+    value: GeneratedReportRecord;
+    indexes: {
+      pocketId: string;
+      generatedAt: number;
+    };
+  };
+  reportSupportMaps: {
+    key: string;
+    value: ReportSupportMapRecord;
+    indexes: {
+      reportId: string;
+      claimId: string;
+      sectionId: string;
     };
   };
 }
@@ -1190,6 +1243,11 @@ export class DatabaseManager implements StorageDatabaseContract {
       this.ensureStore(db, transaction, STORE_NAMES.AGENT_MIGRATIONS);
     }
 
+    if (oldVersion < 6) {
+      this.ensureStore(db, transaction, STORE_NAMES.GENERATED_REPORTS);
+      this.ensureStore(db, transaction, STORE_NAMES.REPORT_SUPPORT_MAPS);
+    }
+
     // Ensure indexes stay up to date regardless of upgrade path
     this.ensureStore(db, transaction, STORE_NAMES.POCKETS);
     this.ensureStore(db, transaction, STORE_NAMES.CAPTURED_CONTENT);
@@ -1208,6 +1266,8 @@ export class DatabaseManager implements StorageDatabaseContract {
     this.ensureStore(db, transaction, STORE_NAMES.AGENT_APPROVALS);
     this.ensureStore(db, transaction, STORE_NAMES.AGENT_ARTIFACTS);
     this.ensureStore(db, transaction, STORE_NAMES.AGENT_MIGRATIONS);
+    this.ensureStore(db, transaction, STORE_NAMES.GENERATED_REPORTS);
+    this.ensureStore(db, transaction, STORE_NAMES.REPORT_SUPPORT_MAPS);
   }
 
   private ensureStore(

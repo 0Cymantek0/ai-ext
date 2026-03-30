@@ -18,7 +18,7 @@ import type {
 import type { FileArchiveDescriptor } from "./storage/tiered-storage-types.js";
 
 const DB_NAME = "ai-pocket-db";
-const DB_VERSION = 5; // Synced with DatabaseManager to prevent version conflicts
+const DB_VERSION = 6; // Synced with DatabaseManager to prevent version conflicts
 
 export enum StoreName {
   POCKETS = "pockets",
@@ -39,6 +39,8 @@ export enum StoreName {
   AGENT_APPROVALS = "agentApprovals",
   AGENT_ARTIFACTS = "agentArtifacts",
   AGENT_MIGRATIONS = "agentMigrations",
+  GENERATED_REPORTS = "generatedReports",
+  REPORT_SUPPORT_MAPS = "reportSupportMaps",
 }
 
 // Re-export types from shared types for backward compatibility
@@ -401,6 +403,23 @@ export class IndexedDBManager {
         keyPath: "migrationKey",
       });
       store.createIndex("appliedAt", "appliedAt", { unique: false });
+    }
+
+    if (!db.objectStoreNames.contains(StoreName.GENERATED_REPORTS)) {
+      const store = db.createObjectStore(StoreName.GENERATED_REPORTS, {
+        keyPath: "reportId",
+      });
+      store.createIndex("pocketId", "pocketId", { unique: false });
+      store.createIndex("generatedAt", "generatedAt", { unique: false });
+    }
+
+    if (!db.objectStoreNames.contains(StoreName.REPORT_SUPPORT_MAPS)) {
+      const store = db.createObjectStore(StoreName.REPORT_SUPPORT_MAPS, {
+        keyPath: "entryId",
+      });
+      store.createIndex("reportId", "reportId", { unique: false });
+      store.createIndex("claimId", "claimId", { unique: false });
+      store.createIndex("sectionId", "sectionId", { unique: false });
     }
 
     logger.info("IndexedDBManager", "Schema created");

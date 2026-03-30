@@ -50,6 +50,14 @@ export interface EvidenceArtifactInput {
   sourceUrl?: string;
 }
 
+export interface ReportInputArtifactInput {
+  runId: string;
+  pocketId: string;
+  targetId: string;
+  label: string;
+  uri?: string;
+}
+
 // ─── Service ────────────────────────────────────────────────────────────────
 
 export class PocketArtifactService {
@@ -240,6 +248,41 @@ export class PocketArtifactService {
       label: input.label,
       uri:
         input.sourceUrl || `pocket://${input.pocketId}/content/${input.contentId}`,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await this.store.putArtifact(record);
+    return record;
+  }
+
+  async ensureReportInputArtifact(
+    input: ReportInputArtifactInput,
+  ): Promise<AgentArtifactRecord> {
+    const existing = await this.findArtifact(
+      input.runId,
+      "report-input",
+      "report-input",
+      input.targetId,
+    );
+
+    if (existing) {
+      await this.touchArtifact(
+        existing.artifactId,
+        input.uri ? { uri: input.uri } : {},
+      );
+      return (await this.store.getArtifact(existing.artifactId)) ?? existing;
+    }
+
+    const now = Date.now();
+    const record: AgentArtifactRecord = {
+      artifactId: `art-report-input-${input.runId}-${input.targetId}`,
+      runId: input.runId,
+      artifactType: "report-input",
+      targetKind: "report-input",
+      targetId: input.targetId,
+      label: input.label,
+      uri: input.uri ?? `pocket://${input.pocketId}/report-input/${input.targetId}`,
       createdAt: now,
       updatedAt: now,
     };
