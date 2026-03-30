@@ -40,9 +40,9 @@ export interface BrowserActionPanelProps {
   /** Label to display in the header badge showing the selected model. */
   modelLabel: string;
   /** Provider ID for display in the footer. */
-  providerId?: string;
+  providerId: string | undefined;
   /** Model ID for display in the footer. */
-  modelId?: string;
+  modelId: string | undefined;
   /** Whether the user needs to pick a model before launch can be enabled. */
   requiresModelSelection: boolean;
   /** Callback to launch a browser action with the given task description. */
