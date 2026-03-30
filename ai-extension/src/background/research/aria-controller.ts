@@ -94,6 +94,13 @@ function cloneContext(
   return { ...context };
 }
 
+/**
+ * Legacy compatibility controller for the deprecated ARIA research path.
+ *
+ * Phase 10 moves deep-research authority into the canonical AgentRuntimeService.
+ * This class remains only for compatibility helpers and older tests; it must
+ * not be treated as the active runtime authority.
+ */
 export class AriaController {
   private readonly runs = new Map<string, InternalAriaRunState>();
   private readonly eventTarget = new EventTarget();

@@ -8,9 +8,10 @@
  * @module background/agent-runtime/store
  */
 
-import { openDB, type IDBPDatabase } from "idb";
+import type { IDBPDatabase } from "idb";
 import {
   STORE_NAMES,
+  createDatabaseManager,
   type AiPocketDBSchema,
   type AgentRunRecord,
   type AgentRunEventRecord,
@@ -19,12 +20,6 @@ import {
   type AgentArtifactRecord,
   type AgentMigrationRecord,
 } from "../../storage/schema.js";
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-/** Re-use the project-wide DB name & version from schema.ts internals. */
-const DB_NAME = "ai-pocket-db";
-const DB_VERSION = 5;
 
 // ─── AgentRuntimeStore ──────────────────────────────────────────────────────
 
@@ -39,13 +34,14 @@ const DB_VERSION = 5;
  */
 export class AgentRuntimeStore {
   private dbPromise: Promise<IDBPDatabase<AiPocketDBSchema>> | null = null;
+  private readonly databaseManager = createDatabaseManager();
 
   /**
    * Get (or lazily open) the shared database connection.
    */
   private getDb(): Promise<IDBPDatabase<AiPocketDBSchema>> {
     if (!this.dbPromise) {
-      this.dbPromise = openDB<AiPocketDBSchema>(DB_NAME, DB_VERSION);
+      this.dbPromise = this.databaseManager.open();
     }
     return this.dbPromise;
   }
@@ -55,8 +51,7 @@ export class AgentRuntimeStore {
    */
   async close(): Promise<void> {
     if (this.dbPromise) {
-      const db = await this.dbPromise;
-      db.close();
+      await this.databaseManager.close();
       this.dbPromise = null;
     }
   }

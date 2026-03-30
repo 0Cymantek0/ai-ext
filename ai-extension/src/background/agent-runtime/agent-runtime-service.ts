@@ -27,6 +27,9 @@ import type {
   AgentTerminalOutcome,
   BrowserActionRunMetadata,
   BrowserActionCheckpointBoundary,
+  DeepResearchRunMetadata,
+  DeepResearchQuestion,
+  AgentCheckpointBoundary,
   AgentCheckpoint,
 } from "../../shared/agent-runtime/contracts.js";
 import type {
@@ -130,6 +133,8 @@ export class AgentRuntimeService {
 
     if (options.mode === "browser-action") {
       run = await this.bootstrapBrowserActionRun(run);
+    } else if (options.mode === "deep-research") {
+      run = await this.bootstrapDeepResearchRun(run);
     }
 
     return (await this.getRun(runId)) ?? run;
@@ -213,10 +218,18 @@ export class AgentRuntimeService {
 
     await this.persistRun(resumed);
 
-    const resumedWithIntent = this.updateBrowserMetadata(resumed, {
-      currentIntent:
-        (resumed.metadata.currentIntent as string | undefined) ?? "Resume browser-action run",
-    });
+    const resumedWithIntent =
+      resumed.mode === "deep-research"
+        ? this.updateRunMetadata(resumed, {
+            currentIntent:
+              (resumed.metadata.currentIntent as string | undefined) ??
+              "Resume deep-research run",
+          })
+        : this.updateBrowserMetadata(resumed, {
+            currentIntent:
+              (resumed.metadata.currentIntent as string | undefined) ??
+              "Resume browser-action run",
+          });
     await this.persistRun(resumedWithIntent);
     await this.saveNamedCheckpoint(resumedWithIntent, "resumed", "manual");
     return resumedWithIntent;
@@ -303,6 +316,69 @@ export class AgentRuntimeService {
   /** Get the underlying PocketArtifactService for artifact projection. */
   getArtifactService(): PocketArtifactService {
     return this.artifacts;
+  }
+
+  async updateRun(runId: string, updater: (run: AgentRun) => AgentRun): Promise<AgentRun> {
+    const current = await this.getRunOrThrow(runId);
+    const updated = updater({
+      ...current,
+      todoItems: [...current.todoItems],
+      artifactRefs: [...current.artifactRefs],
+      metadata: { ...current.metadata },
+    });
+    await this.persistRun(updated);
+    return updated;
+  }
+
+  async replaceTodoItems(runId: string, items: AgentTodoItem[]): Promise<AgentRun> {
+    return this.applyEvent({
+      eventId: `evt-${runId}-todo-${Date.now()}`,
+      runId,
+      timestamp: Date.now(),
+      type: "todo.replaced",
+      items,
+    });
+  }
+
+  async transitionPhase(
+    runId: string,
+    toPhase: AgentRunPhase,
+    reason?: string,
+    detail?: string,
+  ): Promise<AgentRun> {
+    const run = await this.getRunOrThrow(runId);
+    return this.applyEvent({
+      eventId: `evt-${runId}-phase-${Date.now()}`,
+      runId,
+      timestamp: Date.now(),
+      type: "run.phase_changed",
+      fromPhase: run.phase,
+      toPhase,
+      ...(reason ? { reason } : {}),
+      ...(detail ? { detail } : {}),
+    });
+  }
+
+  async projectArtifact(
+    runId: string,
+    artifact: AgentArtifactRef,
+  ): Promise<AgentRun> {
+    return this.applyEvent({
+      eventId: `evt-${runId}-artifact-${Date.now()}`,
+      runId,
+      timestamp: Date.now(),
+      type: "artifact.projected",
+      artifact,
+    });
+  }
+
+  async saveCheckpoint(
+    runId: string,
+    boundary: AgentCheckpointBoundary,
+    trigger: AgentCheckpoint["trigger"] = "auto",
+  ): Promise<AgentRun> {
+    const run = await this.getRunOrThrow(runId);
+    return this.saveNamedCheckpoint(run, boundary, trigger);
   }
 
   // ── Cleanup ─────────────────────────────────────────────────────────────
@@ -559,9 +635,90 @@ export class AgentRuntimeService {
     return updatedRun;
   }
 
+  private async bootstrapDeepResearchRun(run: AgentRun): Promise<AgentRun> {
+    const metadata = run.metadata as Partial<DeepResearchRunMetadata>;
+    const topic = metadata.topic?.trim();
+    const goal = metadata.goal?.trim();
+
+    if (!topic || !goal) {
+      return run;
+    }
+
+    let updatedRun = await this.transitionPhase(
+      run.runId,
+      "planning",
+      "research-plan-created",
+      `Plan research for ${topic}`,
+    );
+
+    const now = Date.now();
+    const questions = this.buildInitialResearchQuestions(updatedRun.runId, {
+      topic,
+      goal,
+      now,
+    });
+    const activeQuestion = questions[0];
+    const deepResearchMetadata: DeepResearchRunMetadata = {
+      topic,
+      goal,
+      providerId: metadata.providerId?.trim() ?? "",
+      providerType: metadata.providerType?.trim() ?? "",
+      modelId: metadata.modelId?.trim() ?? "",
+      questionsTotal: questions.length,
+      questionsAnswered: 0,
+      openGapCount: 0,
+      ...(activeQuestion ? { activeQuestionId: activeQuestion.id } : {}),
+      currentIntent: activeQuestion
+        ? `Plan research around ${activeQuestion.question}`
+        : `Plan research around ${topic}`,
+      latestSynthesis: "Research plan created.",
+      ...(metadata.conversationId ? { conversationId: metadata.conversationId } : {}),
+      ...(metadata.pocketId ? { pocketId: metadata.pocketId } : {}),
+      ...(typeof metadata.tabId === "number" ? { tabId: metadata.tabId } : {}),
+      ...(metadata.tabUrl ? { tabUrl: metadata.tabUrl } : {}),
+      ...(metadata.tabTitle ? { tabTitle: metadata.tabTitle } : {}),
+      questions,
+      gaps: [],
+      findings: [],
+    };
+
+    updatedRun = this.updateRunMetadata(updatedRun, deepResearchMetadata);
+    await this.persistRun(updatedRun);
+
+    const initialTodos: AgentTodoItem[] = questions.map((question, index) => ({
+      id: `${updatedRun.runId}-research-todo-${question.id}`,
+      label:
+        index === 0
+          ? `Define plan for: ${question.question}`
+          : `Research: ${question.question}`,
+      done: false,
+      createdAt: now,
+      updatedAt: now,
+    }));
+
+    updatedRun = await this.replaceTodoItems(updatedRun.runId, initialTodos);
+    updatedRun = this.updateRunMetadata(updatedRun, deepResearchMetadata);
+
+    if (metadata.pocketId) {
+      await this.artifacts.ensureResearchPocket(
+        updatedRun.runId,
+        metadata.pocketId,
+        `Research pocket for ${topic}`,
+      );
+    }
+
+    await this.persistRun(updatedRun);
+    await this.saveNamedCheckpoint(
+      updatedRun,
+      "research-plan-created",
+      "auto",
+    );
+    return updatedRun;
+  }
+
   private async saveNamedCheckpoint(
     run: AgentRun,
-    boundary: BrowserActionCheckpointBoundary,
+    boundary: AgentCheckpointBoundary,
     trigger: AgentCheckpoint["trigger"],
   ): Promise<AgentRun> {
     const checkpoint = await this.checkpoints.saveCheckpoint(run, trigger, boundary);
@@ -578,6 +735,13 @@ export class AgentRuntimeService {
   private updateBrowserMetadata(
     run: AgentRun,
     updates: Partial<BrowserActionRunMetadata>,
+  ): AgentRun {
+    return this.updateRunMetadata(run, updates);
+  }
+
+  private updateRunMetadata(
+    run: AgentRun,
+    updates: object,
   ): AgentRun {
     return {
       ...run,
@@ -607,6 +771,12 @@ export class AgentRuntimeService {
       latestCheckpointId: run.latestCheckpointId,
       terminalOutcome: run.terminalOutcome,
       metadata: run.metadata,
+      ...(typeof run.metadata.conversationId === "string"
+        ? { conversationId: run.metadata.conversationId as string }
+        : {}),
+      ...(typeof run.metadata.pocketId === "string"
+        ? { pocketId: run.metadata.pocketId as string }
+        : {}),
     };
   }
 
@@ -633,5 +803,25 @@ export class AgentRuntimeService {
       return globalCrypto.randomUUID();
     }
     return `run-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+  }
+
+  private buildInitialResearchQuestions(
+    runId: string,
+    options: { topic: string; goal: string; now: number },
+  ): DeepResearchQuestion[] {
+    const questionTexts = [
+      `What is the current landscape for ${options.topic}?`,
+      `Which evidence best supports the goal: ${options.goal}?`,
+      `What open risks or gaps remain for ${options.topic}?`,
+    ];
+
+    return questionTexts.map((question, index) => ({
+      id: `${runId}-question-${index + 1}`,
+      question,
+      status: index === 0 ? "active" : "pending",
+      order: index,
+      createdAt: options.now,
+      updatedAt: options.now,
+    }));
   }
 }

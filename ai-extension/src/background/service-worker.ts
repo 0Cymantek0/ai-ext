@@ -44,13 +44,10 @@ import { contentProcessor } from "./content-processor.js";
 import { vectorSearchService } from "./vector-search-service.js";
 import { initializeDevInstrumentation } from "../devtools/instrumentation.js";
 import { PocketReportGenerator } from "./pocket-report-generator.js";
-import {
-  AriaController,
-  type AriaControllerEventDetail,
-} from "./research/aria-controller.js";
 import { getProviderConfigManager } from "./provider-config-manager.js";
 import { SettingsManager } from "./routing/settings-manager.js";
 import { AgentRuntimeService } from "./agent-runtime/agent-runtime-service.js";
+import { DeepResearchOrchestrator } from "./research/deep-research-orchestrator.js";
 import type {
   AgentRunStartPayload,
   AgentRunStatusPayload,
@@ -1657,28 +1654,6 @@ class MessageRouter {
 const messageRouter = new MessageRouter();
 registerFsAccessHandlers(messageRouter);
 
-const ariaController = new AriaController();
-
-ariaController.onEvent((detail: AriaControllerEventDetail) => {
-  logger.info("AriaController", "Dispatching ARIA event", {
-    runId: detail.run.runId,
-    type: detail.type,
-    status: detail.run.status,
-  });
-
-  messageRouter
-    .sendToSidePanel({
-      kind: "ARIA_EVENT",
-      payload: detail,
-    } as BaseMessage<MessageKind, AriaControllerEventDetail>)
-    .catch((error) => {
-      logger.warn("AriaController", "Failed to forward ARIA_EVENT", {
-        runId: detail.run.runId,
-        error,
-      });
-    });
-});
-
 // Register LOG_BATCH handler for collecting logs from all runtimes
 messageRouter.registerHandler("LOG_BATCH", async (payload: LogBatch) => {
   try {
@@ -1703,26 +1678,58 @@ messageRouter.registerHandler("ARIA_RUN_START", async (payload: any) => {
     };
   }
 
-  const result = ariaController.startRun(config);
-  if (!result.success) {
-    logger.error("Handler", "ARIA_RUN_START failed", {
-      error: result.error,
+  try {
+    const run = await agentRuntimeService.startRun({
+      mode: "deep-research",
+      metadata: {
+        topic:
+          typeof config.query === "string" && config.query.trim().length > 0
+            ? config.query.trim()
+            : "Deep research",
+        goal:
+          typeof config.context?.goal === "string" &&
+          config.context.goal.trim().length > 0
+            ? config.context.goal.trim()
+            : "Gather grounded evidence",
+        providerId:
+          typeof config.metadata?.providerId === "string"
+            ? config.metadata.providerId
+            : "legacy-aria",
+        providerType:
+          typeof config.metadata?.providerType === "string"
+            ? config.metadata.providerType
+            : "legacy-aria",
+        modelId:
+          typeof config.metadata?.modelId === "string"
+            ? config.metadata.modelId
+            : "legacy-aria",
+      },
     });
+
+    void deepResearchOrchestrator.start(run.runId, {
+      collector: async ({ question }) =>
+        collectDeepResearchInputs(question.id),
+      onRunUpdated: async (runId) => {
+        await forwardAgentRunStatus(runId);
+      },
+    });
+
+    return {
+      success: true,
+      runId: run.runId,
+      status: "running",
+      phase: "planning",
+      run: mapAgentRunToLegacyAria(run),
+      message: "ARIA compatibility run started through canonical runtime",
+    };
+  } catch (error) {
+    logger.error("Handler", "ARIA_RUN_START failed", error);
     return {
       success: false,
-      error: result.error,
-      reason: result.reason,
+      error: error instanceof Error ? error.message : String(error),
+      reason: "INVALID_CONFIG",
     };
   }
-
-  return {
-    success: true,
-    runId: result.run.runId,
-    status: result.run.status,
-    phase: result.run.phase,
-    run: result.run,
-    message: result.message,
-  };
 });
 
 messageRouter.registerHandler("ARIA_RUN_STATUS", async (payload: any) => {
@@ -1737,22 +1744,22 @@ messageRouter.registerHandler("ARIA_RUN_STATUS", async (payload: any) => {
     };
   }
 
-  const result = ariaController.getStatus(runId);
-  if (!result.success) {
+  const run = await agentRuntimeService.getRun(runId);
+  if (!run) {
     return {
       success: false,
-      error: result.error,
-      reason: result.reason,
+      error: "No ARIA-compatible run found with the provided runId",
+      reason: "NOT_FOUND",
     };
   }
 
   return {
     success: true,
-    runId: result.run.runId,
-    status: result.run.status,
-    phase: result.run.phase,
-    run: result.run,
-    message: result.message,
+    runId: run.runId,
+    status: mapAgentRunToLegacyAria(run).status,
+    phase: mapAgentRunToLegacyAria(run).phase,
+    run: mapAgentRunToLegacyAria(run),
+    message: "ARIA-compatible status retrieved from canonical runtime",
   };
 });
 
@@ -1768,23 +1775,23 @@ messageRouter.registerHandler("ARIA_RUN_PAUSE", async (payload: any) => {
     };
   }
 
-  const result = ariaController.pauseRun(runId);
-  if (!result.success) {
+  try {
+    const run = await agentRuntimeService.pauseRun(runId);
+    return {
+      success: true,
+      runId: run.runId,
+      status: mapAgentRunToLegacyAria(run).status,
+      phase: mapAgentRunToLegacyAria(run).phase,
+      run: mapAgentRunToLegacyAria(run),
+      message: "ARIA-compatible run paused through canonical runtime",
+    };
+  } catch (error) {
     return {
       success: false,
-      error: result.error,
-      reason: result.reason,
+      error: error instanceof Error ? error.message : String(error),
+      reason: "INVALID_STATE",
     };
   }
-
-  return {
-    success: true,
-    runId: result.run.runId,
-    status: result.run.status,
-    phase: result.run.phase,
-    run: result.run,
-    message: result.message,
-  };
 });
 
 messageRouter.registerHandler("ARIA_RUN_RESUME", async (payload: any) => {
@@ -1799,23 +1806,30 @@ messageRouter.registerHandler("ARIA_RUN_RESUME", async (payload: any) => {
     };
   }
 
-  const result = ariaController.resumeRun(runId);
-  if (!result.success) {
+  try {
+    const run = await agentRuntimeService.resumeRun(runId);
+    void deepResearchOrchestrator.resume(run.runId, {
+      collector: async ({ question }) =>
+        collectDeepResearchInputs(question.id),
+      onRunUpdated: async (updatedRunId) => {
+        await forwardAgentRunStatus(updatedRunId);
+      },
+    });
+    return {
+      success: true,
+      runId: run.runId,
+      status: mapAgentRunToLegacyAria(run).status,
+      phase: mapAgentRunToLegacyAria(run).phase,
+      run: mapAgentRunToLegacyAria(run),
+      message: "ARIA-compatible run resumed through canonical runtime",
+    };
+  } catch (error) {
     return {
       success: false,
-      error: result.error,
-      reason: result.reason,
+      error: error instanceof Error ? error.message : String(error),
+      reason: "INVALID_STATE",
     };
   }
-
-  return {
-    success: true,
-    runId: result.run.runId,
-    status: result.run.status,
-    phase: result.run.phase,
-    run: result.run,
-    message: result.message,
-  };
 });
 
 messageRouter.registerHandler("ARIA_RUN_CANCEL", async (payload: any) => {
@@ -1830,28 +1844,34 @@ messageRouter.registerHandler("ARIA_RUN_CANCEL", async (payload: any) => {
     };
   }
 
-  const result = ariaController.cancelRun(runId);
-  if (!result.success) {
+  try {
+    const run = await agentRuntimeService.cancelRun(
+      runId,
+      "ARIA compatibility cancel",
+    );
+    return {
+      success: true,
+      runId: run.runId,
+      status: mapAgentRunToLegacyAria(run).status,
+      phase: mapAgentRunToLegacyAria(run).phase,
+      run: mapAgentRunToLegacyAria(run),
+      message: "ARIA-compatible run cancelled through canonical runtime",
+    };
+  } catch (error) {
     return {
       success: false,
-      error: result.error,
-      reason: result.reason,
+      error: error instanceof Error ? error.message : String(error),
+      reason: "INVALID_STATE",
     };
   }
-
-  return {
-    success: true,
-    runId: result.run.runId,
-    status: result.run.status,
-    phase: result.run.phase,
-    run: result.run,
-    message: result.message,
-  };
 });
 
 // ─── Canonical Agent Runtime Handlers (Phase 07-03) ─────────────────────────
 
 const agentRuntimeService = new AgentRuntimeService();
+const deepResearchOrchestrator = new DeepResearchOrchestrator(
+  agentRuntimeService,
+);
 
 async function buildAgentRunStatusPayload(
   runId: string,
@@ -1879,6 +1899,142 @@ async function buildAgentRunStatusPayload(
   };
 }
 
+async function forwardAgentRunStatus(runId: string): Promise<void> {
+  const statusPayload = await buildAgentRunStatusPayload(runId);
+  await messageRouter.sendToSidePanel({
+    kind: "AGENT_RUN_STATUS",
+    payload: statusPayload,
+  } as BaseMessage<MessageKind, AgentRunStatusPayload>);
+}
+
+function mapAgentRunToLegacyAria(run: {
+  runId: string;
+  mode: string;
+  status: string;
+  phase: string;
+  createdAt: number;
+  updatedAt: number;
+  metadata: Record<string, unknown>;
+}) {
+  const metadata = run.metadata ?? {};
+  const questionsTotal =
+    typeof metadata.questionsTotal === "number" ? metadata.questionsTotal : 0;
+  const questionsAnswered =
+    typeof metadata.questionsAnswered === "number"
+      ? metadata.questionsAnswered
+      : 0;
+
+  const phaseMap: Record<string, string> = {
+    init: "initializing",
+    planning: "planning",
+    executing: "researching",
+    validating: "synthesizing",
+    finalizing: run.status === "completed" ? "completed" : "synthesizing",
+  };
+  const statusMap: Record<string, string> = {
+    pending: "running",
+    running: "running",
+    paused: "paused",
+    waiting_approval: "paused",
+    completed: "completed",
+    failed: "cancelled",
+    cancelled: "cancelled",
+  };
+
+  return {
+    runId: run.runId,
+    mode:
+      typeof metadata.topic === "string" && metadata.topic.length > 0
+        ? metadata.topic
+        : run.mode,
+    phase: phaseMap[run.phase] ?? "researching",
+    status: statusMap[run.status] ?? "running",
+    createdAt: run.createdAt,
+    updatedAt: run.updatedAt,
+    metrics: {
+      progress:
+        questionsTotal > 0 ? questionsAnswered / questionsTotal : 0,
+      stepsCompleted: questionsAnswered,
+      stepsTotal: questionsTotal,
+      interactionsUsed: Array.isArray(metadata.findings)
+        ? metadata.findings.length
+        : 0,
+      sourcesCollected: Array.isArray(metadata.findings)
+        ? metadata.findings.length
+        : 0,
+      elapsedMs: Math.max(0, run.updatedAt - run.createdAt),
+    },
+    context: metadata,
+    lastMessage:
+      typeof metadata.currentIntent === "string"
+        ? metadata.currentIntent
+        : undefined,
+  };
+}
+
+async function collectDeepResearchInputs(questionId: string) {
+  const findings: Array<{
+    summary: string;
+    excerpt?: string;
+    supportedQuestionIds: string[];
+    sourceUrl: string;
+    title?: string;
+    contentType?: string;
+  }> = [];
+
+  try {
+    const pageContextResponse = await chrome.runtime.sendMessage({
+      kind: "PAGE_CONTEXT_REQUEST",
+      requestId: crypto.randomUUID(),
+      payload: {},
+    });
+
+    if (pageContextResponse?.success && pageContextResponse.context) {
+      const context = pageContextResponse.context as Record<string, unknown>;
+      findings.push({
+        summary: `Captured page context for ${String(context.title ?? "current page")}`,
+        excerpt: String(
+          context.metaDescription ??
+            context.mainContent ??
+            context.url ??
+            "",
+        ).slice(0, 500),
+        supportedQuestionIds: [questionId],
+        sourceUrl: String(context.url ?? "about:blank"),
+        ...(context.title ? { title: String(context.title) } : {}),
+        ...(context.pageType ? { contentType: String(context.pageType) } : {}),
+      });
+    }
+  } catch (error) {
+    logger.warn("DeepResearch", "PAGE_CONTEXT_REQUEST failed", error);
+  }
+
+  try {
+    const tabContextResponse = await chrome.runtime.sendMessage({
+      kind: "TAB_CONTEXT_REQUEST",
+      requestId: crypto.randomUUID(),
+      payload: { maxTabs: 4 },
+    });
+
+    if (tabContextResponse?.success && Array.isArray(tabContextResponse.tabs)) {
+      for (const tab of tabContextResponse.tabs.slice(0, 2)) {
+        findings.push({
+          summary: `Observed related open tab: ${String(tab.title)}`,
+          excerpt: `${String(tab.domain)} (${String(tab.contextType)})`,
+          supportedQuestionIds: [questionId],
+          sourceUrl: String(tab.url),
+          title: String(tab.title),
+          contentType: "tab-context",
+        });
+      }
+    }
+  } catch (error) {
+    logger.warn("DeepResearch", "TAB_CONTEXT_REQUEST failed", error);
+  }
+
+  return findings;
+}
+
 messageRouter.registerHandler(
   "AGENT_RUN_START",
   async (payload: AgentRunStartPayload) => {
@@ -1886,7 +2042,7 @@ messageRouter.registerHandler(
 
     try {
       const activeTab =
-        payload.mode === "browser-action" &&
+        (payload.mode === "browser-action" || payload.mode === "deep-research") &&
         (typeof payload.tabId !== "number" ||
           (!payload.tabUrl && !payload.tabTitle))
           ? (await chrome.tabs.query({
@@ -1922,6 +2078,34 @@ messageRouter.registerHandler(
               ...(payload.tabUrl ? { tabUrl: payload.tabUrl } : {}),
               ...(payload.tabTitle ? { tabTitle: payload.tabTitle } : {}),
             }
+          : payload.mode === "deep-research"
+            ? {
+                ...(payload.metadata ?? {}),
+                ...(payload.topic ? { topic: payload.topic } : {}),
+                ...(payload.goal ? { goal: payload.goal } : {}),
+                ...(payload.providerId ? { providerId: payload.providerId } : {}),
+                ...(payload.providerType
+                  ? { providerType: payload.providerType }
+                  : {}),
+                ...(payload.modelId ? { modelId: payload.modelId } : {}),
+                ...(payload.conversationId
+                  ? { conversationId: payload.conversationId }
+                  : {}),
+                ...(payload.pocketId ? { pocketId: payload.pocketId } : {}),
+                ...(typeof payload.tabId === "number"
+                  ? { tabId: payload.tabId }
+                  : typeof activeTab?.id === "number"
+                    ? { tabId: activeTab.id }
+                    : {}),
+                ...(!payload.tabUrl && activeTab?.url
+                  ? { tabUrl: activeTab.url }
+                  : {}),
+                ...(!payload.tabTitle && activeTab?.title
+                  ? { tabTitle: activeTab.title }
+                  : {}),
+                ...(payload.tabUrl ? { tabUrl: payload.tabUrl } : {}),
+                ...(payload.tabTitle ? { tabTitle: payload.tabTitle } : {}),
+              }
           : payload.metadata;
 
       const run = await agentRuntimeService.startRun({
@@ -1931,15 +2115,35 @@ messageRouter.registerHandler(
       });
       const statusPayload = await buildAgentRunStatusPayload(run.runId);
 
-      // Forward run status to side panel
-      messageRouter
-        .sendToSidePanel({
-          kind: "AGENT_RUN_STATUS",
-          payload: statusPayload,
-        } as BaseMessage<MessageKind, AgentRunStatusPayload>)
-        .catch((error) => {
-          logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
-        });
+      forwardAgentRunStatus(run.runId).catch((error) => {
+        logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
+      });
+
+      if (payload.mode === "deep-research") {
+        void deepResearchOrchestrator
+          .start(run.runId, {
+            collector: async ({ question }) =>
+              collectDeepResearchInputs(question.id),
+            onRunUpdated: async (updatedRunId) => {
+              await forwardAgentRunStatus(updatedRunId);
+            },
+          })
+          .catch(async (error) => {
+            logger.error("DeepResearch", "Orchestrator failed", error);
+            await agentRuntimeService.applyEvent({
+              eventId: `evt-${run.runId}-failed-${Date.now()}`,
+              runId: run.runId,
+              timestamp: Date.now(),
+              type: "run.failed",
+              outcome: {
+                status: "failed",
+                reason: error instanceof Error ? error.message : String(error),
+                finishedAt: Date.now(),
+              },
+            });
+            await forwardAgentRunStatus(run.runId);
+          });
+      }
 
       return {
         success: true,
@@ -1987,15 +2191,9 @@ messageRouter.registerHandler(
       const run = await agentRuntimeService.applyEvent(payload.event);
       const statusPayload = await buildAgentRunStatusPayload(run.runId);
 
-      // Forward updated status to side panel
-      messageRouter
-        .sendToSidePanel({
-          kind: "AGENT_RUN_STATUS",
-          payload: statusPayload,
-        } as BaseMessage<MessageKind, AgentRunStatusPayload>)
-        .catch((error) => {
-          logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
-        });
+      forwardAgentRunStatus(run.runId).catch((error) => {
+        logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
+      });
 
       return { success: true, ...statusPayload };
     } catch (error) {
@@ -2017,6 +2215,7 @@ messageRouter.registerHandler(
     });
 
     try {
+      const existingRun = await agentRuntimeService.getRun(payload.runId);
       let run;
       switch (payload.action) {
         case "pause":
@@ -2024,6 +2223,15 @@ messageRouter.registerHandler(
           break;
         case "resume":
           run = await agentRuntimeService.resumeRun(payload.runId);
+          if (existingRun?.mode === "deep-research") {
+            void deepResearchOrchestrator.resume(payload.runId, {
+              collector: async ({ question }) =>
+                collectDeepResearchInputs(question.id),
+              onRunUpdated: async (updatedRunId) => {
+                await forwardAgentRunStatus(updatedRunId);
+              },
+            });
+          }
           break;
         case "cancel":
           run = await agentRuntimeService.cancelRun(payload.runId, payload.reason);
@@ -2036,15 +2244,9 @@ messageRouter.registerHandler(
       }
       const statusPayload = await buildAgentRunStatusPayload(run.runId);
 
-      // Forward updated status to side panel
-      messageRouter
-        .sendToSidePanel({
-          kind: "AGENT_RUN_STATUS",
-          payload: statusPayload,
-        } as BaseMessage<MessageKind, AgentRunStatusPayload>)
-        .catch((error) => {
-          logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
-        });
+      forwardAgentRunStatus(run.runId).catch((error) => {
+        logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
+      });
 
       return { success: true, ...statusPayload };
     } catch (error) {

@@ -62,6 +62,7 @@ import type {
   AgentRun,
   AgentRunEvent,
   BrowserActionRunMetadata,
+  DeepResearchRunMetadata,
 } from "@/shared/agent-runtime/contracts";
 import {
   selectAgentPanelState,
@@ -302,6 +303,16 @@ const readBrowserActionMetadata = (
   return run.metadata as Partial<BrowserActionRunMetadata>;
 };
 
+const readDeepResearchMetadata = (
+  run: AgentRun | null,
+): Partial<DeepResearchRunMetadata> => {
+  if (!run) {
+    return {};
+  }
+
+  return run.metadata as Partial<DeepResearchRunMetadata>;
+};
+
 const formatRunTimestamp = (timestamp: number): string => {
   if (!Number.isFinite(timestamp)) {
     return "";
@@ -451,6 +462,19 @@ export function ChatApp() {
   >(null);
   const [isStartingBrowserAction, setIsStartingBrowserAction] =
     React.useState(false);
+  const [deepResearchTopic, setDeepResearchTopic] = React.useState("");
+  const [deepResearchGoal, setDeepResearchGoal] = React.useState("");
+  const [deepResearchRun, setDeepResearchRun] = React.useState<AgentRun | null>(
+    null,
+  );
+  const [deepResearchEvents, setDeepResearchEvents] = React.useState<
+    AgentRunEvent[]
+  >([]);
+  const [deepResearchError, setDeepResearchError] = React.useState<
+    string | null
+  >(null);
+  const [isStartingDeepResearch, setIsStartingDeepResearch] =
+    React.useState(false);
 
   const browserActionPanel = React.useMemo(
     () =>
@@ -481,6 +505,25 @@ export function ChatApp() {
     !selectedChatModel.providerId ||
     !selectedChatModel.providerType ||
     !selectedChatModel.modelId;
+  const deepResearchPanel = React.useMemo(
+    () =>
+      deepResearchRun
+        ? selectAgentPanelState(deepResearchRun, deepResearchEvents)
+        : null,
+    [deepResearchEvents, deepResearchRun],
+  );
+  const deepResearchTimeline = React.useMemo(
+    () => selectAgentTimeline(deepResearchEvents),
+    [deepResearchEvents],
+  );
+  const deepResearchTodoItems = React.useMemo(
+    () => (deepResearchRun ? selectAgentTodo(deepResearchRun) : []),
+    [deepResearchRun],
+  );
+  const deepResearchMetadata = React.useMemo(
+    () => readDeepResearchMetadata(deepResearchRun),
+    [deepResearchRun],
+  );
 
   // Indexing status hook
   const indexingStatus = useIndexingStatus();
@@ -515,23 +558,39 @@ export function ChatApp() {
     return "gemini-flash";
   };
 
-  const syncBrowserActionStatus = React.useCallback(
+  const syncAgentRunStatus = React.useCallback(
     (run: AgentRun, events?: AgentRunEvent[]) => {
-      if (run.mode !== "browser-action") {
+      if (run.mode === "browser-action") {
+        setBrowserActionRun(run);
+        if (events) {
+          setBrowserActionEvents(events);
+        }
         return;
       }
 
-      setBrowserActionRun(run);
-      if (events) {
-        setBrowserActionEvents(events);
+      if (run.mode === "deep-research") {
+        setDeepResearchRun(run);
+        if (events) {
+          setDeepResearchEvents(events);
+        }
       }
     },
     [],
   );
 
-  const appendBrowserActionEvent = React.useCallback((event: AgentRunEvent) => {
-    setBrowserActionEvents((currentEvents) => mergeAgentEvents(currentEvents, [event]));
-  }, []);
+  const appendAgentEvent = React.useCallback((event: AgentRunEvent) => {
+    if (event.runId === browserActionRun?.runId) {
+      setBrowserActionEvents((currentEvents) =>
+        mergeAgentEvents(currentEvents, [event]),
+      );
+    }
+
+    if (event.runId === deepResearchRun?.runId) {
+      setDeepResearchEvents((currentEvents) =>
+        mergeAgentEvents(currentEvents, [event]),
+      );
+    }
+  }, [browserActionRun?.runId, deepResearchRun?.runId]);
 
   const getActiveTabContext = React.useCallback(async (): Promise<BrowserActionTabContext> => {
     if (!chrome.tabs?.query) {
@@ -877,11 +936,11 @@ export function ChatApp() {
           handleStreamError(message.payload);
           break;
         case "AGENT_RUN_STATUS":
-          syncBrowserActionStatus(message.payload.run, message.payload.events);
+          syncAgentRunStatus(message.payload.run, message.payload.events);
           break;
         case "AGENT_RUN_EVENT":
-          if (message.payload?.event?.runId === browserActionRun?.runId) {
-            appendBrowserActionEvent(message.payload.event);
+          if (message.payload?.event?.runId) {
+            appendAgentEvent(message.payload.event);
           }
           break;
         case "POCKET_SELECTION_REQUEST": {
@@ -918,10 +977,9 @@ export function ChatApp() {
     handleStreamReasoning,
     handleStreamEnd,
     handleStreamError,
-    appendBrowserActionEvent,
-    browserActionRun?.runId,
+    appendAgentEvent,
     pendingSelectionRequest,
-    syncBrowserActionStatus,
+    syncAgentRunStatus,
   ]);
 
   // Load conversations on mount
@@ -1190,7 +1248,7 @@ export function ChatApp() {
         return;
       }
 
-      syncBrowserActionStatus(response.run, response.events);
+      syncAgentRunStatus(response.run, response.events);
       setBrowserActionTask("");
     } catch (error) {
       setBrowserActionError(
@@ -1207,7 +1265,80 @@ export function ChatApp() {
     selectedChatModel.modelId,
     selectedChatModel.providerId,
     selectedChatModel.providerType,
-    syncBrowserActionStatus,
+    syncAgentRunStatus,
+  ]);
+
+  const handleDeepResearchLaunch = React.useCallback(async () => {
+    const topic = deepResearchTopic.trim();
+    const goal = deepResearchGoal.trim();
+    if (!topic || !goal || isStartingDeepResearch) {
+      return;
+    }
+
+    if (
+      !selectedChatModel.providerId ||
+      !selectedChatModel.providerType ||
+      !selectedChatModel.modelId
+    ) {
+      setDeepResearchError(
+        "Choose a configured model from the shared model picker before launching.",
+      );
+      return;
+    }
+
+    setIsStartingDeepResearch(true);
+    setDeepResearchError(null);
+
+    const conversationId = currentConversationId || crypto.randomUUID();
+    if (!currentConversationId) {
+      setCurrentConversationId(conversationId);
+    }
+
+    try {
+      const tabContext = await getActiveTabContext();
+      const response = await chrome.runtime.sendMessage({
+        kind: "AGENT_RUN_START",
+        requestId: crypto.randomUUID(),
+        payload: {
+          mode: "deep-research" as const,
+          topic,
+          goal,
+          providerId: selectedChatModel.providerId,
+          providerType: selectedChatModel.providerType,
+          modelId: selectedChatModel.modelId,
+          conversationId,
+          ...tabContext,
+          metadata: {
+            currentIntent: `Plan research for ${topic}`,
+          },
+        },
+      });
+
+      if (!response?.success || !response.run) {
+        setDeepResearchError(response?.error || "Failed to launch deep research.");
+        return;
+      }
+
+      syncAgentRunStatus(response.run, response.events);
+      setDeepResearchTopic("");
+      setDeepResearchGoal("");
+    } catch (error) {
+      setDeepResearchError(
+        error instanceof Error ? error.message : "Failed to launch deep research.",
+      );
+    } finally {
+      setIsStartingDeepResearch(false);
+    }
+  }, [
+    currentConversationId,
+    deepResearchGoal,
+    deepResearchTopic,
+    getActiveTabContext,
+    isStartingDeepResearch,
+    selectedChatModel.modelId,
+    selectedChatModel.providerId,
+    selectedChatModel.providerType,
+    syncAgentRunStatus,
   ]);
 
   const handleApprovalResolve = React.useCallback(
@@ -1249,6 +1380,26 @@ export function ChatApp() {
       }
     },
     [browserActionRun],
+  );
+
+  const handleDeepResearchRunControl = React.useCallback(
+    async (action: "pause" | "resume" | "cancel") => {
+      if (!deepResearchRun) return;
+
+      try {
+        await chrome.runtime.sendMessage({
+          kind: "AGENT_RUN_CONTROL",
+          requestId: crypto.randomUUID(),
+          payload: {
+            runId: deepResearchRun.runId,
+            action,
+          },
+        });
+      } catch (error) {
+        console.error("Failed to control deep research run:", error);
+      }
+    },
+    [deepResearchRun],
   );
 
   const handleCopy = (content: string) => {
@@ -1811,7 +1962,7 @@ export function ChatApp() {
           {/* Content Area */}
           <div className="flex flex-1 flex-col overflow-hidden bg-transparent">
             {currentMode === "ask" && (
-              <div className="px-4 pt-20 pb-3">
+              <div className="px-4 pt-20 pb-3 space-y-3">
                 <section className="rounded-2xl border border-border/70 bg-background/85 p-4 shadow-sm backdrop-blur-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -1951,6 +2102,240 @@ export function ChatApp() {
                             </p>
                             <div className="mt-2 space-y-2">
                               {browserActionTimeline.slice(-5).reverse().map((entry) => (
+                                <div
+                                  key={entry.eventId}
+                                  className="rounded-xl border border-border/50 bg-background px-3 py-2"
+                                >
+                                  <div className="flex items-center justify-between gap-2 text-sm text-foreground">
+                                    <span>{entry.label}</span>
+                                    <span className="text-[11px] text-muted-foreground">
+                                      {formatRunTimestamp(entry.timestamp)}
+                                    </span>
+                                  </div>
+                                  {entry.detail && (
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      {entry.detail}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-border/70 bg-background/85 p-4 shadow-sm backdrop-blur-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        Deep research
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Launches a canonical research run with subquestions, synthesis, and source-backed findings.
+                      </p>
+                    </div>
+                    <div className="rounded-full border border-border/70 px-2 py-1 text-[11px] text-muted-foreground">
+                      {selectedChatModel.label}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-3">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Topic
+                      </span>
+                      <input
+                        value={deepResearchTopic}
+                        onChange={(event) => setDeepResearchTopic(event.target.value)}
+                        placeholder="Deep research topic"
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-foreground/40"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Goal
+                      </span>
+                      <textarea
+                        value={deepResearchGoal}
+                        onChange={(event) => setDeepResearchGoal(event.target.value)}
+                        placeholder="Research goal and what counts as a grounded answer."
+                        className="min-h-[92px] w-full resize-y rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-foreground/40"
+                      />
+                    </label>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span>
+                        {browserActionRequiresExplicitModel
+                          ? "Pick a configured model in the chat composer to enable launch."
+                          : `Provider: ${selectedChatModel.providerId} • Model: ${selectedChatModel.modelId}`}
+                      </span>
+                      <Button
+                        type="button"
+                        onClick={() => void handleDeepResearchLaunch()}
+                        disabled={
+                          isStartingDeepResearch ||
+                          deepResearchTopic.trim().length === 0 ||
+                          deepResearchGoal.trim().length === 0 ||
+                          browserActionRequiresExplicitModel
+                        }
+                      >
+                        {isStartingDeepResearch ? "Launching..." : "Launch deep research"}
+                      </Button>
+                    </div>
+
+                    {deepResearchError && (
+                      <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                        {deepResearchError}
+                      </div>
+                    )}
+
+                    {(deepResearchPanel || deepResearchTimeline.length > 0) && (
+                      <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          {deepResearchPanel && (
+                            <>
+                              <AgentRunStatusBadge status={deepResearchPanel.status} />
+                              <span className="rounded-full bg-background px-2 py-1 text-foreground text-xs">
+                                Phase: {deepResearchPanel.phase}
+                              </span>
+                              <span className="rounded-full bg-background px-2 py-1 text-foreground text-xs">
+                                Progress: {deepResearchPanel.progress}%
+                              </span>
+                              <AgentRunControls
+                                status={deepResearchPanel.status}
+                                onPause={() => void handleDeepResearchRunControl("pause")}
+                                onResume={() => void handleDeepResearchRunControl("resume")}
+                                onCancel={() => void handleDeepResearchRunControl("cancel")}
+                              />
+                            </>
+                          )}
+                          {deepResearchMetadata.tabTitle && (
+                            <span className="truncate">
+                              Tab: {deepResearchMetadata.tabTitle}
+                            </span>
+                          )}
+                        </div>
+
+                        {deepResearchPanel?.topic && (
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                Topic
+                              </p>
+                              <p className="mt-1 text-sm text-foreground">
+                                {deepResearchPanel.topic}
+                              </p>
+                            </div>
+                            {deepResearchPanel.goal && (
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                  Goal
+                                </p>
+                                <p className="mt-1 text-sm text-foreground">
+                                  {deepResearchPanel.goal}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {deepResearchPanel?.currentIntent && (
+                          <div className="mt-3">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Current intent
+                            </p>
+                            <p className="mt-1 text-sm text-foreground">
+                              {deepResearchPanel.currentIntent}
+                            </p>
+                          </div>
+                        )}
+
+                        {deepResearchPanel?.activeQuestion && (
+                          <div className="mt-3">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Active question
+                            </p>
+                            <p className="mt-1 text-sm text-foreground">
+                              {deepResearchPanel.activeQuestion.question}
+                            </p>
+                          </div>
+                        )}
+
+                        {deepResearchPanel?.latestSynthesis && (
+                          <div className="mt-3">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Latest synthesis
+                            </p>
+                            <p className="mt-1 text-sm text-foreground">
+                              {deepResearchPanel.latestSynthesis}
+                            </p>
+                          </div>
+                        )}
+
+                        {deepResearchPanel?.openGaps &&
+                          deepResearchPanel.openGaps.length > 0 && (
+                            <div className="mt-3">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                Open gaps
+                              </p>
+                              <ul className="mt-2 space-y-1">
+                                {deepResearchPanel.openGaps.map((gap) => (
+                                  <li
+                                    key={gap.id}
+                                    className="rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground"
+                                  >
+                                    {gap.note}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                        {deepResearchTodoItems.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Research plan
+                            </p>
+                            <ul className="mt-2 space-y-1">
+                              {deepResearchTodoItems.slice(0, 4).map((item) => (
+                                <li
+                                  key={item.id}
+                                  className="flex items-center gap-2 text-sm text-foreground"
+                                >
+                                  <span
+                                    className={cn(
+                                      "inline-flex size-5 items-center justify-center rounded-full border text-[11px]",
+                                      item.done
+                                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                        : "border-border text-muted-foreground",
+                                    )}
+                                  >
+                                    {item.done ? "✓" : "•"}
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      item.done && "text-muted-foreground line-through",
+                                    )}
+                                  >
+                                    {item.label}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {deepResearchTimeline.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Timeline
+                            </p>
+                            <div className="mt-2 space-y-2">
+                              {deepResearchTimeline.slice(-5).reverse().map((entry) => (
                                 <div
                                   key={entry.eventId}
                                   className="rounded-xl border border-border/50 bg-background px-3 py-2"

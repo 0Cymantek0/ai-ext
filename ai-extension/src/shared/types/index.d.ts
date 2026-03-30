@@ -1210,6 +1210,7 @@ import type {
   AgentRunEvent,
   AgentRunMode,
   BrowserActionRunMetadata,
+  DeepResearchRunMetadata,
   AgentCheckpoint,
 } from "../agent-runtime/contracts.js";
 
@@ -1219,10 +1220,13 @@ export interface AgentRunStartPayload {
   mode: AgentRunMode;
   metadata?: Record<string, unknown>;
   task?: string;
+  topic?: string;
+  goal?: string;
   providerId?: string;
   providerType?: string;
   modelId?: string;
   conversationId?: string;
+  pocketId?: string;
   tabId?: number;
   tabUrl?: string;
   tabTitle?: string;
@@ -1257,3 +1261,5 @@ export interface AgentRunApprovalResolvePayload {
 }
 
 export interface BrowserActionLaunchPayload extends BrowserActionRunMetadata {}
+
+export interface DeepResearchLaunchPayload extends DeepResearchRunMetadata {}

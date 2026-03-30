@@ -98,7 +98,11 @@ Plans:
 3. Weakly supported or unresolved claims are distinguished from grounded findings
 4. User can inspect which evidence supports each section or major claim
 5. Final report quality is dense and research-oriented rather than generic summary output
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 12-01-PLAN.md — Define canonical report contracts, provenance schemas, and Wave 0 report-engine tests
+- [ ] 12-02-PLAN.md — Implement evidence normalization, staged report generation, durable storage, and service-worker wiring
+- [ ] 12-03-PLAN.md — Migrate report viewer rendering and add minimal side-panel report launch plus provenance inspection
 
 ### Phase 13: Agentic Side Panel Experience
 **Goal**: Make the full agent experience smooth, understandable, and ready for daily use

@@ -24,6 +24,21 @@ export type BrowserActionCheckpointBoundary =
   | "resumed"
   | "terminal";
 
+/** Named deep-research loop boundaries used for recovery and controls. */
+export type DeepResearchCheckpointBoundary =
+  | "research-plan-created"
+  | "question-activated"
+  | "finding-captured"
+  | "synthesis-updated"
+  | "paused"
+  | "resumed"
+  | "terminal";
+
+/** Shared checkpoint boundary surface across workflow modes. */
+export type AgentCheckpointBoundary =
+  | BrowserActionCheckpointBoundary
+  | DeepResearchCheckpointBoundary;
+
 /** Canonical browser-action launch metadata persisted on AgentRun.metadata. */
 export interface BrowserActionRunMetadata {
   task: string;
@@ -38,6 +53,75 @@ export interface BrowserActionRunMetadata {
   retryCount?: number;
   lastToolName?: string;
   lastError?: string;
+}
+
+export type DeepResearchQuestionStatus =
+  | "pending"
+  | "active"
+  | "answered"
+  | "blocked";
+
+export interface DeepResearchQuestion {
+  id: string;
+  question: string;
+  status: DeepResearchQuestionStatus;
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+  summary?: string;
+  lastAnsweredAt?: number;
+}
+
+export type DeepResearchGapStatus = "open" | "resolved";
+
+export interface DeepResearchGap {
+  id: string;
+  questionId?: string;
+  note: string;
+  status: DeepResearchGapStatus;
+  createdAt: number;
+  updatedAt: number;
+  resolvedAt?: number;
+}
+
+export interface DeepResearchSourceMetadata {
+  sourceUrl: string;
+  title?: string;
+  capturedAt: number;
+  contentType?: string;
+}
+
+export interface DeepResearchFinding {
+  id: string;
+  summary: string;
+  excerpt?: string;
+  supportedQuestionIds: string[];
+  source: DeepResearchSourceMetadata;
+  createdAt: number;
+}
+
+/** Canonical deep-research launch and runtime metadata persisted on AgentRun.metadata. */
+export interface DeepResearchRunMetadata {
+  topic: string;
+  goal: string;
+  providerId: string;
+  providerType: string;
+  modelId: string;
+  questionsTotal: number;
+  openGapCount: number;
+  questionsAnswered?: number;
+  activeQuestionId?: string;
+  currentIntent?: string;
+  latestSynthesis?: string;
+  latestFindingId?: string;
+  conversationId?: string;
+  pocketId?: string;
+  tabId?: number;
+  tabUrl?: string;
+  tabTitle?: string;
+  questions?: DeepResearchQuestion[];
+  gaps?: DeepResearchGap[];
+  findings?: DeepResearchFinding[];
 }
 
 // ─── Run Status ────────────────────────────────────────────────────────────────
@@ -211,7 +295,7 @@ export interface ToolCalledEvent extends AgentRunEventBase {
   type: "tool.called";
   toolName: string;
   toolArgs: Record<string, unknown>;
-  checkpointBoundary?: BrowserActionCheckpointBoundary;
+  checkpointBoundary?: AgentCheckpointBoundary;
   requiresHumanApproval?: boolean;
 }
 
@@ -220,7 +304,7 @@ export interface ToolCompletedEvent extends AgentRunEventBase {
   toolName: string;
   result: unknown;
   durationMs: number;
-  checkpointBoundary?: BrowserActionCheckpointBoundary;
+  checkpointBoundary?: AgentCheckpointBoundary;
 }
 
 export interface ToolFailedEvent extends AgentRunEventBase {
@@ -228,7 +312,7 @@ export interface ToolFailedEvent extends AgentRunEventBase {
   toolName: string;
   error: string;
   durationMs: number;
-  checkpointBoundary?: BrowserActionCheckpointBoundary;
+  checkpointBoundary?: AgentCheckpointBoundary;
   code?: string;
   recoverable?: boolean;
   blockedByPolicy?: boolean;
@@ -253,7 +337,7 @@ export interface ArtifactProjectedEvent extends AgentRunEventBase {
 export interface CheckpointCreatedEvent extends AgentRunEventBase {
   type: "checkpoint.created";
   checkpointId: string;
-  boundary?: BrowserActionCheckpointBoundary;
+  boundary?: AgentCheckpointBoundary;
 }
 
 export interface RunCompletedEvent extends AgentRunEventBase {
@@ -298,5 +382,5 @@ export interface AgentCheckpoint {
   snapshot: AgentRun;
   timestamp: number;
   trigger: "auto" | "manual" | "pre-approval" | "terminal";
-  boundary?: BrowserActionCheckpointBoundary;
+  boundary?: AgentCheckpointBoundary;
 }

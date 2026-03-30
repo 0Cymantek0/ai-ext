@@ -24,6 +24,19 @@ export const BrowserActionCheckpointBoundarySchema = z.enum([
   "resumed",
   "terminal",
 ]);
+export const DeepResearchCheckpointBoundarySchema = z.enum([
+  "research-plan-created",
+  "question-activated",
+  "finding-captured",
+  "synthesis-updated",
+  "paused",
+  "resumed",
+  "terminal",
+]);
+export const AgentCheckpointBoundarySchema = z.union([
+  BrowserActionCheckpointBoundarySchema,
+  DeepResearchCheckpointBoundarySchema,
+]);
 
 export const AgentRunStatusSchema = z.enum([
   "pending",
@@ -84,6 +97,75 @@ export const AgentTerminalOutcomeSchema = z.object({
   status: z.enum(["completed", "failed", "cancelled"]),
   reason: z.string().optional(),
   finishedAt: z.number(),
+});
+
+export const DeepResearchQuestionStatusSchema = z.enum([
+  "pending",
+  "active",
+  "answered",
+  "blocked",
+]);
+
+export const DeepResearchQuestionSchema = z.object({
+  id: z.string().min(1),
+  question: z.string().min(1),
+  status: DeepResearchQuestionStatusSchema,
+  order: z.number().int().nonnegative(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  summary: z.string().optional(),
+  lastAnsweredAt: z.number().optional(),
+});
+
+export const DeepResearchGapStatusSchema = z.enum(["open", "resolved"]);
+
+export const DeepResearchGapSchema = z.object({
+  id: z.string().min(1),
+  questionId: z.string().min(1).optional(),
+  note: z.string().min(1),
+  status: DeepResearchGapStatusSchema,
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  resolvedAt: z.number().optional(),
+});
+
+export const DeepResearchSourceMetadataSchema = z.object({
+  sourceUrl: z.string().min(1),
+  title: z.string().optional(),
+  capturedAt: z.number(),
+  contentType: z.string().optional(),
+});
+
+export const DeepResearchFindingSchema = z.object({
+  id: z.string().min(1),
+  summary: z.string().min(1),
+  excerpt: z.string().optional(),
+  supportedQuestionIds: z.array(z.string().min(1)),
+  source: DeepResearchSourceMetadataSchema,
+  createdAt: z.number(),
+});
+
+export const DeepResearchRunMetadataSchema = z.object({
+  topic: z.string().min(1),
+  goal: z.string().min(1),
+  providerId: z.string().min(1),
+  providerType: z.string().min(1),
+  modelId: z.string().min(1),
+  questionsTotal: z.number().int().nonnegative(),
+  openGapCount: z.number().int().nonnegative(),
+  questionsAnswered: z.number().int().nonnegative().optional(),
+  activeQuestionId: z.string().min(1).optional(),
+  currentIntent: z.string().optional(),
+  latestSynthesis: z.string().optional(),
+  latestFindingId: z.string().min(1).optional(),
+  conversationId: z.string().min(1).optional(),
+  pocketId: z.string().min(1).optional(),
+  tabId: z.number().int().optional(),
+  tabUrl: z.string().optional(),
+  tabTitle: z.string().optional(),
+  questions: z.array(DeepResearchQuestionSchema).optional(),
+  gaps: z.array(DeepResearchGapSchema).optional(),
+  findings: z.array(DeepResearchFindingSchema).optional(),
 });
 
 // ─── AgentRun ──────────────────────────────────────────────────────────────────
@@ -151,7 +233,7 @@ export const ToolCalledEventSchema = z.object({
   type: z.literal("tool.called"),
   toolName: z.string().min(1),
   toolArgs: z.record(z.unknown()),
-  checkpointBoundary: BrowserActionCheckpointBoundarySchema.optional(),
+  checkpointBoundary: AgentCheckpointBoundarySchema.optional(),
   requiresHumanApproval: z.boolean().optional(),
 });
 
@@ -161,7 +243,7 @@ export const ToolCompletedEventSchema = z.object({
   toolName: z.string().min(1),
   result: z.unknown(),
   durationMs: z.number(),
-  checkpointBoundary: BrowserActionCheckpointBoundarySchema.optional(),
+  checkpointBoundary: AgentCheckpointBoundarySchema.optional(),
 });
 
 export const ToolFailedEventSchema = z.object({
@@ -170,7 +252,7 @@ export const ToolFailedEventSchema = z.object({
   toolName: z.string().min(1),
   error: z.string(),
   durationMs: z.number(),
-  checkpointBoundary: BrowserActionCheckpointBoundarySchema.optional(),
+  checkpointBoundary: AgentCheckpointBoundarySchema.optional(),
   code: z.string().optional(),
   recoverable: z.boolean().optional(),
   blockedByPolicy: z.boolean().optional(),
@@ -199,7 +281,7 @@ export const CheckpointCreatedEventSchema = z.object({
   ...eventBase,
   type: z.literal("checkpoint.created"),
   checkpointId: z.string().min(1),
-  boundary: BrowserActionCheckpointBoundarySchema.optional(),
+  boundary: AgentCheckpointBoundarySchema.optional(),
 });
 
 export const RunCompletedEventSchema = z.object({
@@ -247,5 +329,5 @@ export const AgentCheckpointSchema = z.object({
   snapshot: AgentRunSchema,
   timestamp: z.number(),
   trigger: z.enum(["auto", "manual", "pre-approval", "terminal"]),
-  boundary: BrowserActionCheckpointBoundarySchema.optional(),
+  boundary: AgentCheckpointBoundarySchema.optional(),
 });

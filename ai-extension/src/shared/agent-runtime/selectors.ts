@@ -19,6 +19,10 @@ import type {
   AgentRunPhase,
   AgentRunMode,
   AgentRunEvent,
+  DeepResearchRunMetadata,
+  DeepResearchQuestion,
+  DeepResearchGap,
+  DeepResearchFinding,
 } from "./contracts.js";
 
 // ─── Timeline Entry ──────────────────────────────────────────────────────────
@@ -46,6 +50,14 @@ export interface AgentPanelState {
   progress: number; // 0-100
   updatedAt: number;
   isTerminal: boolean;
+  topic?: string;
+  goal?: string;
+  activeQuestion?: DeepResearchQuestion;
+  questionsAnswered?: number;
+  questionsTotal?: number;
+  openGaps?: DeepResearchGap[];
+  latestSynthesis?: string;
+  latestFinding?: DeepResearchFinding;
 }
 
 // ─── Status Display ──────────────────────────────────────────────────────────
@@ -70,10 +82,22 @@ export function selectAgentPanelState(
   run: AgentRun,
   events: AgentRunEvent[] = [],
 ): AgentPanelState {
-  const totalTodos = run.todoItems.length;
-  const doneTodos = run.todoItems.filter((t) => t.done).length;
-  const progress = totalTodos > 0 ? Math.round((doneTodos / totalTodos) * 100) : 0;
+  const researchMetadata = readDeepResearchMetadata(run);
+  const progress =
+    researchMetadata && researchMetadata.questionsTotal > 0
+      ? Math.round(
+          (((researchMetadata.questionsAnswered ?? 0) /
+            researchMetadata.questionsTotal) *
+            100),
+        )
+      : selectTodoProgress(run);
   const currentIntent = selectCurrentIntent(run, events);
+  const activeQuestion = researchMetadata?.questions?.find(
+    (question) => question.id === researchMetadata.activeQuestionId,
+  );
+  const latestFinding = researchMetadata?.findings?.find(
+    (finding) => finding.id === researchMetadata.latestFindingId,
+  );
 
   const panelState: AgentPanelState = {
     runId: run.runId,
@@ -86,6 +110,20 @@ export function selectAgentPanelState(
     progress,
     updatedAt: run.updatedAt,
     isTerminal: isTerminalStatus(run.status),
+    ...(researchMetadata?.topic ? { topic: researchMetadata.topic } : {}),
+    ...(researchMetadata?.goal ? { goal: researchMetadata.goal } : {}),
+    ...(activeQuestion ? { activeQuestion } : {}),
+    ...(researchMetadata?.questionsAnswered !== undefined
+      ? { questionsAnswered: researchMetadata.questionsAnswered }
+      : {}),
+    ...(researchMetadata?.questionsTotal !== undefined
+      ? { questionsTotal: researchMetadata.questionsTotal }
+      : {}),
+    ...(researchMetadata?.gaps ? { openGaps: researchMetadata.gaps } : {}),
+    ...(researchMetadata?.latestSynthesis
+      ? { latestSynthesis: researchMetadata.latestSynthesis }
+      : {}),
+    ...(latestFinding ? { latestFinding } : {}),
   };
 
   if (currentIntent) {
@@ -250,6 +288,20 @@ function selectCurrentIntent(run: AgentRun, events: AgentRunEvent[]): string | u
     return metadataIntent;
   }
 
+  if (run.mode === "deep-research") {
+    const metadata = readDeepResearchMetadata(run);
+    const activeQuestion = metadata?.questions?.find(
+      (question) => question.id === metadata.activeQuestionId,
+    );
+    if (activeQuestion) {
+      return `Researching: ${activeQuestion.question}`;
+    }
+
+    if (metadata?.topic) {
+      return `Research topic: ${metadata.topic}`;
+    }
+  }
+
   const task = readMetadataString(run.metadata, "task");
   const latestToolEvent = [...events]
     .reverse()
@@ -275,6 +327,12 @@ function selectCurrentIntent(run: AgentRun, events: AgentRunEvent[]): string | u
   }
 
   return task;
+}
+
+function selectTodoProgress(run: AgentRun): number {
+  const totalTodos = run.todoItems.length;
+  const doneTodos = run.todoItems.filter((t) => t.done).length;
+  return totalTodos > 0 ? Math.round((doneTodos / totalTodos) * 100) : 0;
 }
 
 function summarizeToolArgs(toolArgs: Record<string, unknown>): string | undefined {
@@ -317,6 +375,27 @@ function readMetadataString(
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : undefined;
+}
+
+function readDeepResearchMetadata(
+  run: AgentRun,
+): DeepResearchRunMetadata | undefined {
+  if (run.mode !== "deep-research") {
+    return undefined;
+  }
+
+  const metadata = run.metadata as Partial<DeepResearchRunMetadata>;
+  if (
+    typeof metadata.topic !== "string" ||
+    typeof metadata.goal !== "string" ||
+    typeof metadata.providerId !== "string" ||
+    typeof metadata.providerType !== "string" ||
+    typeof metadata.modelId !== "string"
+  ) {
+    return undefined;
+  }
+
+  return metadata as DeepResearchRunMetadata;
 }
 
 function stringifyScalar(value: unknown): string {
