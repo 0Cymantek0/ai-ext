@@ -18,7 +18,7 @@ import type {
 import type { FileArchiveDescriptor } from "./storage/tiered-storage-types.js";
 
 const DB_NAME = "ai-pocket-db";
-const DB_VERSION = 4; // Synced with DatabaseManager to prevent version conflicts
+const DB_VERSION = 5; // Synced with DatabaseManager to prevent version conflicts
 
 export enum StoreName {
   POCKETS = "pockets",
@@ -32,6 +32,13 @@ export enum StoreName {
   SYNC_QUEUE = "syncQueue",
   BROWSER_AGENT_WORKFLOWS = "browserAgentWorkflows",
   BROWSER_AGENT_CHECKPOINTS = "browserAgentCheckpoints",
+  // Canonical agent runtime stores (v5)
+  AGENT_RUNS = "agentRuns",
+  AGENT_RUN_EVENTS = "agentRunEvents",
+  AGENT_CHECKPOINTS = "agentCheckpoints",
+  AGENT_APPROVALS = "agentApprovals",
+  AGENT_ARTIFACTS = "agentArtifacts",
+  AGENT_MIGRATIONS = "agentMigrations",
 }
 
 // Re-export types from shared types for backward compatibility
@@ -319,6 +326,75 @@ export class IndexedDBManager {
       store.createIndex("workflowId_timestamp", ["workflowId", "timestamp"], {
         unique: false,
       });
+    }
+
+    // Version 5: Canonical agent runtime stores
+    if (!db.objectStoreNames.contains(StoreName.AGENT_RUNS)) {
+      const store = db.createObjectStore(StoreName.AGENT_RUNS, {
+        keyPath: "runId",
+      });
+      store.createIndex("status", "status", { unique: false });
+      store.createIndex("mode", "mode", { unique: false });
+      store.createIndex("updatedAt", "updatedAt", { unique: false });
+      store.createIndex("createdAt", "createdAt", { unique: false });
+      store.createIndex("conversationId", "conversationId", { unique: false });
+      store.createIndex("pocketId", "pocketId", { unique: false });
+    }
+    if (!db.objectStoreNames.contains(StoreName.AGENT_RUN_EVENTS)) {
+      const store = db.createObjectStore(StoreName.AGENT_RUN_EVENTS, {
+        keyPath: "eventId",
+      });
+      store.createIndex("runId", "runId", { unique: false });
+      store.createIndex("sequence", "sequence", { unique: false });
+      store.createIndex("eventType", "eventType", { unique: false });
+      store.createIndex("timestamp", "timestamp", { unique: false });
+      store.createIndex("runId_sequence", ["runId", "sequence"], {
+        unique: false,
+      });
+      store.createIndex("runId_timestamp", ["runId", "timestamp"], {
+        unique: false,
+      });
+    }
+    if (!db.objectStoreNames.contains(StoreName.AGENT_CHECKPOINTS)) {
+      const store = db.createObjectStore(StoreName.AGENT_CHECKPOINTS, {
+        keyPath: "checkpointId",
+      });
+      store.createIndex("runId", "runId", { unique: false });
+      store.createIndex("checkpointSequence", "checkpointSequence", {
+        unique: false,
+      });
+      store.createIndex("timestamp", "timestamp", { unique: false });
+      store.createIndex("phase", "phase", { unique: false });
+      store.createIndex(
+        "runId_checkpointSequence",
+        ["runId", "checkpointSequence"],
+        { unique: false },
+      );
+    }
+    if (!db.objectStoreNames.contains(StoreName.AGENT_APPROVALS)) {
+      const store = db.createObjectStore(StoreName.AGENT_APPROVALS, {
+        keyPath: "approvalId",
+      });
+      store.createIndex("runId", "runId", { unique: false });
+      store.createIndex("status", "status", { unique: false });
+      store.createIndex("createdAt", "createdAt", { unique: false });
+      store.createIndex("resolvedAt", "resolvedAt", { unique: false });
+    }
+    if (!db.objectStoreNames.contains(StoreName.AGENT_ARTIFACTS)) {
+      const store = db.createObjectStore(StoreName.AGENT_ARTIFACTS, {
+        keyPath: "artifactId",
+      });
+      store.createIndex("runId", "runId", { unique: false });
+      store.createIndex("artifactType", "artifactType", { unique: false });
+      store.createIndex("targetKind", "targetKind", { unique: false });
+      store.createIndex("targetId", "targetId", { unique: false });
+      store.createIndex("updatedAt", "updatedAt", { unique: false });
+    }
+    if (!db.objectStoreNames.contains(StoreName.AGENT_MIGRATIONS)) {
+      const store = db.createObjectStore(StoreName.AGENT_MIGRATIONS, {
+        keyPath: "migrationKey",
+      });
+      store.createIndex("appliedAt", "appliedAt", { unique: false });
     }
 
     logger.info("IndexedDBManager", "Schema created");

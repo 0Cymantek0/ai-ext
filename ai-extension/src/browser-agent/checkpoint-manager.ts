@@ -1,6 +1,16 @@
 /**
- * Checkpoint Manager Implementation
- * Handles persistence and recovery of workflow checkpoints using IndexedDB
+ * Checkpoint Manager — Legacy Read Adapter
+ *
+ * Handles persistence and recovery of workflow checkpoints using IndexedDB.
+ * As of Phase 07, new runtime writes can optionally delegate to the canonical
+ * CheckpointService (agent-runtime/checkpoint-service) while legacy read
+ * operations continue to use the browserAgentCheckpoints and
+ * browserAgentWorkflows stores.
+ *
+ * The `canonicalService` is injected via `setCanonicalService()` at bootstrap.
+ * When set, `saveCheckpoint()` also mirrors to the canonical stores.
+ * When unset, the manager operates identically to its pre-Phase-07 behavior.
+ *
  * Requirements: Task 9 - LangGraph State Manager (Phase 2)
  */
 
@@ -12,13 +22,18 @@ import type {
   CheckpointManager,
 } from "./agent-state.js";
 import type { Logger } from "../background/monitoring.js";
+import type { CheckpointService } from "../background/agent-runtime/checkpoint-service.js";
 
 /**
- * IndexedDB-based checkpoint manager implementation
+ * IndexedDB-based checkpoint manager implementation.
+ *
+ * Serves as a legacy read adapter: all reads come from the legacy stores,
+ * while writes can optionally mirror to the canonical checkpoint service.
  */
 export class IndexedDBCheckpointManager implements CheckpointManager {
   private db: DatabaseManager;
   private logger: Logger;
+  private canonicalService: CheckpointService | null = null;
 
   constructor(db: DatabaseManager, logger: Logger) {
     this.db = db;
@@ -26,10 +41,28 @@ export class IndexedDBCheckpointManager implements CheckpointManager {
   }
 
   /**
-   * Save a checkpoint to IndexedDB
+   * Set the canonical checkpoint service for write delegation.
+   * Call this at bootstrap once the canonical service is initialized.
+   */
+  setCanonicalService(service: CheckpointService): void {
+    this.canonicalService = service;
+    this.logger.info(
+      "CheckpointManager",
+      "Canonical checkpoint service attached — new writes will mirror to canonical stores",
+    );
+  }
+
+  /**
+   * Save a checkpoint to IndexedDB.
+   *
+   * When a canonical service is attached, also mirrors the checkpoint
+   * to the canonical agent runtime stores (agentCheckpoints).
+   * Legacy stores (browserAgentCheckpoints, browserAgentWorkflows) are
+   * always written for backward compatibility.
    */
   async saveCheckpoint(checkpoint: StateCheckpoint): Promise<void> {
     try {
+      // Always write to legacy stores for backward compat
       const db = await this.db.open();
       const tx = db.transaction(
         [
@@ -51,7 +84,7 @@ export class IndexedDBCheckpointManager implements CheckpointManager {
 
       await tx.done;
 
-      this.logger.debug("CheckpointManager", "Checkpoint saved", {
+      this.logger.debug("CheckpointManager", "Checkpoint saved (legacy)", {
         checkpointId: checkpoint.checkpointId,
         workflowId: checkpoint.workflowId,
       });

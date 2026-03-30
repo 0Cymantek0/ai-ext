@@ -39,10 +39,15 @@ import type {
   StateCheckpoint,
   WorkflowStep,
 } from "../browser-agent/agent-state.js";
+import type {
+  AgentRun,
+  AgentRunEvent,
+  AgentCheckpoint,
+} from "../shared/agent-runtime/contracts.js";
 import type { DatabaseManager as StorageDatabaseContract } from "../services/storage-manager.js";
 
 const DB_NAME = "ai-pocket-db";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 /**
  * Object store names used throughout the database schema.
@@ -59,6 +64,13 @@ export const STORE_NAMES = {
   SYNC_QUEUE: "syncQueue",
   BROWSER_AGENT_WORKFLOWS: "browserAgentWorkflows",
   BROWSER_AGENT_CHECKPOINTS: "browserAgentCheckpoints",
+  // Canonical agent runtime stores (v5)
+  AGENT_RUNS: "agentRuns",
+  AGENT_RUN_EVENTS: "agentRunEvents",
+  AGENT_CHECKPOINTS: "agentCheckpoints",
+  AGENT_APPROVALS: "agentApprovals",
+  AGENT_ARTIFACTS: "agentArtifacts",
+  AGENT_MIGRATIONS: "agentMigrations",
 } as const;
 
 export type StoreName = (typeof STORE_NAMES)[keyof typeof STORE_NAMES];
@@ -193,6 +205,73 @@ const STORE_CONFIGS: Record<StoreName, StoreConfig> = {
       },
     ],
   },
+  // ── Canonical agent runtime stores (DB v5) ──────────────────────────────
+  [STORE_NAMES.AGENT_RUNS]: {
+    keyPath: "runId",
+    indexes: [
+      { name: "status", keyPath: "status" },
+      { name: "mode", keyPath: "mode" },
+      { name: "updatedAt", keyPath: "updatedAt" },
+      { name: "createdAt", keyPath: "createdAt" },
+      { name: "conversationId", keyPath: "conversationId" },
+      { name: "pocketId", keyPath: "pocketId" },
+    ],
+  },
+  [STORE_NAMES.AGENT_RUN_EVENTS]: {
+    keyPath: "eventId",
+    indexes: [
+      { name: "runId", keyPath: "runId" },
+      { name: "sequence", keyPath: "sequence" },
+      { name: "eventType", keyPath: "eventType" },
+      { name: "timestamp", keyPath: "timestamp" },
+      {
+        name: "runId_sequence",
+        keyPath: ["runId", "sequence"],
+      },
+      {
+        name: "runId_timestamp",
+        keyPath: ["runId", "timestamp"],
+      },
+    ],
+  },
+  [STORE_NAMES.AGENT_CHECKPOINTS]: {
+    keyPath: "checkpointId",
+    indexes: [
+      { name: "runId", keyPath: "runId" },
+      { name: "checkpointSequence", keyPath: "checkpointSequence" },
+      { name: "timestamp", keyPath: "timestamp" },
+      { name: "phase", keyPath: "phase" },
+      {
+        name: "runId_checkpointSequence",
+        keyPath: ["runId", "checkpointSequence"],
+      },
+    ],
+  },
+  [STORE_NAMES.AGENT_APPROVALS]: {
+    keyPath: "approvalId",
+    indexes: [
+      { name: "runId", keyPath: "runId" },
+      { name: "status", keyPath: "status" },
+      { name: "createdAt", keyPath: "createdAt" },
+      { name: "resolvedAt", keyPath: "resolvedAt" },
+    ],
+  },
+  [STORE_NAMES.AGENT_ARTIFACTS]: {
+    keyPath: "artifactId",
+    indexes: [
+      { name: "runId", keyPath: "runId" },
+      { name: "artifactType", keyPath: "artifactType" },
+      { name: "targetKind", keyPath: "targetKind" },
+      { name: "targetId", keyPath: "targetId" },
+      { name: "updatedAt", keyPath: "updatedAt" },
+    ],
+  },
+  [STORE_NAMES.AGENT_MIGRATIONS]: {
+    keyPath: "migrationKey",
+    indexes: [
+      { name: "appliedAt", keyPath: "appliedAt" },
+    ],
+  },
 };
 
 /**
@@ -246,6 +325,70 @@ export type SearchIndexUpsert = Omit<SearchIndexEntry, "id" | "createdAt"> & {
   id?: string;
   createdAt?: number;
 };
+
+// ─── Canonical agent runtime DB record types ────────────────────────────────
+
+/** Persisted agent run record — extends the contract with DB-specific fields. */
+export interface AgentRunRecord extends AgentRun {
+  /** Link to chat conversation (optional). */
+  conversationId?: string;
+  /** Link to research pocket for deep-research mode (optional). */
+  pocketId?: string;
+}
+
+/** Persisted agent run event with a per-run sequence for ordered replay. */
+export interface AgentRunEventRecord {
+  eventId: string;
+  runId: string;
+  timestamp: number;
+  /** Ordered sequence number within a run (0-based). */
+  sequence: number;
+  /** Denormalized from event.type for indexed queries. */
+  eventType: string;
+  /** The full canonical event payload. */
+  payload: AgentRunEvent;
+}
+
+/** Persisted agent checkpoint with sequence and phase for indexed queries. */
+export interface AgentCheckpointRecord extends AgentCheckpoint {
+  /** Ordered sequence within a run (0-based). */
+  checkpointSequence: number;
+  /** Denormalized from snapshot.phase for indexed queries. */
+  phase: string;
+  /** The highest event sequence incorporated into this checkpoint's snapshot.
+   *  Events with sequence > this value are pending for replay. */
+  eventSequenceAtCheckpoint?: number;
+}
+
+/** Persisted approval record linked to a run. */
+export interface AgentApprovalRecord {
+  approvalId: string;
+  runId: string;
+  status: "pending" | "approved" | "rejected";
+  reason: string;
+  createdAt: number;
+  resolvedAt?: number;
+}
+
+/** Persisted artifact reference linked to a run. */
+export interface AgentArtifactRecord {
+  artifactId: string;
+  runId: string;
+  artifactType: string;
+  targetKind: string;
+  targetId: string;
+  label: string;
+  uri?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Migration ledger entry for import-once guarantees. */
+export interface AgentMigrationRecord {
+  migrationKey: string;
+  appliedAt: number;
+  metadata?: Record<string, unknown>;
+}
 
 /**
  * Typed database schema used by the `idb` helper.
@@ -361,6 +504,70 @@ export interface AiPocketDBSchema extends DBSchema {
       timestamp: number;
       step: WorkflowStep;
       workflowId_timestamp: [string, number];
+    };
+  };
+  // ── Canonical agent runtime stores ──────────────────────────────────────
+  agentRuns: {
+    key: string;
+    value: AgentRunRecord;
+    indexes: {
+      status: string;
+      mode: string;
+      updatedAt: number;
+      createdAt: number;
+      conversationId: string;
+      pocketId: string;
+    };
+  };
+  agentRunEvents: {
+    key: string;
+    value: AgentRunEventRecord;
+    indexes: {
+      runId: string;
+      sequence: number;
+      eventType: string;
+      timestamp: number;
+      runId_sequence: [string, number];
+      runId_timestamp: [string, number];
+    };
+  };
+  agentCheckpoints: {
+    key: string;
+    value: AgentCheckpointRecord;
+    indexes: {
+      runId: string;
+      checkpointSequence: number;
+      timestamp: number;
+      phase: string;
+      runId_checkpointSequence: [string, number];
+    };
+  };
+  agentApprovals: {
+    key: string;
+    value: AgentApprovalRecord;
+    indexes: {
+      runId: string;
+      status: string;
+      createdAt: number;
+      resolvedAt: number;
+    };
+  };
+  agentArtifacts: {
+    key: string;
+    value: AgentArtifactRecord;
+    indexes: {
+      runId: string;
+      artifactType: string;
+      targetKind: string;
+      targetId: string;
+      updatedAt: number;
+    };
+  };
+  agentMigrations: {
+    key: string;
+    value: AgentMigrationRecord;
+    indexes: {
+      appliedAt: number;
     };
   };
 }
@@ -970,6 +1177,15 @@ export class DatabaseManager implements StorageDatabaseContract {
       this.ensureStore(db, transaction, STORE_NAMES.BROWSER_AGENT_CHECKPOINTS);
     }
 
+    if (oldVersion < 5) {
+      this.ensureStore(db, transaction, STORE_NAMES.AGENT_RUNS);
+      this.ensureStore(db, transaction, STORE_NAMES.AGENT_RUN_EVENTS);
+      this.ensureStore(db, transaction, STORE_NAMES.AGENT_CHECKPOINTS);
+      this.ensureStore(db, transaction, STORE_NAMES.AGENT_APPROVALS);
+      this.ensureStore(db, transaction, STORE_NAMES.AGENT_ARTIFACTS);
+      this.ensureStore(db, transaction, STORE_NAMES.AGENT_MIGRATIONS);
+    }
+
     // Ensure indexes stay up to date regardless of upgrade path
     this.ensureStore(db, transaction, STORE_NAMES.POCKETS);
     this.ensureStore(db, transaction, STORE_NAMES.CAPTURED_CONTENT);
@@ -982,6 +1198,12 @@ export class DatabaseManager implements StorageDatabaseContract {
     this.ensureStore(db, transaction, STORE_NAMES.SYNC_QUEUE);
     this.ensureStore(db, transaction, STORE_NAMES.BROWSER_AGENT_WORKFLOWS);
     this.ensureStore(db, transaction, STORE_NAMES.BROWSER_AGENT_CHECKPOINTS);
+    this.ensureStore(db, transaction, STORE_NAMES.AGENT_RUNS);
+    this.ensureStore(db, transaction, STORE_NAMES.AGENT_RUN_EVENTS);
+    this.ensureStore(db, transaction, STORE_NAMES.AGENT_CHECKPOINTS);
+    this.ensureStore(db, transaction, STORE_NAMES.AGENT_APPROVALS);
+    this.ensureStore(db, transaction, STORE_NAMES.AGENT_ARTIFACTS);
+    this.ensureStore(db, transaction, STORE_NAMES.AGENT_MIGRATIONS);
   }
 
   private ensureStore(

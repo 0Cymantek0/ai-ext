@@ -50,6 +50,13 @@ import {
 } from "./research/aria-controller.js";
 import { getProviderConfigManager } from "./provider-config-manager.js";
 import { SettingsManager } from "./routing/settings-manager.js";
+import { AgentRuntimeService } from "./agent-runtime/agent-runtime-service.js";
+import type {
+  AgentRunStartPayload,
+  AgentRunStatusPayload,
+  AgentRunEventPayload,
+  AgentRunControlPayload,
+} from "../shared/types/index.d.ts";
 
 // Initialize runtime logging (disabled by default until debug recording is enabled)
 initializeRuntimeLogging({
@@ -1841,6 +1848,149 @@ messageRouter.registerHandler("ARIA_RUN_CANCEL", async (payload: any) => {
     message: result.message,
   };
 });
+
+// ─── Canonical Agent Runtime Handlers (Phase 07-03) ─────────────────────────
+
+const agentRuntimeService = new AgentRuntimeService();
+
+messageRouter.registerHandler(
+  "AGENT_RUN_START",
+  async (payload: AgentRunStartPayload) => {
+    logger.info("Handler", "AGENT_RUN_START", { mode: payload.mode });
+
+    try {
+      const run = await agentRuntimeService.startRun({
+        mode: payload.mode,
+        metadata: payload.metadata,
+      });
+
+      // Forward run status to side panel
+      messageRouter
+        .sendToSidePanel({
+          kind: "AGENT_RUN_STATUS",
+          payload: { run },
+        } as BaseMessage<MessageKind, AgentRunStatusPayload>)
+        .catch((error) => {
+          logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
+        });
+
+      return {
+        success: true,
+        runId: run.runId,
+        status: run.status,
+        run,
+      };
+    } catch (error) {
+      logger.error("Handler", "AGENT_RUN_START error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "AGENT_RUN_STATUS",
+  async (payload: { runId: string }) => {
+    logger.info("Handler", "AGENT_RUN_STATUS", { runId: payload.runId });
+
+    try {
+      const run = await agentRuntimeService.getRun(payload.runId);
+      if (!run) {
+        return { success: false, error: `Run not found: ${payload.runId}` };
+      }
+
+      return { success: true, run };
+    } catch (error) {
+      logger.error("Handler", "AGENT_RUN_STATUS error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "AGENT_RUN_EVENT",
+  async (payload: AgentRunEventPayload) => {
+    logger.info("Handler", "AGENT_RUN_EVENT", {
+      runId: payload.event.runId,
+      type: payload.event.type,
+    });
+
+    try {
+      const run = await agentRuntimeService.applyEvent(payload.event);
+
+      // Forward updated status to side panel
+      messageRouter
+        .sendToSidePanel({
+          kind: "AGENT_RUN_STATUS",
+          payload: { run },
+        } as BaseMessage<MessageKind, AgentRunStatusPayload>)
+        .catch((error) => {
+          logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
+        });
+
+      return { success: true, run };
+    } catch (error) {
+      logger.error("Handler", "AGENT_RUN_EVENT error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "AGENT_RUN_CONTROL",
+  async (payload: AgentRunControlPayload) => {
+    logger.info("Handler", "AGENT_RUN_CONTROL", {
+      runId: payload.runId,
+      action: payload.action,
+    });
+
+    try {
+      let run;
+      switch (payload.action) {
+        case "pause":
+          run = await agentRuntimeService.pauseRun(payload.runId);
+          break;
+        case "resume":
+          run = await agentRuntimeService.resumeRun(payload.runId);
+          break;
+        case "cancel":
+          run = await agentRuntimeService.cancelRun(payload.runId);
+          break;
+        default:
+          return {
+            success: false,
+            error: `Unknown action: ${payload.action}`,
+          };
+      }
+
+      // Forward updated status to side panel
+      messageRouter
+        .sendToSidePanel({
+          kind: "AGENT_RUN_STATUS",
+          payload: { run },
+        } as BaseMessage<MessageKind, AgentRunStatusPayload>)
+        .catch((error) => {
+          logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
+        });
+
+      return { success: true, run };
+    } catch (error) {
+      logger.error("Handler", "AGENT_RUN_CONTROL error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
 
 // Register content capture handler
 messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
@@ -4766,4 +4916,5 @@ export {
   performanceMonitor,
   geminiFormatter,
   backgroundProcessor,
+  agentRuntimeService,
 };

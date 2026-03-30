@@ -124,6 +124,11 @@ export type MessageKind =
   | "SETTINGS_ROUTING_LOAD"
   | "SETTINGS_ROUTING_SAVE"
   | "SETTINGS_SNAPSHOT_LOAD"
+  // Canonical Agent Runtime messages (Phase 07)
+  | "AGENT_RUN_START"
+  | "AGENT_RUN_STATUS"
+  | "AGENT_RUN_EVENT"
+  | "AGENT_RUN_CONTROL"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -1194,3 +1199,36 @@ export const STORAGE_KEYS = {
   POCKETS: "pockets",
   ABBREVIATIONS: "abbreviations",
 } as const;
+
+// ─── Canonical Agent Runtime Payload Types (Phase 07) ──────────────────────────
+// These types define the message payloads for the new AGENT_RUN_* message kinds.
+// Legacy ARIA and browser-agent payload types above remain until Plan 03.
+
+import type {
+  AgentRun,
+  AgentRunEvent,
+  AgentRunMode,
+} from "../agent-runtime/contracts.js";
+
+/** Payload for AGENT_RUN_START messages. */
+export interface AgentRunStartPayload {
+  runId: string;
+  mode: AgentRunMode;
+  metadata?: Record<string, unknown>;
+}
+
+/** Payload for AGENT_RUN_STATUS messages. */
+export interface AgentRunStatusPayload {
+  run: AgentRun;
+}
+
+/** Payload for AGENT_RUN_EVENT messages. */
+export interface AgentRunEventPayload {
+  event: AgentRunEvent;
+}
+
+/** Payload for AGENT_RUN_CONTROL messages. */
+export interface AgentRunControlPayload {
+  runId: string;
+  action: "pause" | "resume" | "cancel";
+}
