@@ -2057,6 +2057,45 @@ messageRouter.registerHandler(
   },
 );
 
+// Register approval resolution handler (Phase 09 — human-in-the-loop)
+messageRouter.registerHandler(
+  "AGENT_RUN_APPROVAL_RESOLVE",
+  async (payload: { runId: string; approvalId: string; resolution: "approved" | "rejected" }) => {
+    logger.info("Handler", "AGENT_RUN_APPROVAL_RESOLVE", {
+      runId: payload.runId,
+      approvalId: payload.approvalId,
+      resolution: payload.resolution,
+    });
+
+    try {
+      const run = await agentRuntimeService.getApprovalService().resolveApproval(
+        payload.runId,
+        payload.approvalId,
+        payload.resolution,
+      );
+
+      // Forward updated run state to side panel
+      const statusPayload = await buildAgentRunStatusPayload(run.runId);
+      messageRouter
+        .sendToSidePanel({
+          kind: "AGENT_RUN_STATUS",
+          payload: statusPayload,
+        } as BaseMessage<MessageKind, AgentRunStatusPayload>)
+        .catch((error) => {
+          logger.warn("Handler", "Failed to forward approval status", error);
+        });
+
+      return { success: true, ...statusPayload };
+    } catch (error) {
+      logger.error("Handler", "AGENT_RUN_APPROVAL_RESOLVE error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
+
 // Register content capture handler
 messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
   logger.info("Handler", "CAPTURE_REQUEST", payload);

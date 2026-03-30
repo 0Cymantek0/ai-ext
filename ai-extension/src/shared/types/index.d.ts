@@ -129,6 +129,7 @@ export type MessageKind =
   | "AGENT_RUN_STATUS"
   | "AGENT_RUN_EVENT"
   | "AGENT_RUN_CONTROL"
+  | "AGENT_RUN_APPROVAL_RESOLVE"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -1246,6 +1247,13 @@ export interface AgentRunControlPayload {
   runId: string;
   action: "pause" | "resume" | "cancel";
   reason?: string;
+}
+
+/** Payload for AGENT_RUN_APPROVAL_RESOLVE messages (Phase 09 — human-in-the-loop). */
+export interface AgentRunApprovalResolvePayload {
+  runId: string;
+  approvalId: string;
+  resolution: "approved" | "rejected";
 }
 
 export interface BrowserActionLaunchPayload extends BrowserActionRunMetadata {}

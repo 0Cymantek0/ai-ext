@@ -13,6 +13,7 @@
 import { AgentRuntimeStore } from "./store.js";
 import { PocketArtifactService } from "./pocket-artifact-service.js";
 import { CheckpointService } from "./checkpoint-service.js";
+import { ApprovalService } from "./approval-service.js";
 import { createAgentRun, reduceAgentRunEvent } from "../../shared/agent-runtime/reducer.js";
 import type {
   AgentRun,
@@ -68,6 +69,7 @@ export class AgentRuntimeService {
   private store: AgentRuntimeStore;
   private artifacts: PocketArtifactService;
   private checkpoints: CheckpointService;
+  private approvalService: ApprovalService;
 
   /** In-memory cache of active runs for fast reads. */
   private activeRuns = new Map<string, AgentRun>();
@@ -76,6 +78,12 @@ export class AgentRuntimeService {
     this.store = store ?? new AgentRuntimeStore();
     this.artifacts = new PocketArtifactService(this.store);
     this.checkpoints = new CheckpointService(this.store);
+    this.approvalService = new ApprovalService(this, this.store);
+  }
+
+  /** Get the ApprovalService for approval request/resolve operations. */
+  getApprovalService(): ApprovalService {
+    return this.approvalService;
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
@@ -331,13 +339,35 @@ export class AgentRuntimeService {
     options: BrowserToolStartOptions = {},
   ): Promise<AgentRun> {
     if (options.requiresHumanApproval) {
-      return this.recordBrowserActionToolFailure(runId, {
+      // Record the tool attempt in timeline
+      await this.appendBrowserToolEvent({
+        eventId: `evt-${runId}-tool-called-${Date.now()}`,
+        runId,
+        timestamp: Date.now(),
+        type: "tool.called",
         toolName,
-        error: `Blocked pending approval for ${toolName}`,
-        code: "ACTION_BLOCKED",
-        blockedByPolicy: true,
-        recoverable: true,
+        toolArgs,
+        checkpointBoundary: "tool-dispatch",
+        requiresHumanApproval: true,
       });
+
+      // Request approval via ApprovalService (persists to IndexedDB, emits approval.requested)
+      const metadata = (await this.getRun(runId))?.metadata as Record<string, unknown> | undefined;
+      const reason = `The agent wants to execute ${toolName} on the current page`;
+
+      return this.approvalService.requestApproval(
+        runId,
+        toolName,
+        toolArgs,
+        reason,
+        {
+          tabId: (metadata?.tabId as number) ?? 0,
+          ...(metadata?.tabUrl ? { tabUrl: metadata.tabUrl as string } : {}),
+          ...(metadata?.tabTitle ? { tabTitle: metadata.tabTitle as string } : {}),
+          ...(toolArgs.selector ? { selector: toolArgs.selector as string } : {}),
+          ...(typeof toolArgs.text === "string" ? { textPreview: (toolArgs.text as string).slice(0, 200) } : {}),
+        },
+      );
     }
 
     let run = await this.appendBrowserToolEvent({
