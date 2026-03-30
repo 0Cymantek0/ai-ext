@@ -406,6 +406,7 @@ export class StreamingHandler {
       );
 
       let fullResponse = "";
+      let fullReasoning = "";
       let source: "gemini-nano" | "gemini-flash" | "gemini-pro" = "gemini-nano";
       let contextUsed: string[] = [];
       let startPayloadSent = false;
@@ -445,6 +446,23 @@ export class StreamingHandler {
         ) {
           session.providerExecution = chunk.metadata;
           sendStartPayload();
+          continue;
+        }
+
+        // Reasoning chunk - send to side panel
+        if (
+          typeof chunk === "object" &&
+          "type" in chunk &&
+          (chunk as { type: string }).type === "reasoning"
+        ) {
+          const reasoningText = (chunk as { type: string; text: string }).text;
+          fullReasoning += reasoningText;
+          sendStartPayload();
+          this.sendStreamReasoning(
+            session.requestId,
+            reasoningText,
+            payload.conversationId,
+          );
           continue;
         }
 
@@ -538,6 +556,7 @@ export class StreamingHandler {
             content: fullResponse,
             timestamp: Date.now(),
             source,
+            reasoning: fullReasoning || undefined,
             metadata: {
               tokensUsed: totalTokens,
               processingTime,
@@ -647,6 +666,25 @@ export class StreamingHandler {
       kind: "AI_PROCESS_STREAM_CHUNK",
       requestId,
       payload,
+    });
+  }
+
+  /**
+   * Send reasoning chunk to side panel
+   */
+  private sendStreamReasoning(
+    requestId: string,
+    text: string,
+    conversationId?: string,
+  ): void {
+    this.sendToSidePanel({
+      kind: "AI_PROCESS_STREAM_REASONING",
+      requestId,
+      payload: {
+        requestId,
+        text,
+        ...(conversationId && { conversationId }),
+      },
     });
   }
 

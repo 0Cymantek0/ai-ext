@@ -2,16 +2,14 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ArrowLeft, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+  ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { CustomEndpointForm } from "../CustomEndpointForm";
-
-const ADD_MODEL_VALUE = "__add_new_model__";
 
 interface ProviderData {
   id: string;
@@ -25,6 +23,7 @@ interface ProviderData {
 export interface ModelData {
   providerId: string;
   modelId: string;
+  name?: string;
   [key: string]: unknown;
 }
 
@@ -42,9 +41,6 @@ export function ProviderDetailView({
   onUpdate,
 }: ProviderDetailViewProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = React.useState(false);
-  const [selectedModelId, setSelectedModelId] = React.useState(
-    provider?.modelId || "",
-  );
   const [isReplacingKey, setIsReplacingKey] = React.useState(false);
   const [newKey, setNewKey] = React.useState("");
   const [showKey, setShowKey] = React.useState(false);
@@ -56,21 +52,28 @@ export function ProviderDetailView({
     null,
   );
   const [isSavingModel, setIsSavingModel] = React.useState(false);
+  const [removingModelId, setRemovingModelId] = React.useState<string | null>(
+    null,
+  );
 
   if (!provider) return null;
 
   const providerModels = React.useMemo(() => {
-    const models = Object.values(modelSheet).filter(
-      (m: ModelData) => m.providerId === provider.id,
-    );
+    const models = Object.values(modelSheet)
+      .filter((m: ModelData) => m.providerId === provider.id)
+      .map((m: ModelData) => ({
+        ...m,
+        displayName: (m as any).name || m.modelId,
+      }));
 
     if (
       provider.modelId &&
-      !models.some((model: ModelData) => model.modelId === provider.modelId)
+      !models.some((model) => model.modelId === provider.modelId)
     ) {
       models.unshift({
         providerId: provider.id,
         modelId: provider.modelId,
+        displayName: provider.modelId,
       });
     }
 
@@ -112,15 +115,7 @@ export function ProviderDetailView({
     }
   };
 
-  const handleModelChange = async (modelId: string) => {
-    if (modelId === ADD_MODEL_VALUE) {
-      setIsAddingModel(true);
-      setManualModelError(null);
-      setManualModelId(selectedModelId);
-      return;
-    }
-
-    setSelectedModelId(modelId);
+  const handleSetDefaultModel = async (modelId: string) => {
     await chrome.runtime.sendMessage({
       kind: "PROVIDER_SETTINGS_SAVE",
       payload: { providerId: provider.id, modelId },
@@ -146,7 +141,6 @@ export function ProviderDetailView({
           name: trimmedModelId,
         },
       });
-      setSelectedModelId(trimmedModelId);
       setIsAddingModel(false);
       setManualModelId("");
       onUpdate();
@@ -156,6 +150,21 @@ export function ProviderDetailView({
       );
     } finally {
       setIsSavingModel(false);
+    }
+  };
+
+  const handleRemoveModel = async (modelId: string) => {
+    setRemovingModelId(modelId);
+    try {
+      await chrome.runtime.sendMessage({
+        kind: "PROVIDER_SETTINGS_REMOVE_MODEL",
+        payload: { providerId: provider.id, modelId },
+      });
+      onUpdate();
+    } catch {
+      // silent fail
+    } finally {
+      setRemovingModelId(null);
     }
   };
 
@@ -238,25 +247,25 @@ export function ProviderDetailView({
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-medium">Model</label>
-          <Select value={selectedModelId} onValueChange={handleModelChange}>
-            <SelectTrigger className="w-full h-10">
-              <SelectValue placeholder="Select a model..." />
-            </SelectTrigger>
-            <SelectContent>
-              {providerModels.map((m: ModelData) => (
-                <SelectItem key={`${m.providerId}-${m.modelId}`} value={m.modelId}>
-                  {m.modelId}
-                </SelectItem>
-              ))}
-              <SelectItem value={ADD_MODEL_VALUE}>Add a new model</SelectItem>
-            </SelectContent>
-          </Select>
-          {providerModels.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              No models were discovered for this provider yet. Add one manually.
-            </p>
-          )}
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium">
+              Available Models ({providerModels.length})
+            </label>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1"
+              onClick={() => {
+                setIsAddingModel(true);
+                setManualModelError(null);
+                setManualModelId("");
+              }}
+            >
+              <Plus className="h-3 w-3" />
+              Add Model
+            </Button>
+          </div>
+
           {isAddingModel && (
             <div className="rounded-md border p-3 space-y-2">
               <label className="text-xs font-medium">Model ID</label>
@@ -294,6 +303,68 @@ export function ProviderDetailView({
                   Cancel
                 </Button>
               </div>
+            </div>
+          )}
+
+          {providerModels.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-4 text-center">
+              No models were discovered for this provider yet. Add one manually.
+            </p>
+          ) : (
+            <div className="max-h-[280px] overflow-y-auto space-y-1 pr-1">
+              {providerModels.map((m) => {
+                const isDefault = m.modelId === provider.modelId;
+                return (
+                  <div
+                    key={`${m.providerId}-${m.modelId}`}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                      isDefault
+                        ? "border-primary/40 bg-primary/5"
+                        : "border-border"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{m.displayName}</div>
+                      {m.displayName !== m.modelId && (
+                        <div className="text-muted-foreground truncate">
+                          {m.modelId}
+                        </div>
+                      )}
+                    </div>
+                    <div className="shrink-0 flex items-center gap-1">
+                      {isDefault && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                          Default
+                        </span>
+                      )}
+                      {!isDefault && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-[10px] px-1.5"
+                          onClick={() => handleSetDefaultModel(m.modelId)}
+                        >
+                          Set default
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemoveModel(m.modelId)}
+                        disabled={removingModelId === m.modelId}
+                        title="Remove model"
+                      >
+                        {removingModelId === m.modelId ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

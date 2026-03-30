@@ -2,6 +2,7 @@ import { generateText, streamText } from "ai";
 import { ProviderRouter } from "../routing/provider-router.js";
 import type {
   ProviderExecutionEvent,
+  ProviderReasoningEvent,
   ProviderStreamEvent,
   ProviderStreamRequest,
   ProviderTextRequest,
@@ -66,6 +67,8 @@ export class ProviderExecutionService {
 
     yield providerExecutionEvent;
 
+    const reasoningQueue: string[] = [];
+
     const response = streamText({
       model: resolved.adapter.getLanguageModel(
         request.modelId || resolved.metadata.modelId,
@@ -75,12 +78,27 @@ export class ProviderExecutionService {
       ...(request.maxOutputTokens
         ? { maxOutputTokens: request.maxOutputTokens }
         : {}),
+      onChunk: ({ chunk }) => {
+        if (chunk.type === "reasoning-delta") {
+          reasoningQueue.push(chunk.text);
+        }
+      },
     });
 
     let text = "";
     for await (const chunk of response.textStream) {
       text += chunk;
       yield chunk;
+
+      // Drain reasoning accumulated during this text chunk
+      while (reasoningQueue.length > 0) {
+        yield { type: "reasoning", text: reasoningQueue.shift()! } as ProviderReasoningEvent;
+      }
+    }
+
+    // Drain any remaining reasoning (model may emit reasoning before/after text)
+    while (reasoningQueue.length > 0) {
+      yield { type: "reasoning", text: reasoningQueue.shift()! } as ProviderReasoningEvent;
     }
 
     const usage = await response.usage;

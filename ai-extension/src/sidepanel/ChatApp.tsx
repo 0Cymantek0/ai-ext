@@ -68,6 +68,7 @@ interface ChatMessage {
   files?: File[] | undefined;
   source?: "gemini-nano" | "gemini-flash" | "gemini-pro";
   metadata?: MessageMetadata;
+  reasoning?: string;
 }
 
 interface ConversationMetadata {
@@ -147,7 +148,7 @@ const getModelOptionIcon = (
 const buildChatModelOptions = (
   snapshot: ProviderSettingsSnapshot | null,
 ): ChatModelOption[] => {
-  if (!snapshot) {
+  if (!snapshot?.providers) {
     return [AUTO_MODEL_OPTION];
   }
 
@@ -224,16 +225,21 @@ const getProviderExecutionMetadata = (
 
 const getAssistantProvenance = (
   message: ChatMessage,
+  providerNameLookup?: Record<string, string>,
 ): AssistantProvenance | undefined => {
   const providerExecution = message.metadata?.providerExecution;
 
   if (providerExecution) {
+    const displayName =
+      providerNameLookup?.[providerExecution.providerId] ||
+      providerExecution.providerType ||
+      providerExecution.providerId;
     return {
-      providerLabel: `${providerExecution.providerId} • ${providerExecution.modelId}`,
+      providerLabel: `${displayName} • ${providerExecution.modelId}`,
       ...(providerExecution.fallbackOccurred &&
       providerExecution.fallbackFromProviderId
         ? {
-            fallbackLabel: `Fallback from ${providerExecution.fallbackFromProviderId}`,
+            fallbackLabel: `Fallback from ${providerNameLookup?.[providerExecution.fallbackFromProviderId] || providerExecution.fallbackFromProviderId}`,
           }
         : {}),
     };
@@ -247,6 +253,46 @@ const getAssistantProvenance = (
 
   return undefined;
 };
+
+function ThinkingBlock({ reasoning }: { reasoning: string }) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  return (
+    <div className="mb-2 w-full">
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <svg
+          className={cn(
+            "h-3 w-3 transition-transform duration-200",
+            isExpanded && "rotate-90",
+          )}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+        <span className="font-medium">Thinking</span>
+        <span className="text-muted-foreground/60">
+          ({reasoning.length} chars)
+        </span>
+      </button>
+      {isExpanded && (
+        <div className="mt-1.5 p-3 rounded-lg bg-muted/50 border border-border/50 text-xs text-muted-foreground whitespace-pre-wrap max-h-[300px] overflow-y-auto leading-relaxed">
+          {reasoning}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ChatApp() {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -324,6 +370,12 @@ export function ChatApp() {
     () => buildChatModelOptions(settingsSnapshot),
     [settingsSnapshot],
   );
+  const providerNameLookup = React.useMemo(() => {
+    if (!settingsSnapshot?.providers) return {};
+    return Object.fromEntries(
+      settingsSnapshot.providers.map((p) => [p.id, p.name || p.type]),
+    );
+  }, [settingsSnapshot]);
   const selectedChatModel = React.useMemo(
     () => resolveSelectedChatModel(selectedModel, chatModelOptions),
     [chatModelOptions, selectedModel],
@@ -528,6 +580,25 @@ export function ChatApp() {
     });
   }, []);
 
+  const handleStreamReasoning = React.useCallback(
+    (payload: { text: string }) => {
+      setMessages((prev) => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage && lastMessage.isStreaming) {
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...lastMessage,
+              reasoning: (lastMessage.reasoning || "") + payload.text,
+            },
+          ];
+        }
+        return prev;
+      });
+    },
+    [],
+  );
+
   const saveConversationRef = React.useRef<(() => Promise<void>) | null>(null);
 
   const handleStreamEnd = React.useCallback(
@@ -653,6 +724,9 @@ export function ChatApp() {
         case "AI_PROCESS_STREAM_CHUNK":
           handleStreamChunk(message.payload);
           break;
+        case "AI_PROCESS_STREAM_REASONING":
+          handleStreamReasoning(message.payload);
+          break;
         case "AI_PROCESS_STREAM_END":
           handleStreamEnd(message.payload);
           break;
@@ -690,6 +764,7 @@ export function ChatApp() {
   }, [
     handleStreamStart,
     handleStreamChunk,
+    handleStreamReasoning,
     handleStreamEnd,
     handleStreamError,
     pendingSelectionRequest,
@@ -1614,25 +1689,28 @@ export function ChatApp() {
                                       </div>
                                     )}
                                   {message.role === "assistant" &&
-                                    getAssistantProvenance(message) && (
+                                    getAssistantProvenance(message, providerNameLookup) && (
                                       <div className="mb-2 text-xs text-muted-foreground">
                                         <div>
                                           {
-                                            getAssistantProvenance(message)
+                                            getAssistantProvenance(message, providerNameLookup)
                                               ?.providerLabel
                                           }
                                         </div>
-                                        {getAssistantProvenance(message)
+                                        {getAssistantProvenance(message, providerNameLookup)
                                           ?.fallbackLabel && (
                                           <div>
                                             {
-                                              getAssistantProvenance(message)
+                                              getAssistantProvenance(message, providerNameLookup)
                                                 ?.fallbackLabel
                                             }
                                           </div>
                                         )}
                                       </div>
                                     )}
+                                  {message.role === "assistant" && message.reasoning && (
+                                    <ThinkingBlock reasoning={message.reasoning} />
+                                  )}
                                   <div
                                     className={cn(
                                       "inline-block max-w-[85%] break-words",
@@ -1892,24 +1970,28 @@ export function ChatApp() {
                               </div>
                             )}
                             {message.role === "assistant" &&
-                              getAssistantProvenance(message) && (
+                              getAssistantProvenance(message, providerNameLookup) && (
                                 <div className="mb-2 text-xs text-muted-foreground">
                                   <div>
                                     {
-                                      getAssistantProvenance(message)
+                                      getAssistantProvenance(message, providerNameLookup)
                                         ?.providerLabel
                                     }
                                   </div>
-                                  {getAssistantProvenance(message)
+                                  {getAssistantProvenance(message, providerNameLookup)
                                     ?.fallbackLabel && (
                                     <div>
                                       {
-                                        getAssistantProvenance(message)
+                                        getAssistantProvenance(message, providerNameLookup)
                                           ?.fallbackLabel
                                       }
                                     </div>
                                   )}
                                 </div>
+                              )}
+                            {message.role === "assistant" &&
+                              message.reasoning && (
+                                <ThinkingBlock reasoning={message.reasoning} />
                               )}
                             <div
                               className={cn(

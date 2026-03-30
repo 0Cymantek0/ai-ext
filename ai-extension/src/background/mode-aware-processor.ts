@@ -18,6 +18,7 @@ import {
 import type { ProcessingOptions } from "./ai-manager.js";
 import type {
   ProviderExecutionEvent,
+  ProviderReasoningEvent,
   ProviderTextResult,
 } from "./provider-execution/types.js";
 import type { ProviderExecutionMetadata } from "../shared/types/index.d";
@@ -109,7 +110,7 @@ export class ModeAwareProcessor {
     request: ModeAwareRequest,
     signal?: AbortSignal,
   ): AsyncGenerator<
-    string | ProviderExecutionEvent,
+    string | ProviderExecutionEvent | ProviderReasoningEvent,
     ModeAwareResponse,
     undefined
   > {
@@ -192,6 +193,11 @@ export class ModeAwareProcessor {
 
         if ("type" in chunk && chunk.type === "provider-execution") {
           providerExecution = chunk.metadata;
+          yield chunk;
+          continue;
+        }
+
+        if ("type" in chunk && chunk.type === "reasoning") {
           yield chunk;
           continue;
         }

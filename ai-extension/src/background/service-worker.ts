@@ -2975,9 +2975,9 @@ messageRouter.registerHandler(
 
       if (providerId) {
         const updates: any = {
-          name,
           enabled: enabled ?? true,
         };
+        if (name !== undefined) updates.name = name;
         if (baseUrl !== undefined) updates.baseUrl = baseUrl;
         if (endpointMode !== undefined) updates.endpointMode = endpointMode;
         if (modelId !== undefined) updates.modelId = modelId;
@@ -3062,6 +3062,20 @@ messageRouter.registerHandler(
       };
     } catch (error) {
       logger.error("Handler", "PROVIDER_SETTINGS_ADD_MODEL error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "PROVIDER_SETTINGS_REMOVE_MODEL",
+  async (payload: { providerId: string; modelId: string }) => {
+    logger.info("Handler", "PROVIDER_SETTINGS_REMOVE_MODEL");
+    try {
+      await settingsManager.removeModel(payload.modelId);
+      return { success: true };
+    } catch (error) {
+      logger.error("Handler", "PROVIDER_SETTINGS_REMOVE_MODEL error", error);
       throw error;
     }
   },

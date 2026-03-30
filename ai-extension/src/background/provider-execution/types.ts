@@ -33,9 +33,15 @@ export interface ProviderExecutionEvent {
   metadata: ProviderExecutionMetadata;
 }
 
+export interface ProviderReasoningEvent {
+  type: "reasoning";
+  text: string;
+}
+
 export type ProviderStreamEvent =
   | string
   | ProviderExecutionEvent
+  | ProviderReasoningEvent
   | ProviderTextResult;
 
 export interface ProviderStreamRequest {

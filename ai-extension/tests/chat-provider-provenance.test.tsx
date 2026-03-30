@@ -17,6 +17,30 @@ describe('ChatApp Provider Provenance', () => {
     (global as any).chrome = {
       runtime: {
         sendMessage: vi.fn().mockImplementation((req) => {
+          if (req.kind === 'SETTINGS_SNAPSHOT_LOAD') {
+            return Promise.resolve({
+              success: true,
+              data: {
+                providers: [
+                  {
+                    id: 'provider-0',
+                    type: 'groq',
+                    name: 'Groq Primary',
+                    enabled: true,
+                  },
+                  {
+                    id: 'provider-1',
+                    type: 'openai',
+                    name: 'OpenAI Fallback',
+                    enabled: true,
+                  },
+                ],
+                modelSheet: {},
+                routingPreferences: { chat: null, embeddings: null, speech: null, fallbackChain: [], routingMode: 'auto', triggerWords: {}, providerParameters: {} },
+                speechSettings: { provider: { providerId: '', modelId: '' }, language: 'en', timestampGranularity: 'none' },
+              },
+            });
+          }
           if (req.kind === 'CONVERSATION_LIST') {
             return Promise.resolve({
               success: true,
@@ -32,7 +56,7 @@ describe('ChatApp Provider Provenance', () => {
                     metadata: {
                       providerExecution: {
                         providerId: 'provider-1',
-                        providerType: 'test',
+                        providerType: 'openai',
                         modelId: 'model-1',
                         attemptedProviderIds: ['provider-0', 'provider-1'],
                         fallbackOccurred: true,
@@ -58,7 +82,7 @@ describe('ChatApp Provider Provenance', () => {
                     metadata: {
                       providerExecution: {
                         providerId: 'provider-1',
-                        providerType: 'test',
+                        providerType: 'openai',
                         modelId: 'model-1',
                         attemptedProviderIds: ['provider-0', 'provider-1'],
                         fallbackOccurred: true,
@@ -79,23 +103,25 @@ describe('ChatApp Provider Provenance', () => {
         getURL: vi.fn().mockReturnValue('mock-url')
       }
     };
-    
+
     render(<ChatApp />);
-    
+
     // Trigger history panel open and select conversation
     // Wait for the history panel toggle to be visible
     const historyButton = await screen.findByRole('button', { name: /History/i, hidden: true }).catch(() => null);
     if (historyButton) {
       historyButton.click();
     }
-    
+
     // Wait for the conversation list item
     const convItem = await screen.findByText('Hello World');
     convItem.click();
 
     await waitFor(() => {
-      expect(screen.getByText(/Fallback from/i)).toBeInTheDocument();
-      expect(screen.getByText('provider-1 • model-1')).toBeInTheDocument();
+      // Provider name from lookup: "OpenAI Fallback", not raw provider-1
+      expect(screen.getByText('OpenAI Fallback • model-1')).toBeInTheDocument();
+      // Fallback label uses provider name from lookup: "Groq Primary"
+      expect(screen.getByText(/Fallback from Groq Primary/i)).toBeInTheDocument();
     });
   });
 });

@@ -27,6 +27,7 @@ export type MessageKind =
   | "AI_PROCESS_RESULT"
   | "AI_PROCESS_STREAM_START"
   | "AI_PROCESS_STREAM_CHUNK"
+  | "AI_PROCESS_STREAM_REASONING"
   | "AI_PROCESS_STREAM_END"
   | "AI_PROCESS_STREAM_ERROR"
   | "AI_PROCESS_CANCEL"
@@ -113,6 +114,7 @@ export type MessageKind =
   | "PROVIDER_SETTINGS_LOAD"
   | "PROVIDER_SETTINGS_SAVE"
   | "PROVIDER_SETTINGS_ADD_MODEL"
+  | "PROVIDER_SETTINGS_REMOVE_MODEL"
   | "PROVIDER_SETTINGS_VALIDATE_ENDPOINT"
   | "PROVIDER_SETTINGS_DELETE_KEY"
   | "PROVIDER_SETTINGS_RETEST"
@@ -386,6 +388,12 @@ export interface AiStreamRequestPayload {
 export interface AiStreamChunkPayload {
   requestId: string;
   chunk: string;
+  conversationId?: string;
+}
+
+export interface AiStreamReasoningPayload {
+  requestId: string;
+  text: string;
   conversationId?: string;
 }
 

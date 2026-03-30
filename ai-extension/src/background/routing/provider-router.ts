@@ -31,6 +31,9 @@ export class ProviderRouter {
   ): Promise<ResolvedProviderExecution> {
     const prefs = await this.settingsManager.getRoutingPreferences();
     const primary = preferredProviderId ?? prefs[capability];
+    const hasExplicitSelection = Boolean(
+      preferredProviderId || preferredModelId,
+    );
 
     let executionChain = [
       primary,
@@ -47,7 +50,11 @@ export class ProviderRouter {
     const modelSheet = await this.settingsManager.getModelSheet();
 
     // Auto mode: trigger words + heuristic scoring
-    if (capability === "chat" && prefs.routingMode === "auto") {
+    if (
+      capability === "chat" &&
+      prefs.routingMode === "auto" &&
+      !hasExplicitSelection
+    ) {
       let matchedWord = false;
 
       if (prefs.triggerWords) {
@@ -66,7 +73,7 @@ export class ProviderRouter {
         let bestMatchId: string | null = null;
         let bestScore = -1;
 
-        for (const [modelKey, entry] of Object.entries(modelSheet)) {
+        for (const entry of Object.values(modelSheet)) {
           // D-11: Skip disabled models
           if (entry.enabled === false) continue;
 
@@ -153,10 +160,19 @@ export class ProviderRouter {
         }
 
         const adapter = await ProviderFactory.createAdapter(config);
-        const validation = await adapter.validateConnection();
 
-        if (!validation.success) {
-          throw new Error(validation.error || "Connection validation failed");
+        // Skip validation when user explicitly selected this provider.
+        // Validation does a full generateText call which is slow and unreliable
+        // for local providers like Ollama (model loading, cold starts, etc).
+        // For auto-selected providers in the fallback chain, still validate.
+        const userExplicitlySelected = providerId === preferredProviderId;
+        if (!userExplicitlySelected) {
+          const validation = await adapter.validateConnection();
+          if (!validation.success) {
+            throw new Error(
+              validation.error || "Connection validation failed",
+            );
+          }
         }
 
         const attemptedProviderIds = executionChain;
@@ -176,8 +192,12 @@ export class ProviderRouter {
             fallbackOccurred,
           },
         };
-      } catch (e: any) {
-        diagnostics.push({ providerId, error: e.message || "Unknown error" });
+      } catch (error) {
+        diagnostics.push({
+          providerId,
+          error:
+            error instanceof Error ? error.message : "Unknown error",
+        });
       }
     }
 

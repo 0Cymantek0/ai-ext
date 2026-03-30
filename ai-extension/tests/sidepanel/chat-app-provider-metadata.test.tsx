@@ -170,6 +170,13 @@ vi.mock("@/utils/konami-code-listener", () => ({
 
 import { ChatApp } from "@/sidepanel/ChatApp";
 
+const emptySettingsSnapshot = {
+  providers: [],
+  modelSheet: {},
+  routingPreferences: { chat: null, embeddings: null, speech: null, fallbackChain: [], routingMode: 'auto', triggerWords: {}, providerParameters: {} },
+  speechSettings: { provider: { providerId: '', modelId: '' }, language: 'en', timestampGranularity: 'none' },
+};
+
 describe("ChatApp provider metadata", () => {
   beforeEach(() => {
     runtimeMessageListener = null;
@@ -185,6 +192,8 @@ describe("ChatApp provider metadata", () => {
         case "CONVERSATION_DELETE":
         case "AI_PROCESS_STREAM_START":
           return { success: true };
+        case "SETTINGS_SNAPSHOT_LOAD":
+          return { success: true, data: emptySettingsSnapshot };
         default:
           return { success: true, data: {} };
       }
@@ -235,7 +244,8 @@ describe("ChatApp provider metadata", () => {
       });
     });
 
-    expect(await screen.findByText("openai-primary • gpt-4.1-mini")).toBeTruthy();
+    // Falls back to providerType since no name in lookup
+    expect(await screen.findByText("openai • gpt-4.1-mini")).toBeTruthy();
 
     act(() => {
       runtimeMessageListener?.({
@@ -255,8 +265,9 @@ describe("ChatApp provider metadata", () => {
       });
     });
 
+    // Falls back to providerType since no name in lookup
     expect(
-      await screen.findByText("anthropic-fallback • claude-3.7-sonnet"),
+      await screen.findByText("anthropic • claude-3.7-sonnet"),
     ).toBeTruthy();
     expect(await screen.findByText("Fallback from openai-primary")).toBeTruthy();
     expect(screen.queryByText(/warning|modal/i)).toBeNull();
@@ -324,6 +335,8 @@ describe("ChatApp provider metadata", () => {
               },
             },
           };
+        case "SETTINGS_SNAPSHOT_LOAD":
+          return { success: true, data: emptySettingsSnapshot };
         default:
           return { success: true, data: {} };
       }
@@ -339,8 +352,9 @@ describe("ChatApp provider metadata", () => {
 
     expect(await screen.findByText("legacy conversation answer")).toBeTruthy();
     expect(await screen.findByText("fallback answer")).toBeTruthy();
+    // Falls back to providerType since no name in lookup
     expect(
-      await screen.findByText("anthropic-fallback • claude-3.7-sonnet"),
+      await screen.findByText("anthropic • claude-3.7-sonnet"),
     ).toBeTruthy();
     expect(await screen.findByText("Fallback from openai-primary")).toBeTruthy();
   });

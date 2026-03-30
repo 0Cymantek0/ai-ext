@@ -155,6 +155,8 @@ const DEFAULT_PREFERENCES: ContextPreferences = {
   siteOverrides: {},
 };
 
+const CONTEXT_SIGNAL_TIMEOUT_MS = 750;
+
 /**
  * Context Bundle Builder
  * Aggregates context from multiple sources and enforces size budgets
@@ -601,9 +603,10 @@ export class ContextBundleBuilder {
       }
 
       // Execute script directly to get page context
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
+      const results = await this.withTimeout(
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
           // This function runs in the page context
           const pageContext: any = {
             title: document.title,
@@ -725,9 +728,11 @@ export class ContextBundleBuilder {
             pageContext.language = lang;
           }
 
-          return pageContext;
-        },
-      });
+            return pageContext;
+          },
+        }),
+        "page context collection",
+      );
 
       if (!results || !results[0] || !results[0].result) {
         logger.warn("ContextBundleBuilder", "Failed to execute script on page");
@@ -844,9 +849,10 @@ export class ContextBundleBuilder {
       }
 
       // Execute script to get selection
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
+      const results = await this.withTimeout(
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
           const selection = window.getSelection();
           if (!selection || selection.rangeCount === 0) {
             return null;
@@ -875,12 +881,14 @@ export class ContextBundleBuilder {
             surroundingText = fullText.substring(start, end);
           }
 
-          return {
-            text: selectedText,
-            surroundingText: surroundingText,
-          };
-        },
-      });
+            return {
+              text: selectedText,
+              surroundingText: surroundingText,
+            };
+          },
+        }),
+        "selection context collection",
+      );
 
       const context = results?.[0]?.result;
 
@@ -943,9 +951,10 @@ export class ContextBundleBuilder {
       }
 
       // Execute script to get input context
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
+      const results = await this.withTimeout(
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
           const activeElement = document.activeElement;
           if (!activeElement) {
             return null;
@@ -981,15 +990,17 @@ export class ContextBundleBuilder {
             intent = "selection";
           }
 
-          return {
-            tagName,
-            type,
-            role,
-            placeholder,
-            intent,
-          };
-        },
-      });
+            return {
+              tagName,
+              type,
+              role,
+              placeholder,
+              intent,
+            };
+          },
+        }),
+        "input context collection",
+      );
 
       const context = results?.[0]?.result;
 
@@ -1127,12 +1138,15 @@ export class ContextBundleBuilder {
       });
 
       // Perform distributed search across all tabs
-      const searchResponse = await searchAllTabs({
-        query: options.query,
-        maxResults: 5, // Top 5 most relevant tabs
-        timeout: 200, // 200ms timeout per tab
-        conversationId: options.conversationId, // For progress tracking
-      });
+      const searchResponse = await this.withTimeout(
+        searchAllTabs({
+          query: options.query,
+          maxResults: 5, // Top 5 most relevant tabs
+          timeout: 200, // 200ms timeout per tab
+          conversationId: options.conversationId, // For progress tracking
+        }),
+        "tab search context collection",
+      );
 
       if (searchResponse.results.length > 0) {
         // Convert search results to context format
@@ -1237,6 +1251,21 @@ export class ContextBundleBuilder {
   clearCache(): void {
     this.cache.clear();
     logger.info("ContextBundleBuilder", "Cache cleared");
+  }
+
+  private async withTimeout<T>(
+    operation: Promise<T>,
+    label: string,
+    timeoutMs: number = CONTEXT_SIGNAL_TIMEOUT_MS,
+  ): Promise<T> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+        timeoutMs,
+      );
+    });
+
+    return Promise.race([operation, timeoutPromise]);
   }
 
   /**
