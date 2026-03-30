@@ -112,6 +112,7 @@ export type MessageKind =
   // Provider/STT settings messages (Phase 04)
   | "PROVIDER_SETTINGS_LOAD"
   | "PROVIDER_SETTINGS_SAVE"
+  | "PROVIDER_SETTINGS_ADD_MODEL"
   | "PROVIDER_SETTINGS_VALIDATE_ENDPOINT"
   | "PROVIDER_SETTINGS_DELETE_KEY"
   | "PROVIDER_SETTINGS_RETEST"
@@ -375,6 +376,8 @@ export interface AiStreamRequestPayload {
   conversationId?: string;
   preferLocal?: boolean;
   model?: "nano" | "flash" | "pro" | "auto";
+  providerId?: string;
+  modelId?: string;
   mode?: "ask" | "ai-pocket";
   pocketId?: string;
   autoContext?: boolean; // Whether to automatically include context
@@ -1062,6 +1065,12 @@ export interface ProviderSettingsSavePayload {
 
 export interface ProviderSettingsDeleteKeyPayload {
   providerId: string;
+}
+
+export interface ProviderSettingsAddModelPayload {
+  providerId: string;
+  modelId: string;
+  name?: string;
 }
 
 export interface ProviderSettingsRetestPayload {

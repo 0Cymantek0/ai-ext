@@ -3027,6 +3027,47 @@ messageRouter.registerHandler(
 );
 
 messageRouter.registerHandler(
+  "PROVIDER_SETTINGS_ADD_MODEL",
+  async (payload: { providerId: string; modelId: string; name?: string }) => {
+    logger.info("Handler", "PROVIDER_SETTINGS_ADD_MODEL");
+    try {
+      const configManager = getProviderConfigManager();
+      if (!configManager.isInitialized()) {
+        await configManager.initialize();
+      }
+
+      const provider = await configManager.getProvider(payload.providerId);
+      if (!provider) {
+        throw new Error(`Provider ${payload.providerId} not found`);
+      }
+
+      const trimmedModelId = payload.modelId.trim();
+      if (!trimmedModelId) {
+        throw new Error("Model ID is required");
+      }
+
+      await settingsManager.addModel(provider.id, {
+        modelId: trimmedModelId,
+        providerType: provider.type,
+        name: payload.name?.trim() || trimmedModelId,
+      });
+
+      const updatedProvider = await configManager.updateProvider(provider.id, {
+        modelId: trimmedModelId,
+      });
+
+      return {
+        provider: updatedProvider,
+        modelSheet: await settingsManager.getModelSheet(),
+      };
+    } catch (error) {
+      logger.error("Handler", "PROVIDER_SETTINGS_ADD_MODEL error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
   "PROVIDER_SETTINGS_DELETE_KEY",
   async (payload: { providerId: string }) => {
     logger.info("Handler", "PROVIDER_SETTINGS_DELETE_KEY");
@@ -3236,13 +3277,72 @@ messageRouter.registerHandler("SETTINGS_SNAPSHOT_LOAD", async () => {
       await configManager.initialize();
     }
 
-    const [providers, modelSheet, routingPreferences, speechSettings] =
+    const [providers, initialModelSheet, routingPreferences, speechSettings] =
       await Promise.all([
         configManager.listProviders(),
         settingsManager.getModelSheet(),
         settingsManager.getRoutingPreferences(),
         settingsManager.getSpeechSettings(),
       ]);
+
+    let modelSheet = initialModelSheet;
+
+    const providersMissingModels = providers.some((provider) => {
+      if (!provider.enabled) {
+        return false;
+      }
+
+      const canDiscoverModels =
+        provider.type === "gemini-nano" ||
+        !!provider.apiKeyId ||
+        provider.apiKeyRequired === false;
+
+      if (!canDiscoverModels) {
+        return false;
+      }
+
+      return !Object.values(modelSheet).some(
+        (entry) => entry.providerId === provider.id,
+      );
+    });
+
+    if (providersMissingModels) {
+      try {
+        modelSheet = await settingsManager.refreshModelCatalog();
+      } catch (error) {
+        logger.warn(
+          "Handler",
+          "SETTINGS_SNAPSHOT_LOAD catalog refresh failed",
+          error,
+        );
+      }
+    }
+
+    let addedManualModel = false;
+    for (const provider of providers) {
+      if (!provider.modelId) {
+        continue;
+      }
+
+      const hasPersistedModel = Object.values(modelSheet).some(
+        (entry) =>
+          entry.providerId === provider.id && entry.modelId === provider.modelId,
+      );
+
+      if (hasPersistedModel) {
+        continue;
+      }
+
+      await settingsManager.addModel(provider.id, {
+        modelId: provider.modelId,
+        providerType: provider.type,
+      });
+      addedManualModel = true;
+    }
+
+    if (addedManualModel) {
+      modelSheet = await settingsManager.getModelSheet();
+    }
 
     return {
       providers,

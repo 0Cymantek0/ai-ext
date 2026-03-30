@@ -55,6 +55,8 @@ export interface ModeAwareRequest {
   pocketId?: string | undefined;
   preferLocal?: boolean | undefined;
   model?: "nano" | "flash" | "pro" | "auto" | undefined;
+  providerId?: string | undefined;
+  modelId?: string | undefined;
   autoContext?: boolean | undefined;
   targetModel?: "nano" | "flash" | "pro";
   routingMetadata?: RoutingMetadata;
@@ -146,6 +148,8 @@ export class ModeAwareProcessor {
         taskType: "general",
         priority: "normal",
         ...(signal && { signal }),
+        ...(request.providerId ? { providerId: request.providerId } : {}),
+        ...(request.modelId ? { modelId: request.modelId } : {}),
       };
 
       if (forcedLocation) {

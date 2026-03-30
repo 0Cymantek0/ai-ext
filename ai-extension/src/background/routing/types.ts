@@ -45,6 +45,7 @@ export interface ModelSheetEntry {
   providerId: string;
   providerType: string;
   enabled: boolean;
+  name?: string;
   capabilities: ModelCapabilities;
   tier: ModelTier;
 }

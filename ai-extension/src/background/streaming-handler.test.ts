@@ -9,10 +9,17 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { AiStreamRequestPayload } from "../shared/types/index.d";
 import type { ModeAwareRequest } from "./mode-aware-processor";
 
-const routeQueryMock = vi.fn();
-const processRequestMock = vi.fn();
-const getModeAwareProcessorMock = vi.fn();
-const buildConversationContextMock = vi.fn();
+const {
+  routeQueryMock,
+  processRequestMock,
+  getModeAwareProcessorMock,
+  buildConversationContextMock,
+} = vi.hoisted(() => ({
+  routeQueryMock: vi.fn(),
+  processRequestMock: vi.fn(),
+  getModeAwareProcessorMock: vi.fn(),
+  buildConversationContextMock: vi.fn(),
+}));
 
 // Mock the dependencies
 vi.mock("./monitoring", () => ({
@@ -451,18 +458,23 @@ describe("StreamingHandler routing integration", () => {
     });
 
     sendMessageMock = vi.fn().mockResolvedValue({});
-    (globalThis as any).chrome = {
+    vi.stubGlobal("chrome", {
       runtime: {
         sendMessage: sendMessageMock,
       },
-    };
+    });
 
     randomUUIDMock = vi.fn();
     randomUUIDMock.mockReturnValue("fixed-id");
-    (globalThis as any).crypto = {
-      ...(originalCrypto ?? {}),
+    vi.stubGlobal("crypto", {
+      ...(originalCrypto
+        ? {
+            subtle: originalCrypto.subtle,
+            getRandomValues: originalCrypto.getRandomValues.bind(originalCrypto),
+          }
+        : {}),
       randomUUID: randomUUIDMock,
-    };
+    });
   });
 
   afterEach(() => {
@@ -471,17 +483,7 @@ describe("StreamingHandler routing integration", () => {
     getModeAwareProcessorMock.mockReset();
     buildConversationContextMock.mockReset();
 
-    if (originalChrome) {
-      (globalThis as any).chrome = originalChrome;
-    } else {
-      delete (globalThis as any).chrome;
-    }
-
-    if (originalCrypto) {
-      (globalThis as any).crypto = originalCrypto;
-    } else {
-      delete (globalThis as any).crypto;
-    }
+    vi.unstubAllGlobals();
 
     loggerInfoMock.mockReset();
     loggerWarnMock.mockReset();
@@ -607,6 +609,71 @@ describe("StreamingHandler routing integration", () => {
       ([message]: any[]) => message.kind === "AI_PROCESS_STREAM_START",
     );
     expect(startCall?.[0].payload.resolvedModel).toBe("pro");
+  });
+
+  it("bypasses router for explicit provider and model selections", async () => {
+    randomUUIDMock
+      .mockReturnValueOnce("request-4")
+      .mockReturnValueOnce("message-4");
+
+    processRequestMock.mockImplementation(async function* (request: ModeAwareRequest) {
+      yield {
+        type: "provider-execution",
+        metadata: {
+          providerId: request.providerId || "provider-openai",
+          providerType: "openai",
+          modelId: request.modelId || "gpt-4.1-mini",
+          attemptedProviderIds: [request.providerId || "provider-openai"],
+          fallbackOccurred: false,
+        },
+      };
+      yield {
+        content: "configured provider result",
+        source: "gemini-flash",
+        mode: request.mode,
+        contextUsed: [],
+        tokensUsed: 20,
+        processingTime: 10,
+        providerExecution: {
+          providerId: request.providerId || "provider-openai",
+          providerType: "openai",
+          modelId: request.modelId || "gpt-4.1-mini",
+          attemptedProviderIds: [request.providerId || "provider-openai"],
+          fallbackOccurred: false,
+        },
+      };
+    });
+
+    const handler = new StreamingHandler({} as any, {} as any);
+
+    await handler.startStreaming(
+      {
+        prompt: "Use my configured OpenAI model",
+        mode: "ask",
+        conversationId: "conv-provider",
+        providerId: "provider-openai",
+        modelId: "gpt-4.1-mini",
+        preferLocal: false,
+        autoContext: true,
+      },
+      {} as any,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(routeQueryMock).not.toHaveBeenCalled();
+
+    const modeAwareArg = processRequestMock.mock.calls[0][0] as ModeAwareRequest;
+    expect(modeAwareArg.providerId).toBe("provider-openai");
+    expect(modeAwareArg.modelId).toBe("gpt-4.1-mini");
+    expect(modeAwareArg.preferLocal).toBe(false);
+    expect(modeAwareArg.targetModel).toBeUndefined();
+
+    const startCall = sendMessageMock.mock.calls.find(
+      ([message]: any[]) => message.kind === "AI_PROCESS_STREAM_START",
+    );
+    expect(startCall?.[0].payload.providerId).toBe("provider-openai");
+    expect(startCall?.[0].payload.modelId).toBe("gpt-4.1-mini");
   });
 
   it("falls back to preferLocal defaults when router throws", async () => {

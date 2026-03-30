@@ -51,10 +51,9 @@ interface AIInputWithFileProps {
   onSubmit?: (message: string, files?: File[]) => void;
   className?: string;
   disabled?: boolean;
-  model?: "auto" | "nano" | "flash-lite" | "flash" | "pro";
-  onModelChange?: (
-    model: "auto" | "nano" | "flash-lite" | "flash" | "pro",
-  ) => void;
+  model?: string;
+  modelOptions?: ModelOption[];
+  onModelChange?: (model: string) => void;
   autoContext?: boolean;
   onAutoContextChange?: (enabled: boolean) => void;
   attachedPocketId?: string | null; // Deprecated: use attachedPocketIds
@@ -69,6 +68,48 @@ interface AIInputWithFileProps {
   onDetachPocket?: (pocketId?: string) => void;
 }
 
+type ModelIconType = "auto" | "local" | "fast" | "cloud";
+
+export interface ModelOption {
+  value: string;
+  label: string;
+  description?: string;
+  icon?: ModelIconType;
+}
+
+const DEFAULT_MODEL_OPTIONS: ModelOption[] = [
+  {
+    value: "auto",
+    label: "Auto",
+    description: "Automatically choose the best configured model.",
+    icon: "auto",
+  },
+  {
+    value: "nano",
+    label: "Gemini Nano",
+    description: "On-device, fastest and private. Limited context and reasoning.",
+    icon: "local",
+  },
+  {
+    value: "flash-lite",
+    label: "Gemini 2.5 Flash Lite",
+    description: "Cloud, lowest cost. Best for short and simple prompts.",
+    icon: "fast",
+  },
+  {
+    value: "flash",
+    label: "Gemini 2.5 Flash",
+    description: "Cloud, balanced speed/cost. Good for larger inputs.",
+    icon: "fast",
+  },
+  {
+    value: "pro",
+    label: "Gemini 2.5 Pro",
+    description: "Cloud, most capable reasoning and coding. Highest cost.",
+    icon: "cloud",
+  },
+];
+
 export function AIInputWithFile({
   id = "ai-input-with-file",
   placeholder = "File Upload and Chat!",
@@ -81,6 +122,7 @@ export function AIInputWithFile({
   className,
   disabled = false,
   model = "auto",
+  modelOptions = DEFAULT_MODEL_OPTIONS,
   onModelChange,
   autoContext = true,
   onAutoContextChange,
@@ -381,49 +423,37 @@ export function AIInputWithFile({
     }
   }, [isSpeechSupported, isListening, disabled]);
 
-  const getModelLabel = (m: AIInputWithFileProps["model"]) => {
-    switch (m) {
-      case "nano":
-        return "Gemini Nano";
-      case "flash-lite":
-        return "Gemini 2.5 Flash Lite";
-      case "flash":
-        return "Gemini 2.5 Flash";
-      case "pro":
-        return "Gemini 2.5 Pro";
-      default:
-        return "Auto";
-    }
-  };
+  const currentModelOption = useMemo(() => {
+    return (
+      modelOptions.find((option) => option.value === model) || {
+        value: model,
+        label: model || "Auto",
+        icon: "auto" as const,
+      }
+    );
+  }, [model, modelOptions]);
 
-  const getModelIcon = (m: AIInputWithFileProps["model"]) => {
-    switch (m) {
-      case "nano":
+  const getModelIcon = (iconType?: ModelIconType) => {
+    switch (iconType) {
+      case "local":
         return <Cpu className="size-3.5" />;
-      case "flash-lite":
-      case "flash":
+      case "fast":
         return <Zap className="size-3.5" />;
-      case "pro":
+      case "cloud":
         return <Cloud className="size-3.5" />;
       default:
         return <Sparkles className="size-3.5" />;
     }
   };
 
-  const getModelTooltip = (m: AIInputWithFileProps["model"]) => {
-    switch (m) {
-      case "nano":
-        return "On-device, fastest and private. Limited context and reasoning.";
-      case "flash-lite":
-        return "Cloud, lowest cost. Best for short and simple prompts.";
-      case "flash":
-        return "Cloud, balanced speed/cost. Good for larger inputs.";
-      case "pro":
-        return "Cloud, most capable reasoning and coding. Highest cost.";
-      default:
-        return "Automatically choose the best model based on task and device.";
-    }
-  };
+  const selectedModelLabel = currentModelOption.label;
+  const modelSelectorWidth = useMemo(() => {
+    const approximateWidthInCh = Math.min(
+      Math.max(selectedModelLabel.length + 7, 10),
+      24,
+    );
+    return `${approximateWidthInCh}ch`;
+  }, [selectedModelLabel]);
 
   // Convert attachedPockets to PocketInfo format
   const pocketInfos: PocketInfo[] = useMemo(() => {
@@ -770,61 +800,53 @@ export function AIInputWithFile({
           {/* Model Selector and Auto-Context Toggle row below input */}
           <div
             className={cn(
-              "mt-2 flex items-center gap-2",
+              "mt-2 flex min-w-0 items-center gap-2",
               disabled && "opacity-60 pointer-events-none",
             )}
           >
             <Tooltip sideOffset={6}>
               <TooltipTrigger asChild>
-                <Select
-                  value={model}
-                  onValueChange={(val) => onModelChange?.(val as any)}
-                  disabled={disabled}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="h-7 sm:h-8 px-2 rounded-2xl bg-white/10 dark:bg-white/10 backdrop-blur-md border border-white/10 text-xs text-white shadow-md hover:bg-white/20 transition-colors"
+                <div className="min-w-0 max-w-[calc(100%-6.75rem)] sm:max-w-[18rem]">
+                  <Select
+                    value={model}
+                    onValueChange={(val) => onModelChange?.(val as any)}
+                    disabled={disabled}
                   >
-                    <SelectValue>
-                      <span className="inline-flex items-center gap-1.5">
-                        {getModelIcon(model)}
-                        <span>{getModelLabel(model)}</span>
-                      </span>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent
-                    align="start"
-                    className="backdrop-blur-md bg-white/10 dark:bg-white/10 border border-white/10 shadow-lg"
-                  >
-                    <SelectItem value="auto">
-                      <span className="inline-flex items-center gap-2">
-                        <Sparkles className="size-4" /> Auto
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="nano">
-                      <span className="inline-flex items-center gap-2">
-                        <Cpu className="size-4" /> Gemini Nano
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="flash-lite">
-                      <span className="inline-flex items-center gap-2">
-                        <Zap className="size-4" /> Gemini 2.5 Flash Lite
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="flash">
-                      <span className="inline-flex items-center gap-2">
-                        <Zap className="size-4" /> Gemini 2.5 Flash
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="pro">
-                      <span className="inline-flex items-center gap-2">
-                        <Cloud className="size-4" /> Gemini 2.5 Pro
-                      </span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                    <SelectTrigger
+                      size="sm"
+                      className="h-7 sm:h-8 min-w-0 max-w-full rounded-2xl bg-white/10 dark:bg-white/10 backdrop-blur-md border border-white/10 text-xs text-white shadow-md hover:bg-white/20 transition-colors"
+                      style={{
+                        width: modelSelectorWidth,
+                        maxWidth: "100%",
+                      }}
+                    >
+                      <SelectValue>
+                        <span className="inline-flex min-w-0 items-center gap-1.5">
+                          {getModelIcon(currentModelOption.icon)}
+                          <span className="truncate">{selectedModelLabel}</span>
+                        </span>
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent
+                      align="start"
+                      className="backdrop-blur-md bg-white/10 dark:bg-white/10 border border-white/10 shadow-lg"
+                    >
+                      {modelOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <span className="inline-flex items-center gap-2">
+                            {getModelIcon(option.icon)}
+                            {option.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </TooltipTrigger>
-              <TooltipContent>{getModelTooltip(model)}</TooltipContent>
+              <TooltipContent>
+                {currentModelOption.description ||
+                  "Choose which configured model handles this chat."}
+              </TooltipContent>
             </Tooltip>
 
             {/* Auto-Context Toggle Button */}
@@ -837,7 +859,7 @@ export function AIInputWithFile({
                       onClick={() => onAutoContextChange(!autoContext)}
                       disabled={disabled}
                       className={cn(
-                        "relative h-7 sm:h-8 min-h-[28px] sm:min-h-[32px] px-2 py-0 leading-none rounded-2xl backdrop-blur-md border text-xs shadow-md inline-flex items-center gap-1.5 transition-all duration-200 focus-visible:outline-none",
+                        "relative shrink-0 whitespace-nowrap h-7 sm:h-8 min-h-[28px] sm:min-h-[32px] px-2 py-0 leading-none rounded-2xl backdrop-blur-md border text-xs shadow-md inline-flex items-center gap-1.5 transition-all duration-200 focus-visible:outline-none",
                         autoContext
                           ? "bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/70"
                           : "bg-white/10 border-white/10 text-white/60 hover:bg-white/15 hover:text-white/80",

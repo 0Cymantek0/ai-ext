@@ -1083,6 +1083,8 @@ export class HybridAIEngine {
       task,
       ...(options?.signal ? { signal: options.signal } : {}),
       ...(options?.maxTokens ? { maxOutputTokens: options.maxTokens } : {}),
+      ...(options?.providerId ? { providerId: options.providerId } : {}),
+      ...(options?.modelId ? { modelId: options.modelId } : {}),
     };
   }
 

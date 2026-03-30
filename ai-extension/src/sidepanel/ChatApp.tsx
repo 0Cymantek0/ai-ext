@@ -10,7 +10,10 @@ import {
   MessageContent,
 } from "@/components/ai/message";
 import { Response } from "@/components/ai/response";
-import { AIInputWithFile } from "@/components/ui/ai-input-with-file";
+import {
+  AIInputWithFile,
+  type ModelOption,
+} from "@/components/ui/ai-input-with-file";
 import { Loader } from "@/components/ai/loader";
 import { Actions, ActionButton } from "@/components/ai/actions";
 import { TopBar } from "@/components/TopBar";
@@ -36,6 +39,7 @@ import type {
   AiStreamStartPayload,
   MessageMetadata,
   ProviderExecutionMetadata,
+  ProviderSettingsSnapshot,
 } from "@/shared/types/index.d";
 import {
   attachPocketToConversation,
@@ -100,6 +104,103 @@ interface PocketSelectionRequestState {
 type AssistantProvenance = {
   providerLabel: string;
   fallbackLabel?: string;
+};
+
+type ChatModelOption = ModelOption & {
+  providerId?: string;
+  providerType?: string;
+  modelId?: string;
+};
+
+const AUTO_MODEL_OPTION: ChatModelOption = {
+  value: "auto",
+  label: "Auto",
+  description: "Automatically route across your configured providers.",
+  icon: "auto",
+};
+
+const isChatModelEntry = (
+  entry: ProviderSettingsSnapshot["modelSheet"][string],
+): boolean => {
+  const normalizedModelId = entry.modelId.toLowerCase();
+  if (normalizedModelId.includes("embedding")) {
+    return false;
+  }
+
+  return !entry.capabilities?.supportsTranscription;
+};
+
+const getModelOptionIcon = (
+  providerType?: string,
+): NonNullable<ChatModelOption["icon"]> => {
+  if (providerType === "gemini-nano" || providerType === "ollama") {
+    return "local";
+  }
+
+  if (providerType === "google" || providerType === "openai") {
+    return "cloud";
+  }
+
+  return "fast";
+};
+
+const buildChatModelOptions = (
+  snapshot: ProviderSettingsSnapshot | null,
+): ChatModelOption[] => {
+  if (!snapshot) {
+    return [AUTO_MODEL_OPTION];
+  }
+
+  const configuredOptions = snapshot.providers
+    .filter((provider) => provider.enabled)
+    .flatMap((provider) => {
+      const providerEntries = Object.values(snapshot.modelSheet)
+        .filter(
+          (entry) =>
+            entry.providerId === provider.id &&
+            entry.enabled !== false &&
+            isChatModelEntry(entry),
+        )
+        .sort((left, right) => {
+          if (left.modelId === provider.modelId) return -1;
+          if (right.modelId === provider.modelId) return 1;
+          return left.modelId.localeCompare(right.modelId);
+        });
+
+      if (
+        provider.modelId &&
+        !providerEntries.some((entry) => entry.modelId === provider.modelId)
+      ) {
+        providerEntries.unshift({
+          modelId: provider.modelId,
+          providerId: provider.id,
+          providerType: provider.type,
+          name: provider.modelId,
+        });
+      }
+
+      return providerEntries.map((entry) => ({
+        value: `${provider.id}::${entry.modelId}`,
+        label: `${provider.name} • ${entry.name || entry.modelId}`,
+        description: `${provider.type} • ${entry.modelId}`,
+        icon: getModelOptionIcon(provider.type),
+        providerId: provider.id,
+        providerType: provider.type,
+        modelId: entry.modelId,
+      }));
+    });
+
+  return [AUTO_MODEL_OPTION, ...configuredOptions];
+};
+
+const resolveSelectedChatModel = (
+  selectedValue: string,
+  modelOptions: ChatModelOption[],
+): ChatModelOption => {
+  return (
+    modelOptions.find((option) => option.value === selectedValue) ||
+    AUTO_MODEL_OPTION
+  );
 };
 
 const getProviderExecutionMetadata = (
@@ -189,6 +290,8 @@ export function ChatApp() {
   const [showShareModal, setShowShareModal] = React.useState(false);
   // Provider settings state
   const [showProviderSettings, setShowProviderSettings] = React.useState(false);
+  const [settingsSnapshot, setSettingsSnapshot] =
+    React.useState<ProviderSettingsSnapshot | null>(null);
   // Export menu state - track which message's export menu is open
   const [exportMenuOpenForMessage, setExportMenuOpenForMessage] =
     React.useState<string | null>(null);
@@ -216,38 +319,47 @@ export function ChatApp() {
     [],
   );
 
-  // Model selection: "auto" | "nano" | "flash-lite" | "flash" | "pro"
-  const [selectedModel, setSelectedModel] = React.useState<
-    "auto" | "nano" | "flash-lite" | "flash" | "pro"
-  >("auto");
+  const [selectedModel, setSelectedModel] = React.useState("auto");
+  const chatModelOptions = React.useMemo(
+    () => buildChatModelOptions(settingsSnapshot),
+    [settingsSnapshot],
+  );
+  const selectedChatModel = React.useMemo(
+    () => resolveSelectedChatModel(selectedModel, chatModelOptions),
+    [chatModelOptions, selectedModel],
+  );
 
   // Indexing status hook
   const indexingStatus = useIndexingStatus();
 
   const mapSelectedToPreferLocal = (
-    model: typeof selectedModel,
+    modelOption: ChatModelOption,
   ): boolean | undefined => {
-    if (model === "nano") return true;
-    if (model === "auto") return true; // Currently bias to local in engine
-    return false; // cloud models
+    if (modelOption.value === "auto") {
+      return true;
+    }
+
+    return modelOption.providerType === "gemini-nano" ||
+      modelOption.providerType === "ollama"
+      ? true
+      : false;
   };
 
   const mapSelectedToConversationModel = (
-    model: typeof selectedModel,
+    modelOption: ChatModelOption,
   ): "gemini-nano" | "gemini-flash" | "gemini-pro" => {
-    if (model === "pro") return "gemini-pro";
-    if (model === "flash" || model === "flash-lite") return "gemini-flash";
-    return "gemini-nano";
-  };
+    if (
+      modelOption.providerType === "gemini-nano" ||
+      modelOption.value === "auto"
+    ) {
+      return "gemini-nano";
+    }
 
-  const mapSelectedToPayloadModel = (
-    model: typeof selectedModel,
-  ): "nano" | "flash" | "pro" | "auto" | undefined => {
-    if (model === "nano") return "nano";
-    if (model === "auto") return "auto";
-    if (model === "pro") return "pro";
-    if (model === "flash" || model === "flash-lite") return "flash";
-    return undefined;
+    if (modelOption.modelId?.toLowerCase().includes("pro")) {
+      return "gemini-pro";
+    }
+
+    return "gemini-flash";
   };
 
   const loadConversations = async () => {
@@ -318,25 +430,83 @@ export function ChatApp() {
     }
   };
 
+  const loadSettingsSnapshot = React.useCallback(async () => {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        kind: "SETTINGS_SNAPSHOT_LOAD",
+        requestId: crypto.randomUUID(),
+        payload: {},
+      });
+
+      if (response.success && response.data) {
+        const snapshot = response.data as ProviderSettingsSnapshot;
+        setSettingsSnapshot(snapshot);
+
+        const nextOptions = buildChatModelOptions(snapshot);
+        setSelectedModel((current) =>
+          nextOptions.some((option) => option.value === current)
+            ? current
+            : "auto",
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load provider/model settings snapshot:", error);
+    }
+  }, []);
+
   // Streaming handlers with useCallback to prevent stale closures
   const handleStreamStart = React.useCallback(
     (payload: AiStreamStartPayload) => {
       const providerExecution = getProviderExecutionMetadata(payload);
-      const newMessage: ChatMessage = {
-        id: payload.messageId || crypto.randomUUID(), // Use messageId from backend if available
-        role: "assistant",
-        content: "",
-        timestamp: Date.now(),
-        isStreaming: true,
-        ...(providerExecution
-          ? {
-              metadata: {
-                providerExecution,
-              },
-            }
-          : {}),
-      };
-      setMessages((prev) => [...prev, newMessage]);
+      setMessages((prev) => {
+        const lastMessage = prev[prev.length - 1];
+        const nextMessage: ChatMessage = {
+          ...(lastMessage &&
+          lastMessage.role === "assistant" &&
+          lastMessage.isStreaming &&
+          lastMessage.content.length === 0
+            ? lastMessage
+            : {
+                id: crypto.randomUUID(),
+                role: "assistant" as const,
+                content: "",
+                timestamp: Date.now(),
+              }),
+          id:
+            payload.messageId ||
+            (lastMessage &&
+            lastMessage.role === "assistant" &&
+            lastMessage.isStreaming &&
+            lastMessage.content.length === 0
+              ? lastMessage.id
+              : crypto.randomUUID()),
+          isStreaming: true,
+          ...(providerExecution
+            ? {
+                metadata: {
+                  ...((lastMessage &&
+                    lastMessage.role === "assistant" &&
+                    lastMessage.isStreaming &&
+                    lastMessage.content.length === 0 &&
+                    lastMessage.metadata) ||
+                    {}),
+                  providerExecution,
+                },
+              }
+            : {}),
+        };
+
+        if (
+          lastMessage &&
+          lastMessage.role === "assistant" &&
+          lastMessage.isStreaming &&
+          lastMessage.content.length === 0
+        ) {
+          return [...prev.slice(0, -1), nextMessage];
+        }
+
+        return [...prev, nextMessage];
+      });
       setIsLoading(false);
     },
     [],
@@ -411,15 +581,25 @@ export function ChatApp() {
   );
 
   const handleStreamError = React.useCallback((payload: { error: string }) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        role: "system",
-        content: `⚠️ Error: ${payload.error}`,
-        timestamp: Date.now(),
-      },
-    ]);
+    setMessages((prev) => {
+      const nextMessages =
+        prev.length > 0 &&
+        prev[prev.length - 1]?.role === "assistant" &&
+        prev[prev.length - 1]?.isStreaming &&
+        prev[prev.length - 1]?.content.length === 0
+          ? prev.slice(0, -1)
+          : prev;
+
+      return [
+        ...nextMessages,
+        {
+          id: crypto.randomUUID(),
+          role: "system",
+          content: `⚠️ Error: ${payload.error}`,
+          timestamp: Date.now(),
+        },
+      ];
+    });
     setIsLoading(false);
     setCurrentRequestId(null);
   }, []);
@@ -518,7 +698,14 @@ export function ChatApp() {
   // Load conversations on mount
   React.useEffect(() => {
     loadConversations();
-  }, []);
+    void loadSettingsSnapshot();
+  }, [loadSettingsSnapshot]);
+
+  React.useEffect(() => {
+    if (!showProviderSettings) {
+      void loadSettingsSnapshot();
+    }
+  }, [loadSettingsSnapshot, showProviderSettings]);
 
   // Initialize Konami code listener for Zork Easter egg
   React.useEffect(() => {
@@ -556,7 +743,15 @@ export function ChatApp() {
       files: hasFiles ? files : undefined,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const pendingAssistantMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "",
+      timestamp: Date.now(),
+      isStreaming: true,
+    };
+
+    setMessages((prev) => [...prev, userMessage, pendingAssistantMessage]);
     setIsLoading(true);
 
     // Generate or use existing conversation ID
@@ -614,7 +809,7 @@ export function ChatApp() {
             payload: {
               conversationId,
               messages: dbMessages,
-              model: mapSelectedToConversationModel(selectedModel),
+              model: mapSelectedToConversationModel(selectedChatModel),
               pocketId: undefined,
             },
           });
@@ -670,8 +865,16 @@ export function ChatApp() {
         payload: {
           prompt: text || "Sent with attachment",
           conversationId,
-          preferLocal: mapSelectedToPreferLocal(selectedModel),
-          model: mapSelectedToPayloadModel(selectedModel),
+          preferLocal: mapSelectedToPreferLocal(selectedChatModel),
+          ...(selectedChatModel.value === "auto"
+            ? { model: "auto" as const }
+            : {}),
+          ...(selectedChatModel.providerId
+            ? { providerId: selectedChatModel.providerId }
+            : {}),
+          ...(selectedChatModel.modelId
+            ? { modelId: selectedChatModel.modelId }
+            : {}),
           mode: currentMode, // Include current mode
           autoContext, // Use state variable for automatic context inclusion
         },
@@ -1933,6 +2136,7 @@ export function ChatApp() {
                   disabled={isLoading}
                   className="mx-auto p-0 sm:p-0 py-0 px-0 max-w-[92vw] sm:max-w-xl md:max-w-2xl lg:max-w-3xl"
                   model={selectedModel}
+                  modelOptions={chatModelOptions}
                   onModelChange={setSelectedModel}
                   autoContext={autoContext}
                   onAutoContextChange={setAutoContext}

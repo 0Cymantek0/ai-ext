@@ -17,9 +17,10 @@ export function buildProviderCards(
 
   return snapshot.providers.map((p) => {
     let modelLabel: string | undefined;
-    // Attempt to extract a provider-scoped model label from the provider record itself.
-    if (p.modelId && snapshot.modelSheet?.[p.modelId]) {
-      const modelEntry = snapshot.modelSheet[p.modelId];
+    if (p.modelId) {
+      const modelEntry = Object.values(snapshot.modelSheet || {}).find(
+        (entry) => entry.providerId === p.id && entry.modelId === p.modelId,
+      );
       modelLabel = modelEntry?.name || p.modelId;
     }
 

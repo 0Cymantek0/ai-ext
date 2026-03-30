@@ -19,6 +19,9 @@ export class ProviderExecutionService {
     const resolved = await this.providerRouter.resolveCapability(
       "chat",
       request.prompt,
+      undefined,
+      request.providerId,
+      request.modelId,
     );
 
     const response = await generateText({
@@ -51,6 +54,9 @@ export class ProviderExecutionService {
     const resolved = await this.providerRouter.resolveCapability(
       "chat",
       request.prompt,
+      undefined,
+      request.providerId,
+      request.modelId,
     );
 
     const providerExecutionEvent: ProviderExecutionEvent = {

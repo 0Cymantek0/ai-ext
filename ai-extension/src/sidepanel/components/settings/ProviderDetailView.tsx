@@ -11,6 +11,8 @@ import {
 import { ArrowLeft, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { CustomEndpointForm } from "../CustomEndpointForm";
 
+const ADD_MODEL_VALUE = "__add_new_model__";
+
 interface ProviderData {
   id: string;
   name: string;
@@ -48,12 +50,32 @@ export function ProviderDetailView({
   const [showKey, setShowKey] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [retesting, setRetesting] = React.useState(false);
+  const [isAddingModel, setIsAddingModel] = React.useState(false);
+  const [manualModelId, setManualModelId] = React.useState("");
+  const [manualModelError, setManualModelError] = React.useState<string | null>(
+    null,
+  );
+  const [isSavingModel, setIsSavingModel] = React.useState(false);
 
   if (!provider) return null;
 
-  const providerModels = Object.values(modelSheet).filter(
-    (m: ModelData) => m.providerId === provider.id,
-  );
+  const providerModels = React.useMemo(() => {
+    const models = Object.values(modelSheet).filter(
+      (m: ModelData) => m.providerId === provider.id,
+    );
+
+    if (
+      provider.modelId &&
+      !models.some((model: ModelData) => model.modelId === provider.modelId)
+    ) {
+      models.unshift({
+        providerId: provider.id,
+        modelId: provider.modelId,
+      });
+    }
+
+    return models;
+  }, [modelSheet, provider.id, provider.modelId]);
 
   const handleRetest = async () => {
     setRetesting(true);
@@ -91,12 +113,50 @@ export function ProviderDetailView({
   };
 
   const handleModelChange = async (modelId: string) => {
+    if (modelId === ADD_MODEL_VALUE) {
+      setIsAddingModel(true);
+      setManualModelError(null);
+      setManualModelId(selectedModelId);
+      return;
+    }
+
     setSelectedModelId(modelId);
     await chrome.runtime.sendMessage({
       kind: "PROVIDER_SETTINGS_SAVE",
       payload: { providerId: provider.id, modelId },
     });
     onUpdate();
+  };
+
+  const handleAddModel = async () => {
+    const trimmedModelId = manualModelId.trim();
+    if (!trimmedModelId) {
+      setManualModelError("Model ID is required");
+      return;
+    }
+
+    setIsSavingModel(true);
+    setManualModelError(null);
+    try {
+      await chrome.runtime.sendMessage({
+        kind: "PROVIDER_SETTINGS_ADD_MODEL",
+        payload: {
+          providerId: provider.id,
+          modelId: trimmedModelId,
+          name: trimmedModelId,
+        },
+      });
+      setSelectedModelId(trimmedModelId);
+      setIsAddingModel(false);
+      setManualModelId("");
+      onUpdate();
+    } catch (error) {
+      setManualModelError(
+        error instanceof Error ? error.message : "Failed to save model",
+      );
+    } finally {
+      setIsSavingModel(false);
+    }
   };
 
   return (
@@ -189,8 +249,53 @@ export function ProviderDetailView({
                   {m.modelId}
                 </SelectItem>
               ))}
+              <SelectItem value={ADD_MODEL_VALUE}>Add a new model</SelectItem>
             </SelectContent>
           </Select>
+          {providerModels.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No models were discovered for this provider yet. Add one manually.
+            </p>
+          )}
+          {isAddingModel && (
+            <div className="rounded-md border p-3 space-y-2">
+              <label className="text-xs font-medium">Model ID</label>
+              <Input
+                value={manualModelId}
+                onChange={(e) => setManualModelId(e.target.value)}
+                placeholder="e.g. gpt-4.1-mini or llama3.1:8b"
+                className="h-9 text-sm"
+              />
+              {manualModelError && (
+                <p className="text-xs text-destructive">{manualModelError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleAddModel}
+                  disabled={isSavingModel}
+                >
+                  {isSavingModel ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Save Model"
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsAddingModel(false);
+                    setManualModelError(null);
+                    setManualModelId("");
+                  }}
+                  disabled={isSavingModel}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="border rounded-md">

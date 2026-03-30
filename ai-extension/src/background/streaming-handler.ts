@@ -44,6 +44,11 @@ interface ConversationRoutingMetadata {
   truncated?: boolean;
 }
 
+interface ExplicitProviderSelection {
+  providerId?: string;
+  modelId?: string;
+}
+
 /**
  * Active streaming session
  */
@@ -124,6 +129,19 @@ export class StreamingHandler {
     return "ask";
   }
 
+  private getExplicitProviderSelection(
+    payload: AiStreamRequestPayload,
+  ): ExplicitProviderSelection | undefined {
+    if (!payload.providerId && !payload.modelId) {
+      return undefined;
+    }
+
+    return {
+      ...(payload.providerId ? { providerId: payload.providerId } : {}),
+      ...(payload.modelId ? { modelId: payload.modelId } : {}),
+    };
+  }
+
   private async collectConversationMetadata(
     conversationId?: string,
   ): Promise<ConversationRoutingMetadata | undefined> {
@@ -180,13 +198,18 @@ export class StreamingHandler {
 
     const userSpecifiedModel =
       payload.model && payload.model !== "auto" ? payload.model : undefined;
+    const explicitProviderSelection = this.getExplicitProviderSelection(payload);
 
-    if (userSpecifiedModel) {
-      session.resolvedModel = userSpecifiedModel;
+    if (userSpecifiedModel || explicitProviderSelection) {
+      if (userSpecifiedModel) {
+        session.resolvedModel = userSpecifiedModel;
+      }
       logger.info("StreamingHandler", "Using user-selected model", {
         requestId,
         conversationId: payload.conversationId,
         model: userSpecifiedModel,
+        providerId: explicitProviderSelection?.providerId,
+        modelId: explicitProviderSelection?.modelId,
       });
     } else {
       const mode = this.validateAndDetectMode(payload);
@@ -252,6 +275,8 @@ export class StreamingHandler {
     const loggedPreferLocal =
       userSpecifiedModel !== undefined
         ? userSpecifiedModel === "nano"
+        : explicitProviderSelection
+          ? (payload.preferLocal ?? false)
         : (session.routingDecision?.preferLocal ?? payload.preferLocal ?? true);
 
     if (!session.resolvedModel) {
@@ -301,6 +326,7 @@ export class StreamingHandler {
       const sessionDecision = session.routingDecision;
       const manualModel =
         payload.model && payload.model !== "auto" ? payload.model : undefined;
+      const explicitProviderSelection = this.getExplicitProviderSelection(payload);
 
       let preferLocal = payload.preferLocal;
 
@@ -316,7 +342,9 @@ export class StreamingHandler {
         preferLocal = true;
       }
 
-      const targetModel = manualModel ?? sessionDecision?.targetModel;
+      const targetModel = explicitProviderSelection
+        ? undefined
+        : (manualModel ?? sessionDecision?.targetModel);
 
       const routingMetadata = sessionDecision
         ? {
@@ -346,6 +374,8 @@ export class StreamingHandler {
         routingConfidence: sessionDecision?.confidence,
         modelSource: manualModel
           ? "manual"
+          : explicitProviderSelection
+            ? "provider-selection"
           : sessionDecision
             ? "router"
             : "default",
@@ -359,6 +389,8 @@ export class StreamingHandler {
         pocketId: payload.pocketId,
         preferLocal,
         model: manualModel,
+        ...(payload.providerId ? { providerId: payload.providerId } : {}),
+        ...(payload.modelId ? { modelId: payload.modelId } : {}),
         autoContext: payload.autoContext ?? true, // Default to true
         ...(targetModel && { targetModel }),
         ...(routingMetadata && { routingMetadata }),

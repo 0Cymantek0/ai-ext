@@ -26,13 +26,16 @@ export class ProviderRouter {
     capability: CapabilityType,
     prompt: string,
     nanoModel?: any,
+    preferredProviderId?: string,
+    preferredModelId?: string,
   ): Promise<ResolvedProviderExecution> {
     const prefs = await this.settingsManager.getRoutingPreferences();
-    const primary = prefs[capability];
+    const primary = preferredProviderId ?? prefs[capability];
 
-    let executionChain = [primary, ...prefs.fallbackChain].filter(
-      Boolean,
-    ) as string[];
+    let executionChain = [
+      primary,
+      ...prefs.fallbackChain.filter((providerId) => providerId !== primary),
+    ].filter(Boolean) as string[];
 
     // Initialize configManager early — needed for both auto mode and execution chain
     const configManager = getProviderConfigManager();
@@ -132,14 +135,19 @@ export class ProviderRouter {
           continue;
         }
 
-        // D-09: Check at least one enabled model exists for this provider
         const providerModels = Object.values(modelSheet).filter(
           (entry) => entry.providerId === providerId && entry.enabled !== false,
         );
-        if (providerModels.length === 0) {
+        const resolvedModelId =
+          (providerId === preferredProviderId ? preferredModelId : undefined) ||
+          config.modelId ||
+          providerModels[0]?.modelId ||
+          "";
+
+        if (!resolvedModelId) {
           diagnostics.push({
             providerId,
-            error: "No enabled models for this provider",
+            error: "No enabled or configured models for this provider",
           });
           continue;
         }
@@ -160,7 +168,7 @@ export class ProviderRouter {
           metadata: {
             providerId,
             providerType: config.type,
-            modelId: config.modelId || providerModels[0]?.modelId || "",
+            modelId: resolvedModelId,
             attemptedProviderIds,
             ...(fallbackOccurred && primary
               ? { fallbackFromProviderId: primary }

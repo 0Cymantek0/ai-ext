@@ -274,6 +274,7 @@ export class SettingsManager {
       providerId,
       providerType: entry.providerType,
       enabled: entry.enabled ?? true,
+      ...(entry.name ? { name: entry.name } : {}),
       capabilities: entry.capabilities ?? {
         supportsVision: false,
         contextWindow: 4096,

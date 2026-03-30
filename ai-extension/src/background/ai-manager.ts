@@ -62,6 +62,8 @@ export interface ProcessingOptions {
   forcedLocation?: HybridProcessingLocation;
   forcedLocationReason?: string;
   forcedLocationConfidence?: number;
+  providerId?: string;
+  modelId?: string;
 }
 
 /**
