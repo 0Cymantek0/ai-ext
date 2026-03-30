@@ -4,6 +4,8 @@
 
 This roadmap turns AI Pocket into an agentic browser workspace centered on two major workflows: browser-action execution and research-grade deep research. The roadmap begins with an architectural reset of partial agent systems already in the repository, then builds a safe browser runtime, deep research orchestration, pocket-native evidence accumulation, dense report generation, and a polished side-panel control experience.
 
+Phase 6 settings follow-up work was completed on 2026-03-29 to stabilize provider detail, routing, speech, and provenance surfaces before deeper agent-platform work proceeds. The roadmap focus still starts at Phase 7 for milestone v2.0.
+
 ## Phases
 
 **Phase Numbering:**
@@ -29,7 +31,11 @@ This roadmap turns AI Pocket into an agentic browser workspace centered on two m
 2. One typed runtime contract exists for run state, tool events, evidence writes, and terminal outcomes
 3. Agent checkpoints can restore enough state to resume or inspect interrupted runs
 4. Obsolete or conflicting agent abstractions identified by the audit are removed or isolated behind the new runtime
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 07-01-PLAN.md — Audit current runtime subsystems and define canonical shared runtime contracts plus Wave 0 tests
+- [ ] 07-02-PLAN.md — Add canonical persistence, checkpoints, and import-once migration from legacy browser-agent stores
+- [ ] 07-03-PLAN.md — Rewire service worker, side panel, browser-action/research flows, and report consumption to the canonical runtime
 
 ### Phase 8: Browser Action Runtime
 **Goal**: Deliver a dependable browser-action agent that can inspect and interact with pages through extension-safe tools
@@ -110,7 +116,7 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 7. Agent Architecture Reset | 0/TBD | Not started | - |
+| 7. Agent Architecture Reset | 0/3 | Not started | - |
 | 8. Browser Action Runtime | 0/TBD | Not started | - |
 | 9. Human-in-the-Loop Control Layer | 0/TBD | Not started | - |
 | 10. Deep Research Orchestrator | 0/TBD | Not started | - |
