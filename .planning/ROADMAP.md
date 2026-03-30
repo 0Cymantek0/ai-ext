@@ -34,7 +34,7 @@ Phase 6 settings follow-up work was completed on 2026-03-29 to stabilize provide
 **Plans**: 3 plans
 Plans:
 - [ ] 07-01-PLAN.md — Audit current runtime subsystems and define canonical shared runtime contracts plus Wave 0 tests
-- [ ] 07-02-PLAN.md — Add canonical persistence, checkpoints, and import-once migration from legacy browser-agent stores
+- [x] 07-02-PLAN.md — Add canonical persistence, checkpoints, and import-once migration from legacy browser-agent stores
 - [ ] 07-03-PLAN.md — Rewire service worker, side panel, browser-action/research flows, and report consumption to the canonical runtime
 
 ### Phase 8: Browser Action Runtime

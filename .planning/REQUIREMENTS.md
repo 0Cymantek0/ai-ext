@@ -11,9 +11,9 @@ Requirements for the autonomous browser agent and deep research milestone. Each 
 ### Architecture Audit and Runtime Reset
 
 - [ ] **ARCH-01**: Team can inventory all existing browser-agent, research, and report-generation subsystems and classify each as keep, refactor, or remove
-- [ ] **ARCH-02**: System exposes a single agent runtime contract for browser-action runs and deep-research runs
-- [ ] **ARCH-03**: Agent run state survives service worker interruptions through persisted checkpoints and resumable session state
-- [ ] **ARCH-04**: Tool execution, run events, and evidence writes share typed contracts across side panel, service worker, and content scripts
+- [x] **ARCH-02**: System exposes a single agent runtime contract for browser-action runs and deep-research runs
+- [x] **ARCH-03**: Agent run state survives service worker interruptions through persisted checkpoints and resumable session state
+- [x] **ARCH-04**: Tool execution, run events, and evidence writes share typed contracts across side panel, service worker, and content scripts
 
 ### Browser Action Agent
 
@@ -89,9 +89,9 @@ Explicitly excluded to prevent scope creep in this milestone.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | ARCH-01 | Phase 7 | Pending |
-| ARCH-02 | Phase 7 | Pending |
-| ARCH-03 | Phase 7 | Pending |
-| ARCH-04 | Phase 7 | Pending |
+| ARCH-02 | Phase 7 | Complete |
+| ARCH-03 | Phase 7 | Complete |
+| ARCH-04 | Phase 7 | Complete |
 | AGENT-01 | Phase 8 | Pending |
 | AGENT-02 | Phase 8 | Pending |
 | AGENT-03 | Phase 8 | Pending |
