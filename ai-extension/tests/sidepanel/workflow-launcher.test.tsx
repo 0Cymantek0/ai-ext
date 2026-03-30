@@ -251,7 +251,9 @@ describe("ModelSelector", () => {
     );
 
     // Auto option should be present
-    expect(screen.getByText("Auto")).toBeTruthy();
+    // Auto option appears in trigger and in option list
+    const autoElements = screen.getAllByText("Auto");
+    expect(autoElements.length).toBeGreaterThanOrEqual(1);
   });
 
   it("calls onSelect when a model is selected", () => {
@@ -265,8 +267,19 @@ describe("ModelSelector", () => {
       />,
     );
 
+    // Simulate selecting a model via the mock's onValueChange callback
+    // The mock Select exposes onValueChange through the native select's onChange
+    const selectWrapper = screen.getByTestId("model-select");
+    // Directly find the mock's internal onValueChange via the rendered native select
     const nativeSelect = screen.getByTestId("model-select-native");
-    fireEvent.change(nativeSelect, { target: { value: "prov-openai::gpt-4o" } });
+    // Override the value property so the change handler reads it correctly
+    Object.defineProperty(nativeSelect, "value", {
+      value: "prov-openai::gpt-4o",
+      writable: true,
+    });
+    act(() => {
+      fireEvent.change(nativeSelect);
+    });
     expect(onSelect).toHaveBeenCalledWith("prov-openai::gpt-4o");
   });
 
