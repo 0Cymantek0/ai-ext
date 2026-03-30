@@ -69,6 +69,8 @@ import {
 import { buildReportViewerUrl } from "@/shared/reporting/viewer";
 import { BrowserActionPanel } from "@/sidepanel/components/BrowserActionPanel";
 import { DeepResearchPanel } from "@/sidepanel/components/DeepResearchPanel";
+import { RunHistoryPanel } from "@/sidepanel/components/RunHistoryPanel";
+import { RunReviewPanel } from "@/sidepanel/components/RunReviewPanel";
 
 interface ChatMessage {
   id: string;
@@ -452,6 +454,16 @@ export function ChatApp() {
   const [deepResearchError, setDeepResearchError] = React.useState<
     string | null
   >(null);
+
+  // ── Historical Run Review State (Phase 13-02) ────────────────────────────
+  const [isRunHistoryOpen, setIsRunHistoryOpen] = React.useState(false);
+  const [runHistoryList, setRunHistoryList] = React.useState<AgentRun[]>([]);
+  const [isRunHistoryLoading, setIsRunHistoryLoading] = React.useState(false);
+  const [selectedHistoricalRun, setSelectedHistoricalRun] = React.useState<AgentRun | null>(null);
+  const [selectedHistoricalTimeline, setSelectedHistoricalTimeline] = React.useState<
+    import("@/shared/agent-runtime/selectors").AgentTimelineEntry[]
+  >([]);
+  const [isHistoricalReviewOpen, setIsHistoricalReviewOpen] = React.useState(false);
 
   const browserActionPanel = React.useMemo(
     () =>
@@ -1387,6 +1399,56 @@ export function ChatApp() {
     [deepResearchRun],
   );
 
+  // ── Historical Run Review Handlers (Phase 13-02) ─────────────────────────
+
+  const handleOpenRunHistory = React.useCallback(async () => {
+    setIsRunHistoryOpen(true);
+    setIsRunHistoryLoading(true);
+    try {
+      const response = await chrome.runtime.sendMessage({
+        kind: "AGENT_RUN_HISTORY_LIST",
+        requestId: crypto.randomUUID(),
+        payload: {},
+      });
+      if (response?.success) {
+        setRunHistoryList(response.runs ?? []);
+      }
+    } catch (error) {
+      console.error("Failed to load run history:", error);
+    } finally {
+      setIsRunHistoryLoading(false);
+    }
+  }, []);
+
+  const handleCloseRunHistory = React.useCallback(() => {
+    setIsRunHistoryOpen(false);
+  }, []);
+
+  const handleSelectHistoricalRun = React.useCallback(async (runId: string) => {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        kind: "AGENT_RUN_HISTORY_DETAIL",
+        requestId: crypto.randomUUID(),
+        payload: { runId },
+      });
+      if (response?.success) {
+        const rawEvents: AgentRunEvent[] = response.events ?? [];
+        setSelectedHistoricalRun(response.run);
+        setSelectedHistoricalTimeline(selectAgentTimeline(rawEvents));
+        setIsHistoricalReviewOpen(true);
+        setIsRunHistoryOpen(false);
+      }
+    } catch (error) {
+      console.error("Failed to load run detail:", error);
+    }
+  }, []);
+
+  const handleCloseHistoricalReview = React.useCallback(() => {
+    setIsHistoricalReviewOpen(false);
+    setSelectedHistoricalRun(null);
+    setSelectedHistoricalTimeline([]);
+  }, []);
+
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
     // Could add a toast notification here
@@ -2052,6 +2114,40 @@ export function ChatApp() {
                     setCurrentMode("ai-pocket");
                   }}
                 />
+
+                {/* Run History Entry Point */}
+                {!isRunHistoryOpen && !isHistoricalReviewOpen && (
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                      onClick={() => void handleOpenRunHistory()}
+                    >
+                      View run history
+                    </button>
+                  </div>
+                )}
+
+                {isRunHistoryOpen && (
+                  <RunHistoryPanel
+                    runs={runHistoryList}
+                    isLoading={isRunHistoryLoading}
+                    onSelectRun={(runId) => void handleSelectHistoricalRun(runId)}
+                    onClose={handleCloseRunHistory}
+                  />
+                )}
+
+                {isHistoricalReviewOpen && (
+                  <RunReviewPanel
+                    run={selectedHistoricalRun}
+                    timeline={selectedHistoricalTimeline}
+                    onClose={handleCloseHistoricalReview}
+                    onOpenPocket={(pocketId) => {
+                      setLinkedResearchPocketToOpen(pocketId);
+                      setCurrentMode("ai-pocket");
+                    }}
+                  />
+                )}
               </div>
             )}
             {currentMode === "ai-pocket" ? (

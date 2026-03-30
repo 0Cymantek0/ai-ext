@@ -5,26 +5,13 @@ import { AgentPanelLayout } from "@/sidepanel/components/AgentPanelLayout";
 import { AgentRunStatusBadge } from "@/sidepanel/components/AgentRunStatusBadge";
 import { AgentRunControls } from "@/sidepanel/components/AgentRunControls";
 import { AgentApprovalCard } from "@/sidepanel/components/AgentApprovalCard";
+import { AgentTimeline } from "@/sidepanel/components/AgentTimeline";
 import type {
   AgentRun,
   AgentPendingApproval,
   AgentTodoItem,
 } from "@/shared/agent-runtime/contracts";
 import type { AgentPanelState, AgentTimelineEntry } from "@/shared/agent-runtime/selectors";
-
-/**
- * Format a timestamp into a short locale time string for display in timeline entries.
- */
-const formatRunTimestamp = (timestamp: number): string => {
-  if (!Number.isFinite(timestamp)) {
-    return "";
-  }
-
-  return new Date(timestamp).toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-};
 
 export interface DeepResearchPanelProps {
   /** Current agent run state, or null if no run is active. */
@@ -364,33 +351,15 @@ export function DeepResearchPanel({
             />
           )}
 
-          {events.length > 0 && (
-            <div className="mt-3">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Timeline
-              </p>
-              <div className="mt-2 space-y-2">
-                {events.slice(-5).reverse().map((entry) => (
-                  <div
-                    key={entry.eventId}
-                    className="rounded-xl border border-border/50 bg-background px-3 py-2"
-                  >
-                    <div className="flex items-center justify-between gap-2 text-sm text-foreground">
-                      <span>{entry.label}</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {formatRunTimestamp(entry.timestamp)}
-                      </span>
-                    </div>
-                    {entry.detail && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {entry.detail}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <div className="mt-3">
+            <AgentTimeline
+              entries={events}
+              title="Timeline"
+              maxItems={5}
+              collapsible
+              emptyMessage="No events yet"
+            />
+          </div>
         </div>
       )}
     </AgentPanelLayout>
