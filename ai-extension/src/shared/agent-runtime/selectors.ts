@@ -48,6 +48,19 @@ export interface AgentPanelState {
   isTerminal: boolean;
 }
 
+// ─── Status Display ──────────────────────────────────────────────────────────
+
+/** Display metadata for each run status, used by side panel UI badges. */
+export const STATUS_DISPLAY: Record<AgentRunStatus, { label: string; color: string; icon: string }> = {
+  pending:           { label: "Starting...",            color: "text-muted-foreground", icon: "Loader" },
+  running:           { label: "Working",                color: "text-blue-500",          icon: "Play" },
+  paused:            { label: "Paused",                 color: "text-yellow-500",        icon: "Pause" },
+  waiting_approval:  { label: "Needs Your Approval",    color: "text-orange-500",        icon: "ShieldAlert" },
+  completed:         { label: "Done",                   color: "text-green-500",         icon: "CheckCircle" },
+  failed:            { label: "Failed",                 color: "text-red-500",           icon: "XCircle" },
+  cancelled:         { label: "Cancelled",              color: "text-muted-foreground",  icon: "Ban" },
+};
+
 // ─── Selectors ──────────────────────────────────────────────────────────────
 
 /**
@@ -136,7 +149,7 @@ export function isActiveRun(run: AgentRun): boolean {
 
 // ─── Internal Helpers ────────────────────────────────────────────────────────
 
-function isTerminalStatus(status: AgentRunStatus): boolean {
+export function isTerminalStatus(status: AgentRunStatus): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
 }
 
