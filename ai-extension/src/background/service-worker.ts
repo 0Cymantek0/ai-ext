@@ -117,7 +117,10 @@ import { TranscriptionExecutor } from "./provider-execution/transcription-execut
 import { WorkflowManager } from "../browser-agent/workflow-manager.js";
 import { BrowserToolRegistry } from "../browser-agent/tool-registry.js";
 import { ALL_BROWSER_TOOLS } from "../browser-agent/tools/index.js";
-import { createVisionManager, type CaptureResult } from "../browser-agent/vision.js";
+import {
+  createVisionManager,
+  type CaptureResult,
+} from "../browser-agent/vision.js";
 import { createDatabaseManager } from "../storage/schema.js";
 import {
   apiRequest as performApiRequest,
@@ -143,6 +146,8 @@ import type {
   ProviderSettingsSavePayload,
   SpeechSettingsLoadPayload,
   SpeechSettingsSavePayload,
+  SettingsRoutingLoadPayload,
+  SettingsRoutingSavePayload,
 } from "../shared/types/index.d.ts";
 
 // Initialize formatter and background processor
@@ -160,7 +165,10 @@ const database = createDatabaseManager();
 // Initialize vision manager
 const visionManager = createVisionManager(logger);
 
-logger.info("ServiceWorker", "Vision manager initialized (disabled by default)");
+logger.info(
+  "ServiceWorker",
+  "Vision manager initialized (disabled by default)",
+);
 
 function normalizeScreenshotInput(input: any): string | CaptureResult {
   if (typeof input === "string") {
@@ -222,7 +230,11 @@ async function initializeWorkflowManager(): Promise<void> {
     await database.open();
     logger.info("ServiceWorker", "Database ready for workflow manager");
 
-    workflowManager = new WorkflowManager(browserToolRegistry, database, logger);
+    workflowManager = new WorkflowManager(
+      browserToolRegistry,
+      database,
+      logger,
+    );
     logger.info("ServiceWorker", "WorkflowManager initialized");
 
     // Resume incomplete workflows after manager is ready
@@ -1268,7 +1280,7 @@ class ServiceWorkerLifecycle {
       this.state.activeRequests.size,
       "count",
     );
-    
+
     // Ensure heartbeat is running when we have active requests
     if (this.state.activeRequests.size === 1) {
       this.startHeartbeat();
@@ -1870,7 +1882,7 @@ messageRouter.registerHandler("CAPTURE_REQUEST", async (payload, sender) => {
 
         // Check if a "Notes" pocket exists
         const pockets = await indexedDBManager.listPockets();
-        let notesPocket = pockets.find(
+        const notesPocket = pockets.find(
           (p) => p.name === "Notes" || p.name === "My Notes",
         );
 
@@ -2197,202 +2209,228 @@ messageRouter.registerHandler("CAPTURE_SCREENSHOT", async (payload, sender) => {
   }
 });
 
-messageRouter.registerHandler("VISION_CAPTURE_FOR_ANALYSIS", async (payload: any, sender) => {
-  logger.info("Handler", "VISION_CAPTURE_FOR_ANALYSIS", {
-    senderTabId: sender?.tab?.id,
-  });
-
-  if (!visionManager || !(await visionManager.isAvailable())) {
-    return {
-      success: false,
-      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
-    };
-  }
-
-  const requestedTabId = typeof payload?.tabId === "number" ? payload.tabId : sender?.tab?.id;
-
-  if (!requestedTabId) {
-    return {
-      success: false,
-      error: "No tab context provided for vision capture",
-    };
-  }
-
-  try {
-    const capture = await visionManager.captureForVision({
-      tabId: requestedTabId,
-      format: payload?.format,
-      quality: payload?.quality,
-      annotateElements: payload?.annotateElements ?? false,
-      includeMappings: true,
+messageRouter.registerHandler(
+  "VISION_CAPTURE_FOR_ANALYSIS",
+  async (payload: any, sender) => {
+    logger.info("Handler", "VISION_CAPTURE_FOR_ANALYSIS", {
+      senderTabId: sender?.tab?.id,
     });
 
-    return {
-      success: true,
-      dataUrl: capture.dataUrl,
-      format: capture.format,
-      width: capture.width,
-      height: capture.height,
-      timestamp: capture.timestamp,
-      tabId: capture.tabId,
-      tabUrl: capture.tabUrl,
-      devicePixelRatio: capture.devicePixelRatio,
-      elementMappings: capture.elementMappings,
-    };
-  } catch (error) {
-    logger.error("Handler", "VISION_CAPTURE_FOR_ANALYSIS error", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-});
-
-messageRouter.registerHandler("VISION_ANALYZE_SCREENSHOT", async (payload: any, sender) => {
-  logger.info("Handler", "VISION_ANALYZE_SCREENSHOT", {
-    senderTabId: sender?.tab?.id,
-  });
-
-  if (!visionManager || !(await visionManager.isAvailable())) {
-    return {
-      success: false,
-      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
-    };
-  }
-
-  if (!payload?.screenshot || !payload?.prompt) {
-    return {
-      success: false,
-      error: "VISION_ANALYZE_SCREENSHOT requires screenshot and prompt",
-    };
-  }
-
-  const screenshotInput = normalizeScreenshotInput(payload.screenshot);
-
-  try {
-    const analysisOptions: Parameters<typeof visionManager.analyzeScreenshot>[1] = {
-      prompt: payload.prompt,
-      model: payload.model,
-      useCache: payload.useCache,
-      maxTokens: payload.maxTokens,
-      temperature: payload.temperature,
-    };
-
-    if (sender?.tab?.url) {
-      analysisOptions.tabUrl = sender.tab.url;
+    if (!visionManager || !(await visionManager.isAvailable())) {
+      return {
+        success: false,
+        error:
+          "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+      };
     }
 
-    const result = await visionManager.analyzeScreenshot(screenshotInput, analysisOptions);
+    const requestedTabId =
+      typeof payload?.tabId === "number" ? payload.tabId : sender?.tab?.id;
 
-    return {
-      success: true,
-      result,
-    };
-  } catch (error) {
-    logger.error("Handler", "VISION_ANALYZE_SCREENSHOT error", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-});
-
-messageRouter.registerHandler("VISION_DETECT_PAGE_STATE", async (payload: any, sender) => {
-  logger.info("Handler", "VISION_DETECT_PAGE_STATE", {
-    senderTabId: sender?.tab?.id,
-  });
-
-  if (!visionManager || !(await visionManager.isAvailable())) {
-    return {
-      success: false,
-      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
-    };
-  }
-
-  if (!payload?.screenshot) {
-    return {
-      success: false,
-      error: "VISION_DETECT_PAGE_STATE requires a screenshot",
-    };
-  }
-
-  let screenshotInput: string | CaptureResult;
-  try {
-    screenshotInput = normalizeScreenshotInput(payload.screenshot);
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-
-  try {
-    const result = await visionManager.detectPageState(screenshotInput);
-
-    if (result.requiresHumanIntervention) {
-      logger.warn("Handler", "Vision detection flagged human escalation", result);
+    if (!requestedTabId) {
+      return {
+        success: false,
+        error: "No tab context provided for vision capture",
+      };
     }
 
-    return {
-      success: true,
-      result,
-    };
-  } catch (error) {
-    logger.error("Handler", "VISION_DETECT_PAGE_STATE error", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-});
+    try {
+      const capture = await visionManager.captureForVision({
+        tabId: requestedTabId,
+        format: payload?.format,
+        quality: payload?.quality,
+        annotateElements: payload?.annotateElements ?? false,
+        includeMappings: true,
+      });
 
-messageRouter.registerHandler("VISION_FIND_ELEMENT", async (payload: any, sender) => {
-  logger.info("Handler", "VISION_FIND_ELEMENT", {
-    senderTabId: sender?.tab?.id,
-  });
+      return {
+        success: true,
+        dataUrl: capture.dataUrl,
+        format: capture.format,
+        width: capture.width,
+        height: capture.height,
+        timestamp: capture.timestamp,
+        tabId: capture.tabId,
+        tabUrl: capture.tabUrl,
+        devicePixelRatio: capture.devicePixelRatio,
+        elementMappings: capture.elementMappings,
+      };
+    } catch (error) {
+      logger.error("Handler", "VISION_CAPTURE_FOR_ANALYSIS error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
 
-  if (!visionManager || !(await visionManager.isAvailable())) {
-    return {
-      success: false,
-      error: "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
-    };
-  }
+messageRouter.registerHandler(
+  "VISION_ANALYZE_SCREENSHOT",
+  async (payload: any, sender) => {
+    logger.info("Handler", "VISION_ANALYZE_SCREENSHOT", {
+      senderTabId: sender?.tab?.id,
+    });
 
-  if (!payload?.screenshot || !payload?.description) {
-    return {
-      success: false,
-      error: "VISION_FIND_ELEMENT requires screenshot and description",
-    };
-  }
+    if (!visionManager || !(await visionManager.isAvailable())) {
+      return {
+        success: false,
+        error:
+          "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+      };
+    }
 
-  let captureResult: CaptureResult;
-  try {
-    captureResult = toCaptureResult(payload.screenshot);
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
+    if (!payload?.screenshot || !payload?.prompt) {
+      return {
+        success: false,
+        error: "VISION_ANALYZE_SCREENSHOT requires screenshot and prompt",
+      };
+    }
 
-  try {
-    const result = await visionManager.findElementByDescription(
-      captureResult,
-      payload.description,
-    );
+    const screenshotInput = normalizeScreenshotInput(payload.screenshot);
 
-    return {
-      success: true,
-      result,
-    };
-  } catch (error) {
-    logger.error("Handler", "VISION_FIND_ELEMENT error", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-});
+    try {
+      const analysisOptions: Parameters<
+        typeof visionManager.analyzeScreenshot
+      >[1] = {
+        prompt: payload.prompt,
+        model: payload.model,
+        useCache: payload.useCache,
+        maxTokens: payload.maxTokens,
+        temperature: payload.temperature,
+      };
+
+      if (sender?.tab?.url) {
+        analysisOptions.tabUrl = sender.tab.url;
+      }
+
+      const result = await visionManager.analyzeScreenshot(
+        screenshotInput,
+        analysisOptions,
+      );
+
+      return {
+        success: true,
+        result,
+      };
+    } catch (error) {
+      logger.error("Handler", "VISION_ANALYZE_SCREENSHOT error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "VISION_DETECT_PAGE_STATE",
+  async (payload: any, sender) => {
+    logger.info("Handler", "VISION_DETECT_PAGE_STATE", {
+      senderTabId: sender?.tab?.id,
+    });
+
+    if (!visionManager || !(await visionManager.isAvailable())) {
+      return {
+        success: false,
+        error:
+          "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+      };
+    }
+
+    if (!payload?.screenshot) {
+      return {
+        success: false,
+        error: "VISION_DETECT_PAGE_STATE requires a screenshot",
+      };
+    }
+
+    let screenshotInput: string | CaptureResult;
+    try {
+      screenshotInput = normalizeScreenshotInput(payload.screenshot);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+
+    try {
+      const result = await visionManager.detectPageState(screenshotInput);
+
+      if (result.requiresHumanIntervention) {
+        logger.warn(
+          "Handler",
+          "Vision detection flagged human escalation",
+          result,
+        );
+      }
+
+      return {
+        success: true,
+        result,
+      };
+    } catch (error) {
+      logger.error("Handler", "VISION_DETECT_PAGE_STATE error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "VISION_FIND_ELEMENT",
+  async (payload: any, sender) => {
+    logger.info("Handler", "VISION_FIND_ELEMENT", {
+      senderTabId: sender?.tab?.id,
+    });
+
+    if (!visionManager || !(await visionManager.isAvailable())) {
+      return {
+        success: false,
+        error:
+          "Vision feature is disabled or missing configuration. Provide a valid Gemini API key and enable vision in settings.",
+      };
+    }
+
+    if (!payload?.screenshot || !payload?.description) {
+      return {
+        success: false,
+        error: "VISION_FIND_ELEMENT requires screenshot and description",
+      };
+    }
+
+    let captureResult: CaptureResult;
+    try {
+      captureResult = toCaptureResult(payload.screenshot);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+
+    try {
+      const result = await visionManager.findElementByDescription(
+        captureResult,
+        payload.description,
+      );
+
+      return {
+        success: true,
+        result,
+      };
+    } catch (error) {
+      logger.error("Handler", "VISION_FIND_ELEMENT error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
 
 messageRouter.registerHandler("VISION_GET_USAGE_STATS", async () => {
   if (!visionManager) {
@@ -2411,7 +2449,9 @@ messageRouter.registerHandler("VISION_GET_USAGE_STATS", async () => {
 
 messageRouter.registerHandler(
   "AI_PROCESS_REQUEST",
-  async (payload: AiProcessRequestPayload): Promise<AiProcessResponsePayload> => {
+  async (
+    payload: AiProcessRequestPayload,
+  ): Promise<AiProcessResponsePayload> => {
     logger.info("Handler", "AI_PROCESS_REQUEST", payload);
 
     try {
@@ -2489,7 +2529,10 @@ messageRouter.registerHandler(
     });
 
     try {
-      const audioBlob = decodeBase64ToBlob(payload.audioBase64, payload.mimeType);
+      const audioBlob = decodeBase64ToBlob(
+        payload.audioBase64,
+        payload.mimeType,
+      );
       const result = await transcriptionExecutor.transcribeAudio({
         audio: audioBlob,
         fileName: payload.fileName,
@@ -2780,7 +2823,8 @@ messageRouter.registerHandler("GENERATE_REPORT", async (payload: any) => {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY ?? undefined;
 
     const normalizedPocketId =
-      typeof payload?.pocketId === "string" && payload.pocketId.trim().length > 0
+      typeof payload?.pocketId === "string" &&
+      payload.pocketId.trim().length > 0
         ? payload.pocketId.trim()
         : undefined;
 
@@ -2955,49 +2999,61 @@ messageRouter.registerHandler(
   },
 );
 
-messageRouter.registerHandler("PROVIDER_SETTINGS_VALIDATE_ENDPOINT", async (payload: any) => {
-  logger.info("Handler", "PROVIDER_SETTINGS_VALIDATE_ENDPOINT");
-  try {
-    const { baseUrl, providerType, apiKey } = payload as {
-      baseUrl: string;
-      providerType: string;
-      apiKey?: string;
-    };
-
-    // Basic URL validation
+messageRouter.registerHandler(
+  "PROVIDER_SETTINGS_VALIDATE_ENDPOINT",
+  async (payload: any) => {
+    logger.info("Handler", "PROVIDER_SETTINGS_VALIDATE_ENDPOINT");
     try {
-      new URL(baseUrl);
-    } catch {
-      return { valid: false, error: "Invalid URL format" };
-    }
+      const { baseUrl, providerType, apiKey } = payload as {
+        baseUrl: string;
+        providerType: string;
+        apiKey?: string;
+      };
 
-    // Attempt to validate by fetching models list
-    const { MODEL_LIST_ENDPOINTS } = await import("./routing/model-catalog.js");
-    const endpoint = MODEL_LIST_ENDPOINTS[providerType];
-    if (!endpoint) {
-      // No API endpoint for this provider type, just validate URL shape
-      return { valid: true, modelsAvailable: 0 };
-    }
+      // Basic URL validation
+      try {
+        new URL(baseUrl);
+      } catch {
+        return { valid: false, error: "Invalid URL format" };
+      }
 
-    const url = endpoint.url(baseUrl);
-    const headers: Record<string, string> = {};
-    if (apiKey) {
-      headers["Authorization"] = `Bearer ${apiKey}`;
-    }
+      // Attempt to validate by fetching models list
+      const { MODEL_LIST_ENDPOINTS } = await import(
+        "./routing/model-catalog.js"
+      );
+      const endpoint = MODEL_LIST_ENDPOINTS[providerType];
+      if (!endpoint) {
+        // No API endpoint for this provider type, just validate URL shape
+        return { valid: true, modelsAvailable: 0 };
+      }
 
-    const response = await fetch(url, { headers, signal: AbortSignal.timeout(5000) });
-    if (!response.ok) {
-      return { valid: false, error: `Endpoint returned status ${response.status}` };
-    }
+      const url = endpoint.url(baseUrl);
+      const headers: Record<string, string> = {};
+      if (apiKey) {
+        headers["Authorization"] = `Bearer ${apiKey}`;
+      }
 
-    const json = await response.json();
-    const models = endpoint.extractModels(json);
-    return { valid: true, modelsAvailable: models.length };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Validation failed";
-    return { valid: false, error: message };
-  }
-});
+      const response = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) {
+        return {
+          valid: false,
+          error: `Endpoint returned status ${response.status}`,
+        };
+      }
+
+      const json = await response.json();
+      const models = endpoint.extractModels(json);
+      return { valid: true, modelsAvailable: models.length };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Validation failed";
+      return { valid: false, error: message };
+    }
+  },
+);
 
 // Speech settings handlers (Phase 04)
 
@@ -3026,6 +3082,40 @@ messageRouter.registerHandler(
       return { settings };
     } catch (error) {
       logger.error("Handler", "SPEECH_SETTINGS_SAVE error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "SETTINGS_ROUTING_LOAD",
+  async (payload: SettingsRoutingLoadPayload) => {
+    logger.info("Handler", "SETTINGS_ROUTING_LOAD");
+    try {
+      const routingPreferences = await settingsManager.getRoutingPreferences();
+      const modelSheet = await settingsManager.getModelSheet();
+      return { routingPreferences, modelSheet };
+    } catch (error) {
+      logger.error("Handler", "SETTINGS_ROUTING_LOAD error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "SETTINGS_ROUTING_SAVE",
+  async (payload: SettingsRoutingSavePayload) => {
+    logger.info("Handler", "SETTINGS_ROUTING_SAVE");
+    try {
+      if (payload.routingPreferences) {
+        await settingsManager.updateRoutingPreferences(payload.routingPreferences);
+      }
+      if (payload.modelSheet) {
+        await settingsManager.updateModelSheet(payload.modelSheet);
+      }
+      return { success: true };
+    } catch (error) {
+      logger.error("Handler", "SETTINGS_ROUTING_SAVE error", error);
       throw error;
     }
   },
@@ -3214,10 +3304,13 @@ messageRouter.registerHandler(
 // Register context collection handlers for auto context engine
 messageRouter.registerHandler("PAGE_CONTEXT_REQUEST", async (payload: any) => {
   logger.info("Handler", "PAGE_CONTEXT_REQUEST", payload);
-  
+
   try {
     // Get the active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     if (!tab || !tab.id) {
       throw new Error("No active tab found");
     }
@@ -3243,104 +3336,129 @@ messageRouter.registerHandler("PAGE_CONTEXT_REQUEST", async (payload: any) => {
           url: window.location.href,
           domain: window.location.hostname,
           // Detect context type based on URL patterns
-          contextType: "general" as const
+          contextType: "general" as const,
         };
 
         // Try to get meta description
         const metaDesc = document.querySelector('meta[name="description"]');
-        const metaDescContent = metaDesc?.getAttribute('content');
+        const metaDescContent = metaDesc?.getAttribute("content");
         if (metaDescContent) {
           pageContext.metaDescription = metaDescContent;
         }
 
         // Try to get meta keywords
         const metaKeywords = document.querySelector('meta[name="keywords"]');
-        const metaKeywordsContent = metaKeywords?.getAttribute('content');
+        const metaKeywordsContent = metaKeywords?.getAttribute("content");
         if (metaKeywordsContent) {
-          pageContext.metaKeywords = metaKeywordsContent.split(',').map(k => k.trim());
+          pageContext.metaKeywords = metaKeywordsContent
+            .split(",")
+            .map((k) => k.trim());
         }
 
         // Extract main headings (H1, H2)
         const headings: string[] = [];
-        const h1Elements = document.querySelectorAll('h1');
-        const h2Elements = document.querySelectorAll('h2');
-        
-        h1Elements.forEach(h => {
+        const h1Elements = document.querySelectorAll("h1");
+        const h2Elements = document.querySelectorAll("h2");
+
+        h1Elements.forEach((h) => {
           const text = h.textContent?.trim();
           if (text && text.length > 0 && text.length < 200) {
             headings.push(text);
           }
         });
-        
-        h2Elements.forEach(h => {
+
+        h2Elements.forEach((h) => {
           const text = h.textContent?.trim();
-          if (text && text.length > 0 && text.length < 200 && headings.length < 10) {
+          if (
+            text &&
+            text.length > 0 &&
+            text.length < 200 &&
+            headings.length < 10
+          ) {
             headings.push(text);
           }
         });
-        
+
         if (headings.length > 0) {
           pageContext.headings = headings;
         }
 
         // Extract main content intelligently
-        let mainContent = '';
-        
+        let mainContent = "";
+
         // Try to find main content area
-        const mainElement = document.querySelector('main, article, [role="main"], .main-content, #main-content, #content');
-        
+        const mainElement = document.querySelector(
+          'main, article, [role="main"], .main-content, #main-content, #content',
+        );
+
         if (mainElement) {
           // Get text from main element, excluding scripts and styles
           const clone = mainElement.cloneNode(true) as HTMLElement;
-          clone.querySelectorAll('script, style, nav, header, footer, aside').forEach(el => el.remove());
-          mainContent = clone.textContent || '';
+          clone
+            .querySelectorAll("script, style, nav, header, footer, aside")
+            .forEach((el) => el.remove());
+          mainContent = clone.textContent || "";
         } else {
           // Fallback: get body text
           const bodyClone = document.body.cloneNode(true) as HTMLElement;
-          bodyClone.querySelectorAll('script, style, nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]').forEach(el => el.remove());
-          mainContent = bodyClone.textContent || '';
+          bodyClone
+            .querySelectorAll(
+              'script, style, nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]',
+            )
+            .forEach((el) => el.remove());
+          mainContent = bodyClone.textContent || "";
         }
-        
+
         // Clean and truncate main content
         mainContent = mainContent
-          .replace(/\s+/g, ' ')
+          .replace(/\s+/g, " ")
           .trim()
           .substring(0, 2000); // Limit to 2000 characters
-        
+
         if (mainContent.length > 100) {
           pageContext.mainContent = mainContent;
         }
 
         // Detect page type
-        const ogType = document.querySelector('meta[property="og:type"]')?.getAttribute('content');
+        const ogType = document
+          .querySelector('meta[property="og:type"]')
+          ?.getAttribute("content");
         if (ogType) {
           pageContext.pageType = ogType;
         } else {
           // Infer from structure
-          if (document.querySelector('article')) {
-            pageContext.pageType = 'article';
-          } else if (document.querySelector('form[role="search"], input[type="search"]')) {
-            pageContext.pageType = 'search';
-          } else if (document.querySelector('.product, [itemtype*="Product"]')) {
-            pageContext.pageType = 'product';
+          if (document.querySelector("article")) {
+            pageContext.pageType = "article";
+          } else if (
+            document.querySelector('form[role="search"], input[type="search"]')
+          ) {
+            pageContext.pageType = "search";
+          } else if (
+            document.querySelector('.product, [itemtype*="Product"]')
+          ) {
+            pageContext.pageType = "product";
           }
         }
 
         // Get page language
-        const lang = document.documentElement.lang || document.querySelector('meta[http-equiv="content-language"]')?.getAttribute('content');
+        const lang =
+          document.documentElement.lang ||
+          document
+            .querySelector('meta[http-equiv="content-language"]')
+            ?.getAttribute("content");
         if (lang) {
           pageContext.language = lang;
         }
 
         return pageContext;
-      }
+      },
     });
 
     if (results && results[0] && results[0].result) {
       logger.info("Handler", "PAGE_CONTEXT_REQUEST success", results[0].result);
       return {
         success: true,
-        context: results[0].result
+        context: results[0].result,
       };
     } else {
       throw new Error("Failed to get page context");
@@ -3349,140 +3467,165 @@ messageRouter.registerHandler("PAGE_CONTEXT_REQUEST", async (payload: any) => {
     logger.error("Handler", "PAGE_CONTEXT_REQUEST error", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 });
 
 messageRouter.registerHandler("TAB_CONTEXT_REQUEST", async (payload: any) => {
   logger.info("Handler", "TAB_CONTEXT_REQUEST", payload);
-  
+
   try {
     const maxTabs = payload.maxTabs || 6;
-    
+
     // Get recent tabs from all windows
     const tabs = await chrome.tabs.query({});
-    
+
     // Filter and map tabs
     const tabContexts = tabs
-      .filter(tab => tab.url && tab.title && !tab.url.startsWith('chrome://'))
+      .filter((tab) => tab.url && tab.title && !tab.url.startsWith("chrome://"))
       .slice(0, maxTabs)
-      .map(tab => {
+      .map((tab) => {
         const url = new URL(tab.url!);
         const domain = url.hostname;
-        
+
         // Basic context type detection for tabs
-        let contextType: "general" | "sensitive" | "work" | "social" = "general";
-        if (domain.includes('bank') || domain.includes('health') || domain.includes('gov')) {
+        let contextType: "general" | "sensitive" | "work" | "social" =
+          "general";
+        if (
+          domain.includes("bank") ||
+          domain.includes("health") ||
+          domain.includes("gov")
+        ) {
           contextType = "sensitive";
-        } else if (domain.includes('work') || domain.includes('company') || domain.includes('office')) {
+        } else if (
+          domain.includes("work") ||
+          domain.includes("company") ||
+          domain.includes("office")
+        ) {
           contextType = "work";
-        } else if (domain.includes('social') || domain.includes('twitter') || domain.includes('facebook')) {
+        } else if (
+          domain.includes("social") ||
+          domain.includes("twitter") ||
+          domain.includes("facebook")
+        ) {
           contextType = "social";
         }
-        
+
         return {
           title: tab.title!,
           url: tab.url!,
           domain: domain,
-          contextType
+          contextType,
         };
       });
 
-    logger.info("Handler", "TAB_CONTEXT_REQUEST success", { 
-      tabsCount: tabContexts.length 
+    logger.info("Handler", "TAB_CONTEXT_REQUEST success", {
+      tabsCount: tabContexts.length,
     });
-    
+
     return {
       success: true,
-      tabs: tabContexts
+      tabs: tabContexts,
     };
   } catch (error) {
     logger.error("Handler", "TAB_CONTEXT_REQUEST error", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 });
 
-messageRouter.registerHandler("SELECTION_CONTEXT_REQUEST", async (payload: any) => {
-  logger.info("Handler", "SELECTION_CONTEXT_REQUEST", payload);
-  
-  try {
-    // Get the active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.id) {
-      throw new Error("No active tab found");
-    }
+messageRouter.registerHandler(
+  "SELECTION_CONTEXT_REQUEST",
+  async (payload: any) => {
+    logger.info("Handler", "SELECTION_CONTEXT_REQUEST", payload);
 
-    // Inject content script to get selection context
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-          return null;
-        }
+    try {
+      // Get the active tab
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (!tab || !tab.id) {
+        throw new Error("No active tab found");
+      }
 
-        const range = selection.getRangeAt(0);
-        const selectedText = range.toString().trim();
-        
-        if (!selectedText) {
-          return null;
-        }
+      // Inject content script to get selection context
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const selection = window.getSelection();
+          if (!selection || selection.rangeCount === 0) {
+            return null;
+          }
 
-        // Get surrounding context (characters before and after)
-        const container = range.commonAncestorContainer;
-        const fullText = container.textContent || '';
-        const offset = fullText.indexOf(selectedText);
-        
-        let surroundingText = '';
-        if (offset !== -1) {
-          const contextRadius = 200; // characters before and after
-          const start = Math.max(0, offset - contextRadius);
-          const end = Math.min(fullText.length, offset + selectedText.length + contextRadius);
-          surroundingText = fullText.substring(start, end);
-        }
+          const range = selection.getRangeAt(0);
+          const selectedText = range.toString().trim();
+
+          if (!selectedText) {
+            return null;
+          }
+
+          // Get surrounding context (characters before and after)
+          const container = range.commonAncestorContainer;
+          const fullText = container.textContent || "";
+          const offset = fullText.indexOf(selectedText);
+
+          let surroundingText = "";
+          if (offset !== -1) {
+            const contextRadius = 200; // characters before and after
+            const start = Math.max(0, offset - contextRadius);
+            const end = Math.min(
+              fullText.length,
+              offset + selectedText.length + contextRadius,
+            );
+            surroundingText = fullText.substring(start, end);
+          }
+
+          return {
+            text: selectedText,
+            surroundingText: surroundingText,
+          };
+        },
+      });
+
+      if (results && results[0] && results[0].result) {
+        logger.info("Handler", "SELECTION_CONTEXT_REQUEST success", {
+          textLength: results[0].result.text.length,
+        });
 
         return {
-          text: selectedText,
-          surroundingText: surroundingText
+          success: true,
+          context: results[0].result,
+        };
+      } else {
+        // No selection
+        return {
+          success: true,
+          context: null,
         };
       }
-    });
-
-    if (results && results[0] && results[0].result) {
-      logger.info("Handler", "SELECTION_CONTEXT_REQUEST success", { 
-        textLength: results[0].result.text.length 
-      });
-      
+    } catch (error) {
+      logger.error("Handler", "SELECTION_CONTEXT_REQUEST error", error);
       return {
-        success: true,
-        context: results[0].result
-      };
-    } else {
-      // No selection
-      return {
-        success: true,
-        context: null
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
-  } catch (error) {
-    logger.error("Handler", "SELECTION_CONTEXT_REQUEST error", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-});
+  },
+);
 
 messageRouter.registerHandler("INPUT_CONTEXT_REQUEST", async (payload: any) => {
   logger.info("Handler", "INPUT_CONTEXT_REQUEST", payload);
-  
+
   try {
     // Get the active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     if (!tab || !tab.id) {
       throw new Error("No active tab found");
     }
@@ -3498,32 +3641,33 @@ messageRouter.registerHandler("INPUT_CONTEXT_REQUEST", async (payload: any) => {
         }
 
         const tagName = activeElement.tagName.toLowerCase();
-        const type = (activeElement as HTMLInputElement).type || '';
-        const role = activeElement.getAttribute('role') || undefined;
-        const placeholder = (activeElement as HTMLInputElement).placeholder || undefined;
-        
+        const type = (activeElement as HTMLInputElement).type || "";
+        const role = activeElement.getAttribute("role") || undefined;
+        const placeholder =
+          (activeElement as HTMLInputElement).placeholder || undefined;
+
         // Basic intent detection based on input attributes and form context
-        let intent = '';
-        if (tagName === 'input' || tagName === 'textarea') {
-          if (type === 'search') {
-            intent = 'search';
-          } else if (type === 'email') {
-            intent = 'email';
-          } else if (type === 'password') {
-            intent = 'password';
-          } else if (type === 'tel') {
-            intent = 'phone';
+        let intent = "";
+        if (tagName === "input" || tagName === "textarea") {
+          if (type === "search") {
+            intent = "search";
+          } else if (type === "email") {
+            intent = "email";
+          } else if (type === "password") {
+            intent = "password";
+          } else if (type === "tel") {
+            intent = "phone";
           } else if (placeholder) {
-            if (placeholder.toLowerCase().includes('search')) {
-              intent = 'search';
-            } else if (placeholder.toLowerCase().includes('email')) {
-              intent = 'email';
-            } else if (placeholder.toLowerCase().includes('message')) {
-              intent = 'message';
+            if (placeholder.toLowerCase().includes("search")) {
+              intent = "search";
+            } else if (placeholder.toLowerCase().includes("email")) {
+              intent = "email";
+            } else if (placeholder.toLowerCase().includes("message")) {
+              intent = "message";
             }
           }
-        } else if (tagName === 'select') {
-          intent = 'selection';
+        } else if (tagName === "select") {
+          intent = "selection";
         }
 
         return {
@@ -3531,30 +3675,34 @@ messageRouter.registerHandler("INPUT_CONTEXT_REQUEST", async (payload: any) => {
           type,
           role,
           placeholder,
-          intent
+          intent,
         };
-      }
+      },
     });
 
     if (results && results[0] && results[0].result) {
-      logger.info("Handler", "INPUT_CONTEXT_REQUEST success", results[0].result);
-      
+      logger.info(
+        "Handler",
+        "INPUT_CONTEXT_REQUEST success",
+        results[0].result,
+      );
+
       return {
         success: true,
-        context: results[0].result
+        context: results[0].result,
       };
     } else {
       // No focused input
       return {
         success: true,
-        context: null
+        context: null,
       };
     }
   } catch (error) {
     logger.error("Handler", "INPUT_CONTEXT_REQUEST error", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 });
@@ -3951,229 +4099,270 @@ messageRouter.registerHandler("ABBREVIATION_EXPAND", async (payload: any) => {
 });
 
 // Browser Agent Workflow Handlers
-messageRouter.registerHandler("BROWSER_AGENT_START_WORKFLOW", async (payload: any) => {
-  logger.info("Handler", "BROWSER_AGENT_START_WORKFLOW", payload);
-  try {
-    if (!workflowManager) {
-      throw new Error("WorkflowManager not initialized yet");
+messageRouter.registerHandler(
+  "BROWSER_AGENT_START_WORKFLOW",
+  async (payload: any) => {
+    logger.info("Handler", "BROWSER_AGENT_START_WORKFLOW", payload);
+    try {
+      if (!workflowManager) {
+        throw new Error("WorkflowManager not initialized yet");
+      }
+      const state = await workflowManager.startWorkflow({
+        workflowId: payload.workflowId,
+        variables: payload.variables || {},
+        config: payload.config,
+        tabId: payload.tabId,
+        userId: payload.userId,
+      });
+      logger.info("Handler", "BROWSER_AGENT_START_WORKFLOW success", {
+        workflowId: state.workflowId,
+      });
+      return { success: true, data: state };
+    } catch (error) {
+      logger.error("Handler", "BROWSER_AGENT_START_WORKFLOW error", error);
+      throw error;
     }
-    const state = await workflowManager.startWorkflow({
-      workflowId: payload.workflowId,
-      variables: payload.variables || {},
-      config: payload.config,
-      tabId: payload.tabId,
-      userId: payload.userId,
-    });
-    logger.info("Handler", "BROWSER_AGENT_START_WORKFLOW success", {
-      workflowId: state.workflowId,
-    });
-    return { success: true, data: state };
-  } catch (error) {
-    logger.error("Handler", "BROWSER_AGENT_START_WORKFLOW error", error);
-    throw error;
-  }
-});
+  },
+);
 
-messageRouter.registerHandler("BROWSER_AGENT_PAUSE_WORKFLOW", async (payload: any) => {
-  logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW", payload);
-  try {
-    if (!workflowManager) {
-      throw new Error("WorkflowManager not initialized yet");
+messageRouter.registerHandler(
+  "BROWSER_AGENT_PAUSE_WORKFLOW",
+  async (payload: any) => {
+    logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW", payload);
+    try {
+      if (!workflowManager) {
+        throw new Error("WorkflowManager not initialized yet");
+      }
+      await workflowManager.pauseWorkflow(payload.workflowId, payload.reason);
+      logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW success", {
+        workflowId: payload.workflowId,
+      });
+      return { success: true };
+    } catch (error) {
+      logger.error("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW error", error);
+      throw error;
     }
-    await workflowManager.pauseWorkflow(payload.workflowId, payload.reason);
-    logger.info("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW success", {
-      workflowId: payload.workflowId,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error("Handler", "BROWSER_AGENT_PAUSE_WORKFLOW error", error);
-    throw error;
-  }
-});
+  },
+);
 
-messageRouter.registerHandler("BROWSER_AGENT_RESUME_WORKFLOW", async (payload: any) => {
-  logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW", payload);
-  try {
-    if (!workflowManager) {
-      throw new Error("WorkflowManager not initialized yet");
+messageRouter.registerHandler(
+  "BROWSER_AGENT_RESUME_WORKFLOW",
+  async (payload: any) => {
+    logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW", payload);
+    try {
+      if (!workflowManager) {
+        throw new Error("WorkflowManager not initialized yet");
+      }
+      await workflowManager.resumeWorkflow(
+        payload.workflowId,
+        payload.userInput,
+      );
+      logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW success", {
+        workflowId: payload.workflowId,
+      });
+      return { success: true };
+    } catch (error) {
+      logger.error("Handler", "BROWSER_AGENT_RESUME_WORKFLOW error", error);
+      throw error;
     }
-    await workflowManager.resumeWorkflow(payload.workflowId, payload.userInput);
-    logger.info("Handler", "BROWSER_AGENT_RESUME_WORKFLOW success", {
-      workflowId: payload.workflowId,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error("Handler", "BROWSER_AGENT_RESUME_WORKFLOW error", error);
-    throw error;
-  }
-});
+  },
+);
 
-messageRouter.registerHandler("BROWSER_AGENT_CANCEL_WORKFLOW", async (payload: any) => {
-  logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW", payload);
-  try {
-    if (!workflowManager) {
-      throw new Error("WorkflowManager not initialized yet");
+messageRouter.registerHandler(
+  "BROWSER_AGENT_CANCEL_WORKFLOW",
+  async (payload: any) => {
+    logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW", payload);
+    try {
+      if (!workflowManager) {
+        throw new Error("WorkflowManager not initialized yet");
+      }
+      await workflowManager.cancelWorkflow(payload.workflowId, payload.options);
+      logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW success", {
+        workflowId: payload.workflowId,
+      });
+      return { success: true };
+    } catch (error) {
+      logger.error("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW error", error);
+      throw error;
     }
-    await workflowManager.cancelWorkflow(payload.workflowId, payload.options);
-    logger.info("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW success", {
-      workflowId: payload.workflowId,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error("Handler", "BROWSER_AGENT_CANCEL_WORKFLOW error", error);
-    throw error;
-  }
-});
+  },
+);
 
-messageRouter.registerHandler("BROWSER_AGENT_WORKFLOW_STATUS", async (payload: any) => {
-  logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS", payload);
-  try {
-    if (!workflowManager) {
-      throw new Error("WorkflowManager not initialized yet");
+messageRouter.registerHandler(
+  "BROWSER_AGENT_WORKFLOW_STATUS",
+  async (payload: any) => {
+    logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS", payload);
+    try {
+      if (!workflowManager) {
+        throw new Error("WorkflowManager not initialized yet");
+      }
+      const status = await workflowManager.getWorkflowStatus(
+        payload.workflowId,
+      );
+      logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS success", {
+        workflowId: payload.workflowId,
+        found: !!status,
+      });
+      return { success: true, data: status };
+    } catch (error) {
+      logger.error("Handler", "BROWSER_AGENT_WORKFLOW_STATUS error", error);
+      throw error;
     }
-    const status = await workflowManager.getWorkflowStatus(payload.workflowId);
-    logger.info("Handler", "BROWSER_AGENT_WORKFLOW_STATUS success", {
-      workflowId: payload.workflowId,
-      found: !!status,
-    });
-    return { success: true, data: status };
-  } catch (error) {
-    logger.error("Handler", "BROWSER_AGENT_WORKFLOW_STATUS error", error);
-    throw error;
-  }
-});
+  },
+);
 
-messageRouter.registerHandler("BROWSER_AGENT_LIST_WORKFLOWS", async (_payload: any) => {
-  logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS");
-  try {
-    if (!workflowManager) {
-      return { success: true, data: [] };
+messageRouter.registerHandler(
+  "BROWSER_AGENT_LIST_WORKFLOWS",
+  async (_payload: any) => {
+    logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS");
+    try {
+      if (!workflowManager) {
+        return { success: true, data: [] };
+      }
+      const workflows = workflowManager.getAllWorkflows();
+      logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS success", {
+        count: workflows.length,
+      });
+      return { success: true, data: workflows };
+    } catch (error) {
+      logger.error("Handler", "BROWSER_AGENT_LIST_WORKFLOWS error", error);
+      throw error;
     }
-    const workflows = workflowManager.getAllWorkflows();
-    logger.info("Handler", "BROWSER_AGENT_LIST_WORKFLOWS success", {
-      count: workflows.length,
-    });
-    return { success: true, data: workflows };
-  } catch (error) {
-    logger.error("Handler", "BROWSER_AGENT_LIST_WORKFLOWS error", error);
-    throw error;
-  }
-});
+  },
+);
 
-messageRouter.registerHandler("BROWSER_AGENT_APPROVAL_RESPONSE", async (payload: any) => {
-  logger.info("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE", payload);
-  try {
-    const { requestId, approved, modifiedParams } = payload;
-    
-    if (!requestId) {
-      throw new Error("No requestId provided for approval response");
+messageRouter.registerHandler(
+  "BROWSER_AGENT_APPROVAL_RESPONSE",
+  async (payload: any) => {
+    logger.info("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE", payload);
+    try {
+      const { requestId, approved, modifiedParams } = payload;
+
+      if (!requestId) {
+        throw new Error("No requestId provided for approval response");
+      }
+
+      // Store approval decision for workflow manager to retrieve
+      await lifecycle.setSessionData(`approval:${requestId}`, {
+        approved,
+        modifiedParams,
+        timestamp: Date.now(),
+      });
+
+      logger.info("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE recorded", {
+        requestId,
+        approved,
+      });
+
+      return { success: true, acknowledged: true };
+    } catch (error) {
+      logger.error("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE error", error);
+      throw error;
     }
-    
-    // Store approval decision for workflow manager to retrieve
-    await lifecycle.setSessionData(`approval:${requestId}`, {
-      approved,
-      modifiedParams,
-      timestamp: Date.now(),
-    });
-    
-    logger.info("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE recorded", {
-      requestId,
-      approved,
-    });
-    
-    return { success: true, acknowledged: true };
-  } catch (error) {
-    logger.error("Handler", "BROWSER_AGENT_APPROVAL_RESPONSE error", error);
-    throw error;
-  }
-});
+  },
+);
 
 // API Testing Handlers
-messageRouter.registerHandler("API_REQUEST", async (payload: ApiRequestPayload) => {
-  logger.info("Handler", "API_REQUEST", {
-    method: payload.method,
-    url: payload.url,
-  });
-  try {
-    const response = await performApiRequest(payload);
-    const result: ApiRequestResponsePayload = {
-      success: true,
-      response,
-    };
-    
-    logger.info("Handler", "API_REQUEST success", {
-      status: response.status,
-      durationMs: response.timing.durationMs,
-      retryCount: response.retryCount,
+messageRouter.registerHandler(
+  "API_REQUEST",
+  async (payload: ApiRequestPayload) => {
+    logger.info("Handler", "API_REQUEST", {
+      method: payload.method,
+      url: payload.url,
     });
-    
-    return result;
-  } catch (error) {
-    logger.error("Handler", "API_REQUEST error", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    } as ApiRequestResponsePayload;
-  }
-});
+    try {
+      const response = await performApiRequest(payload);
+      const result: ApiRequestResponsePayload = {
+        success: true,
+        response,
+      };
 
-messageRouter.registerHandler("API_START_NETWORK_MONITORING", async (payload: ApiStartNetworkMonitoringPayload) => {
-  logger.info("Handler", "API_START_NETWORK_MONITORING", payload);
-  try {
-    startNetworkMonitoring(payload.tabId);
-    logger.info("Handler", "API_START_NETWORK_MONITORING success");
-    return { success: true };
-  } catch (error) {
-    logger.error("Handler", "API_START_NETWORK_MONITORING error", error);
-    throw error;
-  }
-});
+      logger.info("Handler", "API_REQUEST success", {
+        status: response.status,
+        durationMs: response.timing.durationMs,
+        retryCount: response.retryCount,
+      });
 
-messageRouter.registerHandler("API_STOP_NETWORK_MONITORING", async (payload: ApiStopNetworkMonitoringPayload) => {
-  logger.info("Handler", "API_STOP_NETWORK_MONITORING", payload);
-  try {
-    const logs = stopNetworkMonitoring(payload.tabId);
-    logger.info("Handler", "API_STOP_NETWORK_MONITORING success", {
-      logsCount: logs.length,
-    });
-    return {
-      success: true,
-      logs,
-    } as ApiNetworkLogsResponsePayload;
-  } catch (error) {
-    logger.error("Handler", "API_STOP_NETWORK_MONITORING error", error);
-    throw error;
-  }
-});
+      return result;
+    } catch (error) {
+      logger.error("Handler", "API_REQUEST error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      } as ApiRequestResponsePayload;
+    }
+  },
+);
 
-messageRouter.registerHandler("API_GET_NETWORK_LOGS", async (payload: { tabId?: number }) => {
-  logger.info("Handler", "API_GET_NETWORK_LOGS", payload);
-  try {
-    const logs = getNetworkLogs(payload.tabId);
-    logger.info("Handler", "API_GET_NETWORK_LOGS success", {
-      logsCount: logs.length,
-    });
-    return {
-      success: true,
-      logs,
-    } as ApiNetworkLogsResponsePayload;
-  } catch (error) {
-    logger.error("Handler", "API_GET_NETWORK_LOGS error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "API_START_NETWORK_MONITORING",
+  async (payload: ApiStartNetworkMonitoringPayload) => {
+    logger.info("Handler", "API_START_NETWORK_MONITORING", payload);
+    try {
+      startNetworkMonitoring(payload.tabId);
+      logger.info("Handler", "API_START_NETWORK_MONITORING success");
+      return { success: true };
+    } catch (error) {
+      logger.error("Handler", "API_START_NETWORK_MONITORING error", error);
+      throw error;
+    }
+  },
+);
 
-messageRouter.registerHandler("API_SET_AUTH_TOKEN", async (payload: ApiSetAuthTokenPayload) => {
-  logger.info("Handler", "API_SET_AUTH_TOKEN");
-  try {
-    await storeAuthToken(payload.token);
-    logger.info("Handler", "API_SET_AUTH_TOKEN success");
-    return { success: true } as ApiAuthResponsePayload;
-  } catch (error) {
-    logger.error("Handler", "API_SET_AUTH_TOKEN error", error);
-    throw error;
-  }
-});
+messageRouter.registerHandler(
+  "API_STOP_NETWORK_MONITORING",
+  async (payload: ApiStopNetworkMonitoringPayload) => {
+    logger.info("Handler", "API_STOP_NETWORK_MONITORING", payload);
+    try {
+      const logs = stopNetworkMonitoring(payload.tabId);
+      logger.info("Handler", "API_STOP_NETWORK_MONITORING success", {
+        logsCount: logs.length,
+      });
+      return {
+        success: true,
+        logs,
+      } as ApiNetworkLogsResponsePayload;
+    } catch (error) {
+      logger.error("Handler", "API_STOP_NETWORK_MONITORING error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "API_GET_NETWORK_LOGS",
+  async (payload: { tabId?: number }) => {
+    logger.info("Handler", "API_GET_NETWORK_LOGS", payload);
+    try {
+      const logs = getNetworkLogs(payload.tabId);
+      logger.info("Handler", "API_GET_NETWORK_LOGS success", {
+        logsCount: logs.length,
+      });
+      return {
+        success: true,
+        logs,
+      } as ApiNetworkLogsResponsePayload;
+    } catch (error) {
+      logger.error("Handler", "API_GET_NETWORK_LOGS error", error);
+      throw error;
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "API_SET_AUTH_TOKEN",
+  async (payload: ApiSetAuthTokenPayload) => {
+    logger.info("Handler", "API_SET_AUTH_TOKEN");
+    try {
+      await storeAuthToken(payload.token);
+      logger.info("Handler", "API_SET_AUTH_TOKEN success");
+      return { success: true } as ApiAuthResponsePayload;
+    } catch (error) {
+      logger.error("Handler", "API_SET_AUTH_TOKEN error", error);
+      throw error;
+    }
+  },
+);
 
 messageRouter.registerHandler("API_CLEAR_AUTH_TOKEN", async () => {
   logger.info("Handler", "API_CLEAR_AUTH_TOKEN");

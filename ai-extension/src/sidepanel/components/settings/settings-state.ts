@@ -16,7 +16,7 @@ export function buildProviderCards(
   if (!snapshot || !snapshot.providers) return [];
 
   return snapshot.providers.map((p) => {
-    let modelLabel = undefined;
+    let modelLabel: string | undefined;
     // Attempt to extract a model if we can from routing/modelsheet
     if (snapshot.routingPreferences?.chat?.providerId === p.id) {
       const modelId = snapshot.routingPreferences.chat.modelId;
@@ -25,13 +25,16 @@ export function buildProviderCards(
       }
     }
 
-    return {
+    const card: ProviderCardState = {
       id: p.id,
       type: p.type,
       name: p.name,
       enabled: p.enabled,
       hasSavedKey: !!p.apiKeyId,
-      modelLabel,
     };
+    if (modelLabel !== undefined) {
+      card.modelLabel = modelLabel;
+    }
+    return card;
   });
 }

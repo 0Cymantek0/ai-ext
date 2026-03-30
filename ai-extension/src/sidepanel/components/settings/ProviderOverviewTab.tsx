@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { ProviderCardState } from "./settings-state";
+import type { ProviderCardState } from "./settings-state";
 
 interface ProviderOverviewTabProps {
   providers: ProviderCardState[];

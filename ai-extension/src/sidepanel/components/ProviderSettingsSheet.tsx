@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Settings, X, Loader2 } from "lucide-react";
-import { SettingsTabs, TabId } from "./settings/SettingsTabs";
+import { SettingsTabs, type TabId } from "./settings/SettingsTabs";
 import { ProviderOverviewTab } from "./settings/ProviderOverviewTab";
 import { buildProviderCards } from "./settings/settings-state";
 import { SpeechSettingsSection } from "./SpeechSettingsSection";
