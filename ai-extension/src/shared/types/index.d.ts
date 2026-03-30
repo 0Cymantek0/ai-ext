@@ -197,7 +197,12 @@ export interface VisionDetectionResponsePayload {
   success: boolean;
   result?: {
     detected: boolean;
-    type: "captcha" | "auth-required" | "error-page" | "rate-limited" | "unknown";
+    type:
+      | "captcha"
+      | "auth-required"
+      | "error-page"
+      | "rate-limited"
+      | "unknown";
     confidence: number;
     details?: string;
     requiresHumanIntervention: boolean;
@@ -885,16 +890,17 @@ export interface AriaStartPayload {
  * Payload for ARIA_RUN_STATUS message.
  * Reports current status of an ARIA research session.
  */
-export type AriaStatusPayload =
-  Pick<AriaRunState, "runId" | "status" | "phase" | "mode" | "metrics"> &
-    {
-      /** Timestamp of last update */
-      updatedAt: number;
-      /** Optional: detailed message about current status */
-      message?: string;
-      /** Optional: current context data */
-      context?: Record<string, unknown>;
-    };
+export type AriaStatusPayload = Pick<
+  AriaRunState,
+  "runId" | "status" | "phase" | "mode" | "metrics"
+> & {
+  /** Timestamp of last update */
+  updatedAt: number;
+  /** Optional: detailed message about current status */
+  message?: string;
+  /** Optional: current context data */
+  context?: Record<string, unknown>;
+};
 
 /**
  * Payload for ARIA_EVENT message.
@@ -1049,6 +1055,15 @@ export interface ProviderSettingsSavePayload {
   apiKey?: string;
   enabled?: boolean;
   endpointMode?: "native" | "openai-compatible" | "nvidia-nim";
+  modelId?: string;
+}
+
+export interface ProviderSettingsDeleteKeyPayload {
+  providerId: string;
+}
+
+export interface ProviderSettingsRetestPayload {
+  providerId: string;
 }
 
 export interface ProviderSettingsValidateEndpointPayload {

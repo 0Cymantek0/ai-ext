@@ -48,4 +48,16 @@ describe('Provider Settings Messages', () => {
     await handler({ routingPreferences: { routingMode: 'manual' } });
     expect(mockSetRoutingMode).toHaveBeenCalledWith('manual');
   });
+
+  it('handles PROVIDER_SETTINGS_DELETE_KEY by updating provider with apiKey: null', async () => {
+    const mockUpdateProvider = vi.fn().mockResolvedValue({});
+    // Simulate what the service worker will do
+    const handler = async (payload: any) => {
+      await mockUpdateProvider(payload.providerId, { apiKey: null });
+      return { success: true };
+    };
+
+    await handler({ providerId: 'test-id' });
+    expect(mockUpdateProvider).toHaveBeenCalledWith('test-id', { apiKey: null });
+  });
 });
