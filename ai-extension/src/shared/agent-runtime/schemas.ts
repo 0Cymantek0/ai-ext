@@ -53,12 +53,23 @@ export const AgentTodoItemSchema = z.object({
   updatedAt: z.number(),
 });
 
+export const ApprovalTargetContextSchema = z.object({
+  tabId: z.number(),
+  tabUrl: z.string().optional(),
+  tabTitle: z.string().optional(),
+  selector: z.string().optional(),
+  textPreview: z.string().optional(),
+});
+
 export const AgentPendingApprovalSchema = z.object({
   approvalId: z.string().min(1),
   reason: z.string().min(1),
   requestedAt: z.number(),
   resolvedAt: z.number().optional(),
   resolution: z.enum(["approved", "rejected"]).optional(),
+  toolName: z.string().min(1).optional(),
+  toolArgs: z.record(z.unknown()).optional(),
+  targetContext: ApprovalTargetContextSchema.optional(),
 });
 
 export const AgentArtifactRefSchema = z.object({

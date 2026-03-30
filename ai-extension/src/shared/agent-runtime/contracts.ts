@@ -75,6 +75,17 @@ export interface AgentTodoItem {
 
 // ─── Pending Approval ──────────────────────────────────────────────────────────
 
+/** Context about the target page and element for an approval request. */
+export interface ApprovalTargetContext {
+  tabId: number;
+  tabUrl?: string;
+  tabTitle?: string;
+  /** For click/type tools: the CSS selector being targeted */
+  selector?: string;
+  /** For type_text: the text that will be entered (truncated to 200 chars) */
+  textPreview?: string;
+}
+
 /** An approval gate that blocks run progress until resolved. */
 export interface AgentPendingApproval {
   approvalId: string;
@@ -82,6 +93,10 @@ export interface AgentPendingApproval {
   requestedAt: number;
   resolvedAt?: number;
   resolution?: "approved" | "rejected";
+  // CTRL-02 context fields (Phase 9)
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
+  targetContext?: ApprovalTargetContext;
 }
 
 // ─── Artifact Ref ──────────────────────────────────────────────────────────────
