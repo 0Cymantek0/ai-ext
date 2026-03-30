@@ -58,7 +58,11 @@ Plans:
 2. Approval prompts include target context and reason for the action
 3. Run timeline records approvals, rejections, pauses, resumes, and cancellations
 4. UI clearly communicates whether the agent is running, blocked on user input, cancelled, failed, or completed
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 09-01-PLAN.md — Extend approval contracts, create ApprovalService, rewire runtime to emit approval.requested instead of failure, add service worker handler
+- [ ] 09-02-PLAN.md — Add STATUS_DISPLAY selector mapping, export isTerminalStatus, enrich timeline selectors with tests
+- [ ] 09-03-PLAN.md — Build AgentApprovalCard, AgentRunStatusBadge, AgentRunControls UI components and wire into ChatApp
 
 ### Phase 10: Deep Research Orchestrator
 **Goal**: Build a research-grade agent loop that iterates through subquestions, gathers evidence, and synthesizes as it goes
@@ -118,7 +122,7 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13
 |-------|----------------|--------|-----------|
 | 7. Agent Architecture Reset | 0/3 | Not started | - |
 | 8. Browser Action Runtime | 0/TBD | Not started | - |
-| 9. Human-in-the-Loop Control Layer | 0/TBD | Not started | - |
+| 9. Human-in-the-Loop Control Layer | 0/3 | Not started | - |
 | 10. Deep Research Orchestrator | 0/TBD | Not started | - |
 | 11. Pocket Evidence Pipeline | 0/TBD | Not started | - |
 | 12. Citation-Backed Report Engine | 0/TBD | Not started | - |
