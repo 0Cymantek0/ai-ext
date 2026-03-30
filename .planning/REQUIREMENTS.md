@@ -27,8 +27,8 @@ Requirements for the autonomous browser agent and deep research milestone. Each 
 
 - [ ] **CTRL-01**: User is prompted to approve sensitive browser actions before execution
 - [ ] **CTRL-02**: User can inspect the exact pending action, target page context, and reason for the approval request
-- [ ] **CTRL-03**: System records approvals, rejections, pauses, resumes, and cancellations in the run timeline
-- [ ] **CTRL-04**: Agent UI clearly distinguishes autonomous execution, waiting-for-user state, and terminal outcomes
+- [x] **CTRL-03**: System records approvals, rejections, pauses, resumes, and cancellations in the run timeline
+- [x] **CTRL-04**: Agent UI clearly distinguishes autonomous execution, waiting-for-user state, and terminal outcomes
 
 ### Deep Research Orchestration
 
@@ -99,8 +99,8 @@ Explicitly excluded to prevent scope creep in this milestone.
 | AGENT-05 | Phase 8 | Pending |
 | CTRL-01 | Phase 9 | Pending |
 | CTRL-02 | Phase 9 | Pending |
-| CTRL-03 | Phase 9 | Pending |
-| CTRL-04 | Phase 9 | Pending |
+| CTRL-03 | Phase 9 | Complete |
+| CTRL-04 | Phase 9 | Complete |
 | RES-01 | Phase 10 | Pending |
 | RES-02 | Phase 10 | Pending |
 | RES-03 | Phase 10 | Pending |
