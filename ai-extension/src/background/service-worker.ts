@@ -104,6 +104,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 import * as abbreviationStorage from "./abbreviation-storage.js";
 import { aiManager as aiManagerInstance } from "./ai-manager.js";
+import { ensureGeminiNanoProvider } from "./builtin-provider-bootstrap.js";
+import { sanitizeModelSheet } from "./model-sheet-sanitizer.js";
 import { ChromeLocalStorage } from "./storage-wrapper.js";
 import { GeminiNanoFormatter } from "./gemini-nano-formatter.js";
 import { ContentProcessorBackground } from "./content-processor-background.js";
@@ -3291,6 +3293,8 @@ messageRouter.registerHandler("SETTINGS_SNAPSHOT_LOAD", async () => {
       await configManager.initialize();
     }
 
+    await ensureGeminiNanoProvider(configManager);
+
     const [providers, initialModelSheet, routingPreferences, speechSettings] =
       await Promise.all([
         configManager.listProviders(),
@@ -3300,6 +3304,11 @@ messageRouter.registerHandler("SETTINGS_SNAPSHOT_LOAD", async () => {
       ]);
 
     let modelSheet = initialModelSheet;
+    const sanitizedModelSheet = sanitizeModelSheet(modelSheet, providers);
+    if (sanitizedModelSheet.changed) {
+      modelSheet = sanitizedModelSheet.sheet;
+      await settingsManager.updateModelSheet(modelSheet);
+    }
 
     const providersMissingModels = providers.some((provider) => {
       if (!provider.enabled) {

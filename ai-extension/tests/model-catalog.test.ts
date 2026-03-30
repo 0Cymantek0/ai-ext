@@ -159,6 +159,12 @@ describe('Model Catalog', () => {
         const e = entry as ModelSheetEntry;
         expect(e.providerId).toMatch(/^p[12]$/);
       }
+
+      expect(sheet['gemini-nano']).toBeDefined();
+      expect(sheet['gemini-nano'].providerId).toBe('p2');
+      expect(sheet['gemini-nano'].providerType).toBe('gemini-nano');
+      expect(sheet['gemini-2.5-flash']?.providerId).not.toBe('p2');
+      expect(sheet['gemini-2.5-pro']?.providerId).not.toBe('p2');
     });
   });
 

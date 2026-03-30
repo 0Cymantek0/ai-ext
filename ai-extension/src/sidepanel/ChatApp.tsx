@@ -160,6 +160,7 @@ const buildChatModelOptions = (
           (entry) =>
             entry.providerId === provider.id &&
             entry.enabled !== false &&
+            (provider.type !== "gemini-nano" || entry.modelId === "gemini-nano") &&
             isChatModelEntry(entry),
         )
         .sort((left, right) => {

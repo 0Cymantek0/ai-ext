@@ -840,8 +840,8 @@ function inferProviderType(modelId: string): string {
   )
     return "openai";
   if (modelId.startsWith("claude-")) return "anthropic";
-  if (modelId.startsWith("gemini-") || modelId === "gemini-nano")
-    return "gemini-nano";
+  if (modelId === "gemini-nano") return "gemini-nano";
+  if (modelId.startsWith("gemini-")) return "google";
   if (modelId.startsWith("text-embedding-00")) return "google";
   // OpenRouter uses cross-provider model IDs with slashes
   if (

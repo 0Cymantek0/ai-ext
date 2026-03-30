@@ -11,8 +11,10 @@ interface AddProviderFlowProps {
 
 export function AddProviderFlow({ onBack, onComplete }: AddProviderFlowProps) {
   const [selectedType, setSelectedType] = React.useState<string | null>(null);
+  const [isSubmittingBuiltin, setIsSubmittingBuiltin] = React.useState(false);
 
   const presets = [
+    { value: "gemini-nano", label: "Gemini Nano" },
     { value: "openai", label: "OpenAI" },
     { value: "anthropic", label: "Anthropic" },
     { value: "google", label: "Google Gemini" },
@@ -38,6 +40,29 @@ export function AddProviderFlow({ onBack, onComplete }: AddProviderFlowProps) {
     onComplete();
   };
 
+  const handlePresetSelect = async (type: string) => {
+    if (type !== "gemini-nano") {
+      setSelectedType(type);
+      return;
+    }
+
+    setIsSubmittingBuiltin(true);
+    try {
+      await chrome.runtime.sendMessage({
+        kind: "PROVIDER_SETTINGS_SAVE",
+        payload: {
+          type: "gemini-nano",
+          name: "Gemini Nano",
+          enabled: true,
+          modelId: "gemini-nano",
+        },
+      });
+      onComplete();
+    } finally {
+      setIsSubmittingBuiltin(false);
+    }
+  };
+
   if (!selectedType) {
     return (
       <div className="space-y-4">
@@ -53,7 +78,8 @@ export function AddProviderFlow({ onBack, onComplete }: AddProviderFlowProps) {
               key={p.value}
               variant="outline"
               className="justify-start h-12"
-              onClick={() => setSelectedType(p.value)}
+              disabled={isSubmittingBuiltin}
+              onClick={() => void handlePresetSelect(p.value)}
             >
               {p.label}
             </Button>
