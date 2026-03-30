@@ -2,7 +2,7 @@
 
 ## Overview
 
-This roadmap turns AI Pocket into an agentic browser workspace centered on two major workflows: browser-action execution and research-grade deep research. The roadmap begins with an architectural reset of partial agent systems already in the repository, then builds a safe browser runtime, deep research orchestration, pocket-native evidence accumulation, dense report generation, and a polished side-panel control experience.
+This roadmap turns AI Pocket into an agentic browser workspace centered on two major workflows: browser-action execution and research-grade deep research. The roadmap begins with an architectural reset of partial agent systems already in the repository, then builds a safe browser runtime, deep research orchestration, pocket-native evidence accumulation, dense report generation, and a polished side-panel control experience. The milestone now also includes closure phases for multi-model capability guardrails, autonomous evaluation, and production hardening so the final system is not only implemented but trustworthy to operate daily.
 
 Phase 6 settings follow-up work was completed on 2026-03-29 to stabilize provider detail, routing, speech, and provenance surfaces before deeper agent-platform work proceeds. The roadmap focus still starts at Phase 7 for milestone v2.0.
 
@@ -19,6 +19,9 @@ Phase 6 settings follow-up work was completed on 2026-03-29 to stabilize provide
 - [ ] **Phase 11: Pocket Evidence Pipeline** - Make research pockets the live evidence store for agent findings and notes
 - [ ] **Phase 12: Citation-Backed Report Engine** - Generate dense multi-page reports grounded in captured evidence
 - [ ] **Phase 13: Agentic Side Panel Experience** - Unify launch flows, timelines, model selection, and run review UX
+- [ ] **Phase 14: Model Capability and Workflow Guardrails** - Ensure every supported provider/model is capability-checked and safely routed for the chosen workflow
+- [ ] **Phase 15: Autonomous Evaluation and Regression Harness** - Prove browser-action and deep-research flows work end-to-end across supported scenarios
+- [ ] **Phase 16: MV3 Reliability, Performance, and Shipping Hardening** - Harden lifecycle, responsiveness, and maintainability for real-world use
 
 ## Phase Details
 
@@ -124,13 +127,51 @@ Plans:
 3. Side panel shows a live timeline of planning, tool calls, approvals, evidence writes, and errors
 4. Historical runs remain inspectable after completion
 5. Long-running agent work does not block normal pocket browsing and side panel responsiveness
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 13-01-PLAN.md — Extract inline agent UI from ChatApp into BrowserActionPanel, DeepResearchPanel, and AgentPanelLayout components
+- [ ] 13-02-PLAN.md — Build AgentTimeline, AgentTimelineEntry, RunHistoryPanel, and RunHistoryItem components for live events and historical run inspection
+- [ ] 13-03-PLAN.md — Create WorkflowTabs, ModelSelector, and WorkflowLauncher for unified workflow launch with model selection
+- [ ] 13-04-PLAN.md — Optimize event subscription with useAgentRunEvents hook and service worker event batching for non-blocking UX
 **UI hint**: yes
+
+### Phase 14: Model Capability and Workflow Guardrails
+**Goal**: Make multi-model autonomy safe and predictable by enforcing workflow capability rules before and during agent execution
+**Depends on**: Phase 13
+**Requirements**: COMPAT-01, COMPAT-02, COMPAT-03
+**Success Criteria** (what must be TRUE):
+1. Browser-action and deep-research launches validate the selected provider/model against workflow capability requirements before the run starts
+2. Side panel explains incompatibility or downgrade decisions in user-comprehensible terms instead of allowing opaque runtime failure
+3. Workflow-specific default model preferences and fallback rules are persisted and reusable across sessions
+4. Runtime can safely block, downgrade, or reroute unsupported tool/citation/report needs without corrupting run state
+**Plans**: TBD
+
+### Phase 15: Autonomous Evaluation and Regression Harness
+**Goal**: Create a repeatable quality gate proving the agent can complete core tasks with acceptable autonomy, grounding, and recovery behavior
+**Depends on**: Phase 14
+**Requirements**: EVAL-01, EVAL-02, EVAL-03
+**Success Criteria** (what must be TRUE):
+1. Team can run deterministic end-to-end scenarios for browser-action and deep-research workflows against supported models/providers
+2. Eval outputs score success, recovery quality, approval handling, evidence grounding, and report provenance in a structured way
+3. Critical eval scenarios run as a pre-ship or pre-complete milestone gate rather than a one-off manual check
+4. Regressions identify which stage failed: launch, planning, tool use, evidence capture, report generation, or historical inspection
+**Plans**: TBD
+
+### Phase 16: MV3 Reliability, Performance, and Shipping Hardening
+**Goal**: Harden the agent platform so long-running autonomous work remains resilient, responsive, and maintainable in Chrome MV3
+**Depends on**: Phase 15
+**Requirements**: REL-01, REL-02, REL-03
+**Success Criteria** (what must be TRUE):
+1. Service worker interruption and checkpoint replay do not duplicate browser actions, evidence writes, or report-stage artifacts
+2. Side panel remains responsive during long runs, large evidence pockets, and report generation workloads
+3. Fragile central surfaces such as runtime routing and heavy UI modules are decomposed or isolated enough for safe maintenance
+4. Release verification includes lifecycle, stress, and regression checks that reflect real autonomous usage
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13
+Phases execute in numeric order: 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -141,8 +182,12 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13
 | 11. Pocket Evidence Pipeline | 0/TBD | Not started | - |
 | 12. Citation-Backed Report Engine | 0/TBD | Not started | - |
 | 13. Agentic Side Panel Experience | 0/TBD | Not started | - |
+| 14. Model Capability and Workflow Guardrails | 0/TBD | Not started | - |
+| 15. Autonomous Evaluation and Regression Harness | 0/TBD | Not started | - |
+| 16. MV3 Reliability, Performance, and Shipping Hardening | 0/TBD | Not started | - |
 
 ---
 
 *Roadmap created: 2026-03-29*
+*Updated: 2026-03-31 after inferred milestone gap audit*
 *Granularity: standard*
