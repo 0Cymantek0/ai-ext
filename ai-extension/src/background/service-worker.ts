@@ -57,6 +57,8 @@ import type {
   AgentRunControlPayload,
   AgentRunEvidenceWritePayload,
   AgentRunEvidenceResultPayload,
+  AgentRunHistoryListPayload,
+  AgentRunHistoryDetailPayload,
 } from "../shared/types/index.d.ts";
 
 // Initialize runtime logging (disabled by default until debug recording is enabled)
@@ -266,6 +268,19 @@ async function initializeWorkflowManager(): Promise<void> {
       error,
     );
   }
+}
+
+async function configureSidePanel(): Promise<void> {
+  await chrome.sidePanel.setOptions({
+    path: "src/sidepanel/sidepanel.html",
+    enabled: true,
+  });
+
+  await chrome.sidePanel.setPanelBehavior({
+    openPanelOnActionClick: true,
+  });
+
+  logger.info("ServiceWorker", "Side panel configured");
 }
 
 // Initialize workflow manager asynchronously
@@ -1372,11 +1387,8 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     // Initialize lifecycle
     await lifecycle.initialize();
 
-    // Configure side panel
-    await chrome.sidePanel.setOptions({
-      path: "src/sidepanel/sidepanel.html",
-      enabled: true,
-    });
+    // Configure side panel behavior and default page
+    await configureSidePanel();
 
     // Create context menu for "Save to Pocket"
     await createContextMenu();
@@ -1410,6 +1422,7 @@ chrome.runtime.onStartup.addListener(async () => {
 
   try {
     await lifecycle.initialize();
+    await configureSidePanel();
     await createContextMenu();
   } catch (error) {
     logger.error("ServiceWorker", "Startup error", error);
@@ -1424,18 +1437,6 @@ chrome.runtime.onSuspend.addListener(async () => {
     await lifecycle.handleTermination();
   } catch (error) {
     logger.error("ServiceWorker", "Suspend error", error);
-  }
-});
-
-// Action click - open side panel
-chrome.action.onClicked.addListener(async (tab) => {
-  if (tab.id === undefined) return;
-
-  try {
-    await chrome.sidePanel.open({ tabId: tab.id });
-    logger.info("ServiceWorker", "Side panel opened", { tabId: tab.id });
-  } catch (error) {
-    logger.error("ServiceWorker", "Failed to open side panel", error);
   }
 });
 
@@ -2373,6 +2374,60 @@ messageRouter.registerHandler(
       return { success: true, ...statusPayload };
     } catch (error) {
       logger.error("Handler", "AGENT_RUN_APPROVAL_RESOLVE error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
+
+// ─── Historical Run Review Handlers (Phase 13-02) ─────────────────────────────
+
+messageRouter.registerHandler(
+  "AGENT_RUN_HISTORY_LIST",
+  async (payload: AgentRunHistoryListPayload) => {
+    logger.info("Handler", "AGENT_RUN_HISTORY_LIST", {
+      mode: payload.mode,
+      status: payload.status,
+    });
+
+    try {
+      let runs;
+      if (payload.mode) {
+        runs = await agentRuntimeService.listRunsByMode(payload.mode);
+      } else if (payload.status) {
+        runs = await agentRuntimeService.listRuns(payload.status);
+      } else {
+        runs = await agentRuntimeService.listRuns();
+      }
+
+      // Sort newest-first by createdAt
+      runs.sort((a, b) => b.createdAt - a.createdAt);
+
+      return { success: true, runs };
+    } catch (error) {
+      logger.error("Handler", "AGENT_RUN_HISTORY_LIST error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "AGENT_RUN_HISTORY_DETAIL",
+  async (payload: AgentRunHistoryDetailPayload) => {
+    logger.info("Handler", "AGENT_RUN_HISTORY_DETAIL", {
+      runId: payload.runId,
+    });
+
+    try {
+      const statusPayload = await buildAgentRunStatusPayload(payload.runId);
+      return { success: true, ...statusPayload };
+    } catch (error) {
+      logger.error("Handler", "AGENT_RUN_HISTORY_DETAIL error", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),

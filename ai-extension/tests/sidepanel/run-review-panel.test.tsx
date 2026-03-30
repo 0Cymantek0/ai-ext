@@ -92,7 +92,8 @@ describe("RunReviewPanel - Summary/Status", () => {
         onClose={vi.fn()}
       />,
     );
-    expect(screen.getByText(/browser.action/i)).toBeInTheDocument();
+    const modeLabels = screen.getAllByText(/browser.action/i);
+    expect(modeLabels.length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders task description from metadata for browser-action runs", () => {

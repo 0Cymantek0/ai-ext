@@ -134,6 +134,9 @@ export type MessageKind =
   | "AGENT_RUN_EVIDENCE_WRITE"
   | "AGENT_RUN_EVIDENCE_RESULT"
   | "AGENT_RUN_APPROVAL_RESOLVE"
+  // Historical run review messages (Phase 13-02)
+  | "AGENT_RUN_HISTORY_LIST"
+  | "AGENT_RUN_HISTORY_DETAIL"
   | "ERROR";
 
 export interface BaseMessage<K extends MessageKind, T> {
@@ -1264,6 +1267,25 @@ export interface AgentRunApprovalResolvePayload {
   approvalId: string;
   resolution: "approved" | "rejected";
 }
+
+/** Payload for AGENT_RUN_HISTORY_LIST request messages (Phase 13-02). */
+export interface AgentRunHistoryListPayload {
+  mode?: "browser-action" | "deep-research";
+  status?: AgentRunStatus;
+}
+
+/** Payload for AGENT_RUN_HISTORY_LIST response messages (Phase 13-02). */
+export interface AgentRunHistoryListResult {
+  runs: AgentRun[];
+}
+
+/** Payload for AGENT_RUN_HISTORY_DETAIL request messages (Phase 13-02). */
+export interface AgentRunHistoryDetailPayload {
+  runId: string;
+}
+
+/** Payload for AGENT_RUN_HISTORY_DETAIL response messages (Phase 13-02). */
+export interface AgentRunHistoryDetailResult extends AgentRunStatusPayload {}
 
 export interface AgentRunEvidenceWritePayload {
   runId: string;
