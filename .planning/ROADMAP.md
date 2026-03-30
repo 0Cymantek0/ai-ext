@@ -60,9 +60,9 @@ Plans:
 4. UI clearly communicates whether the agent is running, blocked on user input, cancelled, failed, or completed
 **Plans**: 3 plans
 Plans:
-- [ ] 09-01-PLAN.md — Extend approval contracts, create ApprovalService, rewire runtime to emit approval.requested instead of failure, add service worker handler
+- [x] 09-01-PLAN.md — Extend approval contracts, create ApprovalService, rewire runtime to emit approval.requested instead of failure, add service worker handler
 - [x] 09-02-PLAN.md — Add STATUS_DISPLAY selector mapping, export isTerminalStatus, enrich timeline selectors with tests
-- [ ] 09-03-PLAN.md — Build AgentApprovalCard, AgentRunStatusBadge, AgentRunControls UI components and wire into ChatApp
+- [x] 09-03-PLAN.md — Build AgentApprovalCard, AgentRunStatusBadge, AgentRunControls UI components and wire into ChatApp
 
 ### Phase 10: Deep Research Orchestrator
 **Goal**: Build a research-grade agent loop that iterates through subquestions, gathers evidence, and synthesizes as it goes

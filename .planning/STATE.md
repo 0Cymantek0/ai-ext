@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: Executing Phase 09
-stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-03-30T10:56:10.491Z"
+status: Ready to execute
+stopped_at: Completed 09-03-PLAN.md
+last_updated: "2026-03-30T11:42:28.142Z"
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
-  completed_plans: 4
+  completed_plans: 6
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-29)
 ## Current Position
 
 Phase: 09 (human-in-the-loop-control-layer) — EXECUTING
-Plan: 1 of 3
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Plan: 1 of 3
 | Phase 06-settings-ui P01 | 10m | 1 tasks | 5 files |
 | Phase 07-agent-architecture-reset P02 | 120 min | 5 tasks | 8 files |
 | Phase 09 P02 | 5min | 1 tasks | 2 files |
+| Phase 09 P03 | 13min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,9 @@ Recent decisions affecting current work:
 - [Phase 06-settings-ui]: Kept provider editing detail-first, moved speech configuration to configured-provider data, and preserved inline provider provenance in chat.
 - [Phase 09]: Export STATUS_DISPLAY as Record<AgentRunStatus, {label, color, icon}> for direct UI badge consumption — Single source of truth for side panel badge rendering, type-safe coverage of all statuses
 - [Phase 09]: Export isTerminalStatus from selectors for side panel consumption — Allows side panel to check terminal states without duplicating terminal status logic
+- [Phase 09]: ICON_MAP pattern maps STATUS_DISPLAY icon string to Lucide component for dynamic rendering
+- [Phase 09]: AgentApprovalCard uses destructive variant for Reject and default for Approve following action severity conventions
+- [Phase 09]: AgentRunControls returns null for terminal statuses and uses isTerminalStatus selector
 
 ### Pending Todos
 
@@ -85,8 +89,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T10:03:11.495Z
-Stopped at: Completed 09-02-PLAN.md
+Last session: 2026-03-30T11:42:28.138Z
+Stopped at: Completed 09-03-PLAN.md
 Resume file: None
 
 ---
