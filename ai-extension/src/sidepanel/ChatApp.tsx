@@ -69,6 +69,9 @@ import {
   selectAgentTodo,
   selectLatestAgentApproval,
 } from "@/shared/agent-runtime/selectors";
+import { AgentRunStatusBadge } from "@/sidepanel/components/AgentRunStatusBadge";
+import { AgentApprovalCard } from "@/sidepanel/components/AgentApprovalCard";
+import { AgentRunControls } from "@/sidepanel/components/AgentRunControls";
 
 interface ChatMessage {
   id: string;
@@ -1207,6 +1210,47 @@ export function ChatApp() {
     syncBrowserActionStatus,
   ]);
 
+  const handleApprovalResolve = React.useCallback(
+    async (resolution: "approved" | "rejected") => {
+      if (!latestBrowserActionApproval || !browserActionRun) return;
+
+      try {
+        await chrome.runtime.sendMessage({
+          kind: "AGENT_RUN_APPROVAL_RESOLVE",
+          requestId: crypto.randomUUID(),
+          payload: {
+            runId: browserActionRun.runId,
+            approvalId: latestBrowserActionApproval.approvalId,
+            resolution,
+          },
+        });
+      } catch (error) {
+        console.error("Failed to resolve approval:", error);
+      }
+    },
+    [latestBrowserActionApproval, browserActionRun],
+  );
+
+  const handleRunControl = React.useCallback(
+    async (action: "pause" | "resume" | "cancel") => {
+      if (!browserActionRun) return;
+
+      try {
+        await chrome.runtime.sendMessage({
+          kind: "AGENT_RUN_CONTROL",
+          requestId: crypto.randomUUID(),
+          payload: {
+            runId: browserActionRun.runId,
+            action,
+          },
+        });
+      } catch (error) {
+        console.error(`Failed to ${action} run:`, error);
+      }
+    },
+    [browserActionRun],
+  );
+
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
     // Could add a toast notification here
@@ -1826,15 +1870,19 @@ export function ChatApp() {
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {browserActionPanel && (
                             <>
-                              <span className="rounded-full bg-background px-2 py-1 text-foreground">
-                                Status: {browserActionPanel.status}
-                              </span>
-                              <span className="rounded-full bg-background px-2 py-1 text-foreground">
+                              <AgentRunStatusBadge status={browserActionPanel.status} />
+                              <span className="rounded-full bg-background px-2 py-1 text-foreground text-xs">
                                 Phase: {browserActionPanel.phase}
                               </span>
-                              <span className="rounded-full bg-background px-2 py-1 text-foreground">
+                              <span className="rounded-full bg-background px-2 py-1 text-foreground text-xs">
                                 Progress: {browserActionPanel.progress}%
                               </span>
+                              <AgentRunControls
+                                status={browserActionPanel.status}
+                                onPause={() => void handleRunControl("pause")}
+                                onResume={() => void handleRunControl("resume")}
+                                onCancel={() => void handleRunControl("cancel")}
+                              />
                             </>
                           )}
                           {browserActionMetadata.tabTitle && (
@@ -1890,9 +1938,10 @@ export function ChatApp() {
                         )}
 
                         {latestBrowserActionApproval && (
-                          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-                            Approval pending: {latestBrowserActionApproval.reason}
-                          </div>
+                          <AgentApprovalCard
+                            approval={latestBrowserActionApproval}
+                            onResolve={(resolution) => void handleApprovalResolve(resolution)}
+                          />
                         )}
 
                         {browserActionTimeline.length > 0 && (
