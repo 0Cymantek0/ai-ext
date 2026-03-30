@@ -10,9 +10,19 @@ import {
   type WorkflowDefinition,
 } from "./agent-state.js";
 import { IndexedDBCheckpointManager } from "./checkpoint-manager.js";
-import type { BrowserToolRegistry } from "./tool-registry.js";
+import type {
+  BrowserToolRegistry,
+  CanonicalToolEvent,
+} from "./tool-registry.js";
 import type { DatabaseManager } from "../storage/schema.js";
 import type { Logger } from "../background/monitoring.js";
+
+export const BROWSER_ACTION_TOOL_MESSAGE_KINDS = {
+  extract_page_content: ["CAPTURE_REQUEST"],
+  click_element: ["CLICK_ELEMENT"],
+  type_text: ["TYPE_TEXT"],
+  scroll_to_element: ["SCROLL_TO_ELEMENT"],
+} as const;
 
 /**
  * Workflow start request
@@ -41,6 +51,7 @@ export interface WorkflowStatusResponse {
 export class WorkflowManager {
   private stateManager: WorkflowStateMachine;
   private checkpointManager: IndexedDBCheckpointManager;
+  private toolRegistry: BrowserToolRegistry;
   private logger: Logger;
 
   constructor(
@@ -48,6 +59,7 @@ export class WorkflowManager {
     database: DatabaseManager,
     logger: Logger,
   ) {
+    this.toolRegistry = toolRegistry;
     this.logger = logger;
     this.checkpointManager = new IndexedDBCheckpointManager(database, logger);
     this.stateManager = new WorkflowStateMachine(
@@ -343,5 +355,17 @@ export class WorkflowManager {
    */
   getCheckpointManager(): IndexedDBCheckpointManager {
     return this.checkpointManager;
+  }
+
+  getWorkflowToolEvents(workflowId: string): CanonicalToolEvent[] {
+    return this.toolRegistry.getWorkflowToolEvents(workflowId);
+  }
+
+  getBrowserActionMessageKinds(toolName: string): string[] {
+    return [
+      ...(BROWSER_ACTION_TOOL_MESSAGE_KINDS[
+        toolName as keyof typeof BROWSER_ACTION_TOOL_MESSAGE_KINDS
+      ] ?? []),
+    ];
   }
 }

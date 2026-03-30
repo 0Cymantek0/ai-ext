@@ -15,6 +15,15 @@ import { z } from "zod";
 // ─── Primitives ────────────────────────────────────────────────────────────────
 
 export const AgentRunModeSchema = z.enum(["browser-action", "deep-research"]);
+export const BrowserActionCheckpointBoundarySchema = z.enum([
+  "plan-created",
+  "tool-dispatch",
+  "tool-result",
+  "retry-planned",
+  "paused",
+  "resumed",
+  "terminal",
+]);
 
 export const AgentRunStatusSchema = z.enum([
   "pending",
@@ -110,6 +119,8 @@ export const RunPhaseChangedEventSchema = z.object({
   type: z.literal("run.phase_changed"),
   fromPhase: AgentRunPhaseSchema,
   toPhase: AgentRunPhaseSchema,
+  reason: z.string().optional(),
+  detail: z.string().optional(),
 });
 
 export const TodoReplacedEventSchema = z.object({
@@ -129,6 +140,8 @@ export const ToolCalledEventSchema = z.object({
   type: z.literal("tool.called"),
   toolName: z.string().min(1),
   toolArgs: z.record(z.unknown()),
+  checkpointBoundary: BrowserActionCheckpointBoundarySchema.optional(),
+  requiresHumanApproval: z.boolean().optional(),
 });
 
 export const ToolCompletedEventSchema = z.object({
@@ -137,6 +150,7 @@ export const ToolCompletedEventSchema = z.object({
   toolName: z.string().min(1),
   result: z.unknown(),
   durationMs: z.number(),
+  checkpointBoundary: BrowserActionCheckpointBoundarySchema.optional(),
 });
 
 export const ToolFailedEventSchema = z.object({
@@ -145,6 +159,10 @@ export const ToolFailedEventSchema = z.object({
   toolName: z.string().min(1),
   error: z.string(),
   durationMs: z.number(),
+  checkpointBoundary: BrowserActionCheckpointBoundarySchema.optional(),
+  code: z.string().optional(),
+  recoverable: z.boolean().optional(),
+  blockedByPolicy: z.boolean().optional(),
 });
 
 export const ApprovalRequestedEventSchema = z.object({
@@ -170,6 +188,7 @@ export const CheckpointCreatedEventSchema = z.object({
   ...eventBase,
   type: z.literal("checkpoint.created"),
   checkpointId: z.string().min(1),
+  boundary: BrowserActionCheckpointBoundarySchema.optional(),
 });
 
 export const RunCompletedEventSchema = z.object({
@@ -217,4 +236,5 @@ export const AgentCheckpointSchema = z.object({
   snapshot: AgentRunSchema,
   timestamp: z.number(),
   trigger: z.enum(["auto", "manual", "pre-approval", "terminal"]),
+  boundary: BrowserActionCheckpointBoundarySchema.optional(),
 });

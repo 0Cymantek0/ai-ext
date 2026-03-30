@@ -63,6 +63,24 @@ export interface ToolExecutionResult<T = any> {
   };
 }
 
+export type CanonicalToolEventType =
+  | "tool.called"
+  | "tool.completed"
+  | "tool.failed";
+
+export interface CanonicalToolEvent<TPayload = unknown> {
+  type: CanonicalToolEventType;
+  toolName: string;
+  workflowId: string;
+  stepNumber: number;
+  timestamp: number;
+  tabId?: number;
+  userId?: string;
+  requiresHumanApproval: boolean;
+  complexity?: ToolComplexity;
+  payload: TPayload;
+}
+
 /**
  * Tool execution handler function
  */
@@ -161,6 +179,8 @@ export class BrowserToolRegistry {
   private tools = new Map<string, BrowserToolDefinition>();
   private rateLimiter: RateLimiter;
   private workflowStates = new Map<string, WorkflowState>();
+  private workflowToolEvents = new Map<string, CanonicalToolEvent[]>();
+  private toolEventListeners = new Set<(event: CanonicalToolEvent) => void>();
   private logger: Logger;
   private performanceMonitor: PerformanceMonitor;
 
@@ -278,13 +298,17 @@ export class BrowserToolRegistry {
     context: ToolExecutionContext,
   ): Promise<ToolExecutionResult<TOutput>> {
     const startTime = Date.now();
+    let tool: BrowserToolDefinition<TInput, TOutput> | undefined;
 
     try {
       // Retrieve tool
-      const tool = this.tools.get(toolName);
+      tool = this.tools.get(toolName) as
+        | BrowserToolDefinition<TInput, TOutput>
+        | undefined;
       if (!tool) {
         throw new Error(`Tool not found: ${toolName}`);
       }
+      const resolvedTool = tool;
 
       // Check workflow state
       this.checkWorkflowState(context.workflowId);
@@ -300,6 +324,21 @@ export class BrowserToolRegistry {
       // Validate input against schema
       const validatedInput = tool.parametersSchema.parse(input);
 
+      this.emitToolEvent({
+        type: "tool.called",
+        toolName,
+        workflowId: context.workflowId,
+        stepNumber: context.stepNumber,
+        timestamp: Date.now(),
+        ...(context.tabId !== undefined && { tabId: context.tabId }),
+        ...(context.userId !== undefined && { userId: context.userId }),
+        requiresHumanApproval: tool.requiresHumanApproval,
+        complexity: tool.complexity,
+        payload: {
+          input: validatedInput,
+        },
+      });
+
       // Log execution start
       this.logger.info("BrowserToolRegistry", `Executing tool: ${toolName}`, {
         workflowId: context.workflowId,
@@ -312,11 +351,11 @@ export class BrowserToolRegistry {
       // Execute tool with performance monitoring
       const result = await this.performanceMonitor.measureAsync(
         `tool-execution-${toolName}`,
-        () => tool.handler(validatedInput, context),
+        () => resolvedTool.handler(validatedInput, context),
         {
           workflowId: context.workflowId,
-          category: tool.category,
-          complexity: tool.complexity,
+          category: resolvedTool.category,
+          complexity: resolvedTool.complexity,
         },
       );
 
@@ -343,6 +382,22 @@ export class BrowserToolRegistry {
 
       // Record metrics
       this.recordToolMetrics(toolName, true, executionTimeMs, tool.complexity);
+
+      this.emitToolEvent({
+        type: "tool.completed",
+        toolName,
+        workflowId: context.workflowId,
+        stepNumber: context.stepNumber,
+        timestamp: Date.now(),
+        ...(context.tabId !== undefined && { tabId: context.tabId }),
+        ...(context.userId !== undefined && { userId: context.userId }),
+        requiresHumanApproval: tool.requiresHumanApproval,
+        complexity: tool.complexity,
+        payload: {
+          result,
+          executionTimeMs,
+        },
+      });
 
       return {
         success: true,
@@ -374,6 +429,34 @@ export class BrowserToolRegistry {
       // Record failure metrics
       this.recordToolMetrics(toolName, false, executionTimeMs);
 
+      const failedEvent: CanonicalToolEvent = {
+        type: "tool.failed",
+        toolName,
+        workflowId: context.workflowId,
+        stepNumber: context.stepNumber,
+        timestamp: Date.now(),
+        ...(context.tabId !== undefined && { tabId: context.tabId }),
+        ...(context.userId !== undefined && { userId: context.userId }),
+        requiresHumanApproval: tool?.requiresHumanApproval ?? false,
+        payload: {
+          error: {
+            code:
+              error instanceof z.ZodError
+                ? "VALIDATION_ERROR"
+                : "EXECUTION_ERROR",
+            message: errorMessage,
+            details: error instanceof z.ZodError ? error.errors : error,
+          },
+          executionTimeMs,
+        },
+      };
+
+      if (tool?.complexity !== undefined) {
+        failedEvent.complexity = tool.complexity;
+      }
+
+      this.emitToolEvent(failedEvent);
+
       return {
         success: false,
         error: {
@@ -386,11 +469,29 @@ export class BrowserToolRegistry {
         },
         metadata: {
           executionTimeMs,
-          complexity: ToolComplexity.LOW,
-          requiresHumanApproval: false,
+          complexity: tool?.complexity ?? ToolComplexity.LOW,
+          requiresHumanApproval: tool?.requiresHumanApproval ?? false,
         },
       };
     }
+  }
+
+  subscribeToToolEvents(
+    listener: (event: CanonicalToolEvent) => void,
+  ): () => void {
+    this.toolEventListeners.add(listener);
+
+    return () => {
+      this.toolEventListeners.delete(listener);
+    };
+  }
+
+  getWorkflowToolEvents(workflowId: string): CanonicalToolEvent[] {
+    return [...(this.workflowToolEvents.get(workflowId) ?? [])];
+  }
+
+  clearWorkflowToolEvents(workflowId: string): void {
+    this.workflowToolEvents.delete(workflowId);
   }
 
   /**
@@ -407,6 +508,7 @@ export class BrowserToolRegistry {
       },
       status: "running",
     });
+    this.workflowToolEvents.set(workflowId, []);
 
     this.logger.info(
       "BrowserToolRegistry",
@@ -516,6 +618,7 @@ export class BrowserToolRegistry {
   cancelWorkflow(workflowId: string): void {
     this.updateWorkflowState(workflowId, { status: "cancelled" });
     this.rateLimiter.reset(workflowId);
+    this.clearWorkflowToolEvents(workflowId);
     this.logger.info(
       "BrowserToolRegistry",
       `Workflow cancelled: ${workflowId}`,
@@ -532,6 +635,16 @@ export class BrowserToolRegistry {
       "BrowserToolRegistry",
       `Workflow completed: ${workflowId}`,
     );
+  }
+
+  private emitToolEvent(event: CanonicalToolEvent): void {
+    const workflowEvents = this.workflowToolEvents.get(event.workflowId) ?? [];
+    workflowEvents.push(event);
+    this.workflowToolEvents.set(event.workflowId, workflowEvents);
+
+    for (const listener of this.toolEventListeners) {
+      listener(event);
+    }
   }
 
   /**

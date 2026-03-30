@@ -12,6 +12,7 @@
 
 import { AgentRuntimeStore } from "./store.js";
 import { PocketArtifactService } from "./pocket-artifact-service.js";
+import { CheckpointService } from "./checkpoint-service.js";
 import { createAgentRun, reduceAgentRunEvent } from "../../shared/agent-runtime/reducer.js";
 import type {
   AgentRun,
@@ -23,6 +24,9 @@ import type {
   AgentPendingApproval,
   AgentArtifactRef,
   AgentTerminalOutcome,
+  BrowserActionRunMetadata,
+  BrowserActionCheckpointBoundary,
+  AgentCheckpoint,
 } from "../../shared/agent-runtime/contracts.js";
 import type {
   AgentRunRecord,
@@ -33,6 +37,7 @@ import type {
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface StartRunOptions {
+  runId?: string | undefined;
   mode: AgentRunMode;
   metadata?: Record<string, unknown> | undefined;
 }
@@ -43,11 +48,26 @@ export interface AgentRunTimeline {
   checkpoints: AgentCheckpointRecord[];
 }
 
+export interface BrowserToolStartOptions {
+  requiresHumanApproval?: boolean | undefined;
+}
+
+export interface BrowserToolFailureOptions {
+  toolName: string;
+  error: string;
+  durationMs?: number | undefined;
+  code?: string | undefined;
+  recoverable?: boolean | undefined;
+  blockedByPolicy?: boolean | undefined;
+  retryCount?: number | undefined;
+}
+
 // ─── Service ────────────────────────────────────────────────────────────────
 
 export class AgentRuntimeService {
   private store: AgentRuntimeStore;
   private artifacts: PocketArtifactService;
+  private checkpoints: CheckpointService;
 
   /** In-memory cache of active runs for fast reads. */
   private activeRuns = new Map<string, AgentRun>();
@@ -55,6 +75,7 @@ export class AgentRuntimeService {
   constructor(store?: AgentRuntimeStore) {
     this.store = store ?? new AgentRuntimeStore();
     this.artifacts = new PocketArtifactService(this.store);
+    this.checkpoints = new CheckpointService(this.store);
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
@@ -65,7 +86,7 @@ export class AgentRuntimeService {
    */
   async startRun(options: StartRunOptions): Promise<AgentRun> {
     const now = Date.now();
-    const runId = this.generateRunId();
+    const runId = options.runId ?? this.generateRunId();
 
     // Create run via reducer factory
     let run = createAgentRun(runId, options.mode, now);
@@ -98,7 +119,12 @@ export class AgentRuntimeService {
     });
 
     this.activeRuns.set(runId, run);
-    return run;
+
+    if (options.mode === "browser-action") {
+      run = await this.bootstrapBrowserActionRun(run);
+    }
+
+    return (await this.getRun(runId)) ?? run;
   }
 
   /**
@@ -148,21 +174,15 @@ export class AgentRuntimeService {
       throw new Error(`Cannot pause run in status: ${run.status}`);
     }
 
-    const now = Date.now();
-    const event: AgentRunEvent = {
-      eventId: `evt-${runId}-pause-${now}`,
-      runId,
-      timestamp: now,
-      type: "run.phase_changed",
-      fromPhase: run.phase,
-      toPhase: run.phase, // Phase doesn't change on pause
+    await this.saveNamedCheckpoint(run, "paused", "manual");
+
+    const paused: AgentRun = {
+      ...run,
+      status: "paused",
+      updatedAt: Date.now(),
     };
 
-    const updated = reduceAgentRunEvent(run, event);
-    const paused: AgentRun = { ...updated, status: "paused" };
-
-    await this.store.putRun(this.toRunRecord(paused));
-    this.activeRuns.set(runId, paused);
+    await this.persistRun(paused);
     return paused;
   }
 
@@ -175,10 +195,23 @@ export class AgentRuntimeService {
       throw new Error(`Cannot resume run in status: ${run.status}`);
     }
 
-    const resumed: AgentRun = { ...run, status: "running", updatedAt: Date.now() };
-    await this.store.putRun(this.toRunRecord(resumed));
-    this.activeRuns.set(runId, resumed);
-    return resumed;
+    const reconstructed =
+      (await this.checkpoints.reconstructRunState(runId)) ?? run;
+    const resumed: AgentRun = {
+      ...reconstructed,
+      status: "running",
+      updatedAt: Date.now(),
+    };
+
+    await this.persistRun(resumed);
+
+    const resumedWithIntent = this.updateBrowserMetadata(resumed, {
+      currentIntent:
+        (resumed.metadata.currentIntent as string | undefined) ?? "Resume browser-action run",
+    });
+    await this.persistRun(resumedWithIntent);
+    await this.saveNamedCheckpoint(resumedWithIntent, "resumed", "manual");
+    return resumedWithIntent;
   }
 
   /**
@@ -272,12 +305,262 @@ export class AgentRuntimeService {
     this.activeRuns.clear();
   }
 
+  async appendBrowserToolEvent(
+    event: Extract<
+      AgentRunEvent,
+      { type: "tool.called" | "tool.completed" | "tool.failed" }
+    >,
+  ): Promise<AgentRun> {
+    const run = await this.applyEvent(event);
+
+    if (event.checkpointBoundary) {
+      await this.saveNamedCheckpoint(
+        run,
+        event.checkpointBoundary,
+        event.type === "tool.failed" ? "manual" : "auto",
+      );
+    }
+
+    return run;
+  }
+
+  async beginBrowserActionToolCall(
+    runId: string,
+    toolName: string,
+    toolArgs: Record<string, unknown>,
+    options: BrowserToolStartOptions = {},
+  ): Promise<AgentRun> {
+    if (options.requiresHumanApproval) {
+      return this.recordBrowserActionToolFailure(runId, {
+        toolName,
+        error: `Blocked pending approval for ${toolName}`,
+        code: "ACTION_BLOCKED",
+        blockedByPolicy: true,
+        recoverable: true,
+      });
+    }
+
+    let run = await this.appendBrowserToolEvent({
+      eventId: `evt-${runId}-tool-called-${Date.now()}`,
+      runId,
+      timestamp: Date.now(),
+      type: "tool.called",
+      toolName,
+      toolArgs,
+      checkpointBoundary: "tool-dispatch",
+      requiresHumanApproval: false,
+    });
+
+    run = this.updateBrowserMetadata(run, {
+      lastToolName: toolName,
+      currentIntent: `Execute ${toolName}`,
+    });
+    await this.persistRun(run);
+    return run;
+  }
+
+  async completeBrowserActionToolCall(
+    runId: string,
+    toolName: string,
+    result: unknown,
+    durationMs: number,
+  ): Promise<AgentRun> {
+    let run = await this.appendBrowserToolEvent({
+      eventId: `evt-${runId}-tool-completed-${Date.now()}`,
+      runId,
+      timestamp: Date.now(),
+      type: "tool.completed",
+      toolName,
+      result,
+      durationMs,
+      checkpointBoundary: "tool-result",
+    });
+
+    run = this.updateBrowserMetadata(run, {
+      lastToolName: toolName,
+      currentIntent: `Review result from ${toolName}`,
+    });
+    await this.persistRun(run);
+    return run;
+  }
+
+  async recordBrowserActionToolFailure(
+    runId: string,
+    options: BrowserToolFailureOptions,
+  ): Promise<AgentRun> {
+    const failureEvent: Extract<AgentRunEvent, { type: "tool.failed" }> = {
+      eventId: `evt-${runId}-tool-failed-${Date.now()}`,
+      runId,
+      timestamp: Date.now(),
+      type: "tool.failed",
+      toolName: options.toolName,
+      error: options.error,
+      durationMs: options.durationMs ?? 0,
+      checkpointBoundary: "tool-result",
+      ...(options.code ? { code: options.code } : {}),
+      ...(options.recoverable !== undefined
+        ? { recoverable: options.recoverable }
+        : {}),
+      ...(options.blockedByPolicy !== undefined
+        ? { blockedByPolicy: options.blockedByPolicy }
+        : {}),
+    };
+
+    let run = await this.appendBrowserToolEvent(failureEvent);
+
+    const retryCount = options.retryCount ?? 0;
+    run = this.updateBrowserMetadata(run, {
+      lastToolName: options.toolName,
+      lastError: options.error,
+      retryCount,
+      currentIntent:
+        options.blockedByPolicy || options.recoverable
+          ? `Retry or replan after ${options.toolName}`
+          : `Terminal failure in ${options.toolName}`,
+    });
+    await this.persistRun(run);
+
+    if (options.blockedByPolicy || options.recoverable) {
+      run = await this.applyEvent({
+        eventId: `evt-${runId}-retry-planned-${Date.now()}`,
+        runId,
+        timestamp: Date.now(),
+        type: "run.phase_changed",
+        fromPhase: run.phase,
+        toPhase: "planning",
+        reason: "retry-planned",
+        detail: options.blockedByPolicy
+          ? `Blocked ${options.toolName}; waiting for safer alternative`
+          : `Retry planned for ${options.toolName}`,
+      });
+
+      run = this.updateBrowserMetadata(run, {
+        retryCount,
+        currentIntent: options.blockedByPolicy
+          ? `Blocked ${options.toolName}; select safer action`
+          : `Retry ${options.toolName}`,
+      });
+      await this.persistRun(run);
+      await this.saveNamedCheckpoint(run, "retry-planned", "manual");
+      return run;
+    }
+
+    return this.applyEvent({
+      eventId: `evt-${runId}-run-failed-${Date.now()}`,
+      runId,
+      timestamp: Date.now(),
+      type: "run.failed",
+      outcome: {
+        status: "failed",
+        reason: options.error,
+        finishedAt: Date.now(),
+      },
+    });
+  }
+
   // ── Internal Helpers ──────────────────────────────────────────────────
 
   private async getRunOrThrow(runId: string): Promise<AgentRun> {
     const run = await this.getRun(runId);
     if (!run) throw new Error(`Run not found: ${runId}`);
     return run;
+  }
+
+  private async bootstrapBrowserActionRun(run: AgentRun): Promise<AgentRun> {
+    const metadata = run.metadata as Partial<BrowserActionRunMetadata>;
+    const task = metadata.task?.trim();
+
+    if (!task) {
+      return run;
+    }
+
+    const planningEvent: AgentRunEvent = {
+      eventId: `evt-${run.runId}-phase-${Date.now()}`,
+      runId: run.runId,
+      timestamp: Date.now(),
+      type: "run.phase_changed",
+      fromPhase: run.phase,
+      toPhase: "planning",
+      reason: "plan-created",
+      detail: `Plan browser action for ${task}`,
+    };
+
+    let updatedRun = await this.applyEvent(planningEvent);
+
+    const now = Date.now();
+    const initialTodos: AgentTodoItem[] = [
+      {
+        id: `${run.runId}-todo-plan`,
+        label: "Create execution plan",
+        done: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: `${run.runId}-todo-inspect`,
+        label: "Inspect current page state",
+        done: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: `${run.runId}-todo-execute`,
+        label: `Execute browser task: ${task}`,
+        done: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+
+    updatedRun = await this.applyEvent({
+      eventId: `evt-${run.runId}-todo-${Date.now()}`,
+      runId: run.runId,
+      timestamp: Date.now(),
+      type: "todo.replaced",
+      items: initialTodos,
+    });
+
+    updatedRun = this.updateBrowserMetadata(updatedRun, {
+      currentIntent: `Plan browser action for ${task}`,
+    });
+    await this.persistRun(updatedRun);
+    await this.saveNamedCheckpoint(updatedRun, "plan-created", "auto");
+
+    return updatedRun;
+  }
+
+  private async saveNamedCheckpoint(
+    run: AgentRun,
+    boundary: BrowserActionCheckpointBoundary,
+    trigger: AgentCheckpoint["trigger"],
+  ): Promise<AgentRun> {
+    const checkpoint = await this.checkpoints.saveCheckpoint(run, trigger, boundary);
+    return this.applyEvent({
+      eventId: `evt-${run.runId}-checkpoint-${Date.now()}`,
+      runId: run.runId,
+      timestamp: Date.now(),
+      type: "checkpoint.created",
+      checkpointId: checkpoint.checkpointId,
+      boundary,
+    });
+  }
+
+  private updateBrowserMetadata(
+    run: AgentRun,
+    updates: Partial<BrowserActionRunMetadata>,
+  ): AgentRun {
+    return {
+      ...run,
+      metadata: {
+        ...run.metadata,
+        ...updates,
+      },
+    };
+  }
+
+  private async persistRun(run: AgentRun): Promise<void> {
+    await this.store.putRun(this.toRunRecord(run));
+    this.activeRuns.set(run.runId, run);
   }
 
   private toRunRecord(run: AgentRun): AgentRunRecord {

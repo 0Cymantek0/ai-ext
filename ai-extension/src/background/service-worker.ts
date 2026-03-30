@@ -1853,22 +1853,89 @@ messageRouter.registerHandler("ARIA_RUN_CANCEL", async (payload: any) => {
 
 const agentRuntimeService = new AgentRuntimeService();
 
+async function buildAgentRunStatusPayload(
+  runId: string,
+): Promise<AgentRunStatusPayload> {
+  const timeline = await agentRuntimeService.getTimeline(runId);
+
+  if (!timeline) {
+    const run = await agentRuntimeService.getRun(runId);
+    if (!run) {
+      throw new Error(`Run not found: ${runId}`);
+    }
+
+    return { run };
+  }
+
+  return {
+    run: timeline.run,
+    events: timeline.events.map((event) => event.payload),
+    checkpoints: timeline.checkpoints.map((checkpoint) => ({
+      checkpointId: checkpoint.checkpointId,
+      timestamp: checkpoint.timestamp,
+      trigger: checkpoint.trigger,
+      ...(checkpoint.boundary ? { boundary: checkpoint.boundary } : {}),
+    })),
+  };
+}
+
 messageRouter.registerHandler(
   "AGENT_RUN_START",
   async (payload: AgentRunStartPayload) => {
     logger.info("Handler", "AGENT_RUN_START", { mode: payload.mode });
 
     try {
+      const activeTab =
+        payload.mode === "browser-action" &&
+        (typeof payload.tabId !== "number" ||
+          (!payload.tabUrl && !payload.tabTitle))
+          ? (await chrome.tabs.query({
+              active: true,
+              currentWindow: true,
+            }))[0]
+          : undefined;
+
+      const metadata =
+        payload.mode === "browser-action"
+          ? {
+              ...(payload.metadata ?? {}),
+              ...(payload.task ? { task: payload.task } : {}),
+              ...(payload.providerId ? { providerId: payload.providerId } : {}),
+              ...(payload.providerType
+                ? { providerType: payload.providerType }
+                : {}),
+              ...(payload.modelId ? { modelId: payload.modelId } : {}),
+              ...(payload.conversationId
+                ? { conversationId: payload.conversationId }
+                : {}),
+              ...(typeof payload.tabId === "number"
+                ? { tabId: payload.tabId }
+                : typeof activeTab?.id === "number"
+                  ? { tabId: activeTab.id }
+                  : {}),
+              ...(!payload.tabUrl && activeTab?.url
+                ? { tabUrl: activeTab.url }
+                : {}),
+              ...(!payload.tabTitle && activeTab?.title
+                ? { tabTitle: activeTab.title }
+                : {}),
+              ...(payload.tabUrl ? { tabUrl: payload.tabUrl } : {}),
+              ...(payload.tabTitle ? { tabTitle: payload.tabTitle } : {}),
+            }
+          : payload.metadata;
+
       const run = await agentRuntimeService.startRun({
+        runId: payload.runId,
         mode: payload.mode,
-        metadata: payload.metadata,
+        metadata,
       });
+      const statusPayload = await buildAgentRunStatusPayload(run.runId);
 
       // Forward run status to side panel
       messageRouter
         .sendToSidePanel({
           kind: "AGENT_RUN_STATUS",
-          payload: { run },
+          payload: statusPayload,
         } as BaseMessage<MessageKind, AgentRunStatusPayload>)
         .catch((error) => {
           logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
@@ -1878,7 +1945,7 @@ messageRouter.registerHandler(
         success: true,
         runId: run.runId,
         status: run.status,
-        run,
+        ...statusPayload,
       };
     } catch (error) {
       logger.error("Handler", "AGENT_RUN_START error", error);
@@ -1896,12 +1963,8 @@ messageRouter.registerHandler(
     logger.info("Handler", "AGENT_RUN_STATUS", { runId: payload.runId });
 
     try {
-      const run = await agentRuntimeService.getRun(payload.runId);
-      if (!run) {
-        return { success: false, error: `Run not found: ${payload.runId}` };
-      }
-
-      return { success: true, run };
+      const statusPayload = await buildAgentRunStatusPayload(payload.runId);
+      return { success: true, ...statusPayload };
     } catch (error) {
       logger.error("Handler", "AGENT_RUN_STATUS error", error);
       return {
@@ -1922,18 +1985,19 @@ messageRouter.registerHandler(
 
     try {
       const run = await agentRuntimeService.applyEvent(payload.event);
+      const statusPayload = await buildAgentRunStatusPayload(run.runId);
 
       // Forward updated status to side panel
       messageRouter
         .sendToSidePanel({
           kind: "AGENT_RUN_STATUS",
-          payload: { run },
+          payload: statusPayload,
         } as BaseMessage<MessageKind, AgentRunStatusPayload>)
         .catch((error) => {
           logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
         });
 
-      return { success: true, run };
+      return { success: true, ...statusPayload };
     } catch (error) {
       logger.error("Handler", "AGENT_RUN_EVENT error", error);
       return {
@@ -1962,7 +2026,7 @@ messageRouter.registerHandler(
           run = await agentRuntimeService.resumeRun(payload.runId);
           break;
         case "cancel":
-          run = await agentRuntimeService.cancelRun(payload.runId);
+          run = await agentRuntimeService.cancelRun(payload.runId, payload.reason);
           break;
         default:
           return {
@@ -1970,18 +2034,19 @@ messageRouter.registerHandler(
             error: `Unknown action: ${payload.action}`,
           };
       }
+      const statusPayload = await buildAgentRunStatusPayload(run.runId);
 
       // Forward updated status to side panel
       messageRouter
         .sendToSidePanel({
           kind: "AGENT_RUN_STATUS",
-          payload: { run },
+          payload: statusPayload,
         } as BaseMessage<MessageKind, AgentRunStatusPayload>)
         .catch((error) => {
           logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
         });
 
-      return { success: true, run };
+      return { success: true, ...statusPayload };
     } catch (error) {
       logger.error("Handler", "AGENT_RUN_CONTROL error", error);
       return {

@@ -122,6 +122,34 @@ class ContentScriptManager {
     });
   }
 
+  private createCommandSuccess(
+    command: string,
+    payload: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return {
+      success: true,
+      command,
+      timestamp: Date.now(),
+      ...payload,
+    };
+  }
+
+  private createCommandFailure(command: string, error: unknown): {
+    success: false;
+    command: string;
+    timestamp: number;
+    error: { message: string };
+  } {
+    return {
+      success: false,
+      command,
+      timestamp: Date.now(),
+      error: {
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+
   /**
    * Initialize the content script
    * Requirements: 2.1, 2.7
@@ -300,19 +328,13 @@ class ContentScriptManager {
         }
 
         this.recordEvent("interaction:click:success", { selector });
-        return {
-          success: true,
+        return this.createCommandSuccess("CLICK_ELEMENT", {
           message: `Clicked element: ${selector}`,
-        };
+        });
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
         console.error("[ContentScript] CLICK_ELEMENT failed", error);
         this.recordEvent("interaction:click:error", { error });
-        return {
-          success: false,
-          error: { message: errorMessage },
-        };
+        return this.createCommandFailure("CLICK_ELEMENT", error);
       }
     });
 
@@ -369,19 +391,13 @@ class ContentScriptManager {
           selector,
           textLength: text.length,
         });
-        return {
-          success: true,
+        return this.createCommandSuccess("TYPE_TEXT", {
           message: `Typed text into ${selector}`,
-        };
+        });
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
         console.error("[ContentScript] TYPE_TEXT failed", error);
         this.recordEvent("interaction:type:error", { error });
-        return {
-          success: false,
-          error: { message: errorMessage },
-        };
+        return this.createCommandFailure("TYPE_TEXT", error);
       }
     });
 
@@ -408,19 +424,13 @@ class ContentScriptManager {
         element.scrollIntoView({ behavior, block: "center" });
 
         this.recordEvent("interaction:scroll:success", { selector });
-        return {
-          success: true,
+        return this.createCommandSuccess("SCROLL_TO_ELEMENT", {
           message: `Scrolled to ${selector}`,
-        };
+        });
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
         console.error("[ContentScript] SCROLL_TO_ELEMENT failed", error);
         this.recordEvent("interaction:scroll:error", { error });
-        return {
-          success: false,
-          error: { message: errorMessage },
-        };
+        return this.createCommandFailure("SCROLL_TO_ELEMENT", error);
       }
     });
 

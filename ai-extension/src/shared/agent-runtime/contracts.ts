@@ -14,6 +14,32 @@
 /** The two canonical agent workflow modes. */
 export type AgentRunMode = "browser-action" | "deep-research";
 
+/** Named browser-action loop boundaries used for recovery and controls. */
+export type BrowserActionCheckpointBoundary =
+  | "plan-created"
+  | "tool-dispatch"
+  | "tool-result"
+  | "retry-planned"
+  | "paused"
+  | "resumed"
+  | "terminal";
+
+/** Canonical browser-action launch metadata persisted on AgentRun.metadata. */
+export interface BrowserActionRunMetadata {
+  task: string;
+  providerId: string;
+  providerType: string;
+  modelId: string;
+  conversationId?: string;
+  tabId: number;
+  tabUrl?: string;
+  tabTitle?: string;
+  currentIntent?: string;
+  retryCount?: number;
+  lastToolName?: string;
+  lastError?: string;
+}
+
 // ─── Run Status ────────────────────────────────────────────────────────────────
 
 /** Lifecycle status of an agent run. */
@@ -152,6 +178,8 @@ export interface RunPhaseChangedEvent extends AgentRunEventBase {
   type: "run.phase_changed";
   fromPhase: AgentRunPhase;
   toPhase: AgentRunPhase;
+  reason?: string;
+  detail?: string;
 }
 
 export interface TodoReplacedEvent extends AgentRunEventBase {
@@ -168,6 +196,8 @@ export interface ToolCalledEvent extends AgentRunEventBase {
   type: "tool.called";
   toolName: string;
   toolArgs: Record<string, unknown>;
+  checkpointBoundary?: BrowserActionCheckpointBoundary;
+  requiresHumanApproval?: boolean;
 }
 
 export interface ToolCompletedEvent extends AgentRunEventBase {
@@ -175,6 +205,7 @@ export interface ToolCompletedEvent extends AgentRunEventBase {
   toolName: string;
   result: unknown;
   durationMs: number;
+  checkpointBoundary?: BrowserActionCheckpointBoundary;
 }
 
 export interface ToolFailedEvent extends AgentRunEventBase {
@@ -182,6 +213,10 @@ export interface ToolFailedEvent extends AgentRunEventBase {
   toolName: string;
   error: string;
   durationMs: number;
+  checkpointBoundary?: BrowserActionCheckpointBoundary;
+  code?: string;
+  recoverable?: boolean;
+  blockedByPolicy?: boolean;
 }
 
 export interface ApprovalRequestedEvent extends AgentRunEventBase {
@@ -203,6 +238,7 @@ export interface ArtifactProjectedEvent extends AgentRunEventBase {
 export interface CheckpointCreatedEvent extends AgentRunEventBase {
   type: "checkpoint.created";
   checkpointId: string;
+  boundary?: BrowserActionCheckpointBoundary;
 }
 
 export interface RunCompletedEvent extends AgentRunEventBase {
@@ -247,4 +283,5 @@ export interface AgentCheckpoint {
   snapshot: AgentRun;
   timestamp: number;
   trigger: "auto" | "manual" | "pre-approval" | "terminal";
+  boundary?: BrowserActionCheckpointBoundary;
 }

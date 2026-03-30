@@ -20,6 +20,7 @@ import type {
   AgentRun,
   AgentRunEvent,
   AgentCheckpoint,
+  BrowserActionCheckpointBoundary,
 } from "../../shared/agent-runtime/contracts.js";
 import type {
   AgentRunRecord,
@@ -108,6 +109,7 @@ export class CheckpointService {
   async saveCheckpoint(
     run: AgentRun,
     trigger: AgentCheckpoint["trigger"],
+    boundary?: BrowserActionCheckpointBoundary,
   ): Promise<AgentCheckpointRecord> {
     const checkpointId = `${run.runId}-cp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const checkpointSequence = await this.store.getNextCheckpointSequence(
@@ -125,6 +127,7 @@ export class CheckpointService {
       snapshot: { ...run },
       timestamp: Date.now(),
       trigger,
+      ...(boundary ? { boundary } : {}),
     };
 
     const record: AgentCheckpointRecord = {

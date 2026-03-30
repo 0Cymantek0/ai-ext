@@ -1208,18 +1208,32 @@ import type {
   AgentRun,
   AgentRunEvent,
   AgentRunMode,
+  BrowserActionRunMetadata,
+  AgentCheckpoint,
 } from "../agent-runtime/contracts.js";
 
 /** Payload for AGENT_RUN_START messages. */
 export interface AgentRunStartPayload {
-  runId: string;
+  runId?: string;
   mode: AgentRunMode;
   metadata?: Record<string, unknown>;
+  task?: string;
+  providerId?: string;
+  providerType?: string;
+  modelId?: string;
+  conversationId?: string;
+  tabId?: number;
+  tabUrl?: string;
+  tabTitle?: string;
 }
 
 /** Payload for AGENT_RUN_STATUS messages. */
 export interface AgentRunStatusPayload {
   run: AgentRun;
+  events?: AgentRunEvent[];
+  checkpoints?: Array<
+    Pick<AgentCheckpoint, "checkpointId" | "timestamp" | "trigger" | "boundary">
+  >;
 }
 
 /** Payload for AGENT_RUN_EVENT messages. */
@@ -1231,4 +1245,7 @@ export interface AgentRunEventPayload {
 export interface AgentRunControlPayload {
   runId: string;
   action: "pause" | "resume" | "cancel";
+  reason?: string;
 }
+
+export interface BrowserActionLaunchPayload extends BrowserActionRunMetadata {}
