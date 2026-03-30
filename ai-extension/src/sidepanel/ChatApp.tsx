@@ -396,6 +396,8 @@ export function ChatApp() {
   const [currentPocketId, setCurrentPocketId] = React.useState<string | null>(
     null,
   );
+  const [linkedResearchPocketToOpen, setLinkedResearchPocketToOpen] =
+    React.useState<string | null>(null);
   // Pending pocket selection request from background
   const [pendingSelectionRequest, setPendingSelectionRequest] =
     React.useState<PocketSelectionRequestState | null>(null);
@@ -524,6 +526,15 @@ export function ChatApp() {
     () => readDeepResearchMetadata(deepResearchRun),
     [deepResearchRun],
   );
+
+  const openLinkedResearchPocket = React.useCallback(() => {
+    if (!deepResearchPanel?.pocketId) {
+      return;
+    }
+
+    setLinkedResearchPocketToOpen(deepResearchPanel.pocketId);
+    setCurrentMode("ai-pocket");
+  }, [deepResearchPanel?.pocketId]);
 
   // Indexing status hook
   const indexingStatus = useIndexingStatus();
@@ -2243,6 +2254,43 @@ export function ChatApp() {
                           </div>
                         )}
 
+                        {(deepResearchPanel?.pocketId ||
+                          typeof deepResearchPanel?.evidenceCount === "number") && (
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            {deepResearchPanel?.pocketId && (
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                  Research pocket
+                                </p>
+                                <div className="mt-1 flex items-center gap-2">
+                                  <span className="truncate rounded-full bg-background px-2 py-1 text-xs text-foreground">
+                                    {deepResearchPanel.pocketId}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={openLinkedResearchPocket}
+                                  >
+                                    Open linked pocket
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                            {typeof deepResearchPanel?.evidenceCount === "number" && (
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                  Live evidence
+                                </p>
+                                <p className="mt-1 text-sm text-foreground">
+                                  {deepResearchPanel.evidenceCount} evidence item
+                                  {deepResearchPanel.evidenceCount === 1 ? "" : "s"} captured
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {deepResearchPanel?.currentIntent && (
                           <div className="mt-3">
                             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -2369,6 +2417,7 @@ export function ChatApp() {
                   onInsidePocketChange={handleInsidePocketChange}
                   onAddNote={handleAddNote}
                   onAddFile={handleAddFile}
+                  initialPocketId={linkedResearchPocketToOpen}
                   onSelectPocket={(pocket) => setCurrentPocketId(pocket.id)}
                 />
               </div>

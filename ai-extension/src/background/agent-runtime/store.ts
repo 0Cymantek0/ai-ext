@@ -242,6 +242,30 @@ export class AgentRuntimeStore {
     );
   }
 
+  async getArtifactsByRunAndType(
+    runId: string,
+    artifactType: string,
+  ): Promise<AgentArtifactRecord[]> {
+    const db = await this.getDb();
+    return db.getAllFromIndex(
+      STORE_NAMES.AGENT_ARTIFACTS,
+      "runId_artifactType",
+      [runId, artifactType],
+    );
+  }
+
+  async getArtifactsByRunAndTarget(
+    runId: string,
+    targetId: string,
+  ): Promise<AgentArtifactRecord[]> {
+    const db = await this.getDb();
+    return db.getAllFromIndex(
+      STORE_NAMES.AGENT_ARTIFACTS,
+      "runId_targetId",
+      [runId, targetId],
+    );
+  }
+
   // ── AgentMigrations (ledger) ────────────────────────────────────────────
 
   async putMigration(record: AgentMigrationRecord): Promise<void> {

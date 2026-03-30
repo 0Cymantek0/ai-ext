@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import type { PocketData } from "./PocketCard";
 import type { CapturedContent } from "@/background/indexeddb-manager";
+import { isResearchEvidenceMetadata } from "@/types/content";
 import {
   formatSearchResults,
   type FormattedSearchResult,
@@ -332,6 +333,9 @@ function ContentResultsList({
       {results.map((result, index) => {
         const formatted = formattedResults?.[index];
         const { item, relevanceScore, matchedFields } = result;
+        const researchEvidence = isResearchEvidenceMetadata(item.metadata)
+          ? item.metadata.researchEvidence
+          : undefined;
 
         const getDomain = () => {
           if (!item.sourceUrl) return "";
@@ -398,13 +402,28 @@ function ContentResultsList({
                     ))}
                   </p>
                 )}
+                {researchEvidence?.source.title && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Source: {researchEvidence.source.title}
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap mt-1">
+              {researchEvidence && (
+                <span className="text-[10px] rounded-full bg-blue-500/15 px-2 py-0.5 text-blue-400">
+                  research-evidence
+                </span>
+              )}
               <span className="text-[10px] rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
                 {item.type}
               </span>
+              {researchEvidence?.duplicateCount && researchEvidence.duplicateCount > 1 && (
+                <span className="text-[10px] rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-400">
+                  duplicate x{researchEvidence.duplicateCount}
+                </span>
+              )}
               {matchedFields && matchedFields.length > 0 && (
                 <span className="text-[10px] rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5">
                   semantic

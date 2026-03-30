@@ -17,6 +17,7 @@ import {
 } from "@/components/FloatingControls";
 import type { CapturedContent } from "@/background/indexeddb-manager";
 import type { PocketData } from "./PocketCard";
+import { isResearchEvidenceMetadata } from "@/types/content";
 
 type ViewMode = "list" | "grid";
 type SortBy = "date" | "type" | "title";
@@ -173,10 +174,16 @@ export function ContentList({
           typeof content.content === "string"
             ? content.content.toLowerCase()
             : "";
+        const evidenceSourceTitle = isResearchEvidenceMetadata(content.metadata)
+          ? content.metadata.researchEvidence.source.title?.toLowerCase() || ""
+          : "";
+        const tags = (content.metadata.tags || []).join(" ").toLowerCase();
 
         return (
           title.includes(query) ||
           domain.includes(query) ||
+          evidenceSourceTitle.includes(query) ||
+          tags.includes(query) ||
           contentText.includes(query) ||
           content.type.toLowerCase().includes(query)
         );
@@ -237,9 +244,15 @@ export function ContentList({
             typeof content.content === "string"
               ? content.content.toLowerCase()
               : "";
+          const evidenceSourceTitle = isResearchEvidenceMetadata(content.metadata)
+            ? content.metadata.researchEvidence.source.title?.toLowerCase() || ""
+            : "";
+          const tags = (content.metadata.tags || []).join(" ").toLowerCase();
           return (
             title.includes(q) ||
             domain.includes(q) ||
+            evidenceSourceTitle.includes(q) ||
+            tags.includes(q) ||
             contentText.includes(q) ||
             content.type.toLowerCase().includes(q)
           );
@@ -271,9 +284,15 @@ export function ContentList({
           typeof content.content === "string"
             ? content.content.toLowerCase()
             : "";
+        const evidenceSourceTitle = isResearchEvidenceMetadata(content.metadata)
+          ? content.metadata.researchEvidence.source.title?.toLowerCase() || ""
+          : "";
+        const tags = (content.metadata.tags || []).join(" ").toLowerCase();
         return (
           title.includes(q) ||
           domain.includes(q) ||
+          evidenceSourceTitle.includes(q) ||
+          tags.includes(q) ||
           contentText.includes(q) ||
           content.type.toLowerCase().includes(q)
         );

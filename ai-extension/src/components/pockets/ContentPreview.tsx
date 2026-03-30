@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Response } from "@/components/ai/response";
 import { ImageViewer } from "./ImageViewer";
 import type { CapturedContent } from "@/background/indexeddb-manager";
+import { isResearchEvidenceMetadata } from "@/types/content";
 
 export interface ContentPreviewProps {
   content: CapturedContent | null;
@@ -32,6 +33,9 @@ export function ContentPreview({
   }, [isOpen, onClose]);
 
   if (!isOpen || !content) return null;
+  const researchEvidence = isResearchEvidenceMetadata(content.metadata)
+    ? content.metadata.researchEvidence
+    : undefined;
 
   // Use ImageViewer for image content
   if (content.type === "image") {
@@ -410,14 +414,32 @@ export function ContentPreview({
                     </span>
                   </div>
                 )}
-                {content.sourceUrl && (
+              {content.sourceUrl && (
+                <div>
+                  <span className="text-muted-foreground">Source:</span>
+                  <span className="ml-2 text-xs break-all">
+                    {content.sourceUrl}
+                  </span>
+                </div>
+              )}
+              {researchEvidence?.source.domain && (
+                <div>
+                  <span className="text-muted-foreground">Domain:</span>
+                  <span className="ml-2">{researchEvidence.source.domain}</span>
+                </div>
+              )}
+              {researchEvidence && (
+                <>
                   <div>
-                    <span className="text-muted-foreground">Source:</span>
-                    <span className="ml-2 text-xs break-all">
-                      {content.sourceUrl}
-                    </span>
+                    <span className="text-muted-foreground">Evidence:</span>
+                    <span className="ml-2">Research evidence</span>
                   </div>
-                )}
+                  <div>
+                    <span className="text-muted-foreground">Duplicates:</span>
+                    <span className="ml-2">{researchEvidence.duplicateCount}</span>
+                  </div>
+                </>
+              )}
                 <div>
                   <span className="text-muted-foreground">Status:</span>
                   <span className="ml-2 capitalize">
@@ -425,6 +447,44 @@ export function ContentPreview({
                   </span>
                 </div>
               </div>
+
+              {researchEvidence && (
+                <div className="rounded-lg border border-border/60 bg-accent/10 p-3">
+                  <p className="text-sm font-medium">Evidence provenance</p>
+                  <div className="mt-2 grid gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Captured at:</span>
+                      <span className="ml-2">
+                        {formatDate(researchEvidence.capturedAt)}
+                      </span>
+                    </div>
+                    {researchEvidence.context.topic && (
+                      <div>
+                        <span className="text-muted-foreground">Topic:</span>
+                        <span className="ml-2">
+                          {researchEvidence.context.topic}
+                        </span>
+                      </div>
+                    )}
+                    {researchEvidence.context.question && (
+                      <div>
+                        <span className="text-muted-foreground">Question:</span>
+                        <span className="ml-2">
+                          {researchEvidence.context.question}
+                        </span>
+                      </div>
+                    )}
+                    {researchEvidence.claim && (
+                      <div>
+                        <span className="text-muted-foreground">Claim:</span>
+                        <p className="mt-1 rounded bg-background px-2 py-2 text-sm">
+                          {researchEvidence.claim}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {content.metadata.selectionContext && (
                 <div>

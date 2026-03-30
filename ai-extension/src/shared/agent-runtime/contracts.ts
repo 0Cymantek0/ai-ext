@@ -98,6 +98,8 @@ export interface DeepResearchFinding {
   supportedQuestionIds: string[];
   source: DeepResearchSourceMetadata;
   createdAt: number;
+  evidenceId?: string;
+  duplicateCount?: number;
 }
 
 /** Canonical deep-research launch and runtime metadata persisted on AgentRun.metadata. */
@@ -188,10 +190,32 @@ export interface AgentPendingApproval {
 /** Reference to an artifact produced or consumed by a run. */
 export interface AgentArtifactRef {
   artifactId: string;
-  artifactType: "todo" | "state" | "evidence" | "report-input";
+  artifactType: "pocket" | "todo" | "state" | "evidence" | "report-input";
   label: string;
   uri?: string;
+  targetId?: string;
   createdAt: number;
+}
+
+export type ResearchEvidenceWriteDisposition =
+  | "created"
+  | "updated-as-duplicate"
+  | "refreshed";
+
+export interface ResearchEvidenceWriteResult {
+  runId: string;
+  pocketId: string;
+  contentId: string;
+  evidenceId: string;
+  fingerprint: string;
+  disposition: ResearchEvidenceWriteDisposition;
+  duplicateCount: number;
+  capturedAt: number;
+  lastSeenAt: number;
+  sourceUrl: string;
+  sourceTitle?: string;
+  questionId?: string;
+  question?: string;
 }
 
 // ─── Terminal Outcome ──────────────────────────────────────────────────────────
@@ -247,6 +271,7 @@ export type AgentRunEventType =
   | "approval.requested"
   | "approval.resolved"
   | "artifact.projected"
+  | "evidence.recorded"
   | "checkpoint.created"
   | "run.completed"
   | "run.failed"
@@ -334,6 +359,11 @@ export interface ArtifactProjectedEvent extends AgentRunEventBase {
   artifact: AgentArtifactRef;
 }
 
+export interface EvidenceRecordedEvent extends AgentRunEventBase {
+  type: "evidence.recorded";
+  evidence: ResearchEvidenceWriteResult;
+}
+
 export interface CheckpointCreatedEvent extends AgentRunEventBase {
   type: "checkpoint.created";
   checkpointId: string;
@@ -368,6 +398,7 @@ export type AgentRunEvent =
   | ApprovalRequestedEvent
   | ApprovalResolvedEvent
   | ArtifactProjectedEvent
+  | EvidenceRecordedEvent
   | CheckpointCreatedEvent
   | RunCompletedEvent
   | RunFailedEvent

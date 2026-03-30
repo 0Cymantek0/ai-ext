@@ -263,6 +263,8 @@ const STORE_CONFIGS: Record<StoreName, StoreConfig> = {
       { name: "artifactType", keyPath: "artifactType" },
       { name: "targetKind", keyPath: "targetKind" },
       { name: "targetId", keyPath: "targetId" },
+      { name: "runId_artifactType", keyPath: ["runId", "artifactType"] },
+      { name: "runId_targetId", keyPath: ["runId", "targetId"] },
       { name: "updatedAt", keyPath: "updatedAt" },
     ],
   },
@@ -560,6 +562,8 @@ export interface AiPocketDBSchema extends DBSchema {
       artifactType: string;
       targetKind: string;
       targetId: string;
+      runId_artifactType: [string, string];
+      runId_targetId: [string, string];
       updatedAt: number;
     };
   };

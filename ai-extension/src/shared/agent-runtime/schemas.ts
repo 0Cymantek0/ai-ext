@@ -87,10 +87,33 @@ export const AgentPendingApprovalSchema = z.object({
 
 export const AgentArtifactRefSchema = z.object({
   artifactId: z.string().min(1),
-  artifactType: z.enum(["todo", "state", "evidence", "report-input"]),
+  artifactType: z.enum(["pocket", "todo", "state", "evidence", "report-input"]),
   label: z.string().min(1),
   uri: z.string().optional(),
+  targetId: z.string().min(1).optional(),
   createdAt: z.number(),
+});
+
+export const ResearchEvidenceWriteDispositionSchema = z.enum([
+  "created",
+  "updated-as-duplicate",
+  "refreshed",
+]);
+
+export const ResearchEvidenceWriteResultSchema = z.object({
+  runId: z.string().min(1),
+  pocketId: z.string().min(1),
+  contentId: z.string().min(1),
+  evidenceId: z.string().min(1),
+  fingerprint: z.string().min(1),
+  disposition: ResearchEvidenceWriteDispositionSchema,
+  duplicateCount: z.number().int().nonnegative(),
+  capturedAt: z.number(),
+  lastSeenAt: z.number(),
+  sourceUrl: z.string().min(1),
+  sourceTitle: z.string().optional(),
+  questionId: z.string().optional(),
+  question: z.string().optional(),
 });
 
 export const AgentTerminalOutcomeSchema = z.object({
@@ -277,6 +300,12 @@ export const ArtifactProjectedEventSchema = z.object({
   artifact: AgentArtifactRefSchema,
 });
 
+export const EvidenceRecordedEventSchema = z.object({
+  ...eventBase,
+  type: z.literal("evidence.recorded"),
+  evidence: ResearchEvidenceWriteResultSchema,
+});
+
 export const CheckpointCreatedEventSchema = z.object({
   ...eventBase,
   type: z.literal("checkpoint.created"),
@@ -315,6 +344,7 @@ export const AgentRunEventSchema = z.discriminatedUnion("type", [
   ApprovalRequestedEventSchema,
   ApprovalResolvedEventSchema,
   ArtifactProjectedEventSchema,
+  EvidenceRecordedEventSchema,
   CheckpointCreatedEventSchema,
   RunCompletedEventSchema,
   RunFailedEventSchema,

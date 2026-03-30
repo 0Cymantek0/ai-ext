@@ -51,6 +51,42 @@ export type StorageTier = "indexeddb" | "filesystem";
  */
 export type ArchiveCompression = "none" | "gzip" | "brotli" | "zip";
 
+export type ResearchEvidenceSourceType = "web" | "pdf" | "note" | "manual";
+
+export interface ResearchEvidenceSource {
+  url: string;
+  normalizedUrl: string;
+  title?: string;
+  type: ResearchEvidenceSourceType;
+  domain?: string;
+  locator?: string;
+}
+
+export interface ResearchEvidenceContext {
+  topic: string;
+  goal?: string;
+  questionId?: string;
+  question?: string;
+  query?: string;
+  stepId?: string;
+  tags: string[];
+}
+
+export interface ResearchEvidenceMetadata {
+  evidenceId: string;
+  runId: string;
+  pocketId: string;
+  capturedAt: number;
+  firstCapturedAt: number;
+  lastSeenAt: number;
+  fingerprint: string;
+  duplicateCount: number;
+  source: ResearchEvidenceSource;
+  context: ResearchEvidenceContext;
+  excerpt?: string;
+  claim?: string;
+}
+
 /**
  * File archive descriptor for filesystem-stored content
  * Contains metadata needed to retrieve content from the File System Access API
@@ -145,6 +181,11 @@ export interface ContentMetadata {
   category?: string;
 
   /**
+   * Structured provenance for deep-research evidence items.
+   */
+  researchEvidence?: ResearchEvidenceMetadata;
+
+  /**
    * Surrounding text context when capturing a selection
    */
   selectionContext?: string;
@@ -202,6 +243,89 @@ export interface ContentMetadata {
    * @deprecated Use storage.fallbackPreview instead
    */
   fallbackPreview?: string;
+}
+
+const TRACKING_QUERY_PARAMS = new Set([
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "gclid",
+  "fbclid",
+]);
+
+export function normalizeEvidenceText(value: string | undefined): string {
+  return (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+export function normalizeEvidenceSourceUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    parsed.hash = "";
+    parsed.hostname = parsed.hostname.toLowerCase();
+
+    const keptEntries = [...parsed.searchParams.entries()]
+      .filter(([key]) => !TRACKING_QUERY_PARAMS.has(key.toLowerCase()))
+      .sort(([left], [right]) => left.localeCompare(right));
+
+    parsed.search = "";
+    for (const [key, value] of keptEntries) {
+      parsed.searchParams.append(key, value);
+    }
+
+    const normalizedPathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    return `${parsed.protocol}//${parsed.hostname}${normalizedPathname}${parsed.search}`;
+  } catch {
+    return trimmed.toLowerCase();
+  }
+}
+
+export function getEvidenceSourceDomain(url: string): string | undefined {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+function stableHash(value: string): string {
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+export function createResearchEvidenceFingerprint(input: {
+  sourceUrl: string;
+  locator?: string;
+  excerpt?: string;
+  claim?: string;
+}): string {
+  const normalizedUrl = normalizeEvidenceSourceUrl(input.sourceUrl);
+  const normalizedLocator = normalizeEvidenceText(input.locator);
+  const normalizedPayload = normalizeEvidenceText(
+    input.claim || input.excerpt || "",
+  );
+
+  return stableHash(
+    [normalizedUrl, normalizedLocator, normalizedPayload].join("::"),
+  );
+}
+
+export function isResearchEvidenceMetadata(
+  metadata: ContentMetadata | undefined,
+): metadata is ContentMetadata & { researchEvidence: ResearchEvidenceMetadata } {
+  return Boolean(metadata?.researchEvidence?.evidenceId);
 }
 
 /**

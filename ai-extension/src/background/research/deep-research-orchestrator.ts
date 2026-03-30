@@ -126,6 +126,29 @@ export class DeepResearchOrchestrator {
         ),
       );
 
+      for (let index = 0; index < findingInputs.length; index += 1) {
+        const findingInput = findingInputs[index]!;
+        const finding = findings[index]!;
+        const supportedQuestionId = findingInput.supportedQuestionIds[0];
+        const sourceType: "pdf" | "web" =
+          finding.source.contentType === "pdf" ? "pdf" : "web";
+        const evidenceInput = {
+          summary: finding.summary,
+          claim: finding.summary,
+          source: {
+            url: finding.source.sourceUrl,
+            type: sourceType,
+            ...(finding.source.title ? { title: finding.source.title } : {}),
+          },
+          question: activeQuestion.question,
+          query: activeQuestion.question,
+          tags: ["deep-research", activeQuestion.id],
+          ...(finding.excerpt ? { excerpt: finding.excerpt } : {}),
+          ...(supportedQuestionId ? { questionId: supportedQuestionId } : {}),
+        };
+        await this.runtimeService.recordResearchEvidence(runId, evidenceInput);
+      }
+
       await this.runtimeService.applyEvent(
         this.createToolCompletedEvent(runId, {
           iteration,
@@ -135,12 +158,6 @@ export class DeepResearchOrchestrator {
       );
 
       let nextMetadata = this.planService.integrateFindings(metadata, findings);
-      for (const finding of findings) {
-        await this.runtimeService.projectArtifact(
-          runId,
-          this.findingService.createArtifactRef(runId, finding),
-        );
-      }
 
       await this.runtimeService.updateRun(runId, (currentRun) => ({
         ...currentRun,

@@ -388,6 +388,12 @@ export class IndexedDBManager {
       store.createIndex("artifactType", "artifactType", { unique: false });
       store.createIndex("targetKind", "targetKind", { unique: false });
       store.createIndex("targetId", "targetId", { unique: false });
+      store.createIndex("runId_artifactType", ["runId", "artifactType"], {
+        unique: false,
+      });
+      store.createIndex("runId_targetId", ["runId", "targetId"], {
+        unique: false,
+      });
       store.createIndex("updatedAt", "updatedAt", { unique: false });
     }
     if (!db.objectStoreNames.contains(StoreName.AGENT_MIGRATIONS)) {

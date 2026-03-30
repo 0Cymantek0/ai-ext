@@ -14,6 +14,11 @@ import { AgentRuntimeStore } from "./store.js";
 import { PocketArtifactService } from "./pocket-artifact-service.js";
 import { CheckpointService } from "./checkpoint-service.js";
 import { ApprovalService } from "./approval-service.js";
+import { ResearchPocketService } from "../research/research-pocket-service.js";
+import {
+  ResearchEvidenceService,
+  type ResearchEvidenceWriteInput,
+} from "../research/research-evidence-service.js";
 import { createAgentRun, reduceAgentRunEvent } from "../../shared/agent-runtime/reducer.js";
 import type {
   AgentRun,
@@ -31,6 +36,7 @@ import type {
   DeepResearchQuestion,
   AgentCheckpointBoundary,
   AgentCheckpoint,
+  ResearchEvidenceWriteResult,
 } from "../../shared/agent-runtime/contracts.js";
 import type {
   AgentRunRecord,
@@ -73,6 +79,8 @@ export class AgentRuntimeService {
   private artifacts: PocketArtifactService;
   private checkpoints: CheckpointService;
   private approvalService: ApprovalService;
+  private researchPocketService: ResearchPocketService;
+  private researchEvidenceService: ResearchEvidenceService;
 
   /** In-memory cache of active runs for fast reads. */
   private activeRuns = new Map<string, AgentRun>();
@@ -82,6 +90,8 @@ export class AgentRuntimeService {
     this.artifacts = new PocketArtifactService(this.store);
     this.checkpoints = new CheckpointService(this.store);
     this.approvalService = new ApprovalService(this, this.store);
+    this.researchPocketService = new ResearchPocketService(this.artifacts);
+    this.researchEvidenceService = new ResearchEvidenceService(this.artifacts);
   }
 
   /** Get the ApprovalService for approval request/resolve operations. */
@@ -322,9 +332,9 @@ export class AgentRuntimeService {
     const current = await this.getRunOrThrow(runId);
     const updated = updater({
       ...current,
-      todoItems: [...current.todoItems],
-      artifactRefs: [...current.artifactRefs],
-      metadata: { ...current.metadata },
+      todoItems: [...(current.todoItems ?? [])],
+      artifactRefs: [...(current.artifactRefs ?? [])],
+      metadata: { ...(current.metadata ?? {}) },
     });
     await this.persistRun(updated);
     return updated;
@@ -379,6 +389,114 @@ export class AgentRuntimeService {
   ): Promise<AgentRun> {
     const run = await this.getRunOrThrow(runId);
     return this.saveNamedCheckpoint(run, boundary, trigger);
+  }
+
+  async ensureDeepResearchPocket(runId: string): Promise<AgentRun> {
+    const run = await this.getRunOrThrow(runId);
+    if (run.mode !== "deep-research") {
+      return run;
+    }
+
+    const result = await this.researchPocketService.ensurePocketForRun(run);
+    const artifact: AgentArtifactRef = {
+      artifactId: `artifact-pocket-${result.pocketId}`,
+      artifactType: "pocket",
+      label: result.pocket.name,
+      uri: `pocket://${result.pocketId}`,
+      targetId: result.pocketId,
+      createdAt: Date.now(),
+    };
+
+    const updatedRun = await this.updateRun(runId, (currentRun) => ({
+      ...currentRun,
+      metadata: {
+        ...currentRun.metadata,
+        pocketId: result.pocketId,
+      },
+    }));
+
+    await this.projectArtifact(updatedRun.runId, artifact);
+    return (await this.getRun(updatedRun.runId)) ?? updatedRun;
+  }
+
+  async recordResearchEvidence(
+    runId: string,
+    input: Omit<ResearchEvidenceWriteInput, "runId" | "pocketId" | "topic" | "goal">,
+  ): Promise<ResearchEvidenceWriteResult> {
+    const run = await this.ensureDeepResearchPocket(runId);
+    const metadata = run.metadata as Partial<DeepResearchRunMetadata>;
+    const pocketId = metadata.pocketId;
+    const topic = metadata.topic;
+
+    if (!pocketId || !topic) {
+      throw new Error("Deep-research run is missing pocket linkage or topic");
+    }
+
+    const result = await this.researchEvidenceService.writeEvidence({
+      ...input,
+      runId,
+      pocketId,
+      topic,
+      ...(metadata.goal ? { goal: metadata.goal } : {}),
+    });
+
+    await this.projectArtifact(runId, {
+      artifactId: `artifact-${result.evidenceId}`,
+      artifactType: "evidence",
+      label: result.sourceTitle || input.summary || "Research evidence",
+      uri: `pocket://${pocketId}/content/${result.contentId}`,
+      targetId: result.contentId,
+      createdAt: result.lastSeenAt,
+    });
+
+    await this.applyEvent({
+      eventId: `evt-${runId}-evidence-${result.evidenceId}-${result.lastSeenAt}`,
+      runId,
+      timestamp: result.lastSeenAt,
+      type: "evidence.recorded",
+      evidence: result,
+    });
+
+    const updatedRun = await this.updateRun(runId, (currentRun) => {
+      const currentMetadata = currentRun.metadata as Partial<DeepResearchRunMetadata>;
+      const findings = [...(currentMetadata.findings ?? [])];
+      const existingIndex = findings.findIndex(
+        (finding) => finding.evidenceId === result.evidenceId,
+      );
+      const summary = input.summary || input.claim || input.excerpt || "Research evidence captured";
+      const nextFinding = {
+        id: existingIndex >= 0 ? findings[existingIndex]!.id : result.evidenceId,
+        summary,
+        ...(input.excerpt ? { excerpt: input.excerpt } : {}),
+        supportedQuestionIds: input.questionId ? [input.questionId] : [],
+        source: {
+          sourceUrl: result.sourceUrl,
+          capturedAt: result.capturedAt,
+          ...(result.sourceTitle ? { title: result.sourceTitle } : {}),
+        },
+        createdAt: result.capturedAt,
+        evidenceId: result.evidenceId,
+        duplicateCount: result.duplicateCount,
+      };
+
+      if (existingIndex >= 0) {
+        findings[existingIndex] = nextFinding;
+      } else {
+        findings.push(nextFinding);
+      }
+
+      return {
+        ...currentRun,
+        metadata: {
+          ...currentRun.metadata,
+          latestFindingId: nextFinding.id,
+          findings,
+        },
+      };
+    });
+
+    await this.saveNamedCheckpoint(updatedRun, "finding-captured", "auto");
+    return result;
   }
 
   // ── Cleanup ─────────────────────────────────────────────────────────────
@@ -699,13 +817,7 @@ export class AgentRuntimeService {
     updatedRun = await this.replaceTodoItems(updatedRun.runId, initialTodos);
     updatedRun = this.updateRunMetadata(updatedRun, deepResearchMetadata);
 
-    if (metadata.pocketId) {
-      await this.artifacts.ensureResearchPocket(
-        updatedRun.runId,
-        metadata.pocketId,
-        `Research pocket for ${topic}`,
-      );
-    }
+    updatedRun = await this.ensureDeepResearchPocket(updatedRun.runId);
 
     await this.persistRun(updatedRun);
     await this.saveNamedCheckpoint(
@@ -758,6 +870,8 @@ export class AgentRuntimeService {
   }
 
   private toRunRecord(run: AgentRun): AgentRunRecord {
+    const metadata = run.metadata ?? {};
+
     return {
       runId: run.runId,
       mode: run.mode,
@@ -770,12 +884,12 @@ export class AgentRuntimeService {
       artifactRefs: run.artifactRefs,
       latestCheckpointId: run.latestCheckpointId,
       terminalOutcome: run.terminalOutcome,
-      metadata: run.metadata,
-      ...(typeof run.metadata.conversationId === "string"
-        ? { conversationId: run.metadata.conversationId as string }
+      metadata,
+      ...(typeof metadata.conversationId === "string"
+        ? { conversationId: metadata.conversationId as string }
         : {}),
-      ...(typeof run.metadata.pocketId === "string"
-        ? { pocketId: run.metadata.pocketId as string }
+      ...(typeof metadata.pocketId === "string"
+        ? { pocketId: metadata.pocketId as string }
         : {}),
     };
   }

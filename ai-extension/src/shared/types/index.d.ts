@@ -129,6 +129,8 @@ export type MessageKind =
   | "AGENT_RUN_STATUS"
   | "AGENT_RUN_EVENT"
   | "AGENT_RUN_CONTROL"
+  | "AGENT_RUN_EVIDENCE_WRITE"
+  | "AGENT_RUN_EVIDENCE_RESULT"
   | "AGENT_RUN_APPROVAL_RESOLVE"
   | "ERROR";
 
@@ -1212,6 +1214,7 @@ import type {
   BrowserActionRunMetadata,
   DeepResearchRunMetadata,
   AgentCheckpoint,
+  ResearchEvidenceWriteResult,
 } from "../agent-runtime/contracts.js";
 
 /** Payload for AGENT_RUN_START messages. */
@@ -1258,6 +1261,29 @@ export interface AgentRunApprovalResolvePayload {
   runId: string;
   approvalId: string;
   resolution: "approved" | "rejected";
+}
+
+export interface AgentRunEvidenceWritePayload {
+  runId: string;
+  summary?: string;
+  excerpt?: string;
+  claim?: string;
+  body?: string;
+  source: {
+    url: string;
+    title?: string;
+    type?: "web" | "pdf" | "note" | "manual";
+    locator?: string;
+  };
+  questionId?: string;
+  question?: string;
+  query?: string;
+  stepId?: string;
+  tags?: string[];
+}
+
+export interface AgentRunEvidenceResultPayload {
+  result: ResearchEvidenceWriteResult;
 }
 
 export interface BrowserActionLaunchPayload extends BrowserActionRunMetadata {}

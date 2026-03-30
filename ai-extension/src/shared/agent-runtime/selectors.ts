@@ -44,6 +44,7 @@ export interface AgentPanelState {
   status: AgentRunStatus;
   phase: AgentRunPhase;
   currentIntent?: string;
+  pocketId?: string;
   todoItems: AgentTodoItem[];
   pendingApproval: AgentPendingApproval | null;
   artifactRefs: AgentArtifactRef[];
@@ -58,6 +59,7 @@ export interface AgentPanelState {
   openGaps?: DeepResearchGap[];
   latestSynthesis?: string;
   latestFinding?: DeepResearchFinding;
+  evidenceCount?: number;
 }
 
 // ─── Status Display ──────────────────────────────────────────────────────────
@@ -110,6 +112,9 @@ export function selectAgentPanelState(
     progress,
     updatedAt: run.updatedAt,
     isTerminal: isTerminalStatus(run.status),
+    ...(typeof researchMetadata?.pocketId === "string"
+      ? { pocketId: researchMetadata.pocketId }
+      : {}),
     ...(researchMetadata?.topic ? { topic: researchMetadata.topic } : {}),
     ...(researchMetadata?.goal ? { goal: researchMetadata.goal } : {}),
     ...(activeQuestion ? { activeQuestion } : {}),
@@ -124,6 +129,9 @@ export function selectAgentPanelState(
       ? { latestSynthesis: researchMetadata.latestSynthesis }
       : {}),
     ...(latestFinding ? { latestFinding } : {}),
+    ...(researchMetadata?.findings
+      ? { evidenceCount: researchMetadata.findings.length }
+      : {}),
   };
 
   if (currentIntent) {
@@ -204,6 +212,7 @@ function eventTypeToLabel(event: AgentRunEvent): string {
     "approval.requested": "Approval requested",
     "approval.resolved": "Approval resolved",
     "artifact.projected": "Artifact projected",
+    "evidence.recorded": "Evidence recorded",
     "checkpoint.created": "Checkpoint created",
     "run.completed": "Run completed",
     "run.failed": "Run failed",
@@ -231,6 +240,10 @@ function eventTypeToLabel(event: AgentRunEvent): string {
         : "Approval rejected";
     case "run.phase_changed":
       return `Phase: ${event.toPhase}`;
+    case "evidence.recorded":
+      return event.evidence.disposition === "updated-as-duplicate"
+        ? "Evidence updated as duplicate"
+        : "Evidence captured";
     default:
       return labels[event.type] ?? event.type;
   }
@@ -271,6 +284,13 @@ function extractEventDetail(event: AgentRunEvent): string | undefined {
       return `Request ${event.resolution}`;
     case "artifact.projected":
       return event.artifact.label;
+    case "evidence.recorded": {
+      const duplicateLabel =
+        event.evidence.disposition === "updated-as-duplicate"
+          ? `Duplicate count ${event.evidence.duplicateCount}`
+          : undefined;
+      return duplicateLabel ?? event.evidence.sourceTitle ?? event.evidence.sourceUrl;
+    }
     case "checkpoint.created":
       return event.boundary ? `Boundary: ${event.boundary}` : undefined;
     case "run.completed":

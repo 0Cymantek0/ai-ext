@@ -49,7 +49,13 @@ export function reduceAgentRunEvent(
   snapshot: AgentRun,
   event: AgentRunEvent
 ): AgentRun {
-  const base: AgentRun = { ...snapshot, updatedAt: event.timestamp };
+  const base: AgentRun = {
+    ...snapshot,
+    updatedAt: event.timestamp,
+    todoItems: [...(snapshot.todoItems ?? [])],
+    artifactRefs: [...(snapshot.artifactRefs ?? [])],
+    metadata: { ...(snapshot.metadata ?? {}) },
+  };
 
   switch (event.type) {
     case "run.started":
@@ -139,6 +145,9 @@ export function reduceAgentRunEvent(
         ...base,
         artifactRefs: [...base.artifactRefs, event.artifact],
       };
+
+    case "evidence.recorded":
+      return base;
 
     case "checkpoint.created":
       return {

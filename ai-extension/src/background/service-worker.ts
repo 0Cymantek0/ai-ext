@@ -53,6 +53,8 @@ import type {
   AgentRunStatusPayload,
   AgentRunEventPayload,
   AgentRunControlPayload,
+  AgentRunEvidenceWritePayload,
+  AgentRunEvidenceResultPayload,
 } from "../shared/types/index.d.ts";
 
 // Initialize runtime logging (disabled by default until debug recording is enabled)
@@ -2198,6 +2200,57 @@ messageRouter.registerHandler(
       return { success: true, ...statusPayload };
     } catch (error) {
       logger.error("Handler", "AGENT_RUN_EVENT error", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+);
+
+messageRouter.registerHandler(
+  "AGENT_RUN_EVIDENCE_WRITE",
+  async (payload: AgentRunEvidenceWritePayload) => {
+    logger.info("Handler", "AGENT_RUN_EVIDENCE_WRITE", {
+      runId: payload.runId,
+      sourceUrl: payload.source?.url,
+    });
+
+    try {
+      const result = await agentRuntimeService.recordResearchEvidence(
+        payload.runId,
+        {
+          source: payload.source,
+          ...(payload.summary ? { summary: payload.summary } : {}),
+          ...(payload.excerpt ? { excerpt: payload.excerpt } : {}),
+          ...(payload.claim ? { claim: payload.claim } : {}),
+          ...(payload.body ? { body: payload.body } : {}),
+          ...(payload.questionId ? { questionId: payload.questionId } : {}),
+          ...(payload.question ? { question: payload.question } : {}),
+          ...(payload.query ? { query: payload.query } : {}),
+          ...(payload.stepId ? { stepId: payload.stepId } : {}),
+          ...(payload.tags ? { tags: payload.tags } : {}),
+        },
+      );
+      const statusPayload = await buildAgentRunStatusPayload(payload.runId);
+      const evidencePayload: AgentRunEvidenceResultPayload = { result };
+
+      forwardAgentRunStatus(payload.runId).catch((error) => {
+        logger.warn("Handler", "Failed to forward AGENT_RUN_STATUS", error);
+      });
+
+      messageRouter
+        .sendToSidePanel({
+          kind: "AGENT_RUN_EVIDENCE_RESULT",
+          payload: evidencePayload,
+        } as BaseMessage<MessageKind, AgentRunEvidenceResultPayload>)
+        .catch((error) => {
+          logger.warn("Handler", "Failed to forward evidence result", error);
+        });
+
+      return { success: true, result, ...statusPayload };
+    } catch (error) {
+      logger.error("Handler", "AGENT_RUN_EVIDENCE_WRITE error", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),

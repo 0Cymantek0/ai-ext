@@ -166,6 +166,14 @@ export class VectorSearchService {
         matchedFields.push("sourceUrl");
       }
 
+      const matchingTags = (content.metadata.tags || []).filter((tag) =>
+        tag.toLowerCase().includes(lowerQuery),
+      );
+      if (matchingTags.length > 0) {
+        score += 0.2;
+        matchedFields.push("tags");
+      }
+
       // Check type
       if (content.type.toLowerCase().includes(lowerQuery)) {
         score += 0.1;
@@ -287,6 +295,15 @@ export class VectorSearchService {
 
       if (contents.length === 0) {
         return [];
+      }
+
+      const keywordResults = this.keywordSearchContent(contents, query).slice(0, limit);
+      if (keywordResults.length > 0) {
+        logger.info("VectorSearchService", "Content search satisfied by keyword results", {
+          query,
+          resultsCount: keywordResults.length,
+        });
+        return keywordResults;
       }
 
       // Try vector search first

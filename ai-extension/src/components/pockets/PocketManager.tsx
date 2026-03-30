@@ -26,6 +26,7 @@ interface PocketManagerProps {
   onInsidePocketChange?: (isInside: boolean) => void;
   onAddNote?: () => void;
   onAddFile?: () => void;
+  initialPocketId?: string | null;
 }
 
 export interface PocketManagerRef {
@@ -40,7 +41,14 @@ export const PocketManager = React.forwardRef<
   PocketManagerProps
 >(
   (
-    { onSelectPocket, onNewPocket, onInsidePocketChange, onAddNote, onAddFile },
+    {
+      onSelectPocket,
+      onNewPocket,
+      onInsidePocketChange,
+      onAddNote,
+      onAddFile,
+      initialPocketId,
+    },
     ref,
   ) => {
     const [pockets, setPockets] = React.useState<PocketData[]>([]);
@@ -96,6 +104,17 @@ export const PocketManager = React.forwardRef<
     React.useEffect(() => {
       filterAndSortPockets();
     }, [pockets, searchQuery, sortBy]);
+
+    React.useEffect(() => {
+      if (!initialPocketId || selectedPocket) {
+        return;
+      }
+
+      const targetPocket = pockets.find((pocket) => pocket.id === initialPocketId);
+      if (targetPocket) {
+        handlePocketClick(targetPocket);
+      }
+    }, [initialPocketId, pockets, selectedPocket]);
 
     const loadPockets = async () => {
       setIsLoading(true);

@@ -2,6 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { CapturedContent } from "@/background/indexeddb-manager";
+import { isResearchEvidenceMetadata } from "@/types/content";
 
 export interface ContentCardProps {
   content: CapturedContent;
@@ -17,6 +18,9 @@ export function ContentCard({
   onDelete,
 }: ContentCardProps) {
   const [showActions, setShowActions] = React.useState(false);
+  const researchEvidence = isResearchEvidenceMetadata(content.metadata)
+    ? content.metadata.researchEvidence
+    : undefined;
 
   // Check if content is being auto-formatted (ONLY for captured text: selection and page)
   const isProcessing =
@@ -272,6 +276,12 @@ export function ContentCard({
 
     if (typeof content.content !== "string")
       return `Binary content (${content.type})`;
+    if (researchEvidence) {
+      const preview =
+        researchEvidence.excerpt || researchEvidence.claim || content.content;
+      const normalizedPreview = preview.replace(/\s+/g, " ").trim();
+      return normalizedPreview.slice(0, 160);
+    }
     const text = content.content
       .replace(/#{1,6}\s+/g, "")
       .replace(/\*\*(.*?)\*\*/g, "$1")
@@ -300,6 +310,7 @@ export function ContentCard({
   };
 
   const getContentTitle = (content: CapturedContent): string => {
+    if (researchEvidence?.source.title) return researchEvidence.source.title;
     if (content.metadata.title) return content.metadata.title;
     if (content.sourceUrl) {
       try {
@@ -402,6 +413,23 @@ export function ContentCard({
             >
               {getContentTitle(content)}
             </h3>
+            {researchEvidence && (
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-blue-500/15 px-2 py-1 font-medium text-blue-400">
+                  Evidence
+                </span>
+                {researchEvidence.source.domain && (
+                  <span className="rounded-full bg-background px-2 py-1 text-muted-foreground">
+                    {researchEvidence.source.domain}
+                  </span>
+                )}
+                {researchEvidence.duplicateCount > 1 && (
+                  <span className="rounded-full bg-amber-500/15 px-2 py-1 font-medium text-amber-400">
+                    Duplicate x{researchEvidence.duplicateCount}
+                  </span>
+                )}
+              </div>
+            )}
             <p
               className={cn(
                 "mt-1.5 text-sm line-clamp-2",
@@ -535,6 +563,23 @@ export function ContentCard({
             >
               {getContentTitle(content)}
             </h3>
+            {researchEvidence && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-blue-500/15 px-2 py-1 font-medium text-blue-400">
+                  Evidence
+                </span>
+                {researchEvidence.source.domain && (
+                  <span className="rounded-full bg-background px-2 py-1 text-muted-foreground">
+                    {researchEvidence.source.domain}
+                  </span>
+                )}
+                {researchEvidence.duplicateCount > 1 && (
+                  <span className="rounded-full bg-amber-500/15 px-2 py-1 font-medium text-amber-400">
+                    Duplicate x{researchEvidence.duplicateCount}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

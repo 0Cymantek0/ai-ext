@@ -40,6 +40,16 @@ export interface ArtifactProjectionResult {
   targetId: string;
 }
 
+export interface EvidenceArtifactInput {
+  runId: string;
+  pocketId: string;
+  contentId: string;
+  evidenceId: string;
+  fingerprint: string;
+  label: string;
+  sourceUrl?: string;
+}
+
 // ─── Service ────────────────────────────────────────────────────────────────
 
 export class PocketArtifactService {
@@ -188,6 +198,54 @@ export class PocketArtifactService {
    */
   async listArtifactsForRun(runId: string): Promise<AgentArtifactRecord[]> {
     return this.store.getArtifactsByRun(runId);
+  }
+
+  async listEvidenceArtifactsForRun(runId: string): Promise<AgentArtifactRecord[]> {
+    return this.store.getArtifactsByRunAndType(runId, "evidence");
+  }
+
+  async findEvidenceArtifactForTarget(
+    runId: string,
+    contentId: string,
+  ): Promise<AgentArtifactRecord | undefined> {
+    const records = await this.store.getArtifactsByRunAndTarget(runId, contentId);
+    return records.find((record) => record.artifactType === "evidence");
+  }
+
+  async ensureEvidenceArtifact(
+    input: EvidenceArtifactInput,
+  ): Promise<AgentArtifactRecord> {
+    const existing = await this.findEvidenceArtifactForTarget(
+      input.runId,
+      input.contentId,
+    );
+
+    if (existing) {
+      const nextUri = input.sourceUrl || existing.uri;
+      await this.touchArtifact(
+        existing.artifactId,
+        nextUri ? { uri: nextUri } : {},
+      );
+      const refreshed = await this.store.getArtifact(existing.artifactId);
+      return refreshed ?? existing;
+    }
+
+    const now = Date.now();
+    const record: AgentArtifactRecord = {
+      artifactId: `art-evidence-${input.runId}-${input.evidenceId}`,
+      runId: input.runId,
+      artifactType: "evidence",
+      targetKind: "pocket-content",
+      targetId: input.contentId,
+      label: input.label,
+      uri:
+        input.sourceUrl || `pocket://${input.pocketId}/content/${input.contentId}`,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await this.store.putArtifact(record);
+    return record;
   }
 
   /**
