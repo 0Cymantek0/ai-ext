@@ -61,16 +61,17 @@ import { initKonamiCode, stopKonamiCode } from "@/utils/konami-code-listener";
 import type {
   AgentRun,
   AgentRunEvent,
+  AgentRunMode,
 } from "@/shared/agent-runtime/contracts";
 import {
   selectAgentPanelState,
   selectAgentTimeline,
 } from "@/shared/agent-runtime/selectors";
 import { buildReportViewerUrl } from "@/shared/reporting/viewer";
-import { BrowserActionPanel } from "@/sidepanel/components/BrowserActionPanel";
-import { DeepResearchPanel } from "@/sidepanel/components/DeepResearchPanel";
 import { RunHistoryPanel } from "@/sidepanel/components/RunHistoryPanel";
 import { RunReviewPanel } from "@/sidepanel/components/RunReviewPanel";
+import { WorkflowLauncher } from "@/sidepanel/components/WorkflowLauncher";
+import { useAgentRunEvents } from "@/sidepanel/hooks/useAgentRunEvents";
 
 interface ChatMessage {
   id: string;
@@ -281,23 +282,6 @@ const getAssistantProvenance = (
   return undefined;
 };
 
-const mergeAgentEvents = (
-  currentEvents: AgentRunEvent[],
-  nextEvents: AgentRunEvent[],
-): AgentRunEvent[] => {
-  const merged = new Map<string, AgentRunEvent>();
-
-  for (const event of currentEvents) {
-    merged.set(event.eventId, event);
-  }
-
-  for (const event of nextEvents) {
-    merged.set(event.eventId, event);
-  }
-
-  return [...merged.values()].sort((left, right) => left.timestamp - right.timestamp);
-};
-
 function ThinkingBlock({ reasoning }: { reasoning: string }) {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
@@ -436,26 +420,34 @@ export function ChatApp() {
     () => resolveSelectedChatModel(selectedModel, chatModelOptions),
     [chatModelOptions, selectedModel],
   );
-  const [browserActionRun, setBrowserActionRun] = React.useState<AgentRun | null>(
-    null,
-  );
-  const [browserActionEvents, setBrowserActionEvents] = React.useState<
-    AgentRunEvent[]
-  >([]);
+  // ── Workflow Run IDs (lightweight launch/control state) ────────────────
+  const [browserActionRunId, setBrowserActionRunId] = React.useState<string | null>(null);
+  const [deepResearchRunId, setDeepResearchRunId] = React.useState<string | null>(null);
   const [browserActionError, setBrowserActionError] = React.useState<
     string | null
   >(null);
-  const [deepResearchRun, setDeepResearchRun] = React.useState<AgentRun | null>(
-    null,
-  );
-  const [deepResearchEvents, setDeepResearchEvents] = React.useState<
-    AgentRunEvent[]
-  >([]);
   const [deepResearchError, setDeepResearchError] = React.useState<
     string | null
   >(null);
 
-  // ── Historical Run Review State (Phase 13-02) ────────────────────────────
+  // ── Isolated workflow streams (UX-05: bounded per-run subscriptions) ───
+  const browserActionStream = useAgentRunEvents(browserActionRunId);
+  const deepResearchStream = useAgentRunEvents(deepResearchRunId);
+
+  // ── Workflow Launcher State (Phase 13-03) ─────────────────────────────────
+  const [activeWorkflowMode, setActiveWorkflowMode] = React.useState<AgentRunMode>("browser-action");
+  const [browserActionModel, setBrowserActionModel] = React.useState("auto");
+  const [deepResearchModel, setDeepResearchModel] = React.useState("auto");
+
+  // Resolve workflow-specific models (for launch handlers)
+  const browserActionResolvedModel = React.useMemo(
+    () => resolveSelectedChatModel(browserActionModel, chatModelOptions),
+    [chatModelOptions, browserActionModel],
+  );
+  const deepResearchResolvedModel = React.useMemo(
+    () => resolveSelectedChatModel(deepResearchModel, chatModelOptions),
+    [chatModelOptions, deepResearchModel],
+  );
   const [isRunHistoryOpen, setIsRunHistoryOpen] = React.useState(false);
   const [runHistoryList, setRunHistoryList] = React.useState<AgentRun[]>([]);
   const [isRunHistoryLoading, setIsRunHistoryLoading] = React.useState(false);
@@ -467,30 +459,24 @@ export function ChatApp() {
 
   const browserActionPanel = React.useMemo(
     () =>
-      browserActionRun
-        ? selectAgentPanelState(browserActionRun, browserActionEvents)
+      browserActionStream.run
+        ? selectAgentPanelState(browserActionStream.run, browserActionStream.events)
         : null,
-    [browserActionEvents, browserActionRun],
+    [browserActionStream.run, browserActionStream.events],
   );
-  const browserActionTimeline = React.useMemo(
-    () => selectAgentTimeline(browserActionEvents),
-    [browserActionEvents],
-  );
+  const browserActionTimeline = browserActionStream.timeline;
   const browserActionRequiresExplicitModel =
-    !selectedChatModel.providerId ||
-    !selectedChatModel.providerType ||
-    !selectedChatModel.modelId;
+    !browserActionResolvedModel.providerId ||
+    !browserActionResolvedModel.providerType ||
+    !browserActionResolvedModel.modelId;
   const deepResearchPanel = React.useMemo(
     () =>
-      deepResearchRun
-        ? selectAgentPanelState(deepResearchRun, deepResearchEvents)
+      deepResearchStream.run
+        ? selectAgentPanelState(deepResearchStream.run, deepResearchStream.events)
         : null,
-    [deepResearchEvents, deepResearchRun],
+    [deepResearchStream.run, deepResearchStream.events],
   );
-  const deepResearchTimeline = React.useMemo(
-    () => selectAgentTimeline(deepResearchEvents),
-    [deepResearchEvents],
-  );
+  const deepResearchTimeline = deepResearchStream.timeline;
 
 
   // Indexing status hook
@@ -573,40 +559,6 @@ export function ChatApp() {
 
     return "gemini-flash";
   };
-
-  const syncAgentRunStatus = React.useCallback(
-    (run: AgentRun, events?: AgentRunEvent[]) => {
-      if (run.mode === "browser-action") {
-        setBrowserActionRun(run);
-        if (events) {
-          setBrowserActionEvents(events);
-        }
-        return;
-      }
-
-      if (run.mode === "deep-research") {
-        setDeepResearchRun(run);
-        if (events) {
-          setDeepResearchEvents(events);
-        }
-      }
-    },
-    [],
-  );
-
-  const appendAgentEvent = React.useCallback((event: AgentRunEvent) => {
-    if (event.runId === browserActionRun?.runId) {
-      setBrowserActionEvents((currentEvents) =>
-        mergeAgentEvents(currentEvents, [event]),
-      );
-    }
-
-    if (event.runId === deepResearchRun?.runId) {
-      setDeepResearchEvents((currentEvents) =>
-        mergeAgentEvents(currentEvents, [event]),
-      );
-    }
-  }, [browserActionRun?.runId, deepResearchRun?.runId]);
 
   const getActiveTabContext = React.useCallback(async (): Promise<BrowserActionTabContext> => {
     if (!chrome.tabs?.query) {
@@ -952,11 +904,15 @@ export function ChatApp() {
           handleStreamError(message.payload);
           break;
         case "AGENT_RUN_STATUS":
-          syncAgentRunStatus(message.payload.run, message.payload.events);
-          break;
-        case "AGENT_RUN_EVENT":
-          if (message.payload?.event?.runId) {
-            appendAgentEvent(message.payload.event);
+          // Set lightweight runId so useAgentRunEvents can hydrate.
+          // The hook manages its own events/run detail state.
+          if (message.payload?.run) {
+            const run = message.payload.run;
+            if (run.mode === "browser-action") {
+              setBrowserActionRunId(run.runId);
+            } else if (run.mode === "deep-research") {
+              setDeepResearchRunId(run.runId);
+            }
           }
           break;
         case "POCKET_SELECTION_REQUEST": {
@@ -993,9 +949,7 @@ export function ChatApp() {
     handleStreamReasoning,
     handleStreamEnd,
     handleStreamError,
-    appendAgentEvent,
     pendingSelectionRequest,
-    syncAgentRunStatus,
   ]);
 
   // Load conversations on mount
@@ -1219,12 +1173,12 @@ export function ChatApp() {
     }
 
     if (
-      !selectedChatModel.providerId ||
-      !selectedChatModel.providerType ||
-      !selectedChatModel.modelId
+      !browserActionResolvedModel.providerId ||
+      !browserActionResolvedModel.providerType ||
+      !browserActionResolvedModel.modelId
     ) {
       setBrowserActionError(
-        "Choose a configured model from the shared model picker before launching.",
+        "Choose a configured model from the workflow model selector before launching.",
       );
       return;
     }
@@ -1241,9 +1195,9 @@ export function ChatApp() {
       const payload = {
         mode: "browser-action" as const,
         task,
-        providerId: selectedChatModel.providerId,
-        providerType: selectedChatModel.providerType,
-        modelId: selectedChatModel.modelId,
+        providerId: browserActionResolvedModel.providerId,
+        providerType: browserActionResolvedModel.providerType,
+        modelId: browserActionResolvedModel.modelId,
         conversationId,
         ...tabContext,
         metadata: {
@@ -1262,7 +1216,8 @@ export function ChatApp() {
         return;
       }
 
-      syncAgentRunStatus(response.run, response.events);
+      // Set the runId — the useAgentRunEvents hook will hydrate automatically
+      setBrowserActionRunId(response.run.runId);
     } catch (error) {
       setBrowserActionError(
         error instanceof Error ? error.message : "Failed to launch browser action.",
@@ -1271,10 +1226,9 @@ export function ChatApp() {
   }, [
     currentConversationId,
     getActiveTabContext,
-    selectedChatModel.modelId,
-    selectedChatModel.providerId,
-    selectedChatModel.providerType,
-    syncAgentRunStatus,
+    browserActionResolvedModel.modelId,
+    browserActionResolvedModel.providerId,
+    browserActionResolvedModel.providerType,
   ]);
 
   const handleDeepResearchLaunch = React.useCallback(async (topic: string, goal: string) => {
@@ -1283,12 +1237,12 @@ export function ChatApp() {
     }
 
     if (
-      !selectedChatModel.providerId ||
-      !selectedChatModel.providerType ||
-      !selectedChatModel.modelId
+      !deepResearchResolvedModel.providerId ||
+      !deepResearchResolvedModel.providerType ||
+      !deepResearchResolvedModel.modelId
     ) {
       setDeepResearchError(
-        "Choose a configured model from the shared model picker before launching.",
+        "Choose a configured model from the workflow model selector before launching.",
       );
       return;
     }
@@ -1309,9 +1263,9 @@ export function ChatApp() {
           mode: "deep-research" as const,
           topic,
           goal,
-          providerId: selectedChatModel.providerId,
-          providerType: selectedChatModel.providerType,
-          modelId: selectedChatModel.modelId,
+          providerId: deepResearchResolvedModel.providerId,
+          providerType: deepResearchResolvedModel.providerType,
+          modelId: deepResearchResolvedModel.modelId,
           conversationId,
           ...tabContext,
           metadata: {
@@ -1325,7 +1279,8 @@ export function ChatApp() {
         return;
       }
 
-      syncAgentRunStatus(response.run, response.events);
+      // Set the runId — the useAgentRunEvents hook will hydrate automatically
+      setDeepResearchRunId(response.run.runId);
     } catch (error) {
       setDeepResearchError(
         error instanceof Error ? error.message : "Failed to launch deep research.",
@@ -1334,10 +1289,9 @@ export function ChatApp() {
   }, [
     currentConversationId,
     getActiveTabContext,
-    selectedChatModel.modelId,
-    selectedChatModel.providerId,
-    selectedChatModel.providerType,
-    syncAgentRunStatus,
+    deepResearchResolvedModel.modelId,
+    deepResearchResolvedModel.providerId,
+    deepResearchResolvedModel.providerType,
   ]);
 
   const handleApprovalResolve = React.useCallback(
@@ -1361,14 +1315,14 @@ export function ChatApp() {
 
   const handleRunControl = React.useCallback(
     async (action: "pause" | "resume" | "cancel") => {
-      if (!browserActionRun) return;
+      if (!browserActionStream.run) return;
 
       try {
         await chrome.runtime.sendMessage({
           kind: "AGENT_RUN_CONTROL",
           requestId: crypto.randomUUID(),
           payload: {
-            runId: browserActionRun.runId,
+            runId: browserActionStream.run.runId,
             action,
           },
         });
@@ -1376,19 +1330,19 @@ export function ChatApp() {
         console.error(`Failed to ${action} run:`, error);
       }
     },
-    [browserActionRun],
+    [browserActionStream.run],
   );
 
   const handleDeepResearchRunControl = React.useCallback(
     async (action: "pause" | "resume" | "cancel") => {
-      if (!deepResearchRun) return;
+      if (!deepResearchStream.run) return;
 
       try {
         await chrome.runtime.sendMessage({
           kind: "AGENT_RUN_CONTROL",
           requestId: crypto.randomUUID(),
           payload: {
-            runId: deepResearchRun.runId,
+            runId: deepResearchStream.run.runId,
             action,
           },
         });
@@ -1396,7 +1350,7 @@ export function ChatApp() {
         console.error("Failed to control deep research run:", error);
       }
     },
-    [deepResearchRun],
+    [deepResearchStream.run],
   );
 
   // ── Historical Run Review Handlers (Phase 13-02) ─────────────────────────
@@ -2073,46 +2027,41 @@ export function ChatApp() {
           <div className="flex flex-1 flex-col overflow-hidden bg-transparent">
             {currentMode === "ask" && (
               <div className="px-4 pt-20 pb-3 space-y-3">
-                <BrowserActionPanel
-                  run={browserActionRun}
-                  events={browserActionTimeline}
-                  error={browserActionError}
-                  panelState={browserActionPanel}
-                  disabled={isLoading}
-                  modelLabel={selectedChatModel.label}
-                  providerId={selectedChatModel.providerId}
-                  modelId={selectedChatModel.modelId}
-                  requiresModelSelection={browserActionRequiresExplicitModel}
-                  onLaunch={(task) => void handleBrowserActionLaunch(task)}
-                  onPause={() => void handleRunControl("pause")}
-                  onResume={() => void handleRunControl("resume")}
-                  onCancel={() => void handleRunControl("cancel")}
-                  onApprovalResolve={(approvalId, resolution) =>
-                    void handleApprovalResolve(browserActionRun!.runId, approvalId, resolution)
+                <WorkflowLauncher
+                  activeWorkflowMode={activeWorkflowMode}
+                  onWorkflowModeChange={setActiveWorkflowMode}
+                  browserActionModel={browserActionModel}
+                  deepResearchModel={deepResearchModel}
+                  onBrowserActionModelChange={setBrowserActionModel}
+                  onDeepResearchModelChange={setDeepResearchModel}
+                  settingsSnapshot={settingsSnapshot}
+                  browserActionRun={browserActionStream.run}
+                  browserActionEvents={browserActionTimeline}
+                  browserActionError={browserActionError}
+                  browserActionPanel={browserActionPanel}
+                  onBrowserActionLaunch={(task) => void handleBrowserActionLaunch(task)}
+                  onBrowserActionPause={() => void handleRunControl("pause")}
+                  onBrowserActionResume={() => void handleRunControl("resume")}
+                  onBrowserActionCancel={() => void handleRunControl("cancel")}
+                  onBrowserActionApprovalResolve={(approvalId, resolution) =>
+                    void handleApprovalResolve(browserActionStream.run!.runId, approvalId, resolution)
                   }
-                />
-
-                <DeepResearchPanel
-                  run={deepResearchRun}
-                  events={deepResearchTimeline}
-                  error={deepResearchError}
-                  panelState={deepResearchPanel}
-                  disabled={isLoading}
-                  modelLabel={selectedChatModel.label}
-                  providerId={selectedChatModel.providerId}
-                  modelId={selectedChatModel.modelId}
-                  requiresModelSelection={browserActionRequiresExplicitModel}
-                  onLaunch={(topic, goal) => void handleDeepResearchLaunch(topic, goal)}
-                  onPause={() => void handleDeepResearchRunControl("pause")}
-                  onResume={() => void handleDeepResearchRunControl("resume")}
-                  onCancel={() => void handleDeepResearchRunControl("cancel")}
-                  onApprovalResolve={(approvalId, resolution) =>
-                    void handleApprovalResolve(deepResearchRun!.runId, approvalId, resolution)
+                  deepResearchRun={deepResearchStream.run}
+                  deepResearchEvents={deepResearchTimeline}
+                  deepResearchError={deepResearchError}
+                  deepResearchPanel={deepResearchPanel}
+                  onDeepResearchLaunch={(topic, goal) => void handleDeepResearchLaunch(topic, goal)}
+                  onDeepResearchPause={() => void handleDeepResearchRunControl("pause")}
+                  onDeepResearchResume={() => void handleDeepResearchRunControl("resume")}
+                  onDeepResearchCancel={() => void handleDeepResearchRunControl("cancel")}
+                  onDeepResearchApprovalResolve={(approvalId, resolution) =>
+                    void handleApprovalResolve(deepResearchStream.run!.runId, approvalId, resolution)
                   }
-                  onOpenPocket={(pocketId) => {
+                  onOpenResearchPocket={(pocketId) => {
                     setLinkedResearchPocketToOpen(pocketId);
                     setCurrentMode("ai-pocket");
                   }}
+                  disabled={isLoading}
                 />
 
                 {/* Run History Entry Point */}

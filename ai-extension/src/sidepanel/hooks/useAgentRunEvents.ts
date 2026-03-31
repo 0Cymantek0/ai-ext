@@ -94,8 +94,8 @@ export function useAgentRunEvents(runId: string | null): AgentRunStream {
   const [events, setEvents] = React.useState<AgentRunEvent[]>([]);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Track the active runId in a ref so the message listener always sees
-  // the latest value without causing re-subscription.
+  // Track the active runId in a ref so the async hydration can check
+  // for staleness without re-triggering.
   const activeRunIdRef = React.useRef<string | null>(null);
 
   // ── Hydration: request existing status when runId changes ────────────────
@@ -150,16 +150,17 @@ export function useAgentRunEvents(runId: string | null): AgentRunStream {
   }, [runId]);
 
   // ── Message listener: accept streaming events for the active runId ──────
+  // The listener re-registers when runId changes so it always has the correct
+  // runId in its closure. This avoids stale ref issues during initial setup.
 
   React.useEffect(() => {
     const listener = (message: { kind: string; payload: any }) => {
-      const currentRunId = activeRunIdRef.current;
-      if (!currentRunId) return;
+      if (!runId) return;
 
       switch (message.kind) {
         case "AGENT_RUN_STATUS": {
           const payload = message.payload as { run: AgentRun; events?: AgentRunEvent[] };
-          if (!payload?.run || payload.run.runId !== currentRunId) return;
+          if (!payload?.run || payload.run.runId !== runId) return;
 
           // Apply run update immediately
           setRun(payload.run);
@@ -171,7 +172,7 @@ export function useAgentRunEvents(runId: string | null): AgentRunStream {
 
         case "AGENT_RUN_EVENT": {
           const payload = message.payload as { event: AgentRunEvent };
-          if (!payload?.event || payload.event.runId !== currentRunId) return;
+          if (!payload?.event || payload.event.runId !== runId) return;
 
           // Append single event immediately — no batching
           setEvents((prev) => mergeAndBound(prev, [payload.event]));
@@ -184,7 +185,7 @@ export function useAgentRunEvents(runId: string | null): AgentRunStream {
     return () => {
       chrome.runtime.onMessage.removeListener(listener);
     };
-  }, []);
+  }, [runId]);
 
   // ── Derive timeline from events via selector ─────────────────────────────
 
