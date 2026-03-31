@@ -179,6 +179,65 @@ vi.mock("@/utils/konami-code-listener", () => ({
   stopKonamiCode: vi.fn(),
 }));
 
+// Select component mock — simplified for testing WorkflowLauncher's ModelSelector
+vi.mock("@/components/ui/select", () => ({
+  Select: ({ children, value, onValueChange, disabled }: any) => (
+    <div data-testid="model-select" data-value={value} data-disabled={String(disabled ?? false)}>
+      <select
+        value={value}
+        onChange={(e: any) => onValueChange?.(e.target.value)}
+        disabled={disabled}
+        data-testid="model-select-native"
+      >
+        {children}
+      </select>
+    </div>
+  ),
+  SelectTrigger: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  SelectContent: ({ children }: any) => <div>{children}</div>,
+  SelectItem: ({ children, value, ...props }: any) => (
+    <option value={value} {...props}>{children}</option>
+  ),
+  SelectValue: ({ children }: any) => <span>{children}</span>,
+  SelectGroup: ({ children }: any) => <div>{children}</div>,
+}));
+
+// Agent panel sub-component mocks (rendered inside BrowserActionPanel/DeepResearchPanel)
+vi.mock("@/sidepanel/components/AgentPanelLayout", () => ({
+  AgentPanelLayout: ({ children, header }: any) => (
+    <div>
+      <div>{header}</div>
+      {children}
+    </div>
+  ),
+}));
+
+vi.mock("@/sidepanel/components/AgentRunStatusBadge", () => ({
+  AgentRunStatusBadge: ({ status }: any) => (
+    <span>Status: {status}</span>
+  ),
+}));
+
+vi.mock("@/sidepanel/components/AgentRunControls", () => ({
+  AgentRunControls: () => null,
+}));
+
+vi.mock("@/sidepanel/components/AgentApprovalCard", () => ({
+  AgentApprovalCard: () => null,
+}));
+
+vi.mock("@/sidepanel/components/AgentTimeline", () => ({
+  AgentTimeline: () => null,
+}));
+
+vi.mock("@/sidepanel/components/RunHistoryPanel", () => ({
+  RunHistoryPanel: () => null,
+}));
+
+vi.mock("@/sidepanel/components/RunReviewPanel", () => ({
+  RunReviewPanel: () => null,
+}));
+
 import { ChatApp } from "@/sidepanel/ChatApp";
 
 const settingsSnapshot = {
@@ -252,6 +311,38 @@ describe("browser action launch", () => {
             },
             events: [],
           };
+        case "AGENT_RUN_STATUS": {
+          // useAgentRunEvents hydration — return run data for known runId
+          const statusPayload = (message as any).payload as { runId?: string };
+          if (statusPayload?.runId === "run-browser-action") {
+            return {
+              success: true,
+              run: {
+                runId: "run-browser-action",
+                mode: "browser-action",
+                status: "running",
+                phase: "planning",
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                todoItems: [],
+                pendingApproval: null,
+                artifactRefs: [],
+                latestCheckpointId: "cp-1",
+                terminalOutcome: null,
+                metadata: {
+                  task: "Inspect the pricing table",
+                  providerId: "provider-openai",
+                  providerType: "openai",
+                  modelId: "gpt-4.1-mini",
+                  conversationId: "conv-browser",
+                  tabId: 77,
+                },
+              },
+              events: [],
+            };
+          }
+          return { success: true, data: {} };
+        }
         default:
           return { success: true, data: {} };
       }
@@ -291,10 +382,17 @@ describe("browser action launch", () => {
       );
     });
 
+    // Select a model through the WorkflowLauncher's ModelSelector
+    const nativeSelect = screen.getByTestId("model-select-native");
     act(() => {
-      screen.getByText("select-browser-model").click();
+      Object.defineProperty(nativeSelect, "value", {
+        value: "provider-openai::gpt-4.1-mini",
+        writable: true,
+      });
+      fireEvent.change(nativeSelect);
     });
 
+    // Fill in the browser action task
     fireEvent.change(
       screen.getByPlaceholderText(
         "Open the current page, inspect the checkout flow, and report blockers.",
