@@ -18,7 +18,7 @@ Phase 6 settings follow-up work was completed on 2026-03-29 to stabilize provide
 - [ ] **Phase 10: Deep Research Orchestrator** - Build iterative research planning, source gathering, and mid-run synthesis
 - [ ] **Phase 11: Pocket Evidence Pipeline** - Make research pockets the live evidence store for agent findings and notes
 - [ ] **Phase 12: Citation-Backed Report Engine** - Generate dense multi-page reports grounded in captured evidence
-- [ ] **Phase 13: Agentic Side Panel Experience** - Unify launch flows, timelines, model selection, and run review UX
+- [x] **Phase 13: Agentic Side Panel Experience** - Unify launch flows, timelines, model selection, and run review UX (completed 2026-03-31)
 - [ ] **Phase 14: Model Capability and Workflow Guardrails** - Ensure every supported provider/model is capability-checked and safely routed for the chosen workflow
 - [ ] **Phase 15: Autonomous Evaluation and Regression Harness** - Prove browser-action and deep-research flows work end-to-end across supported scenarios
 - [ ] **Phase 16: MV3 Reliability, Performance, and Shipping Hardening** - Harden lifecycle, responsiveness, and maintainability for real-world use
@@ -131,8 +131,8 @@ Plans:
 Plans:
 - [x] 13-01-PLAN.md — Extract inline agent UI from ChatApp into BrowserActionPanel, DeepResearchPanel, and AgentPanelLayout components
 - [x] 13-02-PLAN.md — Build AgentTimeline, AgentTimelineEntry, RunHistoryPanel, and RunHistoryItem components for live events and historical run inspection
-- [ ] 13-03-PLAN.md — Create WorkflowTabs, ModelSelector, and WorkflowLauncher for unified workflow launch with model selection
-- [ ] 13-04-PLAN.md — Optimize event subscription with useAgentRunEvents hook and service worker event batching for non-blocking UX
+- [x] 13-03-PLAN.md — Create WorkflowTabs, ModelSelector, and WorkflowLauncher for unified workflow launch with model selection
+- [x] 13-04-PLAN.md — Optimize event subscription with useAgentRunEvents hook and service worker event batching for non-blocking UX
 **UI hint**: yes
 
 ### Phase 14: Model Capability and Workflow Guardrails
@@ -181,7 +181,7 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13 -> 14 -> 15
 | 10. Deep Research Orchestrator | 0/TBD | Not started | - |
 | 11. Pocket Evidence Pipeline | 0/TBD | Not started | - |
 | 12. Citation-Backed Report Engine | 0/TBD | Not started | - |
-| 13. Agentic Side Panel Experience | 2/4 | In Progress|  |
+| 13. Agentic Side Panel Experience | 4/4 | Complete   | 2026-03-31 |
 | 14. Model Capability and Workflow Guardrails | 0/TBD | Not started | - |
 | 15. Autonomous Evaluation and Regression Harness | 0/TBD | Not started | - |
 | 16. MV3 Reliability, Performance, and Shipping Hardening | 0/TBD | Not started | - |

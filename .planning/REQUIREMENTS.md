@@ -60,7 +60,7 @@ Requirements for the autonomous browser agent and deep research milestone. Each 
 - [x] **UX-02**: Side panel shows a live run timeline including plan steps, tool calls, evidence writes, approvals, and errors
 - [x] **UX-03**: Side panel exposes distinct entry points for browser-action tasks and deep-research projects
 - [x] **UX-04**: User can reopen historical runs and understand what happened, what was collected, and how the run ended
-- [ ] **UX-05**: Agent experience remains responsive during long-running sessions and does not block core pocket browsing
+- [x] **UX-05**: Agent experience remains responsive during long-running sessions and does not block core pocket browsing
 
 ### Multi-Model Capability Guardrails
 
@@ -138,7 +138,7 @@ Explicitly excluded to prevent scope creep in this milestone.
 | UX-02 | Phase 13 | Complete |
 | UX-03 | Phase 13 | Complete |
 | UX-04 | Phase 13 | Complete |
-| UX-05 | Phase 13 | Pending |
+| UX-05 | Phase 13 | Complete |
 | COMPAT-01 | Phase 14 | Pending |
 | COMPAT-02 | Phase 14 | Pending |
 | COMPAT-03 | Phase 14 | Pending |
